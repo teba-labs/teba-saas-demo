@@ -1,6 +1,6 @@
 ﻿{
-  "name": "معمل النور - AL NOOR LABS",
-  "short_name": "النور",
+  "name": "LAB SYSTEM - نظام إدارة المعامل",
+  "short_name": "LAB SYSTEM",
   "description": "النظام الذكي لإدارة المعامل والتحاليل الطبية",
   "start_url": "./index.html",
   "display": "standalone",
