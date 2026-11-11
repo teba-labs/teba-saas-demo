@@ -1,0 +1,368 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https: *; connect-src *;">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>معمل النور | AL NOOR LABS</title>
+
+<!-- PWA Tags -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#22c55e">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+<style>
+  body, h1, h2, h3, h4, h5, p, a, button, input, select, textarea { font-family: 'Almarai', sans-serif !important; }
+</style>
+
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="stylesheet" href="styles.css?v=151">
+
+<!-- مكتبة السحابة وملف الإعدادات -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js?v=151"></script>
+</head>
+<body>
+
+<div class="offers-bar" id="offersBar">
+  <div class="offers-track" id="offersTrack"></div>
+</div>
+
+<header class="top-bar">
+  <div class="nav-row">
+    <button class="action-btn" id="toggleRight" aria-label="فتح القائمة"><span>☰</span><span class="label">القائمة</span></button>
+    <a href="#" class="brand" onclick="showSection('home');return false;" style="display: flex; justify-content: center; align-items: center; padding: 5px 0;">
+      <img src="brand-logo.png" alt="Logo" style="height: 65px; width: auto; max-width: 100%; object-fit: contain;" fetchpriority="high" width="200" height="65" onerror="this.style.display='none'">
+    </a>
+    <div class="top-actions">
+      <button class="action-btn" id="pwaInstallBtn" onclick="installPWA()" style="display: none; background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border-color: #38bdf8;">
+        📲 تثبيت التطبيق
+      </button>
+
+      <button class="action-btn icon-btn" id="themeToggle" aria-label="تبديل المظهر">🌙</button>
+      <button class="action-btn gold" id="toggleLeft" aria-label="فتح روشتتي">
+        <span>📋</span><span class="label">روشتتي</span>
+        <span class="badge-num" id="cartBadge" style="display:none">0</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="sidebar-overlay" id="overlay"></div>
+
+<div class="layout">
+  <!-- القائمة الجانبية اليمين (الأقسام) -->
+  <aside class="sidebar-right" id="sidebarRight">
+    <h3><span>📋 الأقسام</span><button onclick="closeAllSidebars()" aria-label="إغلاق">✕</button></h3>
+    <ul class="nav-list">
+      <li><a onclick="showSection('home')" class="active" data-section="home" tabindex="0">🏠 الرئيسية</a></li>
+      <li><a onclick="showSection('packages')" data-section="packages" tabindex="0">📦 باقات الفحص</a></li>
+      <li><a onclick="showSection('tests')" data-section="tests" tabindex="0">🔬 التحاليل والأسعار</a></li>
+      <li><a onclick="showSection('booking')" data-section="booking" tabindex="0">🏠 سحب من المنزل</a></li>
+      <li><a onclick="showSection('about')" data-section="about" tabindex="0">ℹ️ عن المعمل</a></li>
+      <li><a onclick="showSection('features')" data-section="features" tabindex="0">⭐ خدماتنا</a></li>
+      <li><a onclick="showSection('offers')" data-section="offers" tabindex="0">🎉 العروض والخصومات</a></li>
+      <li><a onclick="showSection('results')" data-section="results" tabindex="0">📄 استلام النتائج</a></li>
+      <li><a onclick="showSection('branches')" data-section="branches" tabindex="0">📍 الفروع</a></li>
+      <li><a onclick="showSection('faq')" data-section="faq" tabindex="0">❓ الأسئلة الشائعة</a></li>
+      <li><a onclick="showSection('medical')" data-section="medical" tabindex="0">🩺 معلومات طبية</a></li>
+      <li><a onclick="showSection('contact')" data-section="contact" tabindex="0">📞 تواصل معنا</a></li>
+    </ul>
+  </aside>
+
+  <main class="main-content">    <!-- 1. القسم الرئيسي (Home) -->
+    <section id="section-home" class="section active">
+      <div class="hero-split reveal">
+        <div class="hero-content">
+          <div class="greeting" id="greeting">👋 أهلًا بيك في <span class="dyn-lab-name">معمل النور</span></div>
+          <h2>دقة تطمنك، ونتيجة <span>تطمن عليك</span></h2>
+          <p><span class="dyn-lab-name">معمل النور</span> - AL NOOR LABS، بإشراف <span class="dyn-doctor-name">إدارة المعمل</span>. نقدم تحاليل طبية بأحدث الأجهزة العالمية، سحب من المنزل بالحجز المسبق، ونتائج سريعة تضمن لك الاطمئنان.</p>
+          <div class="hero-buttons">
+            <a href="#" class="btn-wa dyn-wa-link">💬 احجز واتساب</a>
+            <a onclick="showSection('packages')" class="btn-gold" tabindex="0">📦 شوف الباقات</a>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-box"><div class="num"><span class="counter" data-target="2">0</span></div><div class="lbl">فرع لخدمتك</div></div>
+            <div class="stat-box"><div class="num"><span class="counter" data-target="25">0</span>%</div><div class="lbl">خصم الباقات</div></div>
+            <div class="stat-box"><div class="num"><span class="counter" data-target="495">0</span>+</div><div class="lbl">تحليل متوفر</div></div>
+          </div>
+        </div>
+        <div class="hero-image-wrapper">
+          <div class="hero-image-box"><img src="https://images.unsplash.com/photo-1579154204601-01588f351e67?q=80&w=800&auto=format&fit=crop" alt="Lab - أجهزة تحاليل" loading="eager" fetchpriority="high" width="800" height="533"></div>
+        </div>
+      </div>
+      <div class="trust-strip reveal" id="trustStrip"></div>
+      <div class="section-head reveal" style="margin-top:50px"><h2>ليه تختار <span class="dyn-lab-name">معمل النور؟</span></h2><p>مزايا تجعلنا الخيار الأول</p></div>
+      <div class="features-grid">
+        <div class="feature-card glass-card reveal"><div class="icon">🏠</div><h4>سحب من المنزل</h4><p>سحب من المنزل بالحجز المسبق ووفق مواعيد الخدمة المتاحة.</p></div>
+        <div class="feature-card glass-card reveal"><div class="icon">⚡</div><h4>نتائج سريعة</h4><p>معظم التحاليل نتائجها في نفس اليوم.</p></div>
+        <div class="feature-card glass-card reveal"><div class="icon">📦</div><h4>باقات موفرة</h4><p>باقات فحص شامل بخصم يصل إلى 25%.</p></div>
+        <div class="feature-card glass-card reveal"><div class="icon">💰</div><h4>أسعار مناسبة</h4><p>كاش أو محفظة إلكترونية.</p></div>
+        <div class="feature-card glass-card reveal"><div class="icon">👨‍⚕️</div><h4>إشراف طبي</h4><p class="dyn-doctor-text">إشراف إدارة المعمل.</p></div>
+        <div class="feature-card glass-card reveal"><div class="icon">📄</div><h4>نتائج عبر واتساب</h4><p>استلم نتيجتك بضغطة واحدة.</p></div>
+      </div>
+      <div class="section-head reveal" style="margin-top:50px"><h2>💬 آراء <span>عملائنا</span></h2><p>ثقة عملائنا هي سر نجاحنا</p></div>
+      <div class="testimonials-wrapper reveal"><div class="testimonials-track" id="testimonialsTrack"></div></div>
+      <div class="testimonials-nav"><button onclick="slideTestimonials(-1)" aria-label="السابق">❮</button><button onclick="slideTestimonials(1)" aria-label="التالي">❯</button></div>
+    </section>    <!-- 2. قسم الباقات (Packages) -->
+    <section id="section-packages" class="section">
+      <div class="section-head"><h2>📦 باقات <span>الفحص الشامل</span></h2><p>وفر 25% مع الباقات المتخصصة — الأسعار شاملة كل الرسوم</p></div>
+      <div class="packages-grid" id="packagesGrid"></div>
+      <p style="text-align:center;color:var(--text-muted);font-size:.82rem;margin-top:10px;opacity:.8">* الأسعار قابلة للتحديث بدون إشعار مسبق</p>
+    </section>
+
+    <!-- 3. قسم التحاليل والأسعار (Tests) -->
+    <section id="section-tests" class="section">
+      <div class="section-head"><h2>التحاليل <span>والأسعار</span></h2><p>اضغط "!" لمعرفة شروط التحليل قبل الحجز</p></div>
+      <div class="tests-controls">
+        <div class="search-box"><input type="text" id="searchInput" placeholder="ابحث بالعربي أو الإنجليزي..." name="search"><button class="search-clear" id="searchClear">✕</button></div>
+        <div class="view-toggle" id="viewToggle"><button data-view="featured" class="active">الأكثر طلباً</button><button data-view="core">الأساسية</button><button data-view="all">كل التحاليل</button></div>
+        <div class="cats" id="catsBox"></div>
+      </div>
+      <div class="results-info">عدد النتائج: <strong id="resultsCount">0</strong> تحليل</div>
+      <div class="tests-grid" id="testsGrid"></div>
+    </section>
+
+    <!-- 4. قسم حجز السحب من المنزل (Booking) -->
+    <section id="section-booking" class="section">
+      <div class="section-head"><h2>🏠 حجز <span>سحب من المنزل</span></h2><p>اطلب سحب عينة من منزلك بالحجز المسبق</p></div>
+      <div class="booking-container">
+        <div class="booking-steps">
+          <div class="booking-step active" data-step="1"><div class="step-num">1</div><div class="step-label">بياناتك</div></div>
+          <div class="booking-step" data-step="2"><div class="step-num">2</div><div class="step-label">العنوان</div></div>
+          <div class="booking-step" data-step="3"><div class="step-num">3</div><div class="step-label">الموعد</div></div>
+          <div class="booking-step" data-step="4"><div class="step-num">4</div><div class="step-label">التأكيد</div></div>
+        </div>
+        <div class="booking-page active" data-step="1"><h3>بياناتك الأساسية</h3><input type="text" id="bkName" placeholder="الاسم بالكامل" required><input type="tel" id="bkPhone" placeholder="رقم الموبايل" required><div class="booking-nav"><button class="btn-next" onclick="goToBookingStep(2)">التالي ←</button></div></div>
+        <div class="booking-page" data-step="2"><h3>عنوان السحب</h3><select id="bkGovernorate"><option value="القليوبية">القليوبية</option><option value="القاهرة">القاهرة</option><option value="الجيزة">الجيزة</option></select><input type="text" id="bkArea" placeholder="المنطقة / الحي" required><textarea id="bkAddress" placeholder="العنوان بالتفصيل" required></textarea><div class="booking-nav"><button class="btn-prev" onclick="goToBookingStep(1)">→ السابق</button><button class="btn-next" onclick="goToBookingStep(3)">التالي ←</button></div></div>
+        <div class="booking-page" data-step="3"><h3>الموعد المناسب</h3><input type="date" id="bkDate" required><select id="bkTime"><option value="11:00 ص">11:00 ص</option><option value="12:00 م">12:00 م</option><option value="4:00 م">4:00 م</option></select><textarea id="bkNotes" placeholder="ملاحظات إضافية"></textarea><div class="booking-nav"><button class="btn-prev" onclick="goToBookingStep(2)">→ السابق</button><button class="btn-next" onclick="goToBookingStep(4)">التالي ←</button></div></div>
+        <div class="booking-page" data-step="4"><h3>تأكيد الحجز</h3><div id="bookingSummary"></div><div class="booking-nav"><button class="btn-prev" onclick="goToBookingStep(3)">→ السابق</button><button class="btn-next" onclick="submitBooking()">💬 تأكيد وإرسال على واتساب</button></div></div>
+      </div>
+    </section>
+
+    <!-- 5. قسم عن المعمل (About) -->
+    <section id="section-about" class="section">
+      <div class="section-head"><h2>نبذة عن <span class="dyn-lab-name">معمل النور</span></h2></div>
+      <div class="about-box">
+        <p><span class="dyn-lab-name">معمل النور</span> هو معمل تحاليل طبية متخصص يقدم خدمات التحاليل بأعلى جودة ودقة. بإدارة <strong class="dyn-doctor-name">إدارة المعمل</strong>، نلتزم بأحدث المعايير العالمية لضمان نتائج موثوقة.</p>
+        <p>نخدم عملائنا من خلال فروعنا المعتمدة بأحدث الأجهزة وأمهر الفنيين لضمان راحتك ودقة نتائجك.</p>
+      </div>
+    </section>
+
+    <!-- 6. قسم خدماتنا (Features) -->
+    <section id="section-features" class="section">
+      <div class="section-head"><h2>خدماتنا <span>المميزة</span></h2><p>كل ما تحتاجه من خدمات التحاليل الطبية في مكان واحد</p></div>
+      <div class="features-grid">
+        <div class="feature-card glass-card"><div class="icon">🏠</div><h4>سحب من المنزل</h4><p>سحب من المنزل بالحجز المسبق ووفق مواعيد الخدمة المتاحة.</p></div>
+        <div class="feature-card glass-card"><div class="icon">⚡</div><h4>نتائج سريعة</h4><p>نفس اليوم لمعظم التحاليل.</p></div>
+        <div class="feature-card glass-card"><div class="icon">📦</div><h4>باقات موفرة</h4><p>خصم 25% على باقات الفحص الشامل.</p></div>
+        <div class="feature-card glass-card"><div class="icon">💰</div><h4>أسعار مناسبة</h4><p>كاش أو محفظة إلكترونية.</p></div>
+        <div class="feature-card glass-card"><div class="icon">👨‍⚕️</div><h4>إشراف طبي</h4><p class="dyn-doctor-text">إدارة المعمل.</p></div>
+        <div class="feature-card glass-card"><div class="icon">📄</div><h4>نتائج عبر واتساب</h4><p>بضغطة واحدة.</p></div>
+      </div>
+    </section>
+
+    <!-- 7. قسم العروض (Offers) -->
+    <section id="section-offers" class="section">
+      <div class="section-head"><h2>🎉 العروض <span>والخصومات</span></h2></div>
+      <div class="offer-box" id="offerActive" style="background:linear-gradient(135deg, #0a2e15, #15803d); border-radius:20px; padding:40px 20px; text-align:center; color:#fff; border:1px solid var(--border-glow);">
+        <div class="pct" id="offerPct" style="font-size:3.5rem; font-weight:900; color:#fef08a; line-height:1; margin-bottom:10px;">15%</div>
+        <h3 id="offerTitle" style="font-size:1.8rem; margin-bottom:15px; color:#fff;">خصم خاص</h3>
+        <p id="offerDesc" style="font-size:1.1rem; margin-bottom:20px; color:#e2e8f0;">خصم على كل التحاليل</p>
+        <div class="badge-white" id="offerPeriod" style="display:inline-block; background:rgba(255,255,255,0.1); padding:8px 20px; border-radius:50px; font-size:0.9rem; margin-bottom:30px;">📅 طوال الشهر</div>
+        <div><a id="offerCta" href="#" class="btn-wa dyn-wa-link" style="font-size:1.1rem; padding:15px 40px;">💬 احجز الآن واستفيد</a></div>
+      </div>
+      <div class="offer-box" id="offerExpired" style="display:none;background:linear-gradient(135deg,#6b7280,#4b5563); border-radius:20px; padding:40px 20px; text-align:center; color:#fff;">
+        <div style="font-size:4rem;margin-bottom:15px">⏰</div>
+        <h3 style="font-size:1.8rem; margin-bottom:10px;">انتهى العرض الحالي</h3>
+        <p style="font-size:1.1rem; margin-bottom:20px;">تابعنا لمعرفة العروض الجديدة القادمة</p>
+        <div style="margin-top:20px"><a href="#" class="btn-wa dyn-wa-link" style="padding:12px 30px;">💬 تواصل للاستفسار</a></div>
+      </div>
+    </section>
+
+    <!-- 8. قسم استلام النتائج (Results) -->
+    <section id="section-results" class="section">
+      <div class="section-head"><h2>📄 استلام <span>النتائج</span></h2><p>أدخل بياناتك لاستلام نتيجتك</p></div>
+      <div class="results-form">
+        <h3>استعلام عن نتيجة</h3>
+        <p class="sub">أدخل الاسم بالكامل ورقم الزيارة (ID) لعرض النتيجة</p>
+        <input type="text" id="rName" placeholder="الاسم بالكامل (كما في المعمل)" onkeydown="if(event.key==='Enter') fetchPatientResult()">
+        <input type="text" id="rId" placeholder="رقم الزيارة / الفاتورة" onkeydown="if(event.key==='Enter') fetchPatientResult()">
+        <button onclick="fetchPatientResult()">🔍 عرض النتيجة</button>
+      </div>
+    </section>    <!-- 9. قسم الفروع (Branches) - بيتم تحميله ديناميكياً من السحابة -->
+    <section id="section-branches" class="section">
+      <div class="section-head"><h2>📍 فروعنا</h2><p>نخدمك في كل مكان</p></div>
+      <div class="branches-grid" id="branchesGrid">
+          <p style="text-align:center; width: 100%; color: var(--text-muted);">جاري تحميل الفروع...</p>
+      </div>
+    </section>
+
+    <!-- 10. قسم الأسئلة الشائعة (FAQ) -->
+    <section id="section-faq" class="section">
+      <div class="section-head"><h2>❓ الأسئلة <span>الشائعة</span></h2></div>
+      <details class="faq-item"><summary>إمتى هتستلم نتيجة التحليل؟</summary><p>معظم التحاليل الروتينية في نفس اليوم. المتخصصة من 24-72 ساعة. المزارع من 3-5 أيام.</p></details>
+      <details class="faq-item"><summary>هل يوجد سحب من المنزل؟</summary><p>نعم، سحب من المنزل متاح بالحجز المسبق ووفق مواعيد الخدمة المتاحة.</p></details>
+      <details class="faq-item"><summary>إيه طرق الدفع المتاحة؟</summary><p>كاش أو محفظة إلكترونية.</p></details>
+      <details class="faq-item"><summary>هل لازم صيام قبل التحليل؟</summary><p>بعض التحاليل فقط تحتاج صيام 8-12 ساعة. اضغط على زر "!" جنب أي تحليل لمعرفة شروطه بالتفصيل.</p></details>
+      <details class="faq-item"><summary>إيه الفرق بين الباقة والتحليل الفردي؟</summary><p>الباقة توفر لك مجموعة تحاليل بسعر مخفض (خصم 25%)، بدل ما تحجز كل تحليل لوحده بالسعر الكامل.</p></details>
+    </section>
+
+    <!-- 11. قسم المعلومات الطبية (Medical) -->
+    <section id="section-medical" class="section">
+      <div class="section-head"><h2>🩺 معلومات <span>طبية</span></h2><p>كل ما تريد معرفته عن التحاليل الطبية وأهميتها</p></div>
+      <div class="med-info-header"><div class="badge-med">معلومات موثوقة</div><h3>أهمية الالتزام بشروط التحاليل الطبية</h3><p>الالتزام بشروط التحضير قبل التحليل هو الخطوة الأهم للحصول على نتائج دقيقة. أي خطأ في التحضير قد يؤدي إلى نتائج خاطئة تؤثر على تشخيص حالتك وعلاجك.</p></div>
+      <div class="warning-box"><div class="warn-icon">⚠️</div><div><h4>تحذير مهم</h4><p>لا توقف أي دواء أو تغير نظامك الغذائي قبل التحليل إلا بعد استشارة طبيبك المعالج. بعض الأدوية يمكن أن تؤثر على نتائج التحاليل.</p></div></div>
+      <div class="articles-grid" id="medicalArticlesGrid"></div>
+      
+      <!-- مودال المقالات الطبية -->
+      <div class="modal-art" id="articleModal" role="dialog" aria-modal="true">
+        <div class="modal-art-content">
+          <button class="close-art" onclick="closeArticle()" aria-label="إغلاق">✕</button>
+          <h3 id="articleTitle"></h3>
+          <div id="articleBody"></div>
+          <div class="source-note" id="articleSource"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. قسم تواصل معنا (Contact) -->
+    <section id="section-contact" class="section">
+      <div class="section-head"><h2>📞 تواصل <span>معنا</span></h2></div>
+      <div class="contact-grid">
+        <div class="contact-card"><div class="ico">📞</div><h4>هاتف</h4><a href="#" class="dyn-phone"></a></div>
+        <div class="contact-card"><div class="ico">💬</div><h4>واتساب</h4><a href="#" class="dyn-wa-link"></a></div>
+        <div class="contact-card"><div class="ico">📘</div><h4>فيسبوك</h4><a href="#" class="dyn-fb-link">صفحة المعمل</a></div>
+        <div class="contact-card"><div class="ico">📍</div><h4>العنوان</h4><p class="dyn-address"></p></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- القائمة الجانبية الشمال (روشتتي) -->
+  <aside class="sidebar-left" id="sidebarLeft">
+    <h3><span>📋 روشتتي</span><button onclick="closeAllSidebars()" aria-label="إغلاق">✕</button></h3>
+    <div id="cartContent"><div class="cart-empty"><div>📋</div>روشتتك فاضية<br><small>اضغط "أضف" على أي تحليل أو باقة</small></div></div>
+  </aside>
+</div><!-- الأزرار العائمة (Floating Buttons) -->
+<div class="floating-buttons-container">
+    <a class="float-wa pulse-wa dyn-wa-link" href="#" title="واتساب">💬</a>
+    <a class="float-emergency dyn-wa-link" href="#" title="تحليل عاجل">🚨 تحليل عاجل</a>
+    <button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">⬆</button>
+</div>
+
+<!-- نافذة العرض المنبثقة (Popup) -->
+<div class="popup-overlay" id="offerPopup">
+  <div class="popup-content">
+    <button class="popup-close" onclick="closePopupOffer()">✕</button>
+    <div class="popup-icon">🎁</div>
+    <h2>عرض خاص!</h2>
+    <p>احصل على خصم <strong class="dyn-popup-discount">15%</strong> على باقات الفحص الشامل عند حجزك اليوم.</p>
+    <a href="#" onclick="showSection('packages'); closePopupOffer(); return false;" class="btn-primary">تصفح الباقات الآن</a>
+  </div>
+</div>
+
+<!-- الفوتر (Footer) -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <h4><span class="dyn-lab-name">معمل النور</span> | AL NOOR LABS</h4>
+      <p class="dyn-doctor-name">إدارة المعمل</p>
+      <p>تحاليل طبية دقيقة</p>
+      <p>سحب من المنزل بالحجز المسبق</p>
+      <div class="social-row">
+        <a href="#" class="dyn-wa-link" title="واتساب">💬</a>
+        <a href="#" class="dyn-fb-link" title="فيسبوك">📘</a>
+        <a href="#" class="dyn-phone" title="هاتف">📞</a>
+      </div>
+    </div>
+    <div>
+      <h4>روابط سريعة</h4>
+      <a onclick="showSection('packages')" tabindex="0">باقات الفحص</a>
+      <a onclick="showSection('tests')" tabindex="0">التحاليل والأسعار</a>
+      <a onclick="showSection('booking')" tabindex="0">سحب من المنزل</a>
+      <a onclick="showSection('offers')" tabindex="0">العروض والخصومات</a>
+      <a onclick="showSection('results')" tabindex="0">استلام النتائج</a>
+      <a onclick="showSection('medical')" tabindex="0">معلومات طبية</a>
+    </div>
+    <div>
+      <h4>الفروع</h4>
+      <p class="dyn-address">جاري تحميل العناوين...</p>
+    </div>
+    <div>
+      <h4>تواصل</h4>
+      <p class="dyn-phone"></p>
+      <p class="dyn-wa-link"></p>
+      <p class="dyn-address"></p>
+    </div>
+  </div>
+  <div class="copyright">
+    © <span id="year"></span> <span class="dyn-lab-name">معمل النور</span> - AL NOOR LABS. جميع الحقوق محفوظة.
+    <div class="footer-legal">
+      <a onclick="openLegal('privacy')">سياسة الخصوصية</a>
+      <a onclick="openLegal('terms')">شروط الاستخدام</a>
+      <a onclick="openLegal('refund')">سياسة الاسترداد</a>
+    </div>
+  </div>
+</footer>
+
+<!-- نافذة عرض النتيجة (مخفية افتراضياً) -->
+<div id="resultModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9999; padding:20px; overflow-y:auto;">
+    <div style="background:#fff; color:#000; max-width:800px; margin:0 auto; padding:20px; border-radius:10px;" id="print-area">
+        <!-- سيتم حقن النتيجة هنا -->
+    </div>
+    <div style="text-align:center; margin-top:20px; display:flex; justify-content:center; gap:10px;">
+        <button onclick="downloadPDF()" style="background:#16a34a; color:#fff; padding:12px 30px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:1.1rem;">📥 تحميل النتيجة PDF</button>
+        <button onclick="document.getElementById('resultModal').style.display='none'" style="background:#dc2626; color:#fff; padding:12px 30px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:1.1rem;">✕ إغلاق</button>
+    </div>
+</div>
+
+<!-- مكتبة تحويل الشاشة لـ PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<!-- الملفات الأساسية للواجهة -->
+<script src="data.js?v=151" defer></script>
+<script src="app.js?v=151" defer></script>
+<script src="features.js?v=151" defer></script>
+<!-- ربط ملف الفروع الجديد -->
+<script src="site_dynamic.js?v=152" defer></script>
+<script src="patient_portal.js?v=152" defer></script>
+
+<!-- سكريبت تفعيل الـ PWA وتثبيت التطبيق -->
+<script>
+  // تفعيل Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(reg => console.log('✅ Service Worker Registered'))
+        .catch(err => console.warn('SW registration failed:', err));
+    });
+  }
+
+  // تثبيت التطبيق (PWA Install Prompt)
+  let deferredPrompt;
+  const pwaInstallBtn = document.getElementById('pwaInstallBtn');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (pwaInstallBtn) pwaInstallBtn.style.display = 'flex'; // إظهار الزرار في الهيدر
+  });
+
+  window.installPWA = async function() {
+    if (!deferredPrompt) {
+      alert('التطبيق مثبت بالفعل أو متصفحك لا يدعم هذه الميزة.');
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      if (pwaInstallBtn) pwaInstallBtn.style.display = 'none';
+    }
+    deferredPrompt = null;
+  };
+</script>
+
+</body>
+</html>

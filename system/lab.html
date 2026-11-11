@@ -1,0 +1,173 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المعمل الذكي | معمل النور</title>
+    <link rel="icon" type="image/png" href="../logo.png">
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#0a6847">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <script src="config.js?v=151"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <link rel="stylesheet" href="lab.css?v=151">
+</head>
+<body>
+
+    <header>
+        <div class="brand-info" id="brandInfo">🔬 المعمل - جاري التحميل...</div>
+        <div class="header-actions">
+            <button id="themeToggleBtn" onclick="toggleTheme()" title="تغيير المظهر" style="background:transparent; border:none; font-size:1.2rem; cursor:pointer; color:var(--text);">🌙</button>
+
+            <select id="labBranch" class="branch-selector" onchange="changeLabBranch(this.value)">
+                <option value="1">🏥 الفرع الأول</option>
+                <option value="2">🏥 الفرع الثاني</option>
+            </select>
+
+            <button class="nav-btn btn-sync" id="syncBtn" onclick="processOutbox()">🔄 مزامنة</button>
+            <button class="nav-btn btn-whatsapp" onclick="sendLabWhatsApp()" title="إرسال رسالة للمريض">💬 واتساب</button>
+            <button class="nav-btn btn-back-reception" onclick="window.location.href='reception.html'">🏥 الاستقبال</button>
+            <button class="nav-btn btn-home" onclick="window.location.href='home.html'">🏠 الرئيسية</button>
+            <button class="nav-btn btn-publish" id="btnPublishVisit" onclick="publishVisit()" style="display:none;">🌐 نشر النتائج</button>
+            <button class="nav-btn btn-print" onclick="openPrintModal()">👁️ معاينة التقرير</button>
+            <button class="nav-btn btn-pdf" id="btnDownloadPdf" onclick="downloadPDF()" style="display:none;">📥 تحميل PDF</button>
+        </div>
+    </header>
+
+    <div id="toast">✅ تم الحفظ</div>
+    <audio id="notifSound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
+
+    <div class="main-grid">
+        <div class="panel">
+            <div class="panel-header">طابور المرضى (آخر 100 زيارة)</div>
+            <div class="patient-list" id="patientList"><div class="empty-msg">جاري التحميل...</div></div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">التحاليل الفردية (Single)</div>
+            <div class="selector-area">
+                <select class="custom-select" id="singleTestSelect">
+                    <option value="">-- اختر تحليلاً لإضافته للطلب --</option>
+                </select>
+            </div>
+            <div class="ordered-tests-list" id="singleTestsContainer">
+                <div class="empty-msg">اختر مريضاً لعرض التحاليل المطلوبة</div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">التحاليل المركبة (Profiles)</div>
+            <div class="selector-area">
+                <select class="custom-select" id="profileTestSelect">
+                    <option value="">-- اختر بروفايل لإضافته للطلب --</option>
+                </select>
+            </div>
+            <div class="ordered-tests-list" id="profileTestsContainer">
+                <div class="empty-msg">اختر مريضاً لعرض التحاليل المطلوبة</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تسجيل نتيجة الفردي -->
+    <div class="modal" id="singleResultModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="singleModalTitle">🧪 تسجيل نتيجة</h3>
+                <button class="btn-del-test" style="padding:5px 15px;" onclick="document.getElementById('singleResultModal').style.display='none'">✕ إغلاق</button>
+            </div>
+            <div class="modal-body" id="singleResultArea"></div>
+            <div style="padding: 15px; border-top: 1px solid var(--border-color); background: var(--bg-input); text-align: center;">
+                <button class="btn-save-test" style="max-width: 300px; margin: 0 auto; display: block;" id="btnSaveSingleResult">💾 حفظ النتيجة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تسجيل نتيجة البروفايل -->
+    <div class="modal" id="profileResultModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3 id="profileModalTitle">🧬 تسجيل نتائج البروفايل</h3>
+                <button class="btn-del-test" style="padding:5px 15px;" onclick="document.getElementById('profileResultModal').style.display='none'">✕ إغلاق</button>
+            </div>
+            <div class="modal-body" id="profileResultsArea"></div>
+            <div style="padding: 15px; border-top: 1px solid var(--border-color); background: var(--bg-input); text-align: center;">
+                <button class="btn-save-test" style="max-width: 300px; margin: 0 auto; display: block;" id="btnSaveProfileResult">💾 حفظ نتائج البروفايل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال تعديل المريض -->
+    <div class="modal" id="editPatientModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>✏️ تعديل بيانات المريض</h3>
+                <button class="btn-del-test" style="padding:5px 15px;" onclick="document.getElementById('editPatientModal').style.display='none'">✕ إغلاق</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editPatientId">
+                <input type="hidden" id="editVisitId">
+                <div class="form-group-modal"><label>رقم الزيارة (لا يمكن تعديله)</label><input type="text" id="editVisitIdDisplay" disabled style="background:var(--bg-input); cursor:not-allowed; opacity:0.7;"></div>
+                <div class="form-group-modal"><label>اسم المريض</label><input type="text" id="editPName"></div>
+                <div class="form-group-modal"><label>رقم التليفون</label><input type="text" id="editPPhone"></div>
+                <div class="form-group-modal"><label>الطبيب المحول</label><input type="text" id="editPDoctor"></div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <div class="form-group-modal"><label>العمر</label><input type="number" id="editPAge"></div>
+                    <div class="form-group-modal"><label>الوحدة</label><select id="editPAgeType"><option value="Years">سنوات</option><option value="Months">شهور</option><option value="Days">أيام</option></select></div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <div class="form-group-modal"><label>النوع</label><select id="editPGender"><option value="male">ذكر</option><option value="female">أنثى</option></select></div>
+                    <div class="form-group-modal"><label>الفرع</label><select id="editPBranch"><option value="1">الفرع الأول</option><option value="2">الفرع الثاني</option></select></div>
+                </div>
+                <button class="btn-save-test" style="width: 100%; margin-top: 15px; padding: 15px;" onclick="savePatientEdit()">💾 حفظ التعديلات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال الطباعة -->
+    <div class="modal" id="printModal">
+        <div class="modal-content" style="background: #e0e0e0; max-width: 1000px; padding: 20px;">
+            <div id="print-area" style="direction: ltr; text-align: left; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000; width: 100%;"></div>
+            <button class="btn-print-modal" onclick="window.print()">🖨️ Print Now</button>
+        </div>
+    </div>
+
+    <script src="lab.js?v=151"></script>
+    
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('../service-worker.js').then(reg => {
+            reg.onupdatefound = () => {
+              const installingWorker = reg.installing;
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed') {
+                  if (navigator.serviceWorker.controller) {
+                    window.location.reload();
+                  }
+                }
+              };
+            };
+          }).catch(err => console.warn('SW Error:', err));
+        });
+      }
+
+      const themeBtn = document.getElementById('themeToggleBtn');
+      if (themeBtn) {
+          const currentTheme = localStorage.getItem('teba_theme') || 'light';
+          if (currentTheme === 'dark') { document.body.classList.add('dark-mode'); themeBtn.innerText = '☀️'; }
+          window.toggleTheme = function() {
+              document.body.classList.toggle('dark-mode');
+              const isDark = document.body.classList.contains('dark-mode');
+              localStorage.setItem('teba_theme', isDark ? 'dark' : 'light');
+              themeBtn.innerText = isDark ? '☀️' : '🌙';
+          };
+      }
+    </script>
+</body>
+</html>

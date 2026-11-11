@@ -1,0 +1,709 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة التحاليل | معمل النور</title>
+    
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#0a6847">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <script src="config.js?v=151"></script>
+    
+    <style>
+        :root {
+            --bg: #f4f7f6; --surface: #ffffff; --surface-hover: #f8fafc;
+            --primary: #0a6847; --primary-hover: #085a3d; --primary-light: #10b981;
+            --accent: #3498db; --gold: #d4a843; --danger: #e74c3c; --warning: #f39c12;
+            --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0;
+            --font: 'Almarai', sans-serif; --radius: 12px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.04);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font); background-color: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        header { background: var(--surface); color: var(--text); display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); z-index: 10; border-bottom: 3px solid var(--primary); }
+        .brand-info { font-weight: 800; font-size: 1.2rem; color: var(--primary); display: flex; align-items: center; gap: 10px;}
+        
+        .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+        .nav-btn { border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); color: white;}
+        .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .btn-home { background: #64748b; }
+        .btn-sync { background: var(--gold); display: none; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; width: 100%; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden;}
+        
+        .toolbar { background: var(--surface); border-radius: var(--radius); padding: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); border: 1px solid var(--border); gap: 15px;}
+        .search-box { flex-grow: 1; }
+        .search-box input { width: 100%; padding: 12px 15px; border: 1.5px solid var(--border); border-radius: var(--radius); font-size: 1rem; outline: none; font-family: inherit; background: var(--surface-hover); color: var(--text);}
+        .search-box input:focus { border-color: var(--primary); background: #fff;}
+        
+        .btn-add { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; font-family: inherit; transition: 0.2s; box-shadow: 0 4px 12px rgba(10, 104, 71, 0.2); white-space: nowrap;}
+        .btn-add:hover { background: var(--primary-hover); transform: translateY(-2px); }
+
+        .table-container { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); overflow-y: auto; flex-grow: 1; }
+        table { width: 100%; border-collapse: collapse; text-align: right; }
+        th, td { padding: 15px; border-bottom: 1px solid var(--border); }
+        th { background: var(--surface-hover); font-weight: bold; color: var(--primary); position: sticky; top: 0; z-index: 1; }
+        tr:hover { background: var(--surface-hover); }
+        
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: inline-block;}
+        .badge-single { background: #dcfce7; color: #16a34a; }
+        .badge-profile { background: #e0f2fe; color: #0284c7; }
+
+        .btn-edit { background: var(--warning); color: #fff; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; font-family: inherit; margin-left: 5px;}
+        .btn-edit:hover { background: #d97706; }
+        .btn-delete { background: var(--danger); color: #fff; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; font-family: inherit;}
+        .btn-delete:hover { background: #dc2626; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(3px); padding: 10px;}
+        .modal-content { background: var(--surface); padding: 25px; border-radius: var(--radius); width: 100%; max-width: 1000px; max-height: 95vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.2); border-top: 5px solid var(--primary); }
+        .modal-header { display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px;}
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px; }
+        .form-group label { font-weight: bold; font-size: 0.9rem; color: var(--text-muted); }
+        .form-group input, .form-group select { padding: 12px; border: 1.5px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem; outline: none; background: var(--surface-hover); color: var(--text);}
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); background: #fff;}
+        
+        .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        
+        .price-wrapper { position: relative; display: flex; align-items: center;}
+        .price-wrapper input { flex-grow: 1; background: #e2e8f0; cursor: not-allowed; }
+        .price-wrapper input.unlocked { background: #fff; cursor: text; border-color: var(--primary); }
+        .btn-lock { position: absolute; left: 10px; background: none; border: none; font-size: 1.2rem; cursor: pointer; }
+
+        .parameters-section { background: var(--surface-hover); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-top: 25px;}
+        .parameters-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;}
+        
+        .param-card { background: var(--surface); border: 1px solid var(--border); padding: 20px; border-radius: 8px; margin-bottom: 15px; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
+        .btn-del-param { position: absolute; top: 10px; left: 10px; background: #fee2e2; color: var(--danger); border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 0.8rem;}
+        .btn-del-param:hover { background: var(--danger); color: white;}
+        .param-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+
+        .ranges-section { background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 8px; margin-top: 10px;}
+        .range-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;}
+        .range-row select, .range-row input { padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 0.9rem; flex: 1; min-width: 80px;}
+        .range-row input[type="number"] { width: 80px; flex: none; }
+        .btn-del-range { background: #fee2e2; color: var(--danger); border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;}
+        
+        .btn-save { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1.1rem; margin-top: 25px; transition: 0.2s;}
+        .btn-save:hover { background: var(--primary-hover); }
+        .btn-close { background: #fee2e2; color: var(--danger); border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;}
+
+        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 15px 30px; border-radius: 30px; font-weight: bold; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: none; z-index: 1000; }
+
+        @media (max-width: 768px) {
+            body { overflow-y: auto; height: auto; }
+            .container { padding: 10px; overflow: visible; }
+            header { flex-direction: column; gap: 10px; padding: 15px; text-align: center; }
+            .brand-info { justify-content: center; }
+            .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+            .search-box { margin-left: 0; }
+            
+            .table-container { overflow-x: visible; border: none; background: transparent; box-shadow: none; }
+            .table-container table, .table-container thead, .table-container tbody, .table-container th, .table-container td, .table-container tr { display: block; }
+            .table-container thead tr { position: absolute; top: -9999px; left: -9999px; }
+            .table-container tr { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 15px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+            
+            .table-container td { border: none; border-bottom: 1px solid var(--surface-hover); padding: 12px 0; text-align: right; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+            .table-container td:last-child { border-bottom: none; padding-top: 15px; align-items: stretch; }
+            .table-container td::before { content: attr(data-label); font-weight: bold; color: var(--primary); font-size: 0.85rem; }
+            .table-container td:last-child::before { content: none; }
+            
+            .modal-content { padding: 15px; margin: 10px; }
+            .form-row, .param-grid { grid-template-columns: 1fr !important; gap: 10px; }
+            .parameters-header { flex-direction: column; align-items: stretch; }
+            .btn-edit, .btn-delete { width: 100%; text-align: center; justify-content: center; padding: 12px; font-size: 1rem; margin-bottom: 5px; margin-left: 0;}
+            .range-row { flex-direction: column; align-items: stretch; }
+            .range-row input[type="number"] { width: 100%; }
+        }
+    </style>
+</head><body>
+
+    <header>
+        <div class="brand-info" id="brandInfo">⚙️ إدارة التحاليل - جاري التحميل...</div>
+        <div class="header-actions">
+            <button class="nav-btn btn-sync" id="syncBtn" onclick="processOutbox()">🔄 مزامنة</button>
+            <button class="nav-btn btn-home" onclick="window.location.href='home.html'">🏠 الرئيسية</button>
+            <button class="nav-btn" style="background: var(--accent);" onclick="window.location.href='reception.html'">🏥 الاستقبال</button>
+            <button class="nav-btn" style="background: var(--primary-light);" onclick="window.location.href='lab.html'">🔬 المعمل</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="toolbar">
+            <button class="btn-add" onclick="openModal('add')">➕ إضافة تحليل جديد</button>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="ابحث بالكود أو الاسم..." onkeyup="filterTable()">
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="testsTable">
+                <thead>
+                    <tr>
+                        <th>الكود</th>
+                        <th>اسم التحليل</th>
+                        <th>النوع</th>
+                        <th>السعر (ج.م)</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="5" style="text-align:center; padding: 30px;">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- مودال إضافة/تعديل تحليل -->
+    <div class="modal" id="testModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle" style="color: var(--primary); font-size: 1.5rem;">إضافة/تعديل تحليل</h3>
+                <button class="btn-close" onclick="closeModal()">✕ إغلاق</button>
+            </div>
+            <form id="testForm" onsubmit="saveTest(event)">
+                <input type="hidden" id="testId">
+                
+                <div class="form-row">
+                    <div class="form-group"><label>كود التحليل</label><input type="text" id="testCode" required placeholder="مثال: 120"></div>
+                    <div class="form-group"><label>اسم التحليل</label><input type="text" id="testName" required placeholder="مثال: Vitamin D"></div>
+                    <div class="form-group">
+                        <label>النوع (Single / Profile)</label>
+                        <select id="testType" required>
+                            <option value="Single">فردي (Single)</option>
+                            <option value="Profile">مركب (Profile)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group"><label>الوحدة (Unit) - للتحاليل الفردية</label><input type="text" id="testUnit" placeholder="مثال: mg/dL"></div>
+                    <div class="form-group">
+                        <label>السعر (ج.م)</label>
+                        <div class="price-wrapper">
+                            <input type="number" id="testPrice" step="0.01" required disabled>
+                            <button type="button" class="btn-lock" id="lockBtn" onclick="togglePriceLock()">🔒</button>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>الفئة (Category)</label><input type="text" id="testCategory" placeholder="مثال: هرمونات"></div>
+                </div>
+
+                <!-- قسم البارامترات -->
+                <div class="parameters-section" id="parametersSection">
+                    <div class="parameters-header">
+                        <h4 style="color:var(--primary);">البارامترات والرينجات</h4>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="btn-add" style="padding:8px 15px; font-size:0.9rem;" onclick="addParameterRow()">➕ إضافة باراميتر</button>
+                        </div>
+                    </div>
+                    <div id="parametersContainer"></div>
+                </div>
+
+                <button type="submit" class="btn-save" id="saveBtn">💾 حفظ البيانات</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast">✅ تم الحفظ بنجاح</div>    
+    <script>
+        // ==== التحقق من تسجيل الدخول والصلاحيات ====
+        if (!localStorage.getItem('teba_tenant_id')) {
+            window.location.href = 'home.html';
+        }
+        const userRole = localStorage.getItem('teba_user_role');
+
+        // ==== تهيئة السحابة وقاعدة البيانات المحلية ====
+        const _supabase = supabase.createClient(TEBA_CONFIG.supabase.url, TEBA_CONFIG.supabase.key);
+
+        const db = new Dexie('TebaLabOfflineDB');
+        db.version(4).stores({
+            patients: 'id, name, phone',
+            visits: 'visit_id, patient_id, branch_id, is_published, hidden_in_lab, server_id',
+            visit_tests: 'id, visit_id, test_code',
+            test_results: 'id, visit_test_id',
+            catalog: 'code, name, price, category',
+            outbox: '++id, table_name, action, payload, timestamp'
+        });
+
+        let allTests = [];
+        let isDoctorMode = false; 
+
+        function generateUUID() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // ==== محرك المزامنة (Outbox) ====
+        async function processOutbox() {
+            if (!navigator.onLine) return showToast('لا يوجد اتصال بالإنترنت!', true);
+            
+            try {
+                const pending = await db.outbox.toArray();
+                if (pending.length === 0) {
+                    document.getElementById('syncBtn').style.display = 'none';
+                    return;
+                }
+
+                const btn = document.getElementById('syncBtn');
+                btn.innerText = '⏳ جاري المزامنة...';
+                let successCount = 0;
+
+                for (let item of pending) {
+                    try {
+                        if (item.table_name === 'tests_catalog') {
+                            if (item.action === 'DELETE') {
+                                await _supabase.from('tests_catalog').delete().eq('code', item.payload.code).eq('tenant_id', TEBA_CONFIG.tenant.id);
+                            } else {
+                                if(!item.payload.tenant_id) item.payload.tenant_id = TEBA_CONFIG.tenant.id;
+                                await _supabase.from('tests_catalog').upsert([item.payload], { onConflict: 'code,tenant_id' });
+                            }
+                        } else if (item.table_name === 'audit_logs') {
+                            const { error } = await _supabase.from('audit_logs').insert([item.payload]);
+                            if (error) console.warn('Audit log failed', error);
+                        }
+                        await db.outbox.delete(item.id);
+                        successCount++;
+                    } catch (e) { 
+                        console.error("Outbox item sync failed:", e); 
+                        throw new Error("فشل رفع البيانات للسحابة، تأكد من الصلاحيات والاتصال."); 
+                    }
+                }
+
+                if (successCount > 0) showToast(`✅ تمت مزامنة ${successCount} عملية!`);
+                
+                const remaining = await db.outbox.count();
+                if (remaining === 0) btn.style.display = 'none';
+                else btn.innerText = '🔄 مزامنة البيانات';
+                
+                checkSyncStatus();
+            } catch(e) { 
+                console.error("Outbox error:", e); 
+                document.getElementById('syncBtn').innerText = '🔄 مزامنة البيانات';
+                showToast(e.message || 'حدث خطأ في المزامنة', true);
+            }
+        }
+
+        async function checkSyncStatus() {
+            try {
+                const pending = await db.outbox.count();
+                if(pending > 0) document.getElementById('syncBtn').style.display = 'flex';
+                else document.getElementById('syncBtn').style.display = 'none';
+            } catch(e) {}
+        }
+
+        window.addEventListener('online', () => { processOutbox(); });
+
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        // ==== دوال العرض والتحميل ====
+        async function loadTests() {
+            try {
+                if (navigator.onLine) {
+                    await processOutbox(); 
+                    
+                    const { data, error } = await _supabase.from('tests_catalog').select('*').eq('tenant_id', TEBA_CONFIG.tenant.id).order('code', { ascending: true });
+                    if (!error && data) {
+                        if (data.length === 0) {
+                            await db.catalog.clear();
+                        } else {
+                            await db.catalog.clear();
+                            await db.catalog.bulkPut(data.map(t => ({
+                                id: t.id, code: t.code, name: t.name, price: t.price, category: t.category, parameters: t.parameters, test_type: t.test_type, unit: t.unit
+                            })));
+                        }
+                    }
+                }
+
+                const localTests = await db.catalog.toArray();
+                allTests = localTests;
+                
+                renderTable();
+                checkSyncStatus();
+            } catch (e) {
+                console.error("Load error", e);
+                const localTests = await db.catalog.toArray();
+                allTests = localTests;
+                renderTable();
+            }
+        }
+
+        function renderTable(filterText = '') {
+            const tbody = document.getElementById('tableBody');
+            if (!tbody) return;
+
+            const filtered = allTests.filter(t => 
+                (t.name && t.name.toLowerCase().includes(filterText.toLowerCase())) || 
+                (t.code && t.code.toLowerCase().includes(filterText.toLowerCase()))
+            );
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 30px; color: var(--text-muted);">لا توجد نتائج مطابقة</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(t => {
+                const params = t.parameters || [];
+                const isProfile = t.test_type === 'Profile' || params.length > 1 || (params.length === 1 && params[0].name !== 'Result');
+                const typeBadge = isProfile ? '<span class="badge badge-profile">مركب (Profile)</span>' : '<span class="badge badge-single">فردي (Single)</span>';
+
+                return `
+                    <tr>
+                        <td data-label="الكود" style="font-weight:bold; color: var(--primary);">${t.code}</td>
+                        <td data-label="اسم التحليل">${t.name}</td>
+                        <td data-label="النوع">${typeBadge}</td>
+                        <td data-label="السعر" style="font-weight:bold; color:var(--accent);">${t.price} ج.م</td>
+                        <td data-label="إجراءات">
+                            <button class="btn-edit" onclick='openModal("edit", ${JSON.stringify(t).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
+                            <button class="btn-delete" onclick="deleteTest('${t.code}', '${t.name}')">🗑️ حذف</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        window.filterTable = function() { 
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) renderTable(searchInput.value); 
+        };
+
+        // ==== دالة حذف التحليل (مع تسجيل Audit Log) ====
+        window.deleteTest = async function(code, name) {
+            if (!confirm(`هل أنت متأكد من حذف التحليل (${code}) نهائياً؟`)) return;
+            try {
+                await db.catalog.delete(code);
+                await db.outbox.add({ table_name: 'tests_catalog', action: 'DELETE', payload: { code: code, tenant_id: TEBA_CONFIG.tenant.id }, timestamp: new Date().toISOString() });
+                
+                // تسجيل الإجراء في سجل التعديلات
+                await db.outbox.add({ 
+                    table_name: 'audit_logs', 
+                    action: 'INSERT', 
+                    payload: { 
+                        tenant_id: TEBA_CONFIG.tenant.id, 
+                        action_type: 'مسح تحليل', 
+                        details: `تم مسح التحليل: ${name} (كود: ${code})`, 
+                        created_at: new Date().toISOString() 
+                    }, 
+                    timestamp: new Date().toISOString() 
+                });
+
+                showToast('✅ تم حذف التحليل محلياً');
+                await loadTests();
+                if (navigator.onLine) processOutbox();
+            } catch (e) {
+                console.error(e);
+                showToast('❌ حدث خطأ أثناء الحذف', true);
+            }
+        };
+
+        // ==== الصلاحيات (فتح السعر) ====
+        function unlockPriceField() {
+            const testPrice = document.getElementById('testPrice');
+            const lockBtn = document.getElementById('lockBtn');
+            if (!testPrice || !lockBtn) return;
+
+            if (userRole === 'admin' || userRole === 'owner') {
+                isDoctorMode = true;
+                testPrice.disabled = false;
+                testPrice.classList.add('unlocked');
+                lockBtn.innerText = '🔓';
+            } else {
+                isDoctorMode = false;
+                testPrice.disabled = true;
+                testPrice.classList.remove('unlocked');
+                lockBtn.innerText = '🔒';
+            }
+        }
+
+        window.togglePriceLock = function() {
+            if (userRole === 'admin' || userRole === 'owner') {
+                const testPrice = document.getElementById('testPrice');
+                const lockBtn = document.getElementById('lockBtn');
+                if (isDoctorMode) {
+                    isDoctorMode = false;
+                    testPrice.disabled = true;
+                    testPrice.classList.remove('unlocked');
+                    lockBtn.innerText = '🔒';
+                } else {
+                    unlockPriceField();
+                    testPrice.focus();
+                }
+            } else {
+                alert('🔒 تعديل السعر متاح للدكتور/المالك فقط.');
+            }
+        };
+
+        // ==== إدارة الباراميترز والرينجات (الديناميكية) ====
+        window.addRangeRow = function(container, data = null) {
+            if (!container) return;
+            const row = document.createElement('div');
+            row.className = 'range-row';
+            
+            const sex = data?.sex || 'All';
+            const ageFrom = data?.age_from !== undefined ? data.age_from : 0;
+            const ageTo = data?.age_to !== undefined ? data.age_to : 120;
+            const ageUnit = data?.age_unit || 'Years';
+            const min = data?.min !== undefined && data?.min !== null ? data.min : '';
+            const max = data?.max !== undefined && data?.max !== null ? data.max : '';
+            const normalText = data?.normal_text || '';
+
+            row.innerHTML = `
+                <select class="r-sex">
+                    <option value="All" ${sex === 'All' ? 'selected' : ''}>الكل (All)</option>
+                    <option value="Male" ${sex === 'Male' ? 'selected' : ''}>ذكر (Male)</option>
+                    <option value="Female" ${sex === 'Female' ? 'selected' : ''}>أنثى (Female)</option>
+                </select>
+                
+                <span style="font-size:12px; color:#666;">من عمر</span>
+                <input type="number" class="r-age-from" value="${ageFrom}" placeholder="من">
+                <select class="r-age-unit">
+                    <option value="Years" ${ageUnit === 'Years' ? 'selected' : ''}>سنة</option>
+                    <option value="Months" ${ageUnit === 'Months' ? 'selected' : ''}>شهر</option>
+                    <option value="Days" ${ageUnit === 'Days' ? 'selected' : ''}>يوم</option>
+                </select>
+                
+                <span style="font-size:12px; color:#666;">إلى</span>
+                <input type="number" class="r-age-to" value="${ageTo}" placeholder="إلى">
+                
+                <span style="font-size:12px; color:#666;">| القيمة:</span>
+                <input type="number" class="r-min" value="${min}" placeholder="من رقم" step="any">
+                <input type="number" class="r-max" value="${max}" placeholder="إلى رقم" step="any">
+                
+                <input type="text" class="r-normal-text" value="${normalText}" placeholder="أو نص (مثال: Negative)" style="flex:2;">
+                
+                <button type="button" class="btn-del-range" onclick="this.parentElement.remove()">✕</button>
+            `;
+            container.appendChild(row);
+        };
+
+        window.addParameterRow = function(data = null) {
+            const container = document.getElementById('parametersContainer');
+            if (!container) return;
+            
+            const div = document.createElement('div');
+            div.className = 'param-card';
+            
+            const isSingle = document.getElementById('testType').value === 'Single';
+            const name = data?.name || (isSingle ? 'Result' : '');
+            const label = data?.label || '';
+            const unit = data?.unit || '';
+            const formula = data?.formula || '';
+            const isCalc = data?.is_calc ? 'checked' : '';
+
+            const ranges = data?.ranges || [];
+
+            div.innerHTML = `
+                <button type="button" class="btn-del-param" onclick="this.parentElement.remove()">✕ حذف الباراميتر</button>
+                
+                <div class="param-grid">
+                    <div class="form-group"><label>الاسم البرمجي (English)</label><input type="text" class="p-name" value="${name}" required ${isSingle ? 'readonly style="background:#e2e8f0;"' : ''}></div>
+                    <div class="form-group"><label>الاسم المعروض (للتقرير)</label><input type="text" class="p-label" value="${label}" required></div>
+                    <div class="form-group"><label>الوحدة (Unit)</label><input type="text" class="p-unit" value="${unit}"></div>
+                </div>
+                
+                <div class="param-grid">
+                    <div class="form-group"><label>المعادلة (للمحسوب آلياً)</label><input type="text" class="p-formula" value="${formula}" placeholder="مثال: HB * 3"></div>
+                    <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px; margin-top: 25px;">
+                        <input type="checkbox" class="p-iscalc" ${isCalc} style="width:20px; height:20px;">
+                        <label style="margin:0;">حساب تلقائي (Calculated)</label>
+                    </div>
+                </div>
+
+                <div class="ranges-section">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <label style="font-weight:bold; color:var(--primary); font-size:0.9rem;">الرينجات (Reference Ranges)</label>
+                        <button type="button" class="btn-edit" style="padding:4px 10px; font-size:0.8rem;" onclick="addRangeRow(this.closest('.param-card').querySelector('.ranges-container'))">➕ إضافة رينج</button>
+                    </div>
+                    <div class="ranges-container"></div>
+                </div>
+            `;
+            
+            container.appendChild(div);
+            const rangesContainer = div.querySelector('.ranges-container');
+            
+            if (ranges.length === 0) {
+                addRangeRow(rangesContainer); 
+            } else {
+                ranges.forEach(r => addRangeRow(rangesContainer, r));
+            }
+        };
+
+        window.openModal = function(mode, test = null) {
+            document.getElementById('testModal').style.display = 'flex';
+            document.getElementById('testForm').reset();
+            document.getElementById('parametersContainer').innerHTML = '';
+            
+            unlockPriceField();
+
+            if (mode === 'add') {
+                document.getElementById('modalTitle').innerText = 'إضافة تحليل جديد';
+                document.getElementById('testId').value = '';
+                document.getElementById('testCode').readOnly = false;
+                document.getElementById('testType').value = 'Single';
+                addParameterRow(); 
+            } else if (mode === 'edit') {
+                document.getElementById('modalTitle').innerText = 'تعديل بيانات التحليل';
+                document.getElementById('testId').value = test.id || '';
+                document.getElementById('testCode').value = test.code;
+                document.getElementById('testCode').readOnly = true; 
+                document.getElementById('testName').value = test.name;
+                document.getElementById('testType').value = test.test_type || 'Single';
+                document.getElementById('testUnit').value = test.unit || '';
+                document.getElementById('testCategory').value = test.category || '';
+                document.getElementById('testPrice').value = test.price;
+
+                let params = test.parameters || [];
+                if (typeof params === 'string') {
+                    try { params = JSON.parse(params); } catch(e) { params = []; }
+                }
+                
+                if (params.length === 0) {
+                    addParameterRow();
+                } else {
+                    params.forEach(p => addParameterRow(p));
+                }
+            }
+        };
+
+        window.closeModal = function() { document.getElementById('testModal').style.display = 'none'; };
+
+        // ==== الحفظ (أوفلاين + مزامنة + Audit Log) ====
+        window.saveTest = async function(event) {
+            event.preventDefault();
+            const btn = document.getElementById('saveBtn');
+            btn.innerText = '⏳ جاري الحفظ...'; btn.disabled = true;
+
+            try {
+                const id = document.getElementById('testId').value;
+                const code = document.getElementById('testCode').value.trim();
+                const name = document.getElementById('testName').value.trim();
+                const testType = document.getElementById('testType').value;
+                const unit = document.getElementById('testUnit').value.trim();
+                const category = document.getElementById('testCategory').value.trim();
+                const price = parseFloat(document.getElementById('testPrice').value) || 0;
+
+                let parameters = [];
+                
+                const paramCards = document.querySelectorAll('#parametersContainer .param-card');
+                paramCards.forEach(card => {
+                    const pName = card.querySelector('.p-name').value.trim();
+                    if (!pName) return; 
+                    
+                    const rangesArray = [];
+                    const rangeRows = card.querySelectorAll('.range-row');
+                    rangeRows.forEach(row => {
+                        const minVal = row.querySelector('.r-min').value;
+                        const maxVal = row.querySelector('.r-max').value;
+                        const normalText = row.querySelector('.r-normal-text').value.trim();
+
+                        rangesArray.push({
+                            min: minVal !== '' ? parseFloat(minVal) : null,
+                            max: maxVal !== '' ? parseFloat(maxVal) : null,
+                            sex: row.querySelector('.r-sex').value,
+                            age_from: parseFloat(row.querySelector('.r-age-from').value) || 0,
+                            age_to: parseFloat(row.querySelector('.r-age-to').value) || 120,
+                            age_unit: row.querySelector('.r-age-unit').value,
+                            normal_text: normalText
+                        });
+                    });
+
+                    parameters.push({
+                        name: pName,
+                        label: card.querySelector('.p-label').value.trim(),
+                        unit: card.querySelector('.p-unit').value.trim(),
+                        formula: card.querySelector('.p-formula').value.trim(),
+                        is_calc: card.querySelector('.p-iscalc').checked,
+                        ranges: rangesArray
+                    });
+                });
+
+                let payload = { 
+                    tenant_id: TEBA_CONFIG.tenant.id,
+                    code: code, 
+                    name: name, 
+                    test_type: testType,
+                    unit: unit,
+                    category: category,
+                    price: price, 
+                    parameters: parameters 
+                };
+
+                if (id) payload.id = id; 
+
+                if (!id) {
+                    if (allTests.find(t => t.code === code)) throw new Error('هذا الكود مستخدم بالفعل محلياً!');
+                    payload.id = generateUUID(); 
+                }
+                
+                await db.catalog.put(payload);
+
+                const action = id ? 'UPDATE' : 'INSERT';
+                await db.outbox.add({ table_name: 'tests_catalog', action: action, payload: payload, timestamp: new Date().toISOString() });
+
+                // تسجيل الإجراء في سجل التعديلات (Audit Log)
+                const actionType = id ? 'تعديل تحليل' : 'إضافة تحليل';
+                const details = id ? `تم تعديل التحليل: ${name} (كود: ${code}) - السعر: ${price} ج.م` : `تم إضافة تحليل جديد: ${name} (كود: ${code}) - السعر: ${price} ج.م`;
+                
+                await db.outbox.add({ 
+                    table_name: 'audit_logs', 
+                    action: 'INSERT', 
+                    payload: { 
+                        tenant_id: TEBA_CONFIG.tenant_id, 
+                        action_type: actionType, 
+                        details: details, 
+                        created_at: new Date().toISOString() 
+                    }, 
+                    timestamp: new Date().toISOString() 
+                });
+
+                showToast('✅ تم الحفظ محلياً! جاري المزامنة...');
+                closeModal();
+                
+                await loadTests(); 
+                if (navigator.onLine) processOutbox(); 
+
+            } catch (err) {
+                alert('❌ خطأ: ' + err.message);
+            } finally {
+                btn.innerText = '💾 حفظ البيانات'; btn.disabled = false;
+            }
+        };
+
+        // ==== التشغيل عند فتح الصفحة ====
+        window.onload = function() {
+            if (typeof TEBA_CONFIG !== 'undefined') {
+                document.title = "إدارة التحاليل | " + TEBA_CONFIG.lab.name;
+                const brandInfo = document.getElementById('brandInfo');
+                if (brandInfo) brandInfo.innerText = "⚙️ إدارة التحاليل - " + TEBA_CONFIG.lab.name;
+            }
+            loadTests();
+        };
+    </script>
+
+    <!-- سكريبت تفعيل الـ PWA -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('../service-worker.js')
+            .then(reg => console.log('✅ Service Worker Registered'))
+            .catch(err => console.warn('SW registration failed:', err));
+        });
+      }
+    </script>
+</body>
+</html>

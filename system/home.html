@@ -1,0 +1,349 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة الدخول | النظام</title>
+    <link rel="icon" type="image/png" href="../logo.png">
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#0a6847">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js?v=151"></script>
+    <style>
+        :root { --bg-body: #f1f5f9; --bg-card: #fff; --bg-input: #f8fafc; --text-main: #0f172a; --text-muted: #64748b; --border-light: #e2e8f0; --primary: #0a6847; --primary-gradient: linear-gradient(135deg, #10b981, #0a6847); --card-shadow: 0 20px 40px -10px rgba(0,0,0,0.05); --card-radius: 24px; --icon-bg: #e0f2fe; --icon-color: #0284c7; --font: 'Almarai', sans-serif; }
+        body.dark-mode { --bg-body: #0b1120; --bg-card: #1e293b; --bg-input: #0f172a; --text-main: #f8fafc; --text-muted: #94a3b8; --border-light: #334155; --primary: #10b981; --primary-gradient: linear-gradient(135deg, #34d399, #10b981); --card-shadow: 0 20px 40px -10px rgba(0,0,0,0.4); --icon-bg: rgba(16,185,129,0.1); --icon-color: #34d399; }
+        * { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+        body { font-family: var(--font); background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; }
+        #themeToggleBtn { position: absolute; top: 20px; left: 20px; background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-main); width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; z-index: 100; }
+        #loginScreen { background: var(--bg-card); padding: 45px 35px; border-radius: var(--card-radius); box-shadow: var(--card-shadow); text-align: center; width: 100%; max-width: 420px; border: 1px solid var(--border-light); position: relative; overflow: hidden; }
+        #loginScreen::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: var(--primary-gradient); }
+        #loginScreen h1 { color: var(--primary); margin-bottom: 8px; font-size: 1.8rem; font-weight: 800; }
+        #loginScreen p { color: var(--text-muted); margin-bottom: 30px; font-weight: 600; font-size: 0.95rem; }
+        .input-group { margin-bottom: 20px; text-align: right; }
+        .input-group label { display: block; margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: var(--text-main); }
+        .input-group input, .input-group select { width: 100%; padding: 15px 16px; border-radius: 14px; border: 2px solid var(--border-light); background: var(--bg-input); color: var(--text-main); font-size: 1rem; outline: none; font-weight: bold; font-family: inherit; }
+        .input-group input:focus, .input-group select:focus { border-color: var(--primary); background: var(--bg-card); }
+        .btn-login { width: 100%; padding: 16px; background: var(--primary-gradient); color: white; border: none; border-radius: 14px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-install-pwa { width: 100%; padding: 12px; background: var(--bg-input); color: var(--primary); border: 2px dashed var(--primary); border-radius: 14px; font-size: 0.95rem; font-weight: bold; cursor: pointer; margin-top: 15px; display: none; align-items: center; justify-content: center; gap: 8px; }
+        .error-msg { color: #ef4444; margin-top: 15px; font-weight: bold; display: none; font-size: 0.85rem; background: rgba(239,68,68,0.1); padding: 12px; border-radius: 10px; border: 1px solid rgba(239,68,68,0.2); }
+        #desktopScreen { display: none; width: 100%; max-width: 900px; position: relative; margin: auto; }
+        .logout-btn { position: absolute; top: 0; left: 0; background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 0.9rem; z-index: 10; font-family: inherit; }
+        .install-btn-desktop { position: absolute; top: 0; left: 120px; background: var(--icon-bg); color: var(--icon-color); border: 1px solid var(--border-light); padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 0.9rem; z-index: 10; font-family: inherit; display: none; }
+        .desktop-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 40px; text-align: center; padding-top: 40px; }
+        .logo-container { margin-bottom: 20px; display: flex; align-items: center; justify-content: center; height: 90px; }
+        .logo-container img { height: 90px; width: auto; object-fit: contain; border-radius: 12px;}
+        .logo-fallback { display: flex; flex-direction: column; align-items: center; }
+        .logo-fallback .en { font-size: 2.8rem; font-weight: 800; color: var(--primary); letter-spacing: 2px; line-height: 1; }
+        .logo-fallback .ar { font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin-top: 4px; }
+        .desktop-header h1 { color: var(--text-main); font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
+        .desktop-header p { color: var(--text-muted); font-size: 1.05rem; font-weight: 600; }
+        .apps-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; max-width: 700px; margin: 0 auto; }
+        .app-card { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--card-radius); padding: 30px 20px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 12px; text-decoration: none; color: var(--text-main); box-shadow: var(--card-shadow); position: relative; overflow: hidden; }
+        .app-icon-box { width: 70px; height: 70px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 8px; background: var(--icon-bg); color: var(--icon-color); }
+        .app-card:nth-child(1) .app-icon-box { background: rgba(2,132,199,0.1); color: #0284c7; }
+        .app-card:nth-child(2) .app-icon-box { background: rgba(16,185,129,0.1); color: #10b981; }
+        .app-card:nth-child(3) .app-icon-box { background: rgba(147,51,234,0.1); color: #9333ea; }
+        .app-card:nth-child(4) .app-icon-box { background: rgba(217,119,6,0.1); color: #d97706; }
+        .app-card:nth-child(5) .app-icon-box { background: rgba(100,116,139,0.1); color: #64748b; }
+        .app-name { font-size: 1.25rem; font-weight: 800; color: var(--text-main); }
+        .app-desc { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; line-height: 1.5; }
+        @media (max-width: 600px) { .apps-grid { grid-template-columns: 1fr; } #loginScreen { padding: 35px 25px; } }
+    </style>
+</head>
+<body>
+    <button id="themeToggleBtn" onclick="toggleTheme()" title="تغيير المظهر">🌙</button>
+    
+    <div id="loginScreen">
+        <h1 id="loginLabName">🔬 جاري التحميل...</h1>
+        <p>أدخل بيانات حسابك للدخول إلى النظام</p>
+        <div class="input-group"><label>البريد الإلكتروني</label><input type="email" id="loginEmail" placeholder="example@lab.com" autocomplete="username" style="direction: ltr; text-align: center;"></div>
+        <div class="input-group"><label>كلمة المرور (حسابك)</label><input type="password" id="loginPassword" placeholder="********" autocomplete="current-password" style="text-align: center; letter-spacing: 2px;"></div>
+        
+        <div class="input-group">
+            <label>الفرع</label>
+            <select id="loginBranch">
+                <option value="">⏳ جاري تحميل الفروع...</option>
+            </select>
+        </div>
+        <div class="input-group"><label>باسورد الفرع</label><input type="password" id="loginBranchPassword" placeholder="******" style="text-align: center; letter-spacing: 2px;"></div>
+        
+        <button class="btn-login" onclick="loginUser()">دخول آمن</button>
+        <button class="btn-install-pwa" id="pwaInstallBtnLogin" onclick="installPWA()">📲 تثبيت التطبيق</button>
+        <div class="error-msg" id="loginError"></div>
+    </div>
+    
+    <div id="desktopScreen">
+        <button class="logout-btn" onclick="logout()">🚪 خروج</button>
+        <button class="install-btn-desktop" id="pwaInstallBtnDesktop" onclick="installPWA()">📲 تثبيت التطبيق</button>
+        <div class="desktop-header">
+            <div class="logo-container">
+                <img id="labLogo" class="dyn-logo" src="../brand-logo.png" alt="LAB LOGO" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="logo-fallback" style="display:none;"><span class="en">AL NOOR LABS</span><span class="ar">معمل النور</span></div>
+            </div>
+            <h1 id="desktopLabName">مرحباً، جاري التحميل...</h1>
+            <p>النظام الرئيسي لإدارة المعامل</p>
+        </div>
+        <div class="apps-grid">
+            <a href="reception.html" class="app-card"><div class="app-icon-box">🏥</div><div class="app-name">الاستقبال</div><div class="app-desc">تسجيل المرضى وإصدار الفواتير</div></a>
+            <a href="lab.html" class="app-card"><div class="app-icon-box">🔬</div><div class="app-name">المعمل</div><div class="app-desc">إدخال النتائج ونشرها</div></a>
+            <a href="tests_manage.html" class="app-card" id="cardManageTests"><div class="app-icon-box">⚙️</div><div class="app-name">إدارة التحاليل</div><div class="app-desc">الأسعار والباراميترز</div></a>
+            <a href="settings.html" class="app-card" id="cardSettings"><div class="app-icon-box">🛠️</div><div class="app-name">إعدادات النظام</div><div class="app-desc">التحكم الكامل في النظام</div></a>
+            <div class="app-card" id="cardDashboard" onclick="openSecretModal()"><div class="app-icon-box">📊</div><div class="app-name">لوحة التحكم</div><div class="app-desc">التقارير والإحصائيات 🔒</div></div>
+        </div>
+    </div>    <!-- ================= سكريبت النظام ================= -->
+    <script>
+        // ==== 1. إعدادات الوضع الليلي والنهاري ====
+        const themeBtn = document.getElementById('themeToggleBtn');
+        const currentTheme = localStorage.getItem('teba_theme') || 'light';
+        if (currentTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+            if(themeBtn) themeBtn.innerText = '☀️';
+        }
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('teba_theme', isDark ? 'dark' : 'light');
+            if(themeBtn) themeBtn.innerText = isDark ? '☀️' : '🌙';
+        }
+
+        // ==== 2. تهيئة السحابة ====
+        const _supabase = supabase.createClient(TEBA_CONFIG.supabase.url, TEBA_CONFIG.supabase.key);
+
+        // ==== 3. جلب الفروع من السحابة (ديناميكي) ====
+        async function loadBranchesForLogin() {
+            const branchSelect = document.getElementById('loginBranch');
+            try {
+                const { data: branches, error } = await _supabase
+                    .from('branches')
+                    .select('id, name')
+                    .eq('tenant_id', TEBA_CONFIG.tenant.id)
+                    .order('id', { ascending: true });
+
+                if (error) throw error;
+
+                if (!branches || branches.length === 0) {
+                    branchSelect.innerHTML = '<option value="">لا توجد فروع مسجلة</option>';
+                    return;
+                }
+
+                branchSelect.innerHTML = branches.map(b => 
+                    `<option value="${b.id}">🏥 ${b.name}</option>`
+                ).join('');
+                
+                // لو في فرع محفوظ من قبل، نختاره أوتوماتيك
+                const savedBranch = localStorage.getItem('teba_current_branch');
+                if (savedBranch && branches.find(b => b.id == savedBranch)) {
+                    branchSelect.value = savedBranch;
+                }
+            } catch (err) {
+                console.error("Error loading branches:", err);
+                // القيم الافتراضية لو السحابة وقعت
+                branchSelect.innerHTML = '<option value="1">🏥 الفرع الأول</option><option value="2">🏥 الفرع الثاني</option>';
+            }
+        }
+
+        // ==== 4. دوال تسجيل الدخول ====
+        async function loginUser() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const branch = document.getElementById('loginBranch').value;
+            const branchPwd = document.getElementById('loginBranchPassword').value;
+            const errorEl = document.getElementById('loginError');
+            const btn = document.querySelector('.btn-login');
+
+            if (!email || !password || !branch) {
+                errorEl.textContent = 'يرجى إدخال الإيميل والباسورد واختيار الفرع';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            btn.innerText = '⏳ جاري التحقق...'; 
+            btn.disabled = true;
+            errorEl.style.display = 'none';
+
+            try {
+                // 1. التحقق من باسورد الفرع (عبر دالة RPC آمنة)
+                const { data: isBranchPwdCorrect, error: rpcErr } = await _supabase.rpc('verify_branch_password', { 
+                    branch_id: parseInt(branch), 
+                    input_password: branchPwd 
+                });
+                
+                if (rpcErr) throw new Error('حدث خطأ في التحقق من باسورد الفرع.');
+                if (!isBranchPwdCorrect) throw new Error('❌ باسورد الفرع غير صحيح!');
+
+                // 2. تسجيل الدخول
+                const { data: authData, error: authError } = await _supabase.auth.signInWithPassword({ email, password });
+                if (authError) throw new Error('الإيميل أو الباسورد غير صحيح');
+
+                // 3. جلب الصلاحيات
+                const { data: userData, error: userError } = await _supabase.from('users').select('role, tenant_id').eq('id', authData.user.id).single();
+                if (userError || !userData) throw new Error('لا يوجد صلاحيات مسجلة لهذا الحساب.');
+
+                // 4. جلب أحدث بيانات المعمل (الاسم، اللوجو، الفون) من السحابة
+                const { data: tenantData } = await _supabase.from('tenants').select('name').eq('id', userData.tenant_id).single();
+                const { data: settingsData } = await _supabase.from('site_settings').select('logo_url, phone, whatsapp, primary_color').eq('tenant_id', userData.tenant_id).single();
+
+                const finalTenantName = tenantData ? tenantData.name : "معمل النور";
+                const finalLogoUrl = (settingsData && settingsData.logo_url) ? settingsData.logo_url : "";
+                const finalPhone = (settingsData && settingsData.phone) ? settingsData.phone : "";
+                const finalWhatsapp = (settingsData && settingsData.whatsapp) ? settingsData.whatsapp : "";
+                const finalColor = (settingsData && settingsData.primary_color) ? settingsData.primary_color : "#0a6847";
+
+                // 5. حفظ البيانات في المتصفح (عشان تفتح في كل الصفحات)
+                localStorage.setItem('teba_tenant_id', userData.tenant_id);
+                localStorage.setItem('teba_tenant_name', finalTenantName); 
+                localStorage.setItem('teba_logo_url', finalLogoUrl);
+                localStorage.setItem('teba_phone', finalPhone);
+                localStorage.setItem('teba_whatsapp', finalWhatsapp);
+                localStorage.setItem('teba_primary_color', finalColor);
+                localStorage.setItem('teba_user_role', userData.role);
+                localStorage.setItem('teba_current_branch', branch);
+                
+                // 6. عرض الشاشة (بدون الحاجة لتحديث الصفحة)
+                document.getElementById('desktopLabName').innerText = "مرحباً، " + finalTenantName;
+
+                if (finalLogoUrl) {
+                    const logoImg = document.getElementById('labLogo');
+                    if (logoImg) {
+                        logoImg.src = finalLogoUrl;
+                        logoImg.style.display = 'block';
+                        logoImg.nextElementSibling.style.display = 'none';
+                    }
+                }
+
+                // تطبيق اللون فوراً
+                document.documentElement.style.setProperty('--primary', finalColor);
+
+                showDashboard(userData.role);
+
+            } catch (err) {
+                errorEl.textContent = '❌ ' + err.message;
+                errorEl.style.display = 'block';
+                btn.innerText = 'دخول آمن';
+                btn.disabled = false;
+            }
+        }
+
+        function showDashboard(role) {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('desktopScreen').style.display = 'block';
+
+            const dashboardCard = document.getElementById('cardDashboard');
+            const settingsCard = document.getElementById('cardSettings');
+            
+            if (role === 'admin' || role === 'owner') {
+                if(dashboardCard) dashboardCard.style.display = 'flex';
+                if(settingsCard) settingsCard.style.display = 'flex'; 
+            } else {
+                if(dashboardCard) dashboardCard.style.display = 'none'; 
+                if(settingsCard) settingsCard.style.display = 'none'; 
+            }
+        }
+
+        // ==== 5. التحقق من الجلسة الحالية ====
+        _supabase.auth.getSession().then(async ({ data: { session } }) => {
+            if (session) {
+                const { data: userData } = await _supabase.from('users').select('role, tenant_id').eq('id', session.user.id).single();
+                if (userData) {
+                    const { data: tenantData } = await _supabase.from('tenants').select('name').eq('id', userData.tenant_id).single();
+                    const { data: settingsData } = await _supabase.from('site_settings').select('logo_url, phone, whatsapp, primary_color').eq('tenant_id', userData.tenant_id).single();
+                    
+                    const finalTenantName = tenantData ? tenantData.name : "معمل النور";
+                    const finalLogoUrl = (settingsData && settingsData.logo_url) ? settingsData.logo_url : "";
+                    const finalPhone = (settingsData && settingsData.phone) ? settingsData.phone : "";
+                    const finalWhatsapp = (settingsData && settingsData.whatsapp) ? settingsData.whatsapp : "";
+                    const finalColor = (settingsData && settingsData.primary_color) ? settingsData.primary_color : "#0a6847";
+
+                    localStorage.setItem('teba_tenant_id', userData.tenant_id);
+                    localStorage.setItem('teba_tenant_name', finalTenantName);
+                    localStorage.setItem('teba_logo_url', finalLogoUrl);
+                    localStorage.setItem('teba_phone', finalPhone);
+                    localStorage.setItem('teba_whatsapp', finalWhatsapp);
+                    localStorage.setItem('teba_primary_color', finalColor);
+                    localStorage.setItem('teba_user_role', userData.role);
+                    
+                    if(!localStorage.getItem('teba_current_branch')) localStorage.setItem('teba_current_branch', '1');
+                    
+                    document.getElementById('desktopLabName').innerText = "مرحباً، " + finalTenantName;
+                    if (finalLogoUrl) {
+                        const logoImg = document.getElementById('labLogo');
+                        if (logoImg) { logoImg.src = finalLogoUrl; logoImg.style.display = 'block'; logoImg.nextElementSibling.style.display = 'none'; }
+                    }
+                    document.documentElement.style.setProperty('--primary', finalColor);
+                    showDashboard(userData.role);
+                }
+            }
+        });
+
+        // ==== 6. تسجيل الخروج ====
+        async function logout() {
+            await _supabase.auth.signOut();
+            localStorage.clear();
+            location.reload();
+        }
+
+        // ==== 7. فتح الداشبورد ====
+        function openSecretModal() {
+            const role = localStorage.getItem('teba_user_role');
+            if (role === 'admin' || role === 'owner') {
+                sessionStorage.setItem('doctor_access', 'granted');
+                window.location.href = '../dashboard/admin.html';
+            } else {
+                alert('❌ ليس لديك صلاحية للدخول إلى لوحة التحكم.');
+            }
+        }
+
+        // ==== 8. أحداث الكيبورد ====
+        document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') loginUser();
+        });
+        document.getElementById('loginBranchPassword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') loginUser();
+        });
+
+        // ==== 9. تفعيل الـ PWA ====
+        let deferredPrompt;
+        const btnLogin = document.getElementById('pwaInstallBtnLogin');
+        const btnDesktop = document.getElementById('pwaInstallBtnDesktop');
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            if (btnLogin) btnLogin.style.display = 'flex';
+            if (btnDesktop) btnDesktop.style.display = 'block';
+        });
+        window.installPWA = async function() {
+            if (!deferredPrompt) return alert('التطبيق مثبت بالفعل أو متصفحك لا يدعم هذه الميزة.');
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                if (btnLogin) btnLogin.style.display = 'none';
+                if (btnDesktop) btnDesktop.style.display = 'none';
+            }
+            deferredPrompt = null;
+        };
+
+        // ==== 10. التشغيل عند فتح الصفحة ====
+        window.addEventListener('load', () => {
+            // تحميل الفروع أول ما الصفحة تفتح
+            loadBranchesForLogin();
+
+            // تسجيل الـ Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('../service-worker.js').then(reg => {
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) window.location.reload();
+                            }
+                        };
+                    };
+                }).catch(err => console.warn('SW Error:', err));
+            }
+        });
+    </script>
+</body>
+</html>

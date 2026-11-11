@@ -1,0 +1,874 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الموقع الإلكتروني | CMS</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js?v=150"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { 
+            --bg: #f4f7f6; --surface: #ffffff; --surface-hover: #f8fafc;
+            --primary: #0a6847; --primary-hover: #085a3d; --primary-light: #10b981;
+            --accent: #3498db; --gold: #d4a843; --danger: #ef4444; --warning: #f39c12;
+            --text: #1e293b; --text-muted: #64748b; --border: #e2e8f0;
+            --font: 'Almarai', sans-serif; --radius: 12px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font); }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+        
+        header { background: var(--surface); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); box-shadow: var(--shadow); z-index: 100; }
+        .header-title { color: var(--primary); font-size: 1.4rem; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+        .btn-back { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; transition: 0.2s; }
+        .btn-back:hover { background: var(--surface-hover); }
+
+        .tabs-nav { display: flex; gap: 10px; overflow-x: auto; background: var(--surface); padding: 10px 20px; border-bottom: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .tab-btn { background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.95rem; white-space: nowrap; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+        .tab-btn:hover { background: var(--surface-hover); color: var(--text); }
+        .tab-btn.active { background: rgba(10, 104, 71, 0.1); color: var(--primary); border-color: var(--primary); }
+
+        .main-container { padding: 30px; max-width: 1200px; margin: 0 auto; width: 100%; flex-grow: 1; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 25px; margin-bottom: 25px; box-shadow: var(--shadow); }
+        .card h3 { color: var(--primary); font-size: 1.2rem; margin-bottom: 20px; border-bottom: 1px dashed var(--border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+        .form-group label { color: var(--text-muted); font-size: 0.9rem; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 1rem; outline: none; transition: 0.2s; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(10, 104, 71, 0.1); }
+        
+        .btn-save { background: var(--primary); color: #fff; border: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-save:hover { background: var(--primary-hover); transform: translateY(-2px); }
+        .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-danger:hover { background: var(--danger); color: #fff; }
+        
+        .table-responsive { overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; text-align: right; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); }
+        th { background: var(--surface-hover); color: var(--primary); font-weight: bold; }
+        tr:hover { background: var(--surface-hover); }
+
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #fff; padding: 15px 30px; border-radius: 8px; font-weight: bold; display: none; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        
+        .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; backdrop-filter: blur(5px); }
+        .spinner { width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;}
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #loginScreen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 10000; }
+        .login-box { background: var(--surface); border: 2px solid var(--primary); padding: 40px; border-radius: var(--radius); text-align: center; width: 100%; max-width: 400px; box-shadow: var(--shadow); }
+        .login-box h2 { color: var(--primary); margin-bottom: 20px; font-size: 1.8rem; }
+        .login-box input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); margin-bottom: 15px; text-align: center; font-size: 1rem; outline: none; }
+        .login-box button { width: 100%; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+        .login-error { color: var(--danger); font-size: 0.85rem; margin-top: 10px; display: none; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: var(--surface); padding: 30px; border-radius: var(--radius); width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow); }
+
+        @media (max-width: 768px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .main-container { padding: 15px; }
+            header { flex-direction: column; gap: 10px; text-align: center; }
+            .tab-btn { padding: 8px 12px; font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- شاشة الدخول -->
+    <div id="loginScreen">
+        <div class="login-box">
+            <h2>🔒 إدارة الموقع</h2>
+            <p style="color:var(--text-muted); margin-bottom:20px;">أدخل بيانات حساب المالك للدخول</p>
+            <input type="email" id="adminEmail" placeholder="البريد الإلكتروني" style="direction: ltr;">
+            <input type="password" id="adminPass" placeholder="كلمة المرور" onkeydown="if(event.key==='Enter') checkPass()" style="direction: ltr;">
+            <button onclick="checkPass()">دخول آمن</button>
+            <div id="loginError" class="login-error"></div>
+        </div>
+    </div>
+
+    <!-- اللودينج -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <h3 style="color: var(--primary);" id="loadingText">جاري المعالجة...</h3>
+    </div>
+
+    <!-- واجهة إدارة الموقع (مخفية) -->
+    <div id="cmsApp" style="display: none; flex-direction: column; height: 100vh;">
+        <header>
+            <div class="header-title">🌐 إدارة الموقع الإلكتروني (CMS)</div>
+            <a href="index.html" class="btn-back">عودة للموقع</a>
+        </header>
+
+        <!-- التابات -->
+        <div class="tabs-nav">
+            <button class="tab-btn active" onclick="openTab('tab-packages', this)">📦 الباقات</button>
+            <button class="tab-btn" onclick="openTab('tab-articles', this)">📝 المقالات الطبية</button>
+            <button class="tab-btn" onclick="openTab('tab-faqs', this)">❓ الأسئلة الشائعة</button>
+            <button class="tab-btn" onclick="openTab('tab-testimonials', this)">💬 آراء العملاء</button>
+            <button class="tab-btn" onclick="openTab('tab-offers', this)">🎉 العروض</button>
+            <button class="tab-btn" onclick="openTab('tab-branches', this)">📍 الفروع (للموقع)</button>
+        </div>
+
+        <div class="main-container">            <!-- 1. تاب الباقات -->
+            <div id="tab-packages" class="tab-content active">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3 style="margin:0; border:none; padding:0;">📦 إدارة الباقات</h3>
+                        <button class="btn-save" onclick="openModal('packageModal')">➕ إضافة باقة جديدة</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>اسم الباقة</th><th>السعر</th><th>عدد التحاليل</th><th>إجراءات</th></tr></thead>
+                            <tbody id="packagesTableBody"><tr><td colspan="4" style="text-align:center;">جاري التحميل...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. تاب المقالات الطبية -->
+            <div id="tab-articles" class="tab-content">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3 style="margin:0; border:none; padding:0;">📝 المقالات الطبية</h3>
+                        <button class="btn-save" onclick="openModal('articleModal')">➕ إضافة مقال</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>عنوان المقال</th><th>تاريخ الإضافة</th><th>إجراءات</th></tr></thead>
+                            <tbody id="articlesTableBody"><tr><td colspan="3" style="text-align:center;">جاري التحميل...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. تاب الأسئلة الشائعة -->
+            <div id="tab-faqs" class="tab-content">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3 style="margin:0; border:none; padding:0;">❓ الأسئلة الشائعة</h3>
+                        <button class="btn-save" onclick="openModal('faqModal')">➕ إضافة سؤال</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>السؤال</th><th>الإجابة</th><th>إجراءات</th></tr></thead>
+                            <tbody id="faqsTableBody"><tr><td colspan="3" style="text-align:center;">جاري التحميل...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. تاب آراء العملاء -->
+            <div id="tab-testimonials" class="tab-content">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3 style="margin:0; border:none; padding:0;">💬 آراء العملاء</h3>
+                        <button class="btn-save" onclick="openModal('testimonialModal')">➕ إضافة رأي</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>الاسم</th><th>التقييم</th><th>الرأي</th><th>إجراءات</th></tr></thead>
+                            <tbody id="testimonialsTableBody"><tr><td colspan="4" style="text-align:center;">جاري التحميل...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. تاب العروض -->
+            <div id="tab-offers" class="tab-content">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3 style="margin:0; border:none; padding:0;">🎉 العروض والخصومات</h3>
+                        <button class="btn-save" onclick="openModal('offerModal')">➕ إضافة عرض</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>عنوان العرض</th><th>الخصم</th><th>من - إلى</th><th>إجراءات</th></tr></thead>
+                            <tbody id="offersTableBody"><tr><td colspan="4" style="text-align:center;">جاري التحميل...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. تاب الفروع (للموقع) -->
+            <div id="tab-branches" class="tab-content">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3 style="margin:0; border:none; padding:0;">📍 فروع المعمل (للموقع)</h3>
+                        <button class="btn-save" onclick="openModal('branchSiteModal')">➕ إضافة فرع</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead><tr><th>اسم الفرع</th><th>العنوان</th><th>إجراءات</th></tr></thead>
+                            <tbody id="branchesSiteTableBody"><tr><td colspan="3" style="text-align:center;">جاري التحميل...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div> <!-- نهاية main-container -->
+
+        <!-- ================= المودالات (نوافذ الإضافة) ================= -->
+
+        <!-- مودال الباقات -->
+        <div class="modal" id="packageModal">
+            <div class="modal-content">
+                <h3>📦 إضافة/تعديل باقة</h3>
+                <input type="hidden" id="pkgId">
+                <div class="form-group"><label>اسم الباقة</label><input type="text" id="pkgName" placeholder="مثال: باقة الفحص الشامل"></div>
+                <div class="form-group"><label>الوصف</label><textarea id="pkgDesc" rows="2"></textarea></div>
+                <div class="form-grid">
+                    <div class="form-group"><label>السعر (ج.م)</label><input type="number" id="pkgPrice"></div>
+                    <div class="form-group"><label>السعر قبل الخصم (اختياري)</label><input type="number" id="pkgOldPrice"></div>
+                </div>
+                <div class="form-group"><label>التحاليل (مفصولة بفاصلة)</label><textarea id="pkgTests" rows="3" placeholder="صورة دم كاملة, سكر صائم, ..."></textarea></div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn-save" onclick="savePackage()">💾 حفظ</button>
+                    <button class="btn-danger" onclick="closeModal('packageModal')">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- مودال المقالات -->
+        <div class="modal" id="articleModal">
+            <div class="modal-content">
+                <h3>📝 إضافة/تعديل مقال</h3>
+                <input type="hidden" id="artId">
+                <div class="form-group"><label>عنوان المقال</label><input type="text" id="artTitle"></div>
+                <div class="form-group"><label>الملخص</label><textarea id="artSummary" rows="2"></textarea></div>
+                <div class="form-group"><label>محتوى المقال (HTML)</label><textarea id="artBody" rows="6"></textarea></div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn-save" onclick="saveArticle()">💾 حفظ</button>
+                    <button class="btn-danger" onclick="closeModal('articleModal')">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- مودال الأسئلة الشائعة -->
+        <div class="modal" id="faqModal">
+            <div class="modal-content">
+                <h3>❓ إضافة/تعديل سؤال</h3>
+                <input type="hidden" id="faqId">
+                <div class="form-group"><label>السؤال</label><input type="text" id="faqQ"></div>
+                <div class="form-group"><label>الإجابة</label><textarea id="faqA" rows="3"></textarea></div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn-save" onclick="saveFaq()">💾 حفظ</button>
+                    <button class="btn-danger" onclick="closeModal('faqModal')">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- مودال الآراء -->
+        <div class="modal" id="testimonialModal">
+            <div class="modal-content">
+                <h3>💬 إضافة/تعديل رأي</h3>
+                <input type="hidden" id="testId">
+                <div class="form-group"><label>اسم العميل</label><input type="text" id="testName"></div>
+                <div class="form-group"><label>المنطقة</label><input type="text" id="testArea"></div>
+                <div class="form-group"><label>التقييم (1-5)</label><input type="number" id="testRating" min="1" max="5" value="5"></div>
+                <div class="form-group"><label>نص الرأي</label><textarea id="testText" rows="3"></textarea></div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn-save" onclick="saveTestimonial()">💾 حفظ</button>
+                    <button class="btn-danger" onclick="closeModal('testimonialModal')">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- مودال العروض -->
+        <div class="modal" id="offerModal">
+            <div class="modal-content">
+                <h3>🎉 إضافة/تعديل عرض</h3>
+                <input type="hidden" id="offerId">
+                <div class="form-group"><label>عنوان العرض</label><input type="text" id="offerTitle"></div>
+                <div class="form-group"><label>الوصف</label><input type="text" id="offerDesc"></div>
+                <div class="form-group"><label>نسبة الخصم (%)</label><input type="number" id="offerPct" min="1" max="100"></div>
+                <div class="form-grid">
+                    <div class="form-group"><label>تاريخ البداية</label><input type="date" id="offerStart"></div>
+                    <div class="form-group"><label>تاريخ النهاية</label><input type="date" id="offerEnd"></div>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn-save" onclick="saveOffer()">💾 حفظ</button>
+                    <button class="btn-danger" onclick="closeModal('offerModal')">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- مودال فروع الموقع -->
+        <div class="modal" id="branchSiteModal">
+            <div class="modal-content">
+                <h3>📍 إضافة/تعديل فرع</h3>
+                <input type="hidden" id="branchSiteId">
+                <div class="form-group"><label>اسم الفرع</label><input type="text" id="branchSiteName"></div>
+                <div class="form-group"><label>العنوان بالتفصيل</label><textarea id="branchSiteAddress" rows="2"></textarea></div>
+                <div class="form-group"><label>رابط الخريطة (Google Maps Link)</label><input type="url" id="branchSiteMap" style="direction:ltr;"></div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn-save" onclick="saveBranchSite()">💾 حفظ</button>
+                    <button class="btn-danger" onclick="closeModal('branchSiteModal')">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+    </div> <!-- نهاية cmsApp -->
+
+    <script>
+        // ==== تهيئة السحابة ====
+        const _supabase = supabase.createClient(TEBA_CONFIG.supabase.url, TEBA_CONFIG.supabase.key);
+        const tenantId = TEBA_CONFIG.tenant.id;
+
+        // ==== أدوات مساعدة (Toast & Loading & Modals) ====
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        function showLoading(msg) {
+            document.getElementById('loadingText').innerText = msg;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // ==== 1. تسجيل الدخول ====
+        async function checkPass() {
+            const email = document.getElementById('adminEmail').value.trim();
+            const pass = document.getElementById('adminPass').value;
+            const errorEl = document.getElementById('loginError');
+            const btn = document.querySelector('.login-box button');
+
+            if (!email || !pass) {
+                errorEl.textContent = 'يرجى إدخال الإيميل والباسورد';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            btn.innerText = '⏳ جاري التحقق...'; btn.disabled = true;
+
+            try {
+                const { data: authData, error: authError } = await _supabase.auth.signInWithPassword({ email, password: pass });
+                if (authError) throw new Error('الإيميل أو الباسورد غير صحيح');
+
+                const { data: userData, error: userError } = await _supabase.from('users').select('role').eq('id', authData.user.id).single();
+                if (userError || !userData) throw new Error('لا يوجد صلاحيات لهذا الحساب.');
+                
+                if (userData.role !== 'admin' && userData.role !== 'owner') {
+                    await _supabase.auth.signOut();
+                    throw new Error('🔒 هذا الحساب ليس لديه صلاحية إدارة الموقع.');
+                }
+
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('cmsApp').style.display = 'flex';
+                loadAllData();
+
+            } catch (err) {
+                errorEl.textContent = '❌ ' + err.message;
+                errorEl.style.display = 'block';
+            } finally {
+                btn.innerText = 'دخول آمن'; btn.disabled = false;
+            }
+        }
+
+        // التحقق من الجلسة الحالية
+        _supabase.auth.getSession().then(async ({ data: { session } }) => {
+            if (session) {
+                const { data: userData } = await _supabase.from('users').select('role').eq('id', session.user.id).single();
+                if (userData && (userData.role === 'admin' || userData.role === 'owner')) {
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('cmsApp').style.display = 'flex';
+                    loadAllData();
+                }
+            }
+        });
+
+        // ==== 2. التنقل بين التابات ====
+        function openTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            if(btnElement) btnElement.classList.add('active');
+        }
+
+        // ==== 3. تحميل كل البيانات ====
+        function loadAllData() {
+            loadPackages();
+            loadArticles();
+            loadFaqs();
+            loadTestimonials();
+            loadOffers();
+            loadSiteBranches();
+        }
+
+        // ==== 4. دوال التحميل والعرض (Render) ====
+
+        // 4.1 الباقات
+        async function loadPackages() {
+            const tbody = document.getElementById('packagesTableBody');
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">جاري التحميل...</td></tr>';
+            try {
+                const { data, error } = await _supabase.from('site_packages').select('*').eq('tenant_id', tenantId).order('id', { ascending: false });
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">لا توجد باقات.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.map(p => `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--primary);">${p.name}</td>
+                        <td>${p.price} ج.م</td>
+                        <td>${p.tests ? p.tests.split(',').length : 0} تحليل</td>
+                        <td>
+                            <button class="btn-save" style="padding:6px 12px; font-size:0.8rem; margin-left:5px;" onclick='editPackage(${JSON.stringify(p).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
+                            <button class="btn-danger" style="padding:6px 12px; font-size:0.8rem;" onclick="deletePackage(${p.id})">🗑️ مسح</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">خطأ في التحميل</td></tr>'; }
+        }
+
+        // 4.2 المقالات
+        async function loadArticles() {
+            const tbody = document.getElementById('articlesTableBody');
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">جاري التحميل...</td></tr>';
+            try {
+                const { data, error } = await _supabase.from('site_articles').select('*').eq('tenant_id', tenantId).order('id', { ascending: false });
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">لا توجد مقالات.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.map(a => `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--primary);">${a.title}</td>
+                        <td>${a.created_at ? new Date(a.created_at).toLocaleDateString('ar-EG') : '-'}</td>
+                        <td>
+                            <button class="btn-save" style="padding:6px 12px; font-size:0.8rem; margin-left:5px;" onclick='editArticle(${JSON.stringify(a).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
+                            <button class="btn-danger" style="padding:6px 12px; font-size:0.8rem;" onclick="deleteArticle(${a.id})">🗑️ مسح</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:red;">خطأ في التحميل</td></tr>'; }
+        }
+
+        // 4.3 الأسئلة الشائعة
+        async function loadFaqs() {
+            const tbody = document.getElementById('faqsTableBody');
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">جاري التحميل...</td></tr>';
+            try {
+                const { data, error } = await _supabase.from('site_faqs').select('*').eq('tenant_id', tenantId).order('id', { ascending: false });
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">لا توجد أسئلة.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.map(f => `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--primary);">${f.question}</td>
+                        <td>${f.answer.substring(0, 50)}...</td>
+                        <td>
+                            <button class="btn-save" style="padding:6px 12px; font-size:0.8rem; margin-left:5px;" onclick='editFaq(${JSON.stringify(f).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
+                            <button class="btn-danger" style="padding:6px 12px; font-size:0.8rem;" onclick="deleteFaq(${f.id})">🗑️ مسح</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:red;">خطأ في التحميل</td></tr>'; }
+        }
+
+        // 4.4 آراء العملاء
+        async function loadTestimonials() {
+            const tbody = document.getElementById('testimonialsTableBody');
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">جاري التحميل...</td></tr>';
+            try {
+                const { data, error } = await _supabase.from('site_testimonials').select('*').eq('tenant_id', tenantId).order('id', { ascending: false });
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">لا توجد آراء.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.map(t => `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--primary);">${t.name}</td>
+                        <td>${'⭐'.repeat(t.rating || 5)}</td>
+                        <td>${t.text.substring(0, 50)}...</td>
+                        <td>
+                            <button class="btn-save" style="padding:6px 12px; font-size:0.8rem; margin-left:5px;" onclick='editTestimonial(${JSON.stringify(t).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
+                            <button class="btn-danger" style="padding:6px 12px; font-size:0.8rem;" onclick="deleteTestimonial(${t.id})">🗑️ مسح</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">خطأ في التحميل</td></tr>'; }
+        }
+
+        // 4.5 العروض
+        async function loadOffers() {
+            const tbody = document.getElementById('offersTableBody');
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">جاري التحميل...</td></tr>';
+            try {
+                const { data, error } = await _supabase.from('offers').select('*').eq('tenant_id', tenantId).order('id', { ascending: false });
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">لا توجد عروض.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.map(o => `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--primary);">${o.title}</td>
+                        <td>${o.discount_pct}%</td>
+                        <td>${o.start_date} إلى ${o.end_date}</td>
+                        <td>
+                            <button class="btn-save" style="padding:6px 12px; font-size:0.8rem; margin-left:5px;" onclick='editOffer(${JSON.stringify(o).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
+                            <button class="btn-danger" style="padding:6px 12px; font-size:0.8rem;" onclick="deleteOffer(${o.id})">🗑️ مسح</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">خطأ في التحميل</td></tr>'; }
+        }
+
+        // 4.6 فروع الموقع
+        async function loadSiteBranches() {
+            const tbody = document.getElementById('branchesSiteTableBody');
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">جاري التحميل...</td></tr>';
+            try {
+                const { data, error } = await _supabase.from('branches').select('*').eq('tenant_id', tenantId);
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">لا توجد فروع مسجلة.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.map(b => `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--primary);">${b.name}</td>
+                        <td>${b.address || 'غير محدد'}</td>
+                        <td>
+                            <button class="btn-save" style="padding:6px 12px; font-size:0.8rem; margin-left:5px;" onclick='editSiteBranch(${JSON.stringify(b).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
+                            <button class="btn-danger" style="padding:6px 12px; font-size:0.8rem;" onclick="deleteSiteBranch(${b.id})">🗑️ مسح</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:red;">خطأ في التحميل</td></tr>'; }
+        }
+
+        // ==== 5. دوال الحفظ والتعديل والمسح ====
+
+        // 5.1 الباقات
+        function editPackage(pkg) {
+            document.getElementById('pkgId').value = pkg.id;
+            document.getElementById('pkgName').value = pkg.name;
+            document.getElementById('pkgDesc').value = pkg.description || '';
+            document.getElementById('pkgPrice').value = pkg.price;
+            document.getElementById('pkgOldPrice').value = pkg.old_price || '';
+            document.getElementById('pkgTests').value = pkg.tests || '';
+            openModal('packageModal');
+        }
+
+        async function savePackage() {
+            const id = document.getElementById('pkgId').value;
+            const name = document.getElementById('pkgName').value.trim();
+            if(!name) return showToast('يرجى إدخال اسم الباقة', true);
+            
+            const payload = {
+                tenant_id: tenantId,
+                name: name,
+                description: document.getElementById('pkgDesc').value,
+                price: parseFloat(document.getElementById('pkgPrice').value) || 0,
+                old_price: parseFloat(document.getElementById('pkgOldPrice').value) || null,
+                tests: document.getElementById('pkgTests').value
+            };
+
+            const btn = event.target;
+            btn.innerText = '⏳...'; btn.disabled = true;
+
+            try {
+                let error;
+                if (id) {
+                    const res = await _supabase.from('site_packages').update(payload).eq('id', id).eq('tenant_id', tenantId);
+                    error = res.error;
+                } else {
+                    const res = await _supabase.from('site_packages').insert([payload]);
+                    error = res.error;
+                }
+                if (error) throw error;
+                showToast('✅ تم الحفظ بنجاح');
+                closeModal('packageModal');
+                document.getElementById('pkgId').value = '';
+                loadPackages();
+            } catch(err) { showToast('❌ خطأ: ' + err.message, true); }
+            finally { btn.innerText = '💾 حفظ'; btn.disabled = false; }
+        }
+
+        async function deletePackage(id) {
+            if(!confirm('مسح هذه الباقة نهائياً؟')) return;
+            try {
+                await _supabase.from('site_packages').delete().eq('id', id).eq('tenant_id', tenantId);
+                showToast('✅ تم المسح'); loadPackages();
+            } catch(e) { showToast('❌ خطأ', true); }
+        }
+
+        // 5.2 المقالات
+        function editArticle(art) {
+            document.getElementById('artId').value = art.id;
+            document.getElementById('artTitle').value = art.title;
+            document.getElementById('artSummary').value = art.summary || '';
+            document.getElementById('artBody').value = art.body || '';
+            openModal('articleModal');
+        }
+
+        async function saveArticle() {
+            const id = document.getElementById('artId').value;
+            const title = document.getElementById('artTitle').value.trim();
+            if(!title) return showToast('يرجى إدخال عنوان المقال', true);
+            
+            const payload = {
+                tenant_id: tenantId,
+                title: title,
+                summary: document.getElementById('artSummary').value,
+                body: document.getElementById('artBody').value
+            };
+
+            const btn = event.target;
+            btn.innerText = '⏳...'; btn.disabled = true;
+
+            try {
+                let error;
+                if (id) {
+                    const res = await _supabase.from('site_articles').update(payload).eq('id', id).eq('tenant_id', tenantId);
+                    error = res.error;
+                } else {
+                    const res = await _supabase.from('site_articles').insert([payload]);
+                    error = res.error;
+                }
+                if (error) throw error;
+                showToast('✅ تم الحفظ بنجاح');
+                closeModal('articleModal');
+                document.getElementById('artId').value = '';
+                loadArticles();
+            } catch(err) { showToast('❌ خطأ: ' + err.message, true); }
+            finally { btn.innerText = '💾 حفظ'; btn.disabled = false; }
+        }
+
+        async function deleteArticle(id) {
+            if(!confirm('مسح هذا المقال نهائياً؟')) return;
+            try {
+                await _supabase.from('site_articles').delete().eq('id', id).eq('tenant_id', tenantId);
+                showToast('✅ تم المسح'); loadArticles();
+            } catch(e) { showToast('❌ خطأ', true); }
+        }
+
+        // 5.3 الأسئلة الشائعة
+        function editFaq(faq) {
+            document.getElementById('faqId').value = faq.id;
+            document.getElementById('faqQ').value = faq.question;
+            document.getElementById('faqA').value = faq.answer;
+            openModal('faqModal');
+        }
+
+        async function saveFaq() {
+            const id = document.getElementById('faqId').value;
+            const q = document.getElementById('faqQ').value.trim();
+            const a = document.getElementById('faqA').value.trim();
+            if(!q || !a) return showToast('يرجى إدخال السؤال والإجابة', true);
+            
+            const payload = { tenant_id: tenantId, question: q, answer: a };
+
+            const btn = event.target;
+            btn.innerText = '⏳...'; btn.disabled = true;
+
+            try {
+                let error;
+                if (id) {
+                    const res = await _supabase.from('site_faqs').update(payload).eq('id', id).eq('tenant_id', tenantId);
+                    error = res.error;
+                } else {
+                    const res = await _supabase.from('site_faqs').insert([payload]);
+                    error = res.error;
+                }
+                if (error) throw error;
+                showToast('✅ تم الحفظ بنجاح');
+                closeModal('faqModal');
+                document.getElementById('faqId').value = '';
+                loadFaqs();
+            } catch(err) { showToast('❌ خطأ: ' + err.message, true); }
+            finally { btn.innerText = '💾 حفظ'; btn.disabled = false; }
+        }
+
+        async function deleteFaq(id) {
+            if(!confirm('مسح هذا السؤال نهائياً؟')) return;
+            try {
+                await _supabase.from('site_faqs').delete().eq('id', id).eq('tenant_id', tenantId);
+                showToast('✅ تم المسح'); loadFaqs();
+            } catch(e) { showToast('❌ خطأ', true); }
+        }
+
+        // 5.4 آراء العملاء
+        function editTestimonial(t) {
+            document.getElementById('testId').value = t.id;
+            document.getElementById('testName').value = t.name;
+            document.getElementById('testArea').value = t.area || '';
+            document.getElementById('testRating').value = t.rating || 5;
+            document.getElementById('testText').value = t.text;
+            openModal('testimonialModal');
+        }
+
+        async function saveTestimonial() {
+            const id = document.getElementById('testId').value;
+            const name = document.getElementById('testName').value.trim();
+            const text = document.getElementById('testText').value.trim();
+            if(!name || !text) return showToast('يرجى إدخال الاسم ونص الرأي', true);
+            
+            const payload = {
+                tenant_id: tenantId,
+                name: name,
+                area: document.getElementById('testArea').value,
+                rating: parseInt(document.getElementById('testRating').value) || 5,
+                text: text
+            };
+
+            const btn = event.target;
+            btn.innerText = '⏳...'; btn.disabled = true;
+
+            try {
+                let error;
+                if (id) {
+                    const res = await _supabase.from('site_testimonials').update(payload).eq('id', id).eq('tenant_id', tenantId);
+                    error = res.error;
+                } else {
+                    const res = await _supabase.from('site_testimonials').insert([payload]);
+                    error = res.error;
+                }
+                if (error) throw error;
+                showToast('✅ تم الحفظ بنجاح');
+                closeModal('testimonialModal');
+                document.getElementById('testId').value = '';
+                loadTestimonials();
+            } catch(err) { showToast('❌ خطأ: ' + err.message, true); }
+            finally { btn.innerText = '💾 حفظ'; btn.disabled = false; }
+        }
+
+        async function deleteTestimonial(id) {
+            if(!confirm('مسح هذا الرأي نهائياً؟')) return;
+            try {
+                await _supabase.from('site_testimonials').delete().eq('id', id).eq('tenant_id', tenantId);
+                showToast('✅ تم المسح'); loadTestimonials();
+            } catch(e) { showToast('❌ خطأ', true); }
+        }
+
+        // 5.5 العروض
+        function editOffer(o) {
+            document.getElementById('offerId').value = o.id;
+            document.getElementById('offerTitle').value = o.title;
+            document.getElementById('offerDesc').value = o.description || '';
+            document.getElementById('offerPct').value = o.discount_pct;
+            document.getElementById('offerStart').value = o.start_date;
+            document.getElementById('offerEnd').value = o.end_date;
+            openModal('offerModal');
+        }
+
+        async function saveOffer() {
+            const id = document.getElementById('offerId').value;
+            const title = document.getElementById('offerTitle').value.trim();
+            if(!title) return showToast('يرجى إدخال عنوان العرض', true);
+            
+            const payload = {
+                tenant_id: tenantId,
+                title: title,
+                description: document.getElementById('offerDesc').value,
+                discount_pct: parseFloat(document.getElementById('offerPct').value) || 0,
+                start_date: document.getElementById('offerStart').value,
+                end_date: document.getElementById('offerEnd').value,
+                is_active: true
+            };
+
+            const btn = event.target;
+            btn.innerText = '⏳...'; btn.disabled = true;
+
+            try {
+                let error;
+                if (id) {
+                    const res = await _supabase.from('offers').update(payload).eq('id', id).eq('tenant_id', tenantId);
+                    error = res.error;
+                } else {
+                    const res = await _supabase.from('offers').insert([payload]);
+                    error = res.error;
+                }
+                if (error) throw error;
+                showToast('✅ تم الحفظ بنجاح');
+                closeModal('offerModal');
+                document.getElementById('offerId').value = '';
+                loadOffers();
+            } catch(err) { showToast('❌ خطأ: ' + err.message, true); }
+            finally { btn.innerText = '💾 حفظ'; btn.disabled = false; }
+        }
+
+        async function deleteOffer(id) {
+            if(!confirm('مسح هذا العرض نهائياً؟')) return;
+            try {
+                await _supabase.from('offers').delete().eq('id', id).eq('tenant_id', tenantId);
+                showToast('✅ تم المسح'); loadOffers();
+            } catch(e) { showToast('❌ خطأ', true); }
+        }
+
+        // 5.6 فروع الموقع
+        function editSiteBranch(b) {
+            document.getElementById('branchSiteId').value = b.id;
+            document.getElementById('branchSiteName').value = b.name;
+            document.getElementById('branchSiteAddress').value = b.address || '';
+            document.getElementById('branchSiteMap').value = b.map_link || '';
+            openModal('branchSiteModal');
+        }
+
+        async function saveBranchSite() {
+            const id = document.getElementById('branchSiteId').value;
+            const name = document.getElementById('branchSiteName').value.trim();
+            if(!name) return showToast('يرجى إدخال اسم الفرع', true);
+            
+            const payload = {
+                name: name,
+                address: document.getElementById('branchSiteAddress').value,
+                map_link: document.getElementById('branchSiteMap').value
+            };
+
+            const btn = event.target;
+            btn.innerText = '⏳...'; btn.disabled = true;
+
+            try {
+                let error;
+                if (id) {
+                    const res = await _supabase.from('branches').update(payload).eq('id', id).eq('tenant_id', tenantId);
+                    error = res.error;
+                } else {
+                    payload.tenant_id = tenantId;
+                    const res = await _supabase.from('branches').insert([payload]);
+                    error = res.error;
+                }
+                if (error) throw error;
+                showToast('✅ تم الحفظ بنجاح');
+                closeModal('branchSiteModal');
+                document.getElementById('branchSiteId').value = '';
+                loadSiteBranches();
+            } catch(err) { showToast('❌ خطأ: ' + err.message, true); }
+            finally { btn.innerText = '💾 حفظ'; btn.disabled = false; }
+        }
+
+        async function deleteSiteBranch(id) {
+            if(!confirm('مسح هذا الفرع نهائياً؟ (لن يؤثر على فروع النظام الداخلي)')) return;
+            try {
+                await _supabase.from('branches').delete().eq('id', id).eq('tenant_id', tenantId);
+                showToast('✅ تم المسح'); loadSiteBranches();
+            } catch(e) { showToast('❌ خطأ', true); }
+        }
+    </script>
+</body>
+</html>
