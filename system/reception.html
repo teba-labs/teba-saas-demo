@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة الاستقبال | معمل النور</title>
+    <title>بوابة الاستقبال | النظام</title>
     <link rel="icon" type="image/png" href="../logo.png">
     <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#0a6847">
@@ -13,7 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-    <script src="config.js?v=151"></script>
+    <script src="config.js?v=154"></script>
     
     <style>
         :root {
@@ -128,7 +128,7 @@
         <div class="brand">
             <img src="../brand-logo.png" alt="Logo" onerror="this.style.display='none'">
             <div class="brand-text">
-                <h1 id="brandInfo">معمل النور</h1>
+                <h1 id="brandInfo">جاري التحميل...</h1>
                 <p>بوابة الاستقبال الذكية - <span id="currentBranchDisplay" style="color:var(--primary); font-weight:bold;">جاري التحديد...</span></p>
             </div>
         </div>
@@ -167,13 +167,19 @@
                     <div style="font-size: 0.85rem;"><strong>رقم الزيارة:</strong> <span id="displayVisitId" style="color: var(--primary); font-weight: bold; font-size: 1.1rem;">جديد</span></div>
                     <div style="font-size: 0.85rem;"><strong>التاريخ:</strong> <span id="displayVisitDate" style="font-weight: bold;"></span></div>
                 </div>
+                
+                <!-- صندوق التنبيه بالنتائج القديمة -->
+                <div id="historicalAlertBox" style="display:none; background: rgba(2, 132, 199, 0.1); border: 1px solid #0284c7; color: #0284c7; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 0.85rem; margin-bottom: 10px;">
+                    📜 هذا المريض لديه نتائج قديمة في الأرشيف. يمكنك مراجعتها في تقرير المعمل.
+                </div>
+
                 <div class="form-group">
                     <label>بحث سريع (تليفون أو اسم)</label>
                     <input type="text" id="patientSearch" placeholder="اكتب واضغط Enter..." onkeydown="if(event.key === 'Enter') searchPatient()" style="border-color: var(--accent);">
                 </div>
                 <div class="form-group">
                     <label>اسم المريض (مطلوب)</label>
-                    <input type="text" id="pName" placeholder="الاسم بالكامل" onkeydown="moveToNext(event, 'pPhone')">
+                    <input type="text" id="pName" placeholder="الاسم بالكامل" onkeydown="moveToNext(event, 'pPhone')" onblur="checkHistoricalPatient(this.value)">
                 </div>
                 <div class="form-group">
                     <label>رقم التليفون</label>
@@ -187,8 +193,7 @@
                     <div class="form-group">
                         <label>الفرع</label>
                         <select id="pBranch" onchange="updateLocalBranch(this.value)">
-                            <option value="1">🏥 الفرع الأول</option>
-                            <option value="2">🏥 الفرع الثاني</option>
+                            <!-- سيتم تحميل الفروع هنا ديناميكياً -->
                         </select>
                     </div>
                     <div class="form-group">
@@ -309,8 +314,7 @@
             <div class="form-group">
                 <label>الفرع</label>
                 <select id="expBranch">
-                    <option value="1">🏥 الفرع الأول</option>
-                    <option value="2">🏥 الفرع الثاني</option>
+                    <!-- سيتم تحميل الفروع هنا ديناميكياً -->
                 </select>
             </div>
             <div class="form-group">
@@ -406,7 +410,7 @@
     <!-- قسم الطباعة (مخفي افتراضياً) -->
     <div id="print-section" style="display: none;">
         <div class="print-header" style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-            <h2 id="printLabName" style="margin: 0;">معمل النور للتحاليل الطبية</h2>
+            <h2 id="printLabName" style="margin: 0;">جاري التحميل...</h2>
             <p style="margin: 5px 0 0 0;">فاتورة مبدئية</p>
         </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 16px;">
@@ -465,11 +469,10 @@
                         select.innerHTML = branches.map(b => `<option value="${b.id}">🏥 ${b.name}</option>`).join('');
                         select.value = currentBranch;
                     });
-                    // تحديث اسم الفرع في الهيدر
                     const currentB = branches.find(b => String(b.id) === String(currentBranch));
                     if(currentB) document.getElementById('currentBranchDisplay').innerText = currentB.name;
+                    document.getElementById('brandInfo').innerText = TEBA_CONFIG.lab.name;
                 } else {
-                    // Fallbacks if cloud fails
                     branchSelects.forEach(select => {
                         if(!select) return;
                         select.innerHTML = `<option value="1">🏥 الفرع الأول</option><option value="2">🏥 الفرع الثاني</option>`;
@@ -491,6 +494,29 @@
             const selectedText = select.options[select.selectedIndex].text.replace('🏥 ', '');
             document.getElementById('currentBranchDisplay').innerText = selectedText;
             loadRecentPatients(); 
+        }
+
+        // ==== دالة البحث في الأرشيف (الميزة الجديدة) ====
+        async function checkHistoricalPatient(name) {
+            const alertBox = document.getElementById('historicalAlertBox');
+            if (!name || name.trim().length < 3) {
+                if(alertBox) alertBox.style.display = 'none';
+                return;
+            }
+            try {
+                const { data, error } = await _supabase
+                    .from('historical_results')
+                    .select('*')
+                    .eq('tenant_id', TEBA_CONFIG.tenant.id)
+                    .ilike('patient_name', `%${name.trim()}%`);
+                
+                if (data && data.length > 0 && alertBox) {
+                    alertBox.style.display = 'block';
+                    alertBox.innerHTML = `📜 <b>تنبيه:</b> هذا المريض لديه ${data.length} نتيجة مسجلة في الأرشيف القديم. سيتم إرفاقها في تقرير المعمل للمقارنة.`;
+                } else if (alertBox) {
+                    alertBox.style.display = 'none';
+                }
+            } catch(e) { console.warn("Error checking historical:", e); }
         }
 
         async function addToOutbox(table_name, action, payload) {
@@ -972,6 +998,7 @@
             document.getElementById('pName').value = ''; document.getElementById('pPhone').value = ''; document.getElementById('pDoctor').value = '';
             document.getElementById('pAge').value = '30'; document.getElementById('pAgeType').value = 'Years'; document.getElementById('pGender').value = 'male'; document.getElementById('pBranch').value = currentBranch; 
             document.getElementById('btnPatientHistory').style.display = 'none';
+            document.getElementById('historicalAlertBox').style.display = 'none'; // إخفاء التنبيه
             cart = []; renderCart(); calculateChanges(); await generateVisitPreview();
             setTimeout(() => { const nameInput = document.getElementById('pName'); if(nameInput) nameInput.focus(); }, 100);
         }
@@ -1012,6 +1039,9 @@
                 if(vData.branch_id) document.getElementById('pBranch').value = vData.branch_id; 
                 document.getElementById('paidAmount').value = vData.paid_amount || 0; 
                 
+                // فحص الأرشيف بمجرد فتح الحالة
+                checkHistoricalPatient(p.name);
+
                 await generateVisitPreview(); document.getElementById('displayVisitDate').innerText = vData.visit_date ? new Date(vData.visit_date).toLocaleDateString('ar-EG') : new Date().toLocaleDateString('ar-EG');
                 document.getElementById('btnPatientHistory').style.display = 'block';
                 
@@ -1073,7 +1103,6 @@
 
                 for (let v of visits) {
                     const p = await db.patients.get(v.patient_id);
-                    // استخدام أسماء الفروع العامة
                     const branchName = v.branch_id == 1 ? 'الفرع الأول' : 'الفرع الثاني';
                     const paddedId = String(v.visit_id).padStart(4, '0');
                     const dateStr = v.visit_date ? new Date(v.visit_date).toLocaleDateString('ar-EG') : '---';
@@ -1133,9 +1162,15 @@
                         document.getElementById('pName').value = p.name; document.getElementById('pPhone').value = p.phone || ''; document.getElementById('pAge').value = p.age || 30; document.getElementById('pAgeType').value = p.age_type || 'Years'; document.getElementById('pGender').value = p.gender || 'male'; document.getElementById('pDoctor').value = p.doctor_name || '';
                         document.getElementById('btnPatientHistory').style.display = 'block';
                         await generateVisitPreview();
+                        checkHistoricalPatient(p.name);
                         showToast('✅ تم العثور على المريض (زيارة جديدة)');
                     }
-                } else { showToast('⚠️ لم يتم العثور على مريض في هذا الفرع', true); document.getElementById('btnPatientHistory').style.display = 'none'; currentPatientId = null; }
+                } else { 
+                    showToast('⚠️ لم يتم العثور على مريض في هذا الفرع', true); 
+                    document.getElementById('btnPatientHistory').style.display = 'none'; 
+                    currentPatientId = null; 
+                    checkHistoricalPatient(query); // نبحث في الأرشيف برضه
+                }
             } catch(e) { console.error(e); }
         }
 
@@ -1183,7 +1218,6 @@
                 </div>`;
             document.getElementById('previewContent').innerHTML = html;
             
-            // تحديث بيانات الطباعة
             document.getElementById('printLabName').innerText = TEBA_CONFIG.lab.name;
             document.getElementById('printName').innerText = pName; document.getElementById('printDate').innerText = date;
             document.getElementById('printTotal').innerText = total; document.getElementById('printPaid').innerText = paid; document.getElementById('printRemain').innerText = remain;
@@ -1216,10 +1250,7 @@
 
         window.onload = async () => { 
             if (userRole !== 'admin' && userRole !== 'owner') document.getElementById('pBranch').style.display = 'none';
-            
-            // تحميل الفروع
             await loadBranchesForReception();
-            
             await fetchCatalogFromCloud(); renderCart(); updateLiveTicker(); await startNewPatient(); await loadRecentPatients();
             if (navigator.onLine) processOutbox();
         };

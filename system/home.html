@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js?v=151"></script>
+    <script src="config.js?v=154"></script>
     <style>
         :root { --bg-body: #f1f5f9; --bg-card: #fff; --bg-input: #f8fafc; --text-main: #0f172a; --text-muted: #64748b; --border-light: #e2e8f0; --primary: #0a6847; --primary-gradient: linear-gradient(135deg, #10b981, #0a6847); --card-shadow: 0 20px 40px -10px rgba(0,0,0,0.05); --card-radius: 24px; --icon-bg: #e0f2fe; --icon-color: #0284c7; --font: 'Almarai', sans-serif; }
         body.dark-mode { --bg-body: #0b1120; --bg-card: #1e293b; --bg-input: #0f172a; --text-main: #f8fafc; --text-muted: #94a3b8; --border-light: #334155; --primary: #10b981; --primary-gradient: linear-gradient(135deg, #34d399, #10b981); --card-shadow: 0 20px 40px -10px rgba(0,0,0,0.4); --icon-bg: rgba(16,185,129,0.1); --icon-color: #34d399; }
@@ -81,7 +81,7 @@
         <div class="desktop-header">
             <div class="logo-container">
                 <img id="labLogo" class="dyn-logo" src="../brand-logo.png" alt="LAB LOGO" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                <div class="logo-fallback" style="display:none;"><span class="en">AL NOOR LABS</span><span class="ar">معمل النور</span></div>
+                <div class="logo-fallback" style="display:none;"><span class="en" id="loginLabEn">LAB SYSTEM</span><span class="ar" id="loginLabAr">معمل التحاليل</span></div>
             </div>
             <h1 id="desktopLabName">مرحباً، جاري التحميل...</h1>
             <p>النظام الرئيسي لإدارة المعامل</p>
@@ -93,15 +93,11 @@
             <a href="settings.html" class="app-card" id="cardSettings"><div class="app-icon-box">🛠️</div><div class="app-name">إعدادات النظام</div><div class="app-desc">التحكم الكامل في النظام</div></a>
             <div class="app-card" id="cardDashboard" onclick="openSecretModal()"><div class="app-icon-box">📊</div><div class="app-name">لوحة التحكم</div><div class="app-desc">التقارير والإحصائيات 🔒</div></div>
         </div>
-    </div>    <!-- ================= سكريبت النظام ================= -->
+    </div>    
     <script>
-        // ==== 1. إعدادات الوضع الليلي والنهاري ====
         const themeBtn = document.getElementById('themeToggleBtn');
         const currentTheme = localStorage.getItem('teba_theme') || 'light';
-        if (currentTheme === 'dark') {
-            document.body.classList.add('dark-mode');
-            if(themeBtn) themeBtn.innerText = '☀️';
-        }
+        if (currentTheme === 'dark') { document.body.classList.add('dark-mode'); if(themeBtn) themeBtn.innerText = '☀️'; }
         function toggleTheme() {
             document.body.classList.toggle('dark-mode');
             const isDark = document.body.classList.contains('dark-mode');
@@ -109,43 +105,25 @@
             if(themeBtn) themeBtn.innerText = isDark ? '☀️' : '🌙';
         }
 
-        // ==== 2. تهيئة السحابة ====
         const _supabase = supabase.createClient(TEBA_CONFIG.supabase.url, TEBA_CONFIG.supabase.key);
 
-        // ==== 3. جلب الفروع من السحابة (ديناميكي) ====
         async function loadBranchesForLogin() {
             const branchSelect = document.getElementById('loginBranch');
             try {
-                const { data: branches, error } = await _supabase
-                    .from('branches')
-                    .select('id, name')
-                    .eq('tenant_id', TEBA_CONFIG.tenant.id)
-                    .order('id', { ascending: true });
-
+                const { data: branches, error } = await _supabase.from('branches').select('id, name').eq('tenant_id', TEBA_CONFIG.tenant.id).order('id', { ascending: true });
                 if (error) throw error;
-
                 if (!branches || branches.length === 0) {
                     branchSelect.innerHTML = '<option value="">لا توجد فروع مسجلة</option>';
                     return;
                 }
-
-                branchSelect.innerHTML = branches.map(b => 
-                    `<option value="${b.id}">🏥 ${b.name}</option>`
-                ).join('');
-                
-                // لو في فرع محفوظ من قبل، نختاره أوتوماتيك
+                branchSelect.innerHTML = branches.map(b => `<option value="${b.id}">🏥 ${b.name}</option>`).join('');
                 const savedBranch = localStorage.getItem('teba_current_branch');
-                if (savedBranch && branches.find(b => b.id == savedBranch)) {
-                    branchSelect.value = savedBranch;
-                }
+                if (savedBranch && branches.find(b => b.id == savedBranch)) branchSelect.value = savedBranch;
             } catch (err) {
-                console.error("Error loading branches:", err);
-                // القيم الافتراضية لو السحابة وقعت
                 branchSelect.innerHTML = '<option value="1">🏥 الفرع الأول</option><option value="2">🏥 الفرع الثاني</option>';
             }
         }
 
-        // ==== 4. دوال تسجيل الدخول ====
         async function loginUser() {
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
@@ -160,41 +138,32 @@
                 return;
             }
 
-            btn.innerText = '⏳ جاري التحقق...'; 
-            btn.disabled = true;
-            errorEl.style.display = 'none';
+            btn.innerText = '⏳ جاري التحقق...'; btn.disabled = true; errorEl.style.display = 'none';
 
             try {
-                // 1. التحقق من باسورد الفرع (عبر دالة RPC آمنة)
-                const { data: isBranchPwdCorrect, error: rpcErr } = await _supabase.rpc('verify_branch_password', { 
-                    branch_id: parseInt(branch), 
-                    input_password: branchPwd 
-                });
-                
+                const { data: isBranchPwdCorrect, error: rpcErr } = await _supabase.rpc('verify_branch_password', { branch_id: parseInt(branch), input_password: branchPwd });
                 if (rpcErr) throw new Error('حدث خطأ في التحقق من باسورد الفرع.');
                 if (!isBranchPwdCorrect) throw new Error('❌ باسورد الفرع غير صحيح!');
 
-                // 2. تسجيل الدخول
                 const { data: authData, error: authError } = await _supabase.auth.signInWithPassword({ email, password });
                 if (authError) throw new Error('الإيميل أو الباسورد غير صحيح');
 
-                // 3. جلب الصلاحيات
                 const { data: userData, error: userError } = await _supabase.from('users').select('role, tenant_id').eq('id', authData.user.id).single();
                 if (userError || !userData) throw new Error('لا يوجد صلاحيات مسجلة لهذا الحساب.');
 
-                // 4. جلب أحدث بيانات المعمل (الاسم، اللوجو، الفون) من السحابة
                 const { data: tenantData } = await _supabase.from('tenants').select('name').eq('id', userData.tenant_id).single();
-                const { data: settingsData } = await _supabase.from('site_settings').select('logo_url, phone, whatsapp, primary_color').eq('tenant_id', userData.tenant_id).single();
+                const { data: settingsData } = await _supabase.from('site_settings').select('lab_name, lab_name_en, logo_url, phone, whatsapp, primary_color').eq('tenant_id', userData.tenant_id).single();
 
-                const finalTenantName = tenantData ? tenantData.name : "معمل النور";
+                const finalTenantName = (settingsData && settingsData.lab_name) ? settingsData.lab_name : (tenantData ? tenantData.name : "معمل التحاليل");
+                const finalTenantNameEn = (settingsData && settingsData.lab_name_en) ? settingsData.lab_name_en : "LAB SYSTEM";
                 const finalLogoUrl = (settingsData && settingsData.logo_url) ? settingsData.logo_url : "";
                 const finalPhone = (settingsData && settingsData.phone) ? settingsData.phone : "";
                 const finalWhatsapp = (settingsData && settingsData.whatsapp) ? settingsData.whatsapp : "";
                 const finalColor = (settingsData && settingsData.primary_color) ? settingsData.primary_color : "#0a6847";
 
-                // 5. حفظ البيانات في المتصفح (عشان تفتح في كل الصفحات)
                 localStorage.setItem('teba_tenant_id', userData.tenant_id);
                 localStorage.setItem('teba_tenant_name', finalTenantName); 
+                localStorage.setItem('teba_tenant_name_en', finalTenantNameEn); 
                 localStorage.setItem('teba_logo_url', finalLogoUrl);
                 localStorage.setItem('teba_phone', finalPhone);
                 localStorage.setItem('teba_whatsapp', finalWhatsapp);
@@ -202,38 +171,28 @@
                 localStorage.setItem('teba_user_role', userData.role);
                 localStorage.setItem('teba_current_branch', branch);
                 
-                // 6. عرض الشاشة (بدون الحاجة لتحديث الصفحة)
                 document.getElementById('desktopLabName').innerText = "مرحباً، " + finalTenantName;
+                document.getElementById('loginLabEn').innerText = finalTenantNameEn;
+                document.getElementById('loginLabAr').innerText = finalTenantName;
 
                 if (finalLogoUrl) {
                     const logoImg = document.getElementById('labLogo');
-                    if (logoImg) {
-                        logoImg.src = finalLogoUrl;
-                        logoImg.style.display = 'block';
-                        logoImg.nextElementSibling.style.display = 'none';
-                    }
+                    if (logoImg) { logoImg.src = finalLogoUrl; logoImg.style.display = 'block'; logoImg.nextElementSibling.style.display = 'none'; }
                 }
-
-                // تطبيق اللون فوراً
                 document.documentElement.style.setProperty('--primary', finalColor);
-
                 showDashboard(userData.role);
-
             } catch (err) {
                 errorEl.textContent = '❌ ' + err.message;
                 errorEl.style.display = 'block';
-                btn.innerText = 'دخول آمن';
-                btn.disabled = false;
+                btn.innerText = 'دخول آمن'; btn.disabled = false;
             }
         }
 
         function showDashboard(role) {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('desktopScreen').style.display = 'block';
-
             const dashboardCard = document.getElementById('cardDashboard');
             const settingsCard = document.getElementById('cardSettings');
-            
             if (role === 'admin' || role === 'owner') {
                 if(dashboardCard) dashboardCard.style.display = 'flex';
                 if(settingsCard) settingsCard.style.display = 'flex'; 
@@ -243,15 +202,15 @@
             }
         }
 
-        // ==== 5. التحقق من الجلسة الحالية ====
         _supabase.auth.getSession().then(async ({ data: { session } }) => {
             if (session) {
                 const { data: userData } = await _supabase.from('users').select('role, tenant_id').eq('id', session.user.id).single();
                 if (userData) {
                     const { data: tenantData } = await _supabase.from('tenants').select('name').eq('id', userData.tenant_id).single();
-                    const { data: settingsData } = await _supabase.from('site_settings').select('logo_url, phone, whatsapp, primary_color').eq('tenant_id', userData.tenant_id).single();
+                    const { data: settingsData } = await _supabase.from('site_settings').select('lab_name, lab_name_en, logo_url, phone, whatsapp, primary_color').eq('tenant_id', userData.tenant_id).single();
                     
-                    const finalTenantName = tenantData ? tenantData.name : "معمل النور";
+                    const finalTenantName = (settingsData && settingsData.lab_name) ? settingsData.lab_name : (tenantData ? tenantData.name : "معمل التحاليل");
+                    const finalTenantNameEn = (settingsData && settingsData.lab_name_en) ? settingsData.lab_name_en : "LAB SYSTEM";
                     const finalLogoUrl = (settingsData && settingsData.logo_url) ? settingsData.logo_url : "";
                     const finalPhone = (settingsData && settingsData.phone) ? settingsData.phone : "";
                     const finalWhatsapp = (settingsData && settingsData.whatsapp) ? settingsData.whatsapp : "";
@@ -259,6 +218,7 @@
 
                     localStorage.setItem('teba_tenant_id', userData.tenant_id);
                     localStorage.setItem('teba_tenant_name', finalTenantName);
+                    localStorage.setItem('teba_tenant_name_en', finalTenantNameEn);
                     localStorage.setItem('teba_logo_url', finalLogoUrl);
                     localStorage.setItem('teba_phone', finalPhone);
                     localStorage.setItem('teba_whatsapp', finalWhatsapp);
@@ -268,6 +228,9 @@
                     if(!localStorage.getItem('teba_current_branch')) localStorage.setItem('teba_current_branch', '1');
                     
                     document.getElementById('desktopLabName').innerText = "مرحباً، " + finalTenantName;
+                    document.getElementById('loginLabEn').innerText = finalTenantNameEn;
+                    document.getElementById('loginLabAr').innerText = finalTenantName;
+
                     if (finalLogoUrl) {
                         const logoImg = document.getElementById('labLogo');
                         if (logoImg) { logoImg.src = finalLogoUrl; logoImg.style.display = 'block'; logoImg.nextElementSibling.style.display = 'none'; }
@@ -278,67 +241,36 @@
             }
         });
 
-        // ==== 6. تسجيل الخروج ====
-        async function logout() {
-            await _supabase.auth.signOut();
-            localStorage.clear();
-            location.reload();
-        }
+        async function logout() { await _supabase.auth.signOut(); localStorage.clear(); location.reload(); }
 
-        // ==== 7. فتح الداشبورد ====
         function openSecretModal() {
             const role = localStorage.getItem('teba_user_role');
-            if (role === 'admin' || role === 'owner') {
-                sessionStorage.setItem('doctor_access', 'granted');
-                window.location.href = '../dashboard/admin.html';
-            } else {
-                alert('❌ ليس لديك صلاحية للدخول إلى لوحة التحكم.');
-            }
+            if (role === 'admin' || role === 'owner') { sessionStorage.setItem('doctor_access', 'granted'); window.location.href = '../dashboard/admin.html'; } 
+            else { alert('❌ ليس لديك صلاحية للدخول إلى لوحة التحكم.'); }
         }
 
-        // ==== 8. أحداث الكيبورد ====
-        document.getElementById('loginPassword').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') loginUser();
-        });
-        document.getElementById('loginBranchPassword').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') loginUser();
-        });
+        document.getElementById('loginPassword').addEventListener('keypress', function(e) { if (e.key === 'Enter') loginUser(); });
+        document.getElementById('loginBranchPassword').addEventListener('keypress', function(e) { if (e.key === 'Enter') loginUser(); });
 
-        // ==== 9. تفعيل الـ PWA ====
         let deferredPrompt;
         const btnLogin = document.getElementById('pwaInstallBtnLogin');
         const btnDesktop = document.getElementById('pwaInstallBtnDesktop');
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            if (btnLogin) btnLogin.style.display = 'flex';
-            if (btnDesktop) btnDesktop.style.display = 'block';
-        });
+        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; if (btnLogin) btnLogin.style.display = 'flex'; if (btnDesktop) btnDesktop.style.display = 'block'; });
         window.installPWA = async function() {
             if (!deferredPrompt) return alert('التطبيق مثبت بالفعل أو متصفحك لا يدعم هذه الميزة.');
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                if (btnLogin) btnLogin.style.display = 'none';
-                if (btnDesktop) btnDesktop.style.display = 'none';
-            }
+            deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') { if (btnLogin) btnLogin.style.display = 'none'; if (btnDesktop) btnDesktop.style.display = 'none'; }
             deferredPrompt = null;
         };
 
-        // ==== 10. التشغيل عند فتح الصفحة ====
         window.addEventListener('load', () => {
-            // تحميل الفروع أول ما الصفحة تفتح
             loadBranchesForLogin();
-
-            // تسجيل الـ Service Worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('../service-worker.js').then(reg => {
                     reg.onupdatefound = () => {
                         const installingWorker = reg.installing;
                         installingWorker.onstatechange = () => {
-                            if (installingWorker.state === 'installed') {
-                                if (navigator.serviceWorker.controller) window.location.reload();
-                            }
+                            if (installingWorker.state === 'installed') { if (navigator.serviceWorker.controller) window.location.reload(); }
                         };
                     };
                 }).catch(err => console.warn('SW Error:', err));

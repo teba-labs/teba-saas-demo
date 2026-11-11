@@ -1,10 +1,11 @@
 ﻿// =====================================================
-// TEBA LABS - Configuration File (v152 - Demo Al Noor)
+// TEBA LABS - Configuration File (v153 - Dynamic White Label)
 // =====================================================
 
-// قراءة البيانات من ذاكرة المتصفح، ولو مش موجودة نستخدم القيم الافتراضية للديمو
+// قراءة البيانات من ذاكرة المتصفح، ولو مش موجودة نستخدم القيم الافتراضية
 const _currentTenantId = localStorage.getItem('teba_tenant_id') || "f7d2b44c-6ec1-4d5c-880d-1ead20229805";
-const _currentTenantName = localStorage.getItem('teba_tenant_name') || "معمل النور"; // اسم افتراضي للديمو
+const _currentTenantName = localStorage.getItem('teba_tenant_name') || "معمل التحاليل"; 
+const _currentTenantNameEn = localStorage.getItem('teba_tenant_name_en') || "LAB SYSTEM"; // الاسم الإنجليزي الديناميكي
 const _currentLogoUrl = localStorage.getItem('teba_logo_url') || "";
 const _currentPrimaryColor = localStorage.getItem('teba_primary_color') || "#0a6847";
 const _currentPhone = localStorage.getItem('teba_phone') || "";
@@ -19,7 +20,7 @@ const TEBA_CONFIG = {
     },
     lab: {
         name: _currentTenantName, 
-        nameEn: "AL NOOR LABS", 
+        nameEn: _currentTenantNameEn, // بياخد الاسم الإنجليزي من المتغير اللي فوق
         doctor: "إدارة المعمل", 
         phone: _currentPhone, 
         whatsapp: _currentWhatsapp, 
@@ -57,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. تحديث عنوان الصفحة
     if (TEBA_CONFIG.lab.name) {
-        document.title = TEBA_CONFIG.lab.name;
+        document.title = TEBA_CONFIG.lab.name + " | " + TEBA_CONFIG.lab.nameEn;
     }
     
     // 3. تحديث الأسماء في كل الصفحات

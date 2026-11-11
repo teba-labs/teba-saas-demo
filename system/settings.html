@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مركز التحكم الشامل | معمل النور</title>
+    <title>مركز التحكم الشامل | النظام</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-    <script src="config.js?v=151"></script>
+    <script src="config.js?v=154"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
     <style>
@@ -20,7 +20,6 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font); }
         
-        /* منع أي سكرول أفقي نهائياً */
         html, body { width: 100%; max-width: 100vw; overflow-x: hidden; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
         
         header { background: var(--surface); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
@@ -51,11 +50,13 @@
         .btn-save:hover { background: var(--primary-hover); color: #fff; transform: translateY(-2px); }
         .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-danger:hover { background: var(--danger); color: #fff; }
+        .btn-edit { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-edit:hover { background: var(--warning); color: #fff; }
         
         .logo-preview { height: 80px; width: auto; max-width: 200px; border-radius: 8px; background: #fff; padding: 5px; object-fit: contain; margin-bottom: 10px; display: none; }
         
         .table-responsive { overflow-x: auto; margin-top: 15px; width: 100%; -webkit-overflow-scrolling: touch; }
-        table { width: 100%; border-collapse: collapse; text-align: right; min-width: 600px; }
+        table { width: 100%; border-collapse: collapse; text-align: right; min-width: 800px; }
         th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); }
         th { background: rgba(255,255,255,0.02); color: var(--primary); font-weight: bold; }
         tr:hover { background: rgba(255,255,255,0.02); }
@@ -116,16 +117,18 @@
             <button class="tab-btn" onclick="openTab('tab-audit', this)">📜 سجل التعديلات (Audit Log)</button>
         </div>
 
-        <div class="main-container">            <!-- 1. تاب الهوية والبيانات -->
+        <div class="main-container">            
+            <!-- 1. تاب الهوية والبيانات -->
             <div id="tab-branding" class="tab-content active">
                 <div class="card">
                     <h3>🏥 بيانات المعمل</h3>
                     <div class="form-grid">
                         <div class="form-group"><label>اسم المعمل (بالعربي)</label><input type="text" id="setLabName"></div>
+                        <div class="form-group"><label>اسم المعمل (بالإنجليزي)</label><input type="text" id="setLabNameEn" style="direction: ltr; text-align: left;"></div>
                         <div class="form-group"><label>اسم الدكتور</label><input type="text" id="setDoctorName"></div>
                         <div class="form-group"><label>رقم التليفون</label><input type="text" id="setPhone"></div>
                         <div class="form-group"><label>رقم الواتساب</label><input type="text" id="setWhatsapp"></div>
-                        <div class="form-group" style="grid-column: 1 / -1;"><label>العنوان بالتفصيل</label><input type="text" id="setAddress"></div>
+                        <div class="form-group" style="grid-column: 1 / -1;"><label>العنوان بالتفصيل (العنوان الرئيسي)</label><input type="text" id="setAddress"></div>
                     </div>
                 </div>
                 
@@ -152,19 +155,23 @@
                     <h3>📍 الفروع الحالية</h3>
                     <div class="table-responsive">
                         <table>
-                            <thead><tr><th>اسم الفرع</th><th>باسورد الفرع</th><th>إجراءات</th></tr></thead>
-                            <tbody id="branchesListBody"><tr><td colspan="3" style="text-align: center;">جاري التحميل...</td></tr></tbody>
+                            <thead><tr><th>اسم الفرع</th><th>باسورد الفرع</th><th>العنوان</th><th>رقم التليفون</th><th>إجراءات</th></tr></thead>
+                            <tbody id="branchesListBody"><tr><td colspan="5" style="text-align: center;">جاري التحميل...</td></tr></tbody>
                         </table>
                     </div>
                 </div>
                 
                 <div class="card">
-                    <h3>➕ إضافة فرع جديد</h3>
+                    <h3 id="branchFormTitle">➕ إضافة فرع جديد</h3>
+                    <input type="hidden" id="editBranchId">
                     <div class="form-grid">
-                        <div class="form-group"><label>اسم الفرع</label><input type="text" id="newBranchName" placeholder="مثال: فرع شبين"></div>
-                        <div class="form-group"><label>باسورد الفرع (للدخول)</label><input type="text" id="newBranchPass" placeholder="مثال: 33"></div>
+                        <div class="form-group"><label>اسم الفرع</label><input type="text" id="branchName" placeholder="مثال: فرع السلام"></div>
+                        <div class="form-group"><label>باسورد الفرع (للدخول)</label><input type="text" id="branchPass" placeholder="مثال: 33"></div>
+                        <div class="form-group"><label>العنوان بالتفصيل</label><input type="text" id="branchAddress" placeholder="مثال: شارع الجيش - بجوار مسجد النور"></div>
+                        <div class="form-group"><label>رقم التليفون</label><input type="text" id="branchPhone" placeholder="مثال: 01000000000"></div>
                     </div>
-                    <button class="btn-save" onclick="addBranch(event)">➕ إضافة الفرع</button>
+                    <button class="btn-save" id="btnSaveBranch" onclick="saveBranch(event)">➕ إضافة الفرع</button>
+                    <button class="btn-danger" id="btnCancelEdit" onclick="resetBranchForm()" style="display:none; margin-right:10px;">إلغاء التعديل</button>
                 </div>
             </div>
 
@@ -183,7 +190,7 @@
                 <div class="card">
                     <h3>➕ إضافة موظف جديد</h3>
                     <div class="form-grid">
-                        <div class="form-group"><label>البريد الإلكتروني</label><input type="email" id="newEmpEmail" placeholder="emp@teba.com" style="direction: ltr;"></div>
+                        <div class="form-group"><label>البريد الإلكتروني</label><input type="email" id="newEmpEmail" placeholder="emp@lab.com" style="direction: ltr;"></div>
                         <div class="form-group"><label>كلمة المرور</label><input type="password" id="newEmpPass" placeholder="********" style="direction: ltr;"></div>
                         <div class="form-group">
                             <label>الصلاحية</label>
@@ -235,7 +242,7 @@
                     <h3>🖨️ إعدادات الطباعة والتقرير</h3>
                     <div class="form-group">
                         <label>نص الهيدر (أعلى التقرير)</label>
-                        <textarea id="setPrintHeader" rows="2" placeholder="مثال: معامل طيبة للتحاليل الطبية - ترخيص رقم 123"></textarea>
+                        <textarea id="setPrintHeader" rows="2" placeholder="مثال: معمل السلام للتحاليل الطبية - ترخيص رقم 123"></textarea>
                     </div>
                     <div class="form-group">
                         <label>نص الفوتر (أسفل التقرير)</label>
@@ -253,7 +260,6 @@
             <!-- 6. تاب البيانات والنسخ الاحتياطي -->
             <div id="tab-import" class="tab-content">
                 
-                <!-- قسم تصدير داتا المرضى الجديد -->
                 <div class="card" style="border-color: var(--primary);">
                     <h3>📥 تصدير داتا المرضى (ملكك الخاص)</h3>
                     <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">
@@ -266,7 +272,6 @@
                     <button class="btn-save" onclick="exportPatientsData()" style="background: #3b82f6; color: #fff;">📥 تصدير داتا المرضى (Excel)</button>
                 </div>
 
-                <!-- قسم ترحيل البيانات القديمة -->
                 <div class="card">
                     <h3>📤 ترحيل البيانات القديمة (Excel / CSV)</h3>
                     <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">
@@ -391,7 +396,6 @@
             }
         }
 
-        // التحقق من الجلسة الحالية
         _supabase.auth.getSession().then(async ({ data: { session } }) => {
             if (session) {
                 const { data: userData } = await _supabase.from('users').select('role').eq('id', session.user.id).single();
@@ -424,6 +428,7 @@
                 const { data } = await _supabase.from('site_settings').select('*').eq('tenant_id', tenantId).single();
                 if (data) {
                     document.getElementById('setLabName').value = data.lab_name || '';
+                    document.getElementById('setLabNameEn').value = data.lab_name_en || '';
                     document.getElementById('setDoctorName').value = data.doctor_name || '';
                     document.getElementById('setPhone').value = data.phone || '';
                     document.getElementById('setWhatsapp').value = data.whatsapp || '';
@@ -448,6 +453,7 @@
             
             try {
                 const labName = document.getElementById('setLabName').value;
+                const labNameEn = document.getElementById('setLabNameEn').value;
                 const primaryColor = document.getElementById('setPrimaryColor').value;
                 const fileInput = document.getElementById('logoFile');
                 let finalLogoUrl = currentLogoUrl;
@@ -468,6 +474,7 @@
                 const updates = {
                     tenant_id: tenantId,
                     lab_name: labName,
+                    lab_name_en: labNameEn,
                     doctor_name: document.getElementById('setDoctorName').value,
                     phone: document.getElementById('setPhone').value,
                     whatsapp: document.getElementById('setWhatsapp').value,
@@ -482,12 +489,12 @@
                 await _supabase.from('tenants').update({ name: labName }).eq('id', tenantId);
 
                 localStorage.setItem('teba_tenant_name', labName);
+                localStorage.setItem('teba_tenant_name_en', labNameEn);
                 localStorage.setItem('teba_logo_url', finalLogoUrl);
                 localStorage.setItem('teba_primary_color', primaryColor);
                 localStorage.setItem('teba_phone', document.getElementById('setPhone').value);
                 localStorage.setItem('teba_whatsapp', document.getElementById('setWhatsapp').value);
                 
-                // تطبيق اللون فوراً على الشاشة
                 document.documentElement.style.setProperty('--primary', primaryColor);
                 
                 showToast('✅ تم حفظ البيانات واللوجو بنجاح');
@@ -506,14 +513,14 @@
         // ==== 4. إدارة الفروع ====
         async function loadBranches() {
             const tbody = document.getElementById('branchesListBody');
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">جاري التحميل...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">جاري التحميل...</td></tr>';
             
             try {
                 const { data, error } = await _supabase.from('branches').select('*').eq('tenant_id', tenantId).order('id', { ascending: true });
                 if (error) throw error;
                 
                 if (!data || data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">لا توجد فروع مسجلة.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد فروع مسجلة.</td></tr>';
                     return;
                 }
                 
@@ -521,36 +528,83 @@
                     <tr>
                         <td style="font-weight:bold; color:var(--primary);">🏥 ${b.name}</td>
                         <td style="direction:ltr; text-align:right;">${b.branch_password || 'غير محدد'}</td>
-                        <td><button class="btn-danger" onclick="deleteBranch(${b.id})">🗑️ مسح</button></td>
+                        <td>${b.address || 'غير مسجل'}</td>
+                        <td>${b.map_link || 'غير مسجل'}</td>
+                        <td>
+                            <button class="btn-edit" onclick='editBranch(${JSON.stringify(b).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
+                            <button class="btn-danger" style="margin-right:5px;" onclick="deleteBranch(${b.id})">🗑️ مسح</button>
+                        </td>
                     </tr>
                 `).join('');
             } catch(e) { 
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:red;">خطأ في التحميل</td></tr>'; 
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">خطأ في التحميل</td></tr>'; 
             }
         }
 
-        async function addBranch(event) {
-            const name = document.getElementById('newBranchName').value.trim();
-            const pass = document.getElementById('newBranchPass').value.trim();
+        window.editBranch = function(branch) {
+            document.getElementById('editBranchId').value = branch.id;
+            document.getElementById('branchName').value = branch.name;
+            document.getElementById('branchPass').value = branch.branch_password || '';
+            document.getElementById('branchAddress').value = branch.address || '';
+            document.getElementById('branchPhone').value = branch.map_link || ''; // بنستخدم map_link كخانة للتليفون عشان الجدول
+            
+            document.getElementById('branchFormTitle').innerText = '✏️ تعديل الفرع: ' + branch.name;
+            document.getElementById('btnSaveBranch').innerText = '💾 حفظ التعديلات';
+            document.getElementById('btnCancelEdit').style.display = 'inline-block';
+            window.scrollTo({ top: document.getElementById('branchFormTitle').offsetTop - 50, behavior: 'smooth' });
+        }
+
+        window.resetBranchForm = function() {
+            document.getElementById('editBranchId').value = '';
+            document.getElementById('branchName').value = '';
+            document.getElementById('branchPass').value = '';
+            document.getElementById('branchAddress').value = '';
+            document.getElementById('branchPhone').value = '';
+            
+            document.getElementById('branchFormTitle').innerText = '➕ إضافة فرع جديد';
+            document.getElementById('btnSaveBranch').innerText = '➕ إضافة الفرع';
+            document.getElementById('btnCancelEdit').style.display = 'none';
+        }
+
+        async function saveBranch(event) {
+            const id = document.getElementById('editBranchId').value;
+            const name = document.getElementById('branchName').value.trim();
+            const pass = document.getElementById('branchPass').value.trim();
+            const address = document.getElementById('branchAddress').value.trim();
+            const phone = document.getElementById('branchPhone').value.trim();
+            
             if(!name || !pass) return showToast('يرجى إدخال اسم وباسورد الفرع', true);
 
             const btn = event.target;
             btn.innerText = '⏳...'; btn.disabled = true;
 
             try {
-                const { error } = await _supabase.from('branches').insert([{
-                    tenant_id: tenantId, name: name, branch_password: pass
-                }]);
+                const payload = {
+                    tenant_id: tenantId, 
+                    name: name, 
+                    branch_password: pass,
+                    address: address,
+                    map_link: phone // بنحفظ التليفون في خانة اللينك عشان ميعملش مشكلة في الجدول
+                };
+
+                let error;
+                if (id) {
+                    const res = await _supabase.from('branches').update(payload).eq('id', id).eq('tenant_id', tenantId);
+                    error = res.error;
+                } else {
+                    const res = await _supabase.from('branches').insert([payload]);
+                    error = res.error;
+                }
+                
                 if (error) throw error;
                 
-                showToast('✅ تم إضافة الفرع بنجاح');
-                document.getElementById('newBranchName').value = '';
-                document.getElementById('newBranchPass').value = '';
+                showToast(id ? '✅ تم تعديل الفرع بنجاح' : '✅ تم إضافة الفرع بنجاح');
+                resetBranchForm();
                 loadBranches();
             } catch(err) {
                 showToast('❌ خطأ: ' + err.message, true);
             } finally {
-                btn.innerText = '➕ إضافة الفرع'; btn.disabled = false;
+                btn.innerText = id ? '💾 حفظ التعديلات' : '➕ إضافة الفرع'; btn.disabled = false;
             }
         }
 
@@ -704,7 +758,6 @@
                     document.getElementById('setPrintHeader').value = data.print_header || 'معمل التحاليل الطبية';
                     document.getElementById('setPrintFooter').value = data.print_footer || 'النتيجة لا تغني عن استشارة الطبيب المعالج.';
                     
-                    // تخزين في المحلي عشان صفحة المعمل تقراها
                     localStorage.setItem('teba_print_header', document.getElementById('setPrintHeader').value);
                     localStorage.setItem('teba_print_footer', document.getElementById('setPrintFooter').value);
                     
@@ -750,7 +803,6 @@
                 const { error } = await _supabase.from('site_settings').update(updates).eq('tenant_id', tenantId);
                 if (error) throw error;
 
-                // حفظ في المحلي فوراً عشان المعمل يقراها
                 localStorage.setItem('teba_print_header', header);
                 localStorage.setItem('teba_print_footer', footer);
 
