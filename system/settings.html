@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-    <script src="config.js?v=154"></script>
+    <script src="config.js?v=155"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
     <style>
@@ -546,7 +546,7 @@
             document.getElementById('branchName').value = branch.name;
             document.getElementById('branchPass').value = branch.branch_password || '';
             document.getElementById('branchAddress').value = branch.address || '';
-            document.getElementById('branchPhone').value = branch.map_link || ''; // بنستخدم map_link كخانة للتليفون عشان الجدول
+            document.getElementById('branchPhone').value = branch.map_link || '';
             
             document.getElementById('branchFormTitle').innerText = '✏️ تعديل الفرع: ' + branch.name;
             document.getElementById('btnSaveBranch').innerText = '💾 حفظ التعديلات';
@@ -584,7 +584,7 @@
                     name: name, 
                     branch_password: pass,
                     address: address,
-                    map_link: phone // بنحفظ التليفون في خانة اللينك عشان ميعملش مشكلة في الجدول
+                    map_link: phone 
                 };
 
                 let error;
@@ -620,7 +620,6 @@
             }
         }
 
-        // ==== 5. التشغيل الأولي ====
         function initSettingsPage() {
             loadBranding();
         }
@@ -927,7 +926,8 @@
             const mappingGrid = document.getElementById('mappingGrid');
             const systemFields = [
                 { key: 'patient_name', label: 'اسم المريض (مطلوب)' },
-                { key: 'patient_phone', label: 'رقم الهاتف' },
+                { key: 'age', label: 'السن' },
+                { key: 'gender', label: 'النوع' },
                 { key: 'visit_date', label: 'تاريخ الزيارة' },
                 { key: 'test_name', label: 'اسم التحليل' },
                 { key: 'result_value', label: 'النتيجة' },
@@ -946,12 +946,13 @@
 
             detectedHeaders.forEach(h => {
                 const lowerH = h.toLowerCase();
-                if(lowerH.includes('name') || h.includes('اسم')) document.getElementById('map_patient_name').value = h;
-                if(lowerH.includes('phone') || h.includes('موبايل') || h.includes('تليفون')) document.getElementById('map_patient_phone').value = h;
-                if(lowerH.includes('date') || h.includes('تاريخ')) document.getElementById('map_visit_date').value = h;
-                if(lowerH.includes('test') || h.includes('تحليل')) document.getElementById('map_test_name').value = h;
-                if(lowerH.includes('result') || h.includes('نتيجة')) document.getElementById('map_result_value').value = h;
-                if(lowerH.includes('range') || h.includes('معدل')) document.getElementById('map_reference_range').value = h;
+                if(lowerH.includes('name') || h.includes('اسم')) { const el = document.getElementById('map_patient_name'); if(el) el.value = h; }
+                if(lowerH === 'age' || lowerH === 'ag' || h.includes('سن') || h.includes('عمر')) { const el = document.getElementById('map_age'); if(el) el.value = h; }
+                if(lowerH === 'sex' || lowerH === 'gender' || h.includes('نوع') || h.includes('جنس')) { const el = document.getElementById('map_gender'); if(el) el.value = h; }
+                if(lowerH.includes('date') || h.includes('تاريخ')) { const el = document.getElementById('map_visit_date'); if(el) el.value = h; }
+                if(lowerH.includes('test') || h.includes('تحليل')) { const el = document.getElementById('map_test_name'); if(el) el.value = h; }
+                if(lowerH.includes('result') || h.includes('نتيجة')) { const el = document.getElementById('map_result_value'); if(el) el.value = h; }
+                if(lowerH.includes('range') || lowerH.includes('normal') || h.includes('معدل')) { const el = document.getElementById('map_reference_range'); if(el) el.value = h; }
             });
 
             document.getElementById('mappingSection').style.display = 'block';
@@ -962,7 +963,8 @@
             const nameCol = document.getElementById('map_patient_name').value;
             if (!nameCol) return showToast('يجب اختيار عمود اسم المريض على الأقل', true);
 
-            const phoneCol = document.getElementById('map_patient_phone').value;
+            const ageCol = document.getElementById('map_age') ? document.getElementById('map_age').value : null;
+            const genderCol = document.getElementById('map_gender') ? document.getElementById('map_gender').value : null;
             const dateCol = document.getElementById('map_visit_date').value;
             const testCol = document.getElementById('map_test_name').value;
             const resultCol = document.getElementById('map_result_value').value;
@@ -982,7 +984,8 @@
                 const recordsToInsert = batch.map(row => ({
                     tenant_id: tenantId,
                     patient_name: row[nameCol] || '',
-                    patient_phone: phoneCol ? row[phoneCol] : null,
+                    age: ageCol ? row[ageCol] : null,
+                    gender: genderCol ? row[genderCol] : null,
                     visit_date: dateCol ? row[dateCol] : null,
                     test_name: testCol ? row[testCol] : null,
                     result_value: resultCol ? String(row[resultCol]) : null,
@@ -993,6 +996,10 @@
                     const { error } = await _supabase.from('historical_results').insert(recordsToInsert);
                     if (error) {
                         console.error('Batch insert error:', error);
+                        hideLoading();
+                        btn.disabled = false;
+                        document.getElementById('importProgressContainer').style.display = 'none';
+                        return alert('❌ فشل الرفع: السحابة رفضت البيانات.\nالسبب: ' + error.message + '\nتأكد من مطابقة الأعمدة.');
                     }
                 }
 
