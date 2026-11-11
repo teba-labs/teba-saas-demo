@@ -1,5 +1,5 @@
 ﻿/* =====================================================
-   AL NOOR LABS - Admin Logic (v152 - Demo White Label)
+   AL NOOR LABS - Admin Logic (v154 - Dynamic Branches)
    ===================================================== */
 
 (function(){
@@ -11,7 +11,7 @@
 
   /* ============= SECURITY CONSTANTS ============= */
   const MAX_FILE_SIZE = 20 * 1024 * 1024;
-  const BACKUP_VERSION = 'v124';
+  const BACKUP_VERSION = 'v125';
 
   let salesWorkbook = null;
   let pricesWorkbook = null;
@@ -246,7 +246,7 @@
     if(reportName === 'needOffers') renderNeedOffers();
     if(reportName === 'lossMakers') renderLossMakers();
     if(reportName === 'security') updateStorageIndicator();
-    if(reportName === 'dailyFinance') loadFinancialLedger();
+    if(reportName === 'dailyFinance') { loadFinancialLedger(); loadDashboardBranches(); }
     
     if(window.innerWidth <= 900) { 
         const sidebar = document.getElementById('adminSidebar'); 
@@ -265,6 +265,27 @@
       if(sidebar.classList.contains('open')){ overlay.classList.add('show'); } 
       else { overlay.classList.remove('show'); } 
   };
+
+  // ==== دالة سحرية بتجيب الفروع الحقيقية من السحابة عشان تظهر في القوائم ====
+  async function loadDashboardBranches() {
+      try {
+          const { data: branches, error } = await _supabase.from('branches').select('id, name').eq('tenant_id', TEBA_CONFIG.tenant.id).order('id', { ascending: true });
+          if (error) throw error;
+          if (!branches || branches.length === 0) return;
+
+          // تحديث القوائم المنسدلة في الإدارة المالية
+          const dailyRevBranch = document.getElementById('dailyRevBranch');
+          const dailyExpBranch = document.getElementById('dailyExpBranch');
+          const fixedExpBranch = document.getElementById('fixedExpBranch');
+          
+          const optionsHtml = branches.map(b => `<option value="${b.id}">🏥 ${b.name}</option>`).join('');
+          
+          if (dailyRevBranch) dailyRevBranch.innerHTML = optionsHtml;
+          if (dailyExpBranch) dailyExpBranch.innerHTML = optionsHtml;
+          if (fixedExpBranch) fixedExpBranch.innerHTML = optionsHtml;
+
+      } catch(e) { console.error("Error loading dashboard branches:", e); }
+  }
 
   async function showDashboard(){
     document.getElementById('loginScreen').style.display = 'none';
@@ -371,7 +392,7 @@
           itemName = document.getElementById('fixedExpItem').value || 'مصروف ثابت';
       }
 
-      if (!amount || amount <= 0 || !itemName) return alert('يرجى إدخال بيانات صحيحة (المبلغ والبند مطلوبين)');
+      if (!amount || amount <= 0 || !itemName || !branchId) return alert('يرجى إدخال بيانات صحيحة (الفرع، المبلغ، البند مطلوبين)');
 
       showLoading('جاري الحفظ...');
       try {
@@ -390,7 +411,6 @@
           hideLoading();
           alert('✅ تم تسجيل الحركة المالية بنجاح');
           
-          // تفريغ الحقول
           if(type === 'revenue') { document.getElementById('dailyRevAmount').value = ''; document.getElementById('dailyRevNotes').value = ''; }
           if(type === 'expense_daily') { document.getElementById('dailyExpAmount').value = ''; document.getElementById('dailyExpItem').value = ''; }
           if(type === 'expense_fixed') { document.getElementById('fixedExpAmount').value = ''; document.getElementById('fixedExpItem').value = ''; }
@@ -422,11 +442,16 @@
               return;
           }
 
+          // جلب أسماء الفروع عشان نعرضها في السجل
+          const { data: branchesData } = await _supabase.from('branches').select('id, name').eq('tenant_id', TEBA_CONFIG.tenant.id);
+          const branchMap = {};
+          if (branchesData) branchesData.forEach(b => branchMap[b.id] = b.name);
+
           tbody.innerHTML = data.map(row => {
               const date = new Date(row.created_at).toLocaleString('ar-EG');
               let typeAr = row.type === 'revenue' ? 'إيراد' : (row.type === 'expense_daily' ? 'مصروف يومي' : 'مصروف ثابت');
               let typeColor = row.type === 'revenue' ? '#16a34a' : '#dc2626';
-              let branchName = row.branch_id === 1 ? 'الفرع الأول' : 'الفرع الثاني';
+              let branchName = branchMap[row.branch_id] || 'غير معروف';
               
               return `
                   <tr>
@@ -443,8 +468,7 @@
           console.error(err);
           tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">حدث خطأ أثناء تحميل السجل</td></tr>';
       }
-  };
-  /* ============= FILE UPLOAD & LOAD ============= */
+  };  /* ============= FILE UPLOAD & LOAD ============= */
   window.handleFileUpload = async function(event, type){
     const file = event.target.files[0]; if (!file) return;
     const statusMap = { sales: 'uploadStatusSales', prices: 'uploadStatusPrices', detail2025: 'uploadStatusDetail2025', detail2026: 'uploadStatusDetail2026' };
@@ -675,8 +699,13 @@
         .gte('visit_date', startDate.toISOString())
         .lte('visit_date', endDate.toISOString());
       
-      if (branchFilter === 'jaafara') query = query.eq('branch_id', 1);
-      if (branchFilter === 'bahtim') query = query.eq('branch_id', 2);
+      // لسه محتاجين نعدل دي عشان تبقى ديناميكية للفروع الحقيقية
+      const { data: branches } = await _supabase.from('branches').select('id').eq('tenant_id', TEBA_CONFIG.tenant.id).order('id', { ascending: true });
+      const b1 = branches && branches[0] ? branches[0].id : 1;
+      const b2 = branches && branches[1] ? branches[1].id : 2;
+
+      if (branchFilter === 'jaafara') query = query.eq('branch_id', b1);
+      if (branchFilter === 'bahtim') query = query.eq('branch_id', b2);
 
       const { data: visits, error } = await query;
       if (error) throw error;
@@ -794,7 +823,7 @@
     }).join('');
   }  
 
-  // ==== الإحصائيات المباشرة (Live Stats) - [تم إصلاح مشكلة الخزنة هنا] ====
+  // ==== الإحصائيات المباشرة (Live Stats) - [تم إصلاح مشكلة الفروع هنا] ====
   async function getBranchLiveStats(branchId) {
       const today = new Date(); today.setHours(0,0,0,0); const todayISO = today.toISOString();
       
@@ -808,7 +837,6 @@
       const casesCount = visits ? visits.length : 0;
       const pubCount = visits ? visits.filter(v => v.is_published === true).length : 0; 
       
-      // حساب الإيراد من الزيارات مباشرة (كاحتياطي قوي)
       let visitsRev = 0;
       if (visits) visits.forEach(v => visitsRev += parseFloat(v.paid_amount || 0));
 
@@ -846,8 +874,6 @@
           });
       }
       
-      // إجمالي الإيراد: نجمع اللي في الزيارات واللي في الخزنة (عشان نضمن إن مفيش فلوس تضيع)
-      // لو اتسجلت مرتين في نفس الوقت (نظرياً مستحيل بس للاحتياط)، بناخد الأعلى عشان منضاعفش.
       let finalRev = visitsRev > ledgerRev ? visitsRev : ledgerRev;
       
       return { cases: casesCount, rev: finalRev, exp: liveExp, tests: testsCount, pending: pendingCount, published: pubCount };
@@ -861,10 +887,15 @@
       });
 
       try {
+          // السطرين دول هنضيفهم عشان نجيب أرقام الفروع بتاعتنا (6 و 7) أوتوماتيك
+          const { data: branches } = await _supabase.from('branches').select('id').eq('tenant_id', TEBA_CONFIG.tenant.id).order('id', { ascending: true });
+          const b1 = branches && branches[0] ? branches[0].id : 1;
+          const b2 = branches && branches[1] ? branches[1].id : 2;
+
           const [statsAll, statsJ, statsB] = await Promise.all([
               getBranchLiveStats(null),
-              getBranchLiveStats(1),
-              getBranchLiveStats(2)
+              getBranchLiveStats(b1), // هنا بقينا بنبعت رقم الفرع الصح
+              getBranchLiveStats(b2)  // وهنا كمان
           ]);
 
           const updateDOM = (prefix, data) => {
@@ -1878,7 +1909,6 @@
       showLoading('جاري تجهيز تقرير التحاليل...');
 
       try {
-          // 1. جلب الزيارات في الفترة المحددة
           const { data: visits, error: vErr } = await _supabase.from('visits')
               .select('visit_id')
               .eq('tenant_id', TEBA_CONFIG.tenant.id)
@@ -1895,19 +1925,17 @@
           const visitIds = visits.map(v => v.visit_id);
           let allVTs = [];
 
-          // 2. جلب التحاليل التابعة لهذه الزيارات (على دفعات لتجنب مشاكل السحابة لو العدد كبير)
           for (let i = 0; i < visitIds.length; i += 500) {
               const chunk = visitIds.slice(i, i + 500);
               const { data: vts, error: vtErr } = await _supabase.from('visit_tests')
                   .select('test_code, price_at_time')
                   .eq('tenant_id', TEBA_CONFIG.tenant.id)
                   .in('visit_id', chunk)
-                  .eq('is_cancelled', false); // استبعاد التحاليل الملغية
+                  .eq('is_cancelled', false);
               if (vtErr) throw vtErr;
               if (vts) allVTs = allVTs.concat(vts);
           }
 
-          // 3. جلب أسماء التحاليل من الكتالوج
           const { data: catalog, error: cErr } = await _supabase.from('tests_catalog')
               .select('code, name')
               .eq('tenant_id', TEBA_CONFIG.tenant.id);
@@ -1916,13 +1944,10 @@
           const nameMap = {};
           catalog.forEach(c => { nameMap[c.code] = c.name; });
 
-          // 4. حساب الإحصائيات
           const report = {};
           allVTs.forEach(vt => {
               const code = vt.test_code;
               const name = nameMap[code] || code;
-              
-              // فلترة البحث
               if (searchQuery && !name.toLowerCase().includes(searchQuery) && !code.toLowerCase().includes(searchQuery)) return;
 
               if (!report[code]) {
@@ -1934,7 +1959,6 @@
 
           const results = Object.values(report).sort((a,b) => b.count - a.count);
 
-          // 5. عرض النتائج
           if (results.length === 0) {
               tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">لا توجد نتائج مطابقة للبحث</td></tr>';
           } else {

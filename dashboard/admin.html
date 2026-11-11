@@ -11,10 +11,10 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdn.sheetjs.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
-<link rel="preload" href="styles.css?v=151" as="style">
-<link rel="preload" href="admin.css?v=151" as="style">
-<link rel="stylesheet" href="styles.css?v=151">
-<link rel="stylesheet" href="admin.css?v=151">
+<link rel="preload" href="styles.css?v=154" as="style">
+<link rel="preload" href="admin.css?v=154" as="style">
+<link rel="stylesheet" href="styles.css?v=154">
+<link rel="stylesheet" href="admin.css?v=154">
 <link rel="manifest" href="../manifest.json">
 <style>
   .chart-container { position: relative; height: 350px; width: 100%; margin-bottom: 20px; }
@@ -47,7 +47,7 @@
   .form-group input, .form-group select { padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-input); color: var(--text); outline: none; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=151"></script>
+<script src="config.js?v=154"></script>
 </head>
 <body class="admin-body">
 
@@ -153,7 +153,8 @@
         <div class="live-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start;">
           <div class="live-card" style="border-color: #10b981;">
             <h3>💵 تسجيل تحصيل / إيراد</h3>
-            <div class="form-group"><label>الفرع</label><select id="dailyRevBranch"><option value="1">🏥 الفرع الأول</option><option value="2">🏥 الفرع الثاني</option></select></div>
+            <!-- تم إزالة الخيارات الثابتة هنا ليتم ملؤها ديناميكياً بالكود -->
+            <div class="form-group"><label>الفرع</label><select id="dailyRevBranch"><option value="">جاري التحميل...</option></select></div>
             <div class="form-group"><label>المبلغ (ج.م)</label><input type="number" id="dailyRevAmount" placeholder="مثال: 500" min="0"></div>
             <div class="form-group"><label>ملاحظات (اختياري)</label><input type="text" id="dailyRevNotes" placeholder="مثال: تحصيل بواقي زيارة"></div>
             <button class="btn-export" style="width: 100%; justify-content: center; margin-top: 10px; background: linear-gradient(135deg, #10b981, #059669);" onclick="saveDailyFinance('revenue')">✅ تسجيل التحصيل</button>
@@ -161,7 +162,7 @@
 
           <div class="live-card" style="border-color: #f59e0b;">
             <h3>🛒 تسجيل مصروف يومي</h3>
-            <div class="form-group"><label>الفرع</label><select id="dailyExpBranch"><option value="1">🏥 الفرع الأول</option><option value="2">🏥 الفرع الثاني</option></select></div>
+            <div class="form-group"><label>الفرع</label><select id="dailyExpBranch"><option value="">جاري التحميل...</option></select></div>
             <div class="form-group"><label>البند</label><input type="text" id="dailyExpItem" placeholder="مثال: كيماويات، بوفيه..."></div>
             <div class="form-group"><label>المبلغ (ج.م)</label><input type="number" id="dailyExpAmount" placeholder="مثال: 150" min="0"></div>
             <button class="btn-export" style="width: 100%; justify-content: center; margin-top: 10px; background: linear-gradient(135deg, #f59e0b, #d97706);" onclick="saveDailyFinance('expense_daily')">✅ تسجيل المصروف</button>
@@ -169,7 +170,7 @@
 
           <div class="live-card" style="border-color: #dc2626;">
             <h3>🏢 تسجيل مصروف ثابت</h3>
-            <div class="form-group"><label>الفرع</label><select id="fixedExpBranch"><option value="1">🏥 الفرع الأول</option><option value="2">🏥 الفرع الثاني</option></select></div>
+            <div class="form-group"><label>الفرع</label><select id="fixedExpBranch"><option value="">جاري التحميل...</option></select></div>
             <div class="form-group"><label>البند (مرتبات، إيجار...)</label><input type="text" id="fixedExpItem" placeholder="مثال: مرتبات شهر أكتوبر"></div>
             <div class="form-group"><label>المبلغ (ج.م)</label><input type="number" id="fixedExpAmount" placeholder="مثال: 5000" min="0"></div>
             <button class="btn-export" style="width: 100%; justify-content: center; margin-top: 10px; background: linear-gradient(135deg, #dc2626, #b91c1c);" onclick="saveDailyFinance('expense_fixed')">✅ تسجيل الثابت</button>
@@ -578,7 +579,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
-<script src="admin.js?v=151" defer></script>
+<script src="admin.js?v=154" defer></script>
 
 <script>
   if ('serviceWorker' in navigator) {
