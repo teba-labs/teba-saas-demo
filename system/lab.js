@@ -1,5 +1,5 @@
 ﻿// =====================================================
-// TEBA LABS - Lab Logic (v155 - Full Archive & Print)
+// TEBA LABS - Lab Logic (v156 - Final Print)
 // =====================================================
 
 if (!localStorage.getItem('teba_tenant_id')) {
@@ -738,7 +738,6 @@ function renderOrderedTests() {
     const singleContainer = document.getElementById('singleTestsContainer');
     const profileContainer = document.getElementById('profileTestsContainer');
     
-    // مسح الصندوق القديم لو موجود
     const oldBox = document.getElementById('labArchiveBox');
     if (oldBox) oldBox.remove();
 
@@ -758,7 +757,6 @@ function renderOrderedTests() {
         vTests.push(vt);
     }
 
-    // عرض صندوق الأرشيف
     if (window.patientHistoricalResults && window.patientHistoricalResults.length > 0) {
         let historyHtml = `<div id="labArchiveBox" style="background: #f0fdf4; border: 2px solid #16a34a; border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: right; direction: rtl;">`;
         historyHtml += `<h4 style="color: #16a34a; margin-bottom: 10px; font-size: 1rem;">📜 الأرشيف الطبي القديم (للمقارنة):</h4>`;
@@ -851,10 +849,9 @@ function selectPatient(visitId) {
     
     const visitObj = allVisits.find(v => String(v.visit_id) === String(visitId));
     
-    // البحث عن النتائج القديمة فوراً
     if (visitObj && visitObj.patient) {
         fetchHistoricalResults(visitObj.patient.name).then(() => {
-            renderOrderedTests(); // بعد ما نجيب الأرشيف، نرسم الشاشة
+            renderOrderedTests(); 
         });
     } else {
         renderOrderedTests();
@@ -1092,8 +1089,9 @@ function getHeaderHtml(visit, reqDate, printDate) {
 
 function getFooterHtml() {
     const footerText = printSettings.footer.replace(/\n/g, '<br>');
-    return `<div class="print-footer" style="justify-content: center; text-align: center; border-top: 2px solid #000; padding-top: 10px; margin-top: 30px; font-size: 13px; font-weight: bold; color: #000;">
-        <p>${footerText}</p>
+    return `<div class="print-footer" style="display: flex; flex-direction: column; align-items: center; justify-content: center; border-top: 2px solid #000; padding-top: 10px; margin-top: 30px; font-size: 13px; font-weight: bold; color: #000; text-align: center;">
+        <p style="margin-bottom: 5px;">${footerText}</p>
+        <p style="margin: 0; color: #d32f2f;">النتيجة لا تغني عن استشارة الطبيب المعالج.</p>
     </div>`;
 }
 
