@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مركز التحكم الشامل | النظام</title>
+    <title>مركز التحكم الشامل | معمل الشفاء</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -167,7 +167,7 @@
                     <div class="form-grid">
                         <div class="form-group"><label>اسم الفرع</label><input type="text" id="branchName" placeholder="مثال: فرع السلام"></div>
                         <div class="form-group"><label>باسورد الفرع (للدخول)</label><input type="text" id="branchPass" placeholder="مثال: 33"></div>
-                        <div class="form-group"><label>العنوان بالتفصيل</label><input type="text" id="branchAddress" placeholder="مثال: شارع الجيش - بجوار مسجد النور"></div>
+                        <div class="form-group"><label>العنوان بالتفصيل</label><input type="text" id="branchAddress" placeholder="مثال: شارع الجيش"></div>
                         <div class="form-group"><label>رقم التليفون</label><input type="text" id="branchPhone" placeholder="مثال: 01000000000"></div>
                     </div>
                     <button class="btn-save" id="btnSaveBranch" onclick="saveBranch(event)">➕ إضافة الفرع</button>
@@ -175,7 +175,7 @@
                 </div>
             </div>
 
-            <!-- 3. تاب إدارة الموظفين والصلاحيات -->
+            <!-- 3. تاب إدارة الموظفين -->
             <div id="tab-employees" class="tab-content">
                 <div class="card">
                     <h3>👥 الموظفين الحاليين</h3>
@@ -210,7 +210,6 @@
             <div id="tab-expenses" class="tab-content">
                 <div class="card">
                     <h3>💸 بنود المصاريف الحالية</h3>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">هنا تحدد أسماء المعامل الخارجية (Lab-to-Lab) والبنود الثابتة (مرتبات، إيجار) والمصاريف اليومية (بوفيه).</p>
                     <div class="table-responsive">
                         <table>
                             <thead><tr><th>اسم البند</th><th>النوع</th><th>إجراءات</th></tr></thead>
@@ -240,13 +239,26 @@
             <div id="tab-print" class="tab-content">
                 <div class="card">
                     <h3>🖨️ إعدادات الطباعة والتقرير</h3>
+                    
+                    <!-- الخانات الجديدة الخاصة بالفروع والتليفونات -->
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>أسماء وعناوين الفروع (كل فرع في سطر)</label>
+                            <textarea id="setPrintBranches" rows="3" placeholder="مثال:&#10;فرع الجعافرة - شبين القناطر&#10;فرع بهتيم - مساكن اسكو"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>أرقام التليفونات (كل 2 في سطر)</label>
+                            <textarea id="setPrintPhones" rows="3" placeholder="مثال:&#10;01123702062 - 01099003494"></textarea>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label>نص الهيدر (أعلى التقرير)</label>
-                        <textarea id="setPrintHeader" rows="2" placeholder="مثال: معمل السلام للتحاليل الطبية - ترخيص رقم 123"></textarea>
+                        <textarea id="setPrintHeader" rows="2" placeholder="مثال: معمل الشفاء للتحاليل الطبية - ترخيص رقم 123"></textarea>
                     </div>
                     <div class="form-group">
-                        <label>نص الفوتر (أسفل التقرير)</label>
-                        <textarea id="setPrintFooter" rows="3" placeholder="مثال: العنوان، أرقام التليفون، ملاحظة (النتيجة لا تغني عن استشارة الطبيب)"></textarea>
+                        <label>نص الفوتر الإضافي (اختياري)</label>
+                        <textarea id="setPrintFooter" rows="2" placeholder="أي ملاحظات إضافية أسفل التقرير"></textarea>
                     </div>
                     <div class="form-group">
                         <label>رفع توقيع الدكتور (صورة شفافة PNG يفضل)</label>
@@ -259,12 +271,8 @@
 
             <!-- 6. تاب البيانات والنسخ الاحتياطي -->
             <div id="tab-import" class="tab-content">
-                
                 <div class="card" style="border-color: var(--primary);">
                     <h3>📥 تصدير داتا المرضى (ملكك الخاص)</h3>
-                    <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">
-                        يمكنك تصدير كل بيانات المرضى، الزيارات، والتحاليل المسجلة في فترة معينة إلى ملف Excel للاحتفاظ بها.
-                    </p>
                     <div class="form-grid">
                         <div class="form-group"><label>من تاريخ</label><input type="date" id="exportFromDate"></div>
                         <div class="form-group"><label>إلى تاريخ</label><input type="date" id="exportToDate"></div>
@@ -274,14 +282,9 @@
 
                 <div class="card">
                     <h3>📤 ترحيل البيانات القديمة (Excel / CSV)</h3>
-                    <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">
-                        ارفع ملف الحالات القديم. النظام هيتعرف على الأعمدة أوتوماتيك.
-                    </p>
-                    
                     <div style="border: 2px dashed var(--primary); border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; background: rgba(16, 185, 129, 0.05); transition: 0.2s;" onclick="document.getElementById('importFileInput').click()">
                         <div style="font-size: 3rem; margin-bottom: 10px;">📁</div>
                         <h4 style="color: var(--primary); margin-bottom: 5px;">اضغط لاختيار الملف (Excel / CSV)</h4>
-                        <p style="font-size: 0.85rem; color: var(--text-muted);">يدعم حتى 100,000 حالة</p>
                         <input type="file" id="importFileInput" accept=".csv, .xlsx, .xls" style="display: none;" onchange="handleImportFile(event)">
                     </div>
 
@@ -305,19 +308,16 @@
                 </div>
             </div>
 
-            <!-- 7. تاب سجل التعديلات (Audit Log) -->
+            <!-- 7. تاب سجل التعديلات -->
             <div id="tab-audit" class="tab-content">
                 <div class="card">
                     <h3>📜 سجل التعديلات (Audit Log)</h3>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">هنا يظهر كل حركة حصلت في النظام (مين عدل سعر، مين مسح حالة، وامتى).</p>
-                    
                     <div class="form-grid" style="margin-bottom: 15px;">
                         <div class="form-group">
-                            <label>بحث (اسم الموظف / الإجراء)</label>
+                            <label>بحث</label>
                             <input type="text" id="auditSearchInput" placeholder="ابحث..." onkeyup="filterAuditLog()">
                         </div>
                     </div>
-
                     <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
                         <table>
                             <thead><tr><th>التاريخ والوقت</th><th>الموظف</th><th>الإجراء</th><th>التفاصيل</th></tr></thead>
@@ -332,14 +332,12 @@
 
     <div id="toast">✅ تم الحفظ بنجاح</div>    
     <script>
-        // ==== تهيئة السحابة ====
         const _supabase = supabase.createClient(TEBA_CONFIG.supabase.url, TEBA_CONFIG.supabase.key);
         const tenantId = TEBA_CONFIG.tenant.id;
 
         let currentLogoUrl = '';
         let currentSignatureUrl = '';
 
-        // ==== أدوات مساعدة (Toast & Loading) ====
         function showToast(msg, isError = false) {
             const t = document.getElementById('toast');
             t.innerText = msg;
@@ -357,7 +355,6 @@
             document.getElementById('loadingOverlay').style.display = 'none';
         }
 
-        // ==== 1. تسجيل الدخول ====
         async function checkPass() {
             const email = document.getElementById('adminEmail').value.trim();
             const pass = document.getElementById('adminPass').value;
@@ -407,7 +404,6 @@
             }
         });
 
-        // ==== 2. التنقل بين التابات ====
         function openTab(tabId, btnElement) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -422,7 +418,6 @@
             if (tabId === 'tab-audit') loadAuditLog();
         }
 
-        // ==== 3. الهوية والبيانات (Branding) ====
         async function loadBranding() {
             try {
                 const { data } = await _supabase.from('site_settings').select('*').eq('tenant_id', tenantId).single();
@@ -496,7 +491,6 @@
                 localStorage.setItem('teba_whatsapp', document.getElementById('setWhatsapp').value);
                 
                 document.documentElement.style.setProperty('--primary', primaryColor);
-                
                 showToast('✅ تم حفظ البيانات واللوجو بنجاح');
                 
                 if(finalLogoUrl) {
@@ -510,7 +504,6 @@
             }
         }
 
-        // ==== 4. إدارة الفروع ====
         async function loadBranches() {
             const tbody = document.getElementById('branchesListBody');
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">جاري التحميل...</td></tr>';
@@ -624,7 +617,6 @@
             loadBranding();
         }
 
-        // ==== 6. إدارة الموظفين ====
         async function loadEmployees() {
             const tbody = document.getElementById('employeesListBody');
             tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">جاري التحميل...</td></tr>';
@@ -689,7 +681,6 @@
             } catch(e) { showToast('❌ خطأ: ' + e.message, true); }
         }
 
-        // ==== 7. إدارة بنود المصاريف ====
         async function loadExpenses() {
             const tbody = document.getElementById('expensesListBody');
             tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">جاري التحميل...</td></tr>';
@@ -749,13 +740,14 @@
             } catch(e) { showToast('❌ خطأ: ' + e.message, true); }
         }
 
-        // ==== 8. إعدادات الطباعة ====
         async function loadPrintSettings() {
             try {
                 const { data } = await _supabase.from('site_settings').select('*').eq('tenant_id', tenantId).single();
                 if (data) {
+                    document.getElementById('setPrintBranches').value = data.print_branches || '';
+                    document.getElementById('setPrintPhones').value = data.print_phones || '';
                     document.getElementById('setPrintHeader').value = data.print_header || 'معمل التحاليل الطبية';
-                    document.getElementById('setPrintFooter').value = data.print_footer || 'النتيجة لا تغني عن استشارة الطبيب المعالج.';
+                    document.getElementById('setPrintFooter').value = data.print_footer || '';
                     
                     localStorage.setItem('teba_print_header', document.getElementById('setPrintHeader').value);
                     localStorage.setItem('teba_print_footer', document.getElementById('setPrintFooter').value);
@@ -775,6 +767,8 @@
             btn.innerText = '⏳ جاري الحفظ...'; btn.disabled = true;
             
             try {
+                const branches = document.getElementById('setPrintBranches').value;
+                const phones = document.getElementById('setPrintPhones').value;
                 const header = document.getElementById('setPrintHeader').value;
                 const footer = document.getElementById('setPrintFooter').value;
                 const fileInput = document.getElementById('signatureFile');
@@ -794,6 +788,8 @@
                 }
 
                 const updates = {
+                    print_branches: branches,
+                    print_phones: phones,
                     print_header: header,
                     print_footer: footer,
                     signature_url: finalSigUrl
@@ -817,7 +813,6 @@
             }
         }
 
-        // ==== 9. تصدير داتا المرضى ====
         async function exportPatientsData() {
             const fromDate = document.getElementById('exportFromDate').value;
             const toDate = document.getElementById('exportToDate').value;
@@ -878,7 +873,6 @@
             }
         }
 
-        // ==== 10. محرك ترحيل البيانات (PapaParse + Excel) ====
         let parsedImportData = [];
         let detectedHeaders = [];
 
@@ -1024,7 +1018,6 @@
             }, 4000);
         }
 
-        // ==== 11. سجل التعديلات (Audit Log) ====
         async function loadAuditLog() {
             const tbody = document.getElementById('auditLogBody');
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">جاري التحميل...</td></tr>';

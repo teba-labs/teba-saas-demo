@@ -1,5 +1,5 @@
 ﻿// =====================================================
-// TEBA LABS - Lab Logic (v157 - Final Fix)
+// TEBA LABS - Lab Logic (v157 - Final Print & Archive)
 // =====================================================
 
 if (!localStorage.getItem('teba_tenant_id')) {
@@ -738,6 +738,7 @@ function renderOrderedTests() {
     const singleContainer = document.getElementById('singleTestsContainer');
     const profileContainer = document.getElementById('profileTestsContainer');
     
+    // مسح الصندوق القديم لو موجود
     const oldBox = document.getElementById('labArchiveBox');
     if (oldBox) oldBox.remove();
 
@@ -757,6 +758,7 @@ function renderOrderedTests() {
         vTests.push(vt);
     }
 
+    // عرض صندوق الأرشيف
     if (window.patientHistoricalResults && window.patientHistoricalResults.length > 0) {
         let historyHtml = `<div id="labArchiveBox" style="background: #f0fdf4; border: 2px solid #16a34a; border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: right; direction: rtl;">`;
         historyHtml += `<h4 style="color: #16a34a; margin-bottom: 10px; font-size: 1rem;">📜 الأرشيف الطبي القديم (للمقارنة):</h4>`;
@@ -1062,24 +1064,24 @@ function getHeaderHtml(visit, reqDate, printDate) {
     const branchPhone = currentBranchInfo && currentBranchInfo.map_link ? currentBranchInfo.map_link : (TEBA_CONFIG.lab.phone || '');
 
     return `
-        <div class="print-header">
-            <div class="print-header-left">
-                <h1>${TEBA_CONFIG.lab.nameEn || 'LAB SYSTEM'}</h1>
-                <p style="font-size: 15px; font-weight: bold; color: #000;">${TEBA_CONFIG.lab.name || 'معمل التحاليل'}</p>
-                <p style="font-size: 13px;">${printSettings.header}</p>
-                <p style="font-size: 12px;">${branchName} - ${branchAddress} - 📞 ${branchPhone}</p>
+        <div class="print-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+            <div class="print-header-right" style="text-align: right;">
+                <h1 style="margin: 0; color: #000; font-size: 24px; font-weight: 900;">${TEBA_CONFIG.lab.nameEn || 'LAB SYSTEM'}</h1>
+                <p style="margin: 2px 0 0 0; font-size: 16px; color: #333; font-weight: bold;">${TEBA_CONFIG.lab.name || 'معمل التحاليل'}</p>
+                <p style="margin: 0; font-size: 14px; color: #333;">${printSettings.header}</p>
+                <p style="margin: 0; font-size: 12px; color: #555;">${branchName} - ${branchAddress} - 📞 ${branchPhone}</p>
             </div>
-            <div class="print-header-right">
-                <img src="../header.png" alt="Logo" onerror="this.style.display='none'">
+            <div class="print-header-left" style="text-align: left;">
+                <img src="../header.png" alt="Logo" style="max-height: 80px; object-fit: contain;" onerror="this.style.display='none'">
             </div>
         </div>
         <div style="display: flex; justify-content: space-between; border: 1.5px solid #000; padding: 10px 15px; border-radius: 4px; background: #fff; font-size: 13px; margin-bottom: 20px;">
-            <div style="width: 50%; display: flex; flex-direction: column; gap: 5px;">
+            <div style="width: 50%; display: flex; flex-direction: column; gap: 5px; text-align: right;">
                 <div><strong>Patient:</strong> <span style="font-weight: bold;">${visit.patient.name || 'Unknown'}</span></div>
                 <div><strong>Age/Gender:</strong> <span style="font-weight: bold;">${ageStr} / ${visit.patient.gender}</span></div>
                 <div><strong>Referred By:</strong> <span style="font-weight: bold;">${visit.patient.doctor_name || '---'}</span></div>
             </div>
-            <div style="width: 50%; display: flex; flex-direction: column; gap: 5px; text-align: right; border-left: 1.5px solid #000; padding-left: 15px;">
+            <div style="width: 50%; display: flex; flex-direction: column; gap: 5px; text-align: left; border-left: 1.5px solid #000; padding-left: 15px;">
                 <div><strong>Visit ID:</strong> <span style="font-weight: bold;">${String(visit.visit_id).padStart(4, '0')}</span></div>
                 <div><strong>Request Date:</strong> <span style="font-weight: bold;">${reqDate}</span></div>
                 <div><strong>Print Date:</strong> <span style="font-weight: bold;">${printDate}</span></div>
@@ -1089,10 +1091,13 @@ function getHeaderHtml(visit, reqDate, printDate) {
 
 function getFooterHtml() {
     let footerText = printSettings.footer || '';
-    // منع تكرار الجملة لو كانت متسجلة في الإعدادات
-    if (!footerText.includes('النتيجة لا تغني عن استشارة الطبيب المعالج')) {
-        footerText += (footerText ? '<br>' : '') + 'النتيجة لا تغني عن استشارة الطبيب المعالج.';
+    
+    // منع تكرار الجملة
+    const standardPhrase = 'النتيجة لا تغني عن استشارة الطبيب المعالج';
+    if (!footerText.includes(standardPhrase)) {
+        footerText += (footerText ? '<br>' : '') + standardPhrase + '.';
     }
+
     return `<div class="print-footer" style="display: flex; flex-direction: column; align-items: center; justify-content: center; border-top: 2px solid #000; padding-top: 10px; margin-top: 30px; font-size: 13px; font-weight: bold; color: #000; text-align: center;">
         <p style="margin: 0; color: #d32f2f;">${footerText}</p>
     </div>`;
@@ -1104,6 +1109,7 @@ function openPrintModal() {
     if(!visit) return;
     
     const vTests = visitTests.filter(vt => String(vt.visit_id) === String(selectedVisitId) && vt.is_cancelled !== true);
+    const shouldPrintHistory = document.getElementById('chkPrintHistory') ? document.getElementById('chkPrintHistory').checked : true;
     
     const reqDate = visit.visit_date ? new Date(visit.visit_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-GB');
     const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -1157,8 +1163,7 @@ function openPrintModal() {
                 const val = savedData[param.name]?.value; const phase = savedData[param.name]?.phase; 
                 const oldResultObj = window.patientHistoricalResults.find(h => smartMatch(h.test_name, catalogItem.name));
                 
-                // عرض الصف لو فيه نتيجة جديدة أو نتيجة قديمة
-                if (val || oldResultObj) {
+                if (val || (shouldPrintHistory && oldResultObj)) {
                     hasTestData = true;
                     const range = val ? getSmartRange(param, visit.patient, phase, savedData) : '-';
                     const flagStr = val ? getStateHtml(val, range) : '';
@@ -1167,45 +1172,46 @@ function openPrintModal() {
                     
                     let oldVal = '—';
                     let oldDate = '—';
-                    if (oldResultObj) {
+                    if (shouldPrintHistory && oldResultObj) {
                         oldVal = oldResultObj.result_value || '—';
                         oldDate = oldResultObj.visit_date ? oldResultObj.visit_date.split(' ')[0] : '—';
                     }
 
-                    testRows += `<tr><td style="border-bottom: 1px solid #ccc; padding: 8px 6px;">${displayParamName}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; font-weight:bold; color:${val ? '#000' : '#999'};">${val || 'لم تسجل'}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${flagStr}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${param.unit||''}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${range}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; color: #666; font-size: 11px;">${oldVal} (${oldDate})</td></tr>`;
+                    testRows += `<tr><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:right;">${displayParamName}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; font-weight:bold; color:${val ? '#000' : '#999'};">${val || 'لم تسجل'}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${flagStr}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${param.unit||''}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${range}</td>${shouldPrintHistory ? `<td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; color: #666; font-size: 11px;">${oldVal} (${oldDate})</td>` : ''}</tr>`;
                 }
             });
             if (hasTestData) profilesData.push({ name: catalogItem.name, rows: testRows }); 
-            else profilesData.push({ name: catalogItem.name, rows: `<tr><td colspan="6" style="text-align:center; padding: 20px; color: #666;">لا توجد نتائج محفوظة.</td></tr>` });
+            else profilesData.push({ name: catalogItem.name, rows: `<tr><td colspan="${shouldPrintHistory ? 6 : 5}" style="text-align:center; padding: 20px; color: #666;">لا توجد نتائج محفوظة.</td></tr>` });
         } else {
             const p = params[0] || { name: 'Result' };
             const val = savedData[p.name]?.value || savedData['Result']?.value;
             const oldResultObj = window.patientHistoricalResults.find(h => smartMatch(h.test_name, catalogItem.name));
             
-            // عرض الصف لو فيه نتيجة جديدة أو نتيجة قديمة
-            if (val || oldResultObj) {
+            if (val || (shouldPrintHistory && oldResultObj)) {
                 const range = val ? getSmartRange(p, visit.patient, null, savedData) : '-';
                 const flagStr = val ? getStateHtml(val, range) : '';
                 
                 let oldVal = '—';
                 let oldDate = '—';
-                if (oldResultObj) {
+                if (shouldPrintHistory && oldResultObj) {
                     oldVal = oldResultObj.result_value || '—';
                     oldDate = oldResultObj.visit_date ? oldResultObj.visit_date.split(' ')[0] : '—';
                 }
 
-                singlesRows += `<tr><td style="border-bottom: 1px solid #ccc; padding: 8px 6px;">${catalogItem.name}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; font-weight:bold; color:${val ? '#000' : '#999'};">${val || 'لم تسجل'}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${flagStr}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${p.unit||''}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${range}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; color: #666; font-size: 11px;">${oldVal} (${oldDate})</td></tr>`;
+                singlesRows += `<tr><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:right;">${catalogItem.name}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; font-weight:bold; color:${val ? '#000' : '#999'};">${val || 'لم تسجل'}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${flagStr}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${p.unit||''}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${range}</td>${shouldPrintHistory ? `<td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; color: #666; font-size: 11px;">${oldVal} (${oldDate})</td>` : ''}</tr>`;
             }
         }
     });
     
-    const tableHead = `<thead><tr style="background: #000; color: #fff;"><th style="padding: 8px 6px; text-align:left;">Test Name</th><th style="padding: 8px 6px; text-align:center;">New Result</th><th style="padding: 8px 6px; text-align:center;">State</th><th style="padding: 8px 6px; text-align:center;">Unit</th><th style="padding: 8px 6px; text-align:center;">Ref. Range</th><th style="padding: 8px 6px; text-align:center; background: #333;">Old Result (Date)</th></tr></thead>`;
+    let tableHead = `<thead><tr style="background: #000; color: #fff;"><th style="padding: 8px 6px; text-align:right;">Test Name</th><th style="padding: 8px 6px; text-align:center;">New Result</th><th style="padding: 8px 6px; text-align:center;">State</th><th style="padding: 8px 6px; text-align:center;">Unit</th><th style="padding: 8px 6px; text-align:center;">Ref. Range</th>`;
+    if (shouldPrintHistory) tableHead += `<th style="padding: 8px 6px; text-align:center; background: #333;">Old Result (Date)</th>`;
+    tableHead += `</tr></thead>`;
     
     let htmlContent = '';
-    if (singlesRows !== '') htmlContent += `<div class="print-page">${getHeaderHtml(visit, reqDate, printDate)}<div style="margin-bottom: 25px;"><h3 style="margin: 0 0 10px 0; background: #eee; padding: 8px 12px; border-left: 4px solid #000;">SINGLE TESTS</h3><table style="width: 100%; border-collapse: collapse; font-size: 13px;">${tableHead}<tbody>${singlesRows}</tbody></table></div>${getFooterHtml()}</div>`;
-    profilesData.forEach(profile => { htmlContent += `<div class="print-page">${getHeaderHtml(visit, reqDate, printDate)}<div style="margin-bottom: 25px;"><h3 style="margin: 0 0 10px 0; background: #eee; padding: 8px 12px; border-left: 4px solid #000;">${profile.name}</h3><table style="width: 100%; border-collapse: collapse; font-size: 13px;">${tableHead}<tbody>${profile.rows}</tbody></table></div>${getFooterHtml()}</div>`; });
+    if (singlesRows !== '') htmlContent += `<div class="print-page" style="direction: rtl;">${getHeaderHtml(visit, reqDate, printDate)}<div style="margin-bottom: 25px;"><h3 style="margin: 0 0 10px 0; background: #eee; padding: 8px 12px; border-right: 4px solid #000; text-align:right;">SINGLE TESTS</h3><table style="width: 100%; border-collapse: collapse; font-size: 13px;">${tableHead}<tbody>${singlesRows}</tbody></table></div>${getFooterHtml()}</div>`;
+    profilesData.forEach(profile => { htmlContent += `<div class="print-page" style="direction: rtl;">${getHeaderHtml(visit, reqDate, printDate)}<div style="margin-bottom: 25px;"><h3 style="margin: 0 0 10px 0; background: #eee; padding: 8px 12px; border-right: 4px solid #000; text-align:right;">${profile.name}</h3><table style="width: 100%; border-collapse: collapse; font-size: 13px;">${tableHead}<tbody>${profile.rows}</tbody></table></div>${getFooterHtml()}</div>`; });
     
-    if (htmlContent === '') htmlContent += `<div class="print-page">${getHeaderHtml(visit, reqDate, printDate)}<p style="text-align:center; font-weight:bold; margin-top:50px;">No results recorded.</p>${getFooterHtml()}</div>`;
+    if (htmlContent === '') htmlContent += `<div class="print-page" style="direction: rtl;">${getHeaderHtml(visit, reqDate, printDate)}<p style="text-align:center; font-weight:bold; margin-top:50px;">No results recorded.</p>${getFooterHtml()}</div>`;
     
     printArea.innerHTML = htmlContent;
     document.getElementById('printModal').style.display = 'flex';
