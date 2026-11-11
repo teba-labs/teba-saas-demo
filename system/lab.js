@@ -1,5 +1,5 @@
 ﻿// =====================================================
-// TEBA LABS - Lab Logic (v156 - Final Print)
+// TEBA LABS - Lab Logic (v157 - Final Fix)
 // =====================================================
 
 if (!localStorage.getItem('teba_tenant_id')) {
@@ -1088,10 +1088,13 @@ function getHeaderHtml(visit, reqDate, printDate) {
 }
 
 function getFooterHtml() {
-    const footerText = printSettings.footer.replace(/\n/g, '<br>');
+    let footerText = printSettings.footer || '';
+    // منع تكرار الجملة لو كانت متسجلة في الإعدادات
+    if (!footerText.includes('النتيجة لا تغني عن استشارة الطبيب المعالج')) {
+        footerText += (footerText ? '<br>' : '') + 'النتيجة لا تغني عن استشارة الطبيب المعالج.';
+    }
     return `<div class="print-footer" style="display: flex; flex-direction: column; align-items: center; justify-content: center; border-top: 2px solid #000; padding-top: 10px; margin-top: 30px; font-size: 13px; font-weight: bold; color: #000; text-align: center;">
-        <p style="margin-bottom: 5px;">${footerText}</p>
-        <p style="margin: 0; color: #d32f2f;">النتيجة لا تغني عن استشارة الطبيب المعالج.</p>
+        <p style="margin: 0; color: #d32f2f;">${footerText}</p>
     </div>`;
 }
 
@@ -1108,7 +1111,6 @@ function openPrintModal() {
     printArea.innerHTML = '';
     let singlesRows = ''; let profilesData = []; 
     
-    // دالة المطابقة الذكية
     function smartMatch(historyName, catalogName) {
         if (!historyName || !catalogName) return false;
         const h = historyName.trim().toLowerCase();
@@ -1121,6 +1123,10 @@ function openPrintModal() {
         if (c.includes('hematocrit') && (h === 'hct' || h === 'hct.')) return true;
         if (c.includes('platelet') && (h.includes('plt') || h.includes('platelets'))) return true;
         if (c.includes('cholesterol') && h === 'cho') return true;
+        if (c.includes('alanine aminotransferase') && h === 'alt') return true;
+        if (c.includes('aspartate aminotransferase') && h === 'ast') return true;
+        if (c.includes('creatinine') && h.includes('creat')) return true;
+        if (c.includes('urea') && h.includes('bun')) return true;
         return false;
     }
     
@@ -1149,34 +1155,46 @@ function openPrintModal() {
         if (isProfile) {
             params.forEach(param => {
                 const val = savedData[param.name]?.value; const phase = savedData[param.name]?.phase; 
-                if (val) {
+                const oldResultObj = window.patientHistoricalResults.find(h => smartMatch(h.test_name, catalogItem.name));
+                
+                // عرض الصف لو فيه نتيجة جديدة أو نتيجة قديمة
+                if (val || oldResultObj) {
                     hasTestData = true;
-                    const range = getSmartRange(param, visit.patient, phase, savedData);
-                    const flagStr = getStateHtml(val, range);
+                    const range = val ? getSmartRange(param, visit.patient, phase, savedData) : '-';
+                    const flagStr = val ? getStateHtml(val, range) : '';
                     let displayParamName = param.label || param.name;
                     if (phase) displayParamName += ` (${phase})`;
                     
-                    const oldResultObj = window.patientHistoricalResults.find(h => smartMatch(h.test_name, catalogItem.name));
-                    const oldVal = oldResultObj ? oldResultObj.result_value : '—';
-                    const oldDate = oldResultObj ? oldResultObj.visit_date.split(' ')[0] : '—';
+                    let oldVal = '—';
+                    let oldDate = '—';
+                    if (oldResultObj) {
+                        oldVal = oldResultObj.result_value || '—';
+                        oldDate = oldResultObj.visit_date ? oldResultObj.visit_date.split(' ')[0] : '—';
+                    }
 
-                    testRows += `<tr><td style="border-bottom: 1px solid #ccc; padding: 8px 6px;">${displayParamName}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; font-weight:bold;">${val}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${flagStr}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${param.unit||''}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${range}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; color: #666; font-size: 11px;">${oldVal} (${oldDate})</td></tr>`;
+                    testRows += `<tr><td style="border-bottom: 1px solid #ccc; padding: 8px 6px;">${displayParamName}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; font-weight:bold; color:${val ? '#000' : '#999'};">${val || 'لم تسجل'}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${flagStr}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${param.unit||''}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${range}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; color: #666; font-size: 11px;">${oldVal} (${oldDate})</td></tr>`;
                 }
             });
-            if (hasTestData) profilesData.push({ name: catalogItem.name, rows: testRows, showOld: true }); 
-            else profilesData.push({ name: catalogItem.name, rows: `<tr><td colspan="6" style="text-align:center; padding: 20px; color: #666;">لا توجد نتائج محفوظة.</td></tr>`, showOld: false });
+            if (hasTestData) profilesData.push({ name: catalogItem.name, rows: testRows }); 
+            else profilesData.push({ name: catalogItem.name, rows: `<tr><td colspan="6" style="text-align:center; padding: 20px; color: #666;">لا توجد نتائج محفوظة.</td></tr>` });
         } else {
             const p = params[0] || { name: 'Result' };
             const val = savedData[p.name]?.value || savedData['Result']?.value;
-            if (val) {
-                const range = getSmartRange(p, visit.patient, null, savedData);
-                const flagStr = getStateHtml(val, range);
+            const oldResultObj = window.patientHistoricalResults.find(h => smartMatch(h.test_name, catalogItem.name));
+            
+            // عرض الصف لو فيه نتيجة جديدة أو نتيجة قديمة
+            if (val || oldResultObj) {
+                const range = val ? getSmartRange(p, visit.patient, null, savedData) : '-';
+                const flagStr = val ? getStateHtml(val, range) : '';
                 
-                const oldResultObj = window.patientHistoricalResults.find(h => smartMatch(h.test_name, catalogItem.name));
-                const oldVal = oldResultObj ? oldResultObj.result_value : '—';
-                const oldDate = oldResultObj ? oldResultObj.visit_date.split(' ')[0] : '—';
+                let oldVal = '—';
+                let oldDate = '—';
+                if (oldResultObj) {
+                    oldVal = oldResultObj.result_value || '—';
+                    oldDate = oldResultObj.visit_date ? oldResultObj.visit_date.split(' ')[0] : '—';
+                }
 
-                singlesRows += `<tr><td style="border-bottom: 1px solid #ccc; padding: 8px 6px;">${catalogItem.name}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; font-weight:bold;">${val}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${flagStr}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${p.unit||''}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${range}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; color: #666; font-size: 11px;">${oldVal} (${oldDate})</td></tr>`;
+                singlesRows += `<tr><td style="border-bottom: 1px solid #ccc; padding: 8px 6px;">${catalogItem.name}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; font-weight:bold; color:${val ? '#000' : '#999'};">${val || 'لم تسجل'}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${flagStr}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${p.unit||''}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center;">${range}</td><td style="border-bottom: 1px solid #ccc; padding: 8px 6px; text-align:center; color: #666; font-size: 11px;">${oldVal} (${oldDate})</td></tr>`;
             }
         }
     });
