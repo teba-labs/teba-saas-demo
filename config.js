@@ -1,9 +1,9 @@
 ﻿// =====================================================
-// TEBA LABS - Configuration File (v151 - Demo White Label)
+// TEBA LABS - Configuration File (v152 - Demo Al Noor)
 // =====================================================
 
 // قراءة البيانات من ذاكرة المتصفح، ولو مش موجودة نستخدم القيم الافتراضية للديمو
-const _currentTenantId = localStorage.getItem('teba_tenant_id') || "0981e62c-c33d-46c4-8919-2f9fbb0946f6";
+const _currentTenantId = localStorage.getItem('teba_tenant_id') || "f7d2b44c-6ec1-4d5c-880d-1ead20229805";
 const _currentTenantName = localStorage.getItem('teba_tenant_name') || "معمل النور"; // اسم افتراضي للديمو
 const _currentLogoUrl = localStorage.getItem('teba_logo_url') || "";
 const _currentPrimaryColor = localStorage.getItem('teba_primary_color') || "#0a6847";
@@ -19,12 +19,12 @@ const TEBA_CONFIG = {
     },
     lab: {
         name: _currentTenantName, 
-        nameEn: "AL NOOR LABS", // تم تغيير الاسم الإنجليزي
-        doctor: "إدارة المعمل", // تم إزالة اسم الدكتور الشخصي
+        nameEn: "AL NOOR LABS", 
+        doctor: "إدارة المعمل", 
         phone: _currentPhone, 
         whatsapp: _currentWhatsapp, 
-        address: "عنوان المعمل", // تم إزالة العنوان الشخصي
-        portalUrl: "https://teba-lab-demo.github.io/teba-lab/index.html" // تم تغيير الرابط لرابط الديمو
+        address: "عنوان المعمل", 
+        portalUrl: "https://teba-labs.github.io/teba-saas-demo/index.html" 
     },
     supabase: {
         url: "https://khjzoleiuiipyodpkieg.supabase.co",
