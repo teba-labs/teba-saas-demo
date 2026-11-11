@@ -1,10 +1,10 @@
 ﻿// =====================================================
-// TEBA LABS - Configuration File (v150 - Dynamic & Force Color)
+// TEBA LABS - Configuration File (v152 - Demo Al Noor)
 // =====================================================
 
-// قراءة البيانات من ذاكرة المتصفح، ولو مش موجودة نستخدم القيم الافتراضية
-const _currentTenantId = localStorage.getItem('teba_tenant_id') || "0981e62c-c33d-46c4-8919-2f9fbb0946f6";
-const _currentTenantName = localStorage.getItem('teba_tenant_name') || "معمل التحاليل الطبية"; // اسم افتراضي عام
+// قراءة البيانات من ذاكرة المتصفح، ولو مش موجودة نستخدم القيم الافتراضية للديمو
+const _currentTenantId = localStorage.getItem('teba_tenant_id') || "f7d2b44c-6ec1-4d5c-880d-1ead20229805";
+const _currentTenantName = localStorage.getItem('teba_tenant_name') || "معمل النور"; // اسم افتراضي للديمو
 const _currentLogoUrl = localStorage.getItem('teba_logo_url') || "";
 const _currentPrimaryColor = localStorage.getItem('teba_primary_color') || "#0a6847";
 const _currentPhone = localStorage.getItem('teba_phone') || "";
@@ -19,12 +19,12 @@ const TEBA_CONFIG = {
     },
     lab: {
         name: _currentTenantName, 
-        nameEn: "TEBA LABS", 
-        doctor: "د/ أحمد طه أبوندا",
+        nameEn: "AL NOOR LABS", 
+        doctor: "إدارة المعمل", 
         phone: _currentPhone, 
         whatsapp: _currentWhatsapp, 
-        address: "شبين القناطر، القليوبية",
-        portalUrl: "https://teba-labs.github.io/teba-lab/index.html" 
+        address: "عنوان المعمل", 
+        portalUrl: "https://teba-labs.github.io/teba-saas-demo/index.html" 
     },
     supabase: {
         url: "https://khjzoleiuiipyodpkieg.supabase.co",
