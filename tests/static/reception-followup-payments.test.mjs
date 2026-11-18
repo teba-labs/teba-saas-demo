@@ -31,6 +31,7 @@ test('outstanding balances are calculated server-side across all payments for br
 });
 
 test('follow-up payment outbox always receives an explicit branch scope',()=>{
-  assert.match(repo,/recordPayment\(\{ tenantId, branchId, visitId/);
-  assert.match(repo,/enqueueOperation\(\{ tenantId, branchId, entityType: 'payment'/);
+  assert.match(repo,/recordPayment\(\{ tenantId, visitId, amount/);
+  assert.match(repo,/collector\.branch_id/);
+  assert.match(repo,/enqueueOperation\(\{ tenantId, branchId: collectionBranchId, entityType: 'payment'/);
 });
