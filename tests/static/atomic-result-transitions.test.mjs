@@ -5,6 +5,7 @@ import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const repository = fs.readFileSync(path.join(root, 'modules/results/repository.js'), 'utf8');
+const worklist = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 'utf8');
 const page = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'database/migrations/013_atomic_result_transitions.sql'), 'utf8');
 
@@ -28,4 +29,11 @@ test('atomic result transitions validate branch access and active operational st
   assert.match(migration, /Every requested test must be completed before approval/);
   assert.match(migration, /revoke all on function public\.complete_visit_test_atomic/);
   assert.match(migration, /revoke all on function public\.approve_visit_atomic/);
+});
+
+test('results worklist hydrates existing values in one batch query', () => {
+  assert.match(repository, /listResultsForVisitTests/);
+  assert.match(repository, /\.in\('visit_test_id', ids\)/);
+  assert.match(worklist, /listResultsForVisitTests\(/);
+  assert.doesNotMatch(worklist, /for \(const item of state\.work\) \{\s*const rows = await listResults/);
 });
