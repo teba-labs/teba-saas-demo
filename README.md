@@ -1,3 +1,13 @@
+> **الحالة الحالية — 18 نوفمبر 2026:** هذا المستودع هو نسخة تطوير SaaS على Supabase TEST. معمل طيبة مسجل بالفعل وله فرعان واشتراك نشط، والمستخدم أكد ظهور الاشتراك في لوحة مالك المنصة. لكن بيانات التشغيل الأساسية في TEST ما زالت صفرًا: لا أسماء موظفين تشغيلية، ولا تحاليل/بارامترات/أسعار حالية، ولا يوم عمل أو مرضى أو زيارات. لذلك لا تعتبر النسخة جاهزة لتشغيل معمل فعليًا بعد.
+>
+> **اقرأ قبل أي تنفيذ:** [سجل الحالة الرئيسي](docs/MASTER-STATUS-AND-CONTINUATION-AR.md) ثم [المراجعة الوظيفية والتقنية المجمعة](docs/FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md). هذان المرجعان أحدث من ملاحظات الدفعات التاريخية أدناه.
+>
+> **تنبيه قاعدة البيانات:** سجل migrations في Supabase فارغ، وجدول `public.schema_migrations` لا يحتوي إلا baseline `1.0.0`، مع وجود وظائف لاحقة بالفعل في قاعدة TEST. لا تشغّل ملفات migrations 002–011 عشوائيًا. كما أن نسخة Edge Function لبوابة المريض المنشورة أحدث من ملف GitHub الحالي؛ لا تعِد نشر الملف الحالي قبل توحيد المصدر.
+>
+> **حدود التحقق:** جميع جداول public الـ46 عليها RLS وFORCE RLS، واختبار بنية ما بعد التثبيت مر دون خطأ. تم اختبار نطاق فرع المالك والموظف بمحاكاة SQL، لكن عزل عميلين مختلفين وتشغيل المتصفح والرحلات الكاملة لم تُختبر بعد. لم تُجرَ تعديلات تشغيلية أو SQL في المراجعة الأخيرة.
+>
+> ---
+>
 # Taiba Smart Lab — Neutral Development Workspace
 
 This is a separate development copy. `source_original/teba-lab-main/` is immutable reference material; do not edit it. The production Supabase project is not used.
@@ -14,11 +24,12 @@ This is a separate development copy. `source_original/teba-lab-main/` is immutab
 - The new core validates the TEST project URL and publishable browser key before startup.
 - The legacy source remains unchanged.
 
-## Not yet verified
-- Browser login against the TEST project.
-- Actual RLS behavior across two tenants and multiple branches.
-- Offline synchronization and data restoration.
-- End-to-end workflows. No old screen has been pointed at the new schema yet because its data model differs materially.
+## Current verification boundary
+- المستخدم أكد نجاح دخوله كمالك المنصة وظهور اشتراك طيبة. هذا لا يثبت جميع وظائف إدارة الاشتراك.
+- اختبار RLS محدود داخل TEST أثبت أن المالك يرى الفرعين وأن الموظف يرى فرعًا واحدًا؛ اختبار عميلين منفصلين لم يحدث.
+- لم يُجرَ اختبار متصفح جديد أو رحلة استقبال/نتائج/تقرير كاملة.
+- لم يُختبر Offline على أجهزة متعددة أو استعادة نسخة حقيقية.
+- راجع تقرير التدقيق الشامل لمعرفة ما ثبت وما لم يثبت.
 
 ## Run the static config test
 From this folder, with Node.js installed:
@@ -27,7 +38,11 @@ From this folder, with Node.js installed:
 node --experimental-default-type=module tests/static/core-config.test.mjs
 ```
 
-This workspace is not a production release. Do not deploy until the remaining migration and security tests pass.
+هذه نسخة تطوير وليست إصدارًا تجاريًا. لا تنشر ولا تشغّل migrations قبل مطابقة حالة TEST والمصدر المنشور ونتائج الاختبارات والموافقة.
+
+## Historical development batches (not a current status register)
+
+The entries below document earlier development stages. Their statements about tenant count, migration execution, or Edge deployment may be superseded by the current audit.
 
 ## Latest development batch
 Batch 5 adds report-version history/signed-download foundations, tenant settings, branch staff directory, and branch dashboard data repositories. See `docs/batch-5-report.md`. Publication and patient portal remain intentionally disabled until server-side atomic publication and a rate-limited Edge Function are implemented and tested.
