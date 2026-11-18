@@ -57,10 +57,11 @@ Deno.serve(async (req) => {
     .eq('account_type', 'owner').eq('is_active', true).maybeSingle();
   if (ownerError || !owner) return reply({ ok: false, message: 'هذه العملية متاحة لمالك المعمل فقط.' }, 403, origin);
 
+  const action = String(body.action ?? 'invite');
   const [{ data: branch, error: branchError }, { data: staff, error: staffError }] = await Promise.all([
     userClient.from('branches').select('id').eq('id', branchId).eq('tenant_id', tenantId).eq('is_active', true).maybeSingle(),
-    userClient.from('staff_directory').select('id, auth_user_id').eq('id', staffId)
-      .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('is_active', true).maybeSingle(),
+    userClient.from('staff_directory').select('id, auth_user_id, is_active').eq('id', staffId)
+      .eq('tenant_id', tenantId).eq('branch_id', branchId).maybeSingle(),
   ]);
   if (branchError || staffError || !branch || !staff) {
     return reply({ ok: false, message: 'الفرع أو الاسم التشغيلي غير موجود أو غير نشط.' }, 404, origin);
