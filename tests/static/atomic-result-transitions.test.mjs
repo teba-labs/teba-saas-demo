@@ -30,7 +30,7 @@ test('atomic result transitions validate branch access and active operational st
   assert.match(migration, /Required results are missing; approval is blocked/);
   assert.match(migration, /Visit is already approved/);
   assert.match(page, /group\.visit\?\.status === 'approved'/);
-  assert.match(page, /item\.status === 'completed' \? 'disabled' : ''/);
+  assert.match(page, /const locked = item\.status === 'completed'/);
   assert.match(migration, /revoke all on function public\.complete_visit_test_atomic/);
   assert.match(migration, /revoke all on function public\.approve_visit_atomic/);
   assert.match(migration, /guard_result_workflow_transition/);
@@ -47,8 +47,7 @@ test('results worklist hydrates existing values in one batch query', () => {
 });
 
 test('completed test cards are read-only and the server rejects post-completion draft writes', () => {
-  const migration = read('database/migrations/017_atomic_result_transitions.sql');
-  const screen = read('assets/js/results-workbench.js');
+  const screen = page;
   assert.match(migration, /v_test\.status = 'completed'[\s\S]*?Test is already completed/);
   assert.match(migration, /v_test_status = 'completed'[\s\S]*?Completed test results are locked/);
   assert.match(migration, /v_visit_status in \('approved','published'\)/);
