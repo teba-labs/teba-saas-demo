@@ -38,6 +38,7 @@ begin
     raise exception 'Published visit cannot be changed through the normal completion flow';
   end if;
   if v_test.status = 'cancelled' then raise exception 'Cancelled test cannot be completed'; end if;
+  if v_test.status = 'completed' then raise exception 'Test is already completed'; end if;
 
   if exists (
     select 1
@@ -180,3 +181,89 @@ drop trigger if exists guard_atomic_visit_approval on public.visits;
 create trigger guard_atomic_visit_approval
 before update on public.visits
 for each row execute function private.guard_result_workflow_transition();
+
+-- Draft results are locked after a test is completed or its visit is approved.
+-- Corrections to a published report remain available only through correct_published_result.
+create or replace function public.save_draft_results_atomic(
+  p_tenant_id uuid,
+  p_branch_id uuid,
+  p_visit_test_id uuid,
+  p_staff_id uuid,
+  p_results jsonb
+)
+returns setof public.test_results
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_visit_id uuid;
+  v_is_published boolean;
+  v_visit_status text;
+  v_test_status text;
+  v_count integer;
+  v_distinct_count integer;
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if not private.can_access_branch(p_tenant_id,p_branch_id) then raise exception 'Branch access denied'; end if;
+  if p_staff_id is null or not exists (
+    select 1 from public.staff_directory sd
+     where sd.id=p_staff_id and sd.tenant_id=p_tenant_id
+       and sd.branch_id=p_branch_id and sd.is_active
+  ) then raise exception 'An active staff identity for this branch is required'; end if;
+  if p_results is null or jsonb_typeof(p_results) <> 'array' then
+    raise exception 'Results must be supplied as a JSON array';
+  end if;
+  v_count := jsonb_array_length(p_results);
+  if v_count < 1 or v_count > 100 then raise exception 'Submit between 1 and 100 result values'; end if;
+
+  select vt.visit_id, vt.status, v.is_published, v.status
+    into v_visit_id, v_test_status, v_is_published, v_visit_status
+    from public.visit_tests vt
+    join public.visits v on v.id=vt.visit_id and v.tenant_id=vt.tenant_id
+   where vt.id=p_visit_test_id and vt.tenant_id=p_tenant_id
+     and vt.branch_id=p_branch_id and v.branch_id=p_branch_id
+   for update of v, vt;
+  if not found then raise exception 'Visit test was not found for this tenant and branch'; end if;
+  if v_test_status = 'completed' then
+    raise exception 'Completed test results are locked; use the audited correction workflow if already published';
+  end if;
+  if coalesce(v_is_published,false) or v_visit_status in ('approved','published') then
+    raise exception 'Approved or published visit results are locked';
+  end if;
+  if v_test_status = 'cancelled' then raise exception 'Cancelled test results cannot be changed'; end if;
+
+  select count(distinct x.parameter_code) into v_distinct_count
+    from jsonb_to_recordset(p_results) as x(parameter_code text);
+  if v_distinct_count <> v_count or exists (
+    select 1 from jsonb_to_recordset(p_results) as x(parameter_code text)
+     where nullif(btrim(x.parameter_code),'') is null
+  ) then
+    raise exception 'Each submitted result must have one unique parameter code';
+  end if;
+
+  return query
+    insert into public.test_results(
+      tenant_id, visit_test_id, parameter_code,
+      value_numeric, value_text, flag,
+      entered_by, entered_by_staff_id
+    )
+    select p_tenant_id, p_visit_test_id, x.parameter_code,
+           x.value_numeric, x.value_text, x.flag,
+           auth.uid(), p_staff_id
+      from jsonb_to_recordset(p_results) as x(
+        parameter_code text, value_numeric numeric, value_text text, flag text
+      )
+    on conflict (visit_test_id, parameter_code) do update set
+      value_numeric=excluded.value_numeric,
+      value_text=excluded.value_text,
+      flag=excluded.flag,
+      entered_by=excluded.entered_by,
+      entered_by_staff_id=excluded.entered_by_staff_id,
+      updated_at=now()
+    returning *;
+end;
+$function$;
+
+revoke all on function public.save_draft_results_atomic(uuid,uuid,uuid,uuid,jsonb) from public, anon;
+grant execute on function public.save_draft_results_atomic(uuid,uuid,uuid,uuid,jsonb) to authenticated;
