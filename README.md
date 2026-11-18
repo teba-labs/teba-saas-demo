@@ -115,3 +115,6 @@ Batch 6 adds the tenant-scoped website CMS repository and public-site content lo
 
 ## Catalog management (Batch 18)
 Arabic catalog administration is available at `app/catalog.html`. Owners and staff can manage test and technical parameter records; current price editing is owner-only and additionally protected by Supabase RLS. Catalog writes currently require an online connection. See `docs/batch-18-catalog-ui.md` for validation and known limitations.
+
+
+> **تحديث التكامل الموحد — 19 نوفمبر 2026:** تم جمع cloud-hardening وowner-setup في الفرع `integration/unified-test-2026-11-19` وPR مسودة #3. migrations 012–021 مطبقة ومسجلة على Supabase TEST. نجحت 157/157 اختبارات static وفحص صياغة JavaScript/MJS، كما نجحت تجربة SQL مؤقتة لدورة النتائج وهوية الموظف وعزل الفرع ثم تم التراجع عنها بالكامل. Edge Functions للدعوة والمرفقات منشورة مع JWT verification، ومصدرا بوابة المريض ونشر التقارير مطابقان للمصدر المنشور. **لا تزال Secrets/Origins غير مضبوطة**؛ لذلك الوظائف تفشل بشكل مغلق حتى إضافة القيم، ولم يُجرَ browser E2E أو cross-tenant test. لا تدمج PR #3 أو تنشر على `main` قبل إكمال ذلك. راجع [تقرير التكامل الموحد](docs/UNIFIED-TEST-INTEGRATION-AR-2026-11-19.md).
