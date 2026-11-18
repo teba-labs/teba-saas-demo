@@ -1,6 +1,6 @@
 import {getCurrentSession,signInWithEmail} from '../../core/auth/session.js';
 import {loadMyTenantContext} from '../../core/tenant/context.js';
-import {inspectWorkbookFile,getEntityOptions,getEntityFields,suggestColumnMapping} from '../../modules/migration/workbook-inspector.js';
+import {inspectWorkbookFile,getEntityOptions,getEntityFields,suggestColumnMapping,analyzeArchiveSheet,analyzeArchiveRelationships} from '../../modules/migration/workbook-inspector.js';
 const $=id=>document.getElementById(id);let state={tenants:[],result:null};
 function note(message,error=false){$('notice').textContent=message;$('notice').className='show'+(error?' error':'');}
 function el(tag,text=''){const n=document.createElement(tag);n.textContent=String(text??'');return n;}
@@ -19,7 +19,7 @@ function renderSheet(){
  pick.value=String(s.headerRowIndex);
  pick.addEventListener('change',()=>{const chosen=s.headerCandidates.find(x=>x.rowIndex===Number(pick.value));if(chosen){s.headerRowIndex=chosen.rowIndex;s.headers=chosen.values;s.preview=chosen.preview;s.columnMapping=suggestColumnMapping(s.headers,s.entityType);renderSheet();}});
  cand.append(pick);root.append(cand);
- const fields=getEntityFields(s.entityType), mapped=s.columnMapping.filter(x=>x.fieldKey);
+ s.analysis=analyzeArchiveSheet(s.rawRows,s.headerRowIndex,s.entityType,s.columnMapping);\n const fields=getEntityFields(s.entityType), mapped=s.columnMapping.filter(x=>x.fieldKey);
  const duplicates=mapped.filter((m,i)=>mapped.findIndex(x=>x.fieldKey===m.fieldKey)!==i);
  const required=fields.filter(f=>f.required),missing=required.filter(f=>!mapped.some(m=>m.fieldKey===f.key));
  const status=el('div');status.className='mappingStatus';
