@@ -170,7 +170,7 @@ async function correctTest(button) {
 }
 
 async function completeTest(button) {
-  try { setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, visitTestId: button.dataset.testId }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
+  try { setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, branchId: state.branch.id, visitTestId: button.dataset.testId, staffId: $('staffSelect').value }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
   catch (error) { showNotice(error.message || 'تعذر إنهاء التحليل.', true); } finally { setBusy(button, false); }
 }
 async function approve(button) {
