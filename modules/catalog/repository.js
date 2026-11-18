@@ -17,17 +17,34 @@ export async function listCatalog({ tenantId, includeInactive = false } = {}) {
   return (data ?? []).filter(row => includeInactive || row.is_active);
 }
 
-export async function listCurrentPrices({ tenantId, testIds } = {}) {
+export async function listCurrentPrices({ tenantId, branchId = null, testIds } = {}) {
   required(tenantId, 'tenantId');
   if (!Array.isArray(testIds) || testIds.length === 0) return [];
-  if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_prices', { tenantId })).filter(row => row.is_current && testIds.includes(row.test_id));
+  const selectEffective = rows => {
+    const applicable = rows.filter(row => row.is_current && testIds.includes(row.test_id)
+      && (!branchId || row.branch_id == null || row.branch_id === branchId));
+    if (!branchId) return applicable;
+    const byTest = new Map();
+    for (const row of applicable.sort((a,b) => Number(b.branch_id === branchId) - Number(a.branch_id === branchId))) {
+      if (!byTest.has(row.test_id)) byTest.set(row.test_id, row);
+    }
+    return [...byTest.values()];
+  };
+  if (globalThis.navigator?.onLine === false) {
+    return selectEffective(await getCachedRows('test_prices', { tenantId }));
+  }
   const { data, error } = await db().from(TABLES.prices)
-    .select('id, tenant_id, test_id, selling_price, effective_from, is_current')
+    .select('id, tenant_id, test_id, branch_id, selling_price, effective_from, is_current')
     .eq('tenant_id', tenantId).eq('is_current', true).in('test_id', testIds);
-  if (error) { if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('test_prices', { tenantId })).filter(row => row.is_current && testIds.includes(row.test_id)); throw error; }
-  // Refresh current rows only; preserve cached historical price records.
-  await replaceCachedCurrentPrices(data ?? [], { tenantId, testIds });
-  return data ?? [];
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '')) {
+      return selectEffective(await getCachedRows('test_prices', { tenantId }));
+    }
+    throw error;
+  }
+  // Cache base and branch overrides without deleting another branch's current price.
+  await replaceCachedCurrentPrices(data ?? [], { tenantId, testIds, branchId });
+  return selectEffective(data ?? []);
 }
 
 export async function listTestParameters({ tenantId, testId, includeInactive = false } = {}) {
@@ -124,6 +141,23 @@ export async function setTestParameterActive({ tenantId, testId, parameterId, is
     .eq('id', parameterId).select().single();
   if (error) throw error;
   await cacheRows('test_parameters', [data]);
+  return data;
+}
+
+/** Set an owner-managed price override for one branch. */
+export async function setBranchPrice({ tenantId, branchId, testId, sellingPrice } = {}) {
+  required(tenantId, 'tenantId'); required(branchId, 'branchId'); required(testId, 'testId');
+  const price = Number(sellingPrice);
+  if (!Number.isFinite(price) || price < 0 || price > 9999999999.99) throw new Error('sellingPrice must be a valid non-negative amount.');
+  const { data, error } = await db().rpc(RPC.setBranchTestPrice, {
+    p_tenant_id: tenantId, p_branch_id: branchId, p_test_id: testId, p_selling_price: price,
+  });
+  if (error) throw error;
+  if (!data?.id || data.tenant_id !== tenantId || data.branch_id !== branchId
+    || data.test_id !== testId || data.is_current !== true) {
+    throw new Error('The branch price update did not return a valid current-price record.');
+  }
+  await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId], branchId });
   return data;
 }
 
