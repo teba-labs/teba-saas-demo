@@ -176,6 +176,6 @@ export async function setCurrentPrice({ tenantId, testId, sellingPrice } = {}) {
     throw new Error('The price update did not return a valid current-price record.');
   }
   // Refresh current-price cache only after the server confirms the new row.
-  await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId] });
+  await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId], scope: 'base' });
   return data;
 }
