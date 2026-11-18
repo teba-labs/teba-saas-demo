@@ -123,6 +123,30 @@ function dateStatus(value) {
   const parsed=Date.parse(text);
   return Number.isNaN(parsed)?'invalid':'ambiguous';
 }
+export function inspectLegacyDate(value) {
+  const raw=value===undefined||value===null?'':String(value).trim();
+  if(!raw)return {raw,status:'empty',isoDate:null};
+  let m=raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  if(m){const y=+m[1],mo=+m[2],d=+m[3],dt=new Date(Date.UTC(y,mo-1,d));const valid=dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d;return {raw,status:valid?'valid':'invalid',isoDate:valid?raw:null};}
+  m=raw.match(/^(\\d{1,2})[\\/. -](\\d{1,2})[\\/. -](\\d{4})$/);
+  if(m){const a=+m[1],b=+m[2],y=+m[3];if(a>=1&&a<=12&&b>=1&&b<=12)return {raw,status:'ambiguous',isoDate:null};const day=a>12?a:b,month=a>12?b:a;const dt=new Date(Date.UTC(y,month-1,day));const valid=dt.getUTCFullYear()===y&&dt.getUTCMonth()===month-1&&dt.getUTCDate()===day;return {raw,status:valid?'valid':'invalid',isoDate:valid?dt.toISOString().slice(0,10):null};}
+  return {raw,status:'needs-review',isoDate:null};
+}
+export function inspectLegacyAge(age,ageType) {
+  const rawAge=age===undefined||age===null?'':String(age).trim();
+  const rawAgeType=ageType===undefined||ageType===null?'':String(ageType).trim();
+  const unit=rawAgeType.toLocaleLowerCase('ar').replace(/[أإآ]/g,'ا').trim();
+  const value=/^\\d+(?:[.,]\\d+)?$/.test(rawAge.replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))))?Number(rawAge.replace(',','.').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))):null;
+  const unitKnown=/^(سنه|سنوات|عام|اعوام|year|years|y|شهر|شهور|اشهر|month|months|mo|يوم|ايام|day|days|d)$/.test(unit);
+  return {rawAge,rawAgeType,numericValue:value,unitKnown,ageYears:null,status:!rawAge?'empty':value===null?'needs-review':unitKnown?'unit-preserved':'unit-review-required'};
+}
+export function inspectLegacyFinance({paidAmount,ledgerEntries=[]}={}) {
+  const paid=paidAmount===undefined||paidAmount===null||paidAmount===''?null:Number(String(paidAmount).replace(/,/g,''));
+  const linked=ledgerEntries.filter(x=>x&&x.visit_id!==undefined&&x.visit_id!==null);
+  const ledgerTotal=linked.reduce((sum,x)=>sum+Math.abs(Number(x.amount)||0),0);
+  return {rawPaidAmount:paidAmount??null,linkedLedgerCount:linked.length,linkedLedgerAbsoluteTotal:ledgerTotal,
+    status:paid===null?'no-cumulative-paid-value':linked.length&&Math.abs(ledgerTotal-paid)<0.005?'possible-duplicate-representation':linked.length?'manual-reconciliation-required':'cumulative-only-no-payment-history'};
+}
 export function inspectLegacyAge(age,ageType) {
   return {rawAge:age===undefined||age===null?'':String(age),rawAgeType:ageType===undefined||ageType===null?'':String(ageType),ageYears:null,status:(age!==undefined&&age!==null&&String(age).trim()!=='')?'unit-review-required':'empty'};
 }
@@ -163,7 +187,15 @@ export function analyzeArchiveSheet(rows, headerRowIndex, entityType, mapping) {
   const headerNames=(mapping||[]).map(m=>normalizeHeader(m.header)).filter(Boolean);
   const duplicateHeaders=headerNames.filter((name,index)=>headerNames.indexOf(name)!==index).length;
   if(duplicateHeaders)add('duplicate-header',headerRowIndex+1,'يوجد '+duplicateHeaders+' عنوان عمود مكرر؛ راجع المطابقة يدويًا.');
-  return {entityType,totalRows:data.length,nonEmptyRows:records.length,blankRows,missingRequired,invalidNumbers,duplicateRows,duplicateHeaders,issueCount:missingRequired+invalidNumbers+duplicateRows+(duplicateHeaders?1:0),issues,records};
+  const legacyReview={ageRows:0,dateAmbiguous:0,dateInvalid:0,resultPayloadInvalid:0,financeRows:0};
+  for(const record of records){
+    if(entityType==='patients'&&record.age){const age=inspectLegacyAge(record.age,record.age_type);record._legacyAgeReview=age;if(age.status!=='empty')legacyReview.ageRows++;}
+    const dateField=entityType==='visits'?'visit_date':entityType==='ledger'?'created_at':entityType==='expenses'?'date':entityType==='patients'?'created_at':null;
+    if(dateField&&record[dateField]){record._legacyDateReview=inspectLegacyDate(record[dateField]);if(record._legacyDateReview.status==='ambiguous')legacyReview.dateAmbiguous++;if(['invalid','needs-review'].includes(record._legacyDateReview.status))legacyReview.dateInvalid++;}
+    if(entityType==='test_results'&&record.results_data){record._legacyResultReview=inspectLegacyResultPayload(record.results_data);if(!record._legacyResultReview.valid)legacyReview.resultPayloadInvalid++;}
+    if(entityType==='visits'&&record.paid_amount!==undefined)legacyReview.financeRows++;
+  }
+  return {entityType,totalRows:data.length,nonEmptyRows:records.length,blankRows,missingRequired,invalidNumbers,duplicateRows,duplicateHeaders,issueCount:missingRequired+invalidNumbers+duplicateRows+(duplicateHeaders?1:0),issues,records,legacyReview};
 }
 export function analyzeArchiveRelationships(sheets) {
   const results=[];
