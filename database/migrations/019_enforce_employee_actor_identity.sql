@@ -99,3 +99,61 @@ drop trigger if exists enforce_employee_staff_identity_patients on public.patien
 create trigger enforce_employee_staff_identity_patients
 before insert or update on public.patients
 for each row execute function private.enforce_authenticated_staff_identity('created_by_staff_id');
+
+-- Attribute audit events to the authenticated employee, not the original creator
+-- of a row. This matters when a different shift employee completes or approves it.
+create or replace function private.capture_audit_log()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $function$
+declare
+  j_new jsonb;
+  j_old jsonb;
+  v_tenant uuid;
+  v_branch uuid;
+  v_id text;
+  v_staff uuid;
+begin
+  if tg_op <> 'DELETE' then j_new := to_jsonb(new); end if;
+  if tg_op <> 'INSERT' then j_old := to_jsonb(old); end if;
+  v_tenant := coalesce(nullif(j_new->>'tenant_id','')::uuid, nullif(j_old->>'tenant_id','')::uuid);
+  v_branch := coalesce(nullif(j_new->>'branch_id','')::uuid, nullif(j_old->>'branch_id','')::uuid);
+  v_id := coalesce(j_new->>'id', j_old->>'id');
+
+  if auth.uid() is not null and v_tenant is not null then
+    select sd.id into v_staff
+      from public.staff_directory sd
+      join public.tenant_memberships tm
+        on tm.tenant_id=sd.tenant_id and tm.user_id=auth.uid()
+       and tm.account_type='employee' and tm.is_active
+     where sd.tenant_id=v_tenant and sd.auth_user_id=auth.uid()
+       and sd.is_active and (v_branch is null or sd.branch_id=v_branch)
+     limit 1;
+  end if;
+
+  if v_staff is null then
+    v_staff := coalesce(
+      nullif(j_new->>'completed_by_staff_id',''), nullif(j_new->>'approved_by_staff_id',''),
+      nullif(j_new->>'published_by_staff_id',''), nullif(j_new->>'entered_by_staff_id',''),
+      nullif(j_new->>'received_by_staff_id',''), nullif(j_new->>'spent_by_staff_id',''),
+      nullif(j_new->>'closed_by_staff_id',''), nullif(j_new->>'opened_by_staff_id',''),
+      nullif(j_new->>'created_by_staff_id',''),
+      nullif(j_old->>'completed_by_staff_id',''), nullif(j_old->>'approved_by_staff_id',''),
+      nullif(j_old->>'published_by_staff_id',''), nullif(j_old->>'entered_by_staff_id',''),
+      nullif(j_old->>'received_by_staff_id',''), nullif(j_old->>'spent_by_staff_id',''),
+      nullif(j_old->>'closed_by_staff_id',''), nullif(j_old->>'opened_by_staff_id',''),
+      nullif(j_old->>'created_by_staff_id','')
+    )::uuid;
+  end if;
+
+  if v_tenant is not null then
+    insert into public.audit_logs(tenant_id,branch_id,actor_user_id,actor_staff_id,action,table_name,record_id,old_data,new_data)
+    values (v_tenant,v_branch,auth.uid(),v_staff,lower(tg_op),tg_table_name,v_id,
+      case when tg_op='INSERT' then null else j_old end,
+      case when tg_op='DELETE' then null else j_new end);
+  end if;
+  if tg_op='DELETE' then return old; else return new; end if;
+end;
+$function$;
