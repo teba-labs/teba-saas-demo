@@ -7,7 +7,9 @@ function el(tag,text=''){const n=document.createElement(tag);n.textContent=Strin
 function makeSelect(options,value){const s=el('select');for(const item of options){const o=el('option',item.label);o.value=item.value;s.append(o);}s.value=value??'';return s;}
 async function start(){const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;return;}const ctx=await loadMyTenantContext();state.tenants=(ctx.tenants||[]).filter(t=>t.accountType==='owner');if(!state.tenants.length)throw Error('هذه الأداة مخصصة لمالك المعمل فقط.');$('tenantName').textContent=state.tenants[0].name;$('loginPanel').hidden=true;$('workspace').hidden=false;}
 function renderSheet(){
- const s=state.result?.sheets[Number($('sheetSelect').value)];if(!s)return;
+ if(!state.result)return;
+ for(const sheet of state.result.sheets) sheet.analysis=analyzeArchiveSheet(sheet.rawRows,sheet.headerRowIndex,sheet.entityType,sheet.columnMapping);
+ const s=state.result.sheets[Number($('sheetSelect').value)];if(!s)return;
  const root=$('sheetDetails');root.replaceChildren();
  const summary=el('div');summary.className='meta';
  for(const [label,value] of [['اسم الورقة',s.name],['عدد الصفوف غير الفارغة',s.rowCount],['صف العناوين',s.headerRowIndex+1]]){const box=el('div');box.append(el('small',label),el('b',value));summary.append(box);}root.append(summary);
