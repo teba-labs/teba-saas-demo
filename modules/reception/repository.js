@@ -115,8 +115,8 @@ export async function createVisitBilling({ tenantId, branchId, visitId, grossTot
   return data;
 }
 
-export async function recordPayment({ tenantId, branchId, visitId, amount, paymentMethod = 'cash', staffId, notes } = {}) {
-  need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(visitId, 'visitId'); need(staffId, 'staffId');
+export async function recordPayment({ tenantId, visitId, amount, paymentMethod = 'cash', staffId, notes } = {}) {
+  need(tenantId, 'tenantId'); need(visitId, 'visitId'); need(staffId, 'staffId');
   const value = Number(amount);
   if (!Number.isFinite(value) || value <= 0) throw new Error('Payment amount must be greater than zero.');
   const operationId = uuid();
@@ -128,8 +128,24 @@ export async function recordPayment({ tenantId, branchId, visitId, amount, payme
     const visit = await db().from(TABLES.visits).select('id,tenant_id,branch_id,patient_id,visit_number,status').eq('tenant_id', tenantId).eq('id', visitId).single();
     if (visit.error) { if (/fetch|network|offline/i.test(visit.error.message || '')) { visitRow = (await getCachedRows('visits', { tenantId })).find(row => row.id === visitId); if (!visitRow) throw visit.error; } else throw visit.error; } else { visitRow = visit.data; await cacheRows('visits', [visitRow]); }
   }
+  // The employee's assigned branch is the cash-collection branch; it may differ from the visit's origin branch.
+  let collector;
+  if (globalThis.navigator?.onLine === false) {
+    collector = (await getCachedRows('staff_directory', { tenantId })).find(row => row.id === staffId && row.is_active);
+  } else {
+    const staffResult = await db().from(TABLES.staffDirectory)
+      .select('id, tenant_id, branch_id, is_active')
+      .eq('tenant_id', tenantId).eq('id', staffId).eq('is_active', true).maybeSingle();
+    if (staffResult.error) {
+      if (/fetch|network|offline/i.test(staffResult.error.message || '')) {
+        collector = (await getCachedRows('staff_directory', { tenantId })).find(row => row.id === staffId && row.is_active);
+      } else throw staffResult.error;
+    } else collector = staffResult.data;
+  }
+  if (!collector?.branch_id) throw new Error('لا يمكن تحديد فرع التحصيل من حساب الموظف. حدّث بيانات الموظفين أثناء الاتصال أولًا.');
+  const collectionBranchId = collector.branch_id;
   const payload = { visit_id: visitId, amount: value, payment_method: paymentMethod, staff_id: staffId, notes: notes ?? null };
-  const queue = async () => { await enqueueOperation({ tenantId, branchId, entityType: 'payment', action: 'create', operationId, payload }); return { queued: true, operationId }; };
+  const queue = async () => { await enqueueOperation({ tenantId, branchId: collectionBranchId, entityType: 'payment', action: 'create', operationId, payload }); return { queued: true, operationId }; };
   if (globalThis.navigator?.onLine === false) return queue();
   const { data, error } = await db().rpc(RPC.recordPatientPayment, {
     p_tenant_id: tenantId, p_visit_id: visitId, p_amount: value,
