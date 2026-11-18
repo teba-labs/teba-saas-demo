@@ -19,4 +19,5 @@ export const RPC = Object.freeze({
   platformCreateTenant: 'platform_create_tenant',
   createVisitIntakeIdempotent: 'create_visit_intake_idempotent',
   setCurrentTestPrice: 'set_current_test_price',
+  setBranchTestPrice: 'set_branch_test_price',
 });
