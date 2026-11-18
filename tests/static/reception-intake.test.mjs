@@ -22,6 +22,7 @@ test('patient search and creation are branch-scoped',()=>{
   assert.match(repo,/\.eq\('tenant_id', tenantId\)\.eq\('branch_id', branchId\)/);
 });
 test('visit uses database price snapshots and creates billing from actual selected test prices',()=>{
+  assert.match(script,/listCurrentPrices\(\{tenantId:state\.tenant\.id,branchId:state\.branch\.id/);
   assert.match(script,/createVisitIntake\(/);
   assert.match(script,/testIds:\[\.\.\.state\.selected\]/);
   assert.match(script,/discountAmount:discount,initialPayment:paid/);
