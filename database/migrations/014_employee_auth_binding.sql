@@ -135,3 +135,75 @@ revoke all on function public.owner_assign_branch_employee(uuid,uuid,uuid,uuid,u
 grant execute on function public.owner_assign_branch_employee(uuid,uuid,uuid,uuid,uuid) to service_role;
 revoke all on function public.owner_set_branch_employee_active(uuid,uuid,uuid,uuid,boolean) from public, anon, authenticated;
 grant execute on function public.owner_set_branch_employee_active(uuid,uuid,uuid,uuid,boolean) to service_role;
+
+
+-- A signed-in employee may record actions only under the operational identity
+-- explicitly linked to that Auth user. Owners may operate under an unlinked
+-- operational identity when they personally cover a shift.
+create or replace function private.enforce_staff_actor_binding()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_tenant_id uuid;
+  v_staff_id uuid;
+  v_linked_user_id uuid;
+begin
+  if auth.uid() is null then return new; end if;
+
+  v_tenant_id := nullif(to_jsonb(new)->>'tenant_id','')::uuid;
+  v_staff_id := nullif(to_jsonb(new)->>tg_argv[0],'')::uuid;
+  if v_tenant_id is null or v_staff_id is null then return new; end if;
+
+  select sd.auth_user_id into v_linked_user_id
+    from public.staff_directory sd
+   where sd.id = v_staff_id and sd.tenant_id = v_tenant_id
+     and sd.is_active;
+  if not found then raise exception 'Active operational staff identity not found'; end if;
+
+  if not private.is_tenant_owner(v_tenant_id)
+     and v_linked_user_id is distinct from auth.uid() then
+    raise exception 'The signed-in employee can act only under their linked operational identity';
+  end if;
+  return new;
+end;
+$function$;
+
+revoke all on function private.enforce_staff_actor_binding() from public, anon, authenticated;
+grant execute on function private.enforce_staff_actor_binding() to service_role;
+
+do $block$
+declare
+  item record;
+begin
+  for item in
+    select * from (values
+      ('visits','created_by_staff_id'),
+      ('visits','approved_by_staff_id'),
+      ('visit_tests','created_by_staff_id'),
+      ('visit_tests','completed_by_staff_id'),
+      ('test_results','entered_by_staff_id'),
+      ('payments','received_by_staff_id'),
+      ('expenses','staff_id'),
+      ('branch_workdays','opened_by_staff_id'),
+      ('branch_workdays','closed_by_staff_id'),
+      ('report_versions','published_by_staff_id')
+    ) as targets(table_name,column_name)
+  loop
+    if exists (
+      select 1 from information_schema.columns c
+       where c.table_schema='public' and c.table_name=item.table_name
+         and c.column_name=item.column_name
+    ) then
+      execute format('drop trigger if exists %I on public.%I', 'staff_actor_'||item.table_name||'_'||item.column_name, item.table_name);
+      execute format(
+        'create trigger %I before insert or update of %I on public.%I for each row execute function private.enforce_staff_actor_binding(%L)',
+        'staff_actor_'||item.table_name||'_'||item.column_name,
+        item.column_name, item.table_name, item.column_name
+      );
+    end if;
+  end loop;
+end;
+$block$;
