@@ -42,7 +42,7 @@ test('catalog repository returns one effective price per test for a selected bra
 
 test('offline cache preserves other branches current prices when refreshing one branch',()=>{
  const cache=read('offline/cache.js');
- assert.match(cache,/inBranchScope = row => !branchId \|\| row\.branch_id == null \|\| row\.branch_id === branchId/);
+ assert.match(cache,/inBranchScope = row => scope === 'base' \? row\.branch_id == null : scope === 'branch' \? row\.branch_id === branchId/);
  assert.match(cache,/inBranchScope\(row\).*row\.is_current === true/);
  const db=read('offline/database.js');
  assert.match(db,/offlineDb\.version\(3\)\.stores/);
