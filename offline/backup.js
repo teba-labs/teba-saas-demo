@@ -48,26 +48,53 @@ export async function restoreLocalBackup(document, { tenantId, branchId } = {}) 
     }
     writes.push([offlineDb.table(name), rows]);
   }
+  // Restore is a merge, never a replacement: existing local rows may be newer.
+  // Auto-increment keys are device-local and must not be copied between browsers.
   await offlineDb.transaction('rw', ...writes.map(([table]) => table), async () => {
     for (const [table, rows] of writes) {
       if (!rows.length) continue;
       if (table.name === 'outbox') {
         for (const original of rows) {
-          const row = original.status === 'syncing' ? { ...original, status: 'pending', sync_owner: null, lease_until: null } : original;
+          const { local_id: _deviceLocalId, ...portable } = original;
+          const row = portable.status === 'syncing'
+            ? { ...portable, status: 'pending', sync_owner: null, lease_until: null }
+            : portable;
           const existing = await table.where('operation_id').equals(row.operation_id).first();
           if (existing) {
-            if (JSON.stringify(existing.payload) !== JSON.stringify(row.payload) || existing.tenant_id !== row.tenant_id || existing.branch_id !== row.branch_id) throw new Error('An operation ID already exists locally with different content. Restore was rolled back.');
+            if (JSON.stringify(existing.payload) !== JSON.stringify(row.payload)
+                || existing.tenant_id !== row.tenant_id || existing.branch_id !== row.branch_id) {
+              throw new Error('An operation ID already exists locally with different content. Restore was rolled back.');
+            }
             continue;
           }
           await table.add(row);
         }
       } else if (table.name === 'conflicts') {
-        for (const row of rows) {
+        for (const original of rows) {
+          const { local_id: _deviceLocalId, ...row } = original;
           const existing = await table.where('conflict_id').equals(row.conflict_id).first();
-          if (!existing) await table.add(row);
+          if (existing) {
+            if (existing.operation_id !== row.operation_id
+                || existing.tenant_id !== row.tenant_id || existing.branch_id !== row.branch_id
+                || JSON.stringify(existing.local_payload) !== JSON.stringify(row.local_payload)) {
+              throw new Error('A conflict ID already exists locally with different content. Restore was rolled back.');
+            }
+            continue;
+          }
+          await table.add(row);
         }
       } else {
-        await table.bulkPut(rows);
+        for (const row of rows) {
+          const existing = await table.get(row.id);
+          if (existing) {
+            if (existing.tenant_id !== row.tenant_id || (existing.branch_id ?? null) !== (row.branch_id ?? null)) {
+              throw new Error(`A local record key belongs to another scope (${table.name}). Restore was rolled back.`);
+            }
+            // Keep the already-present row; it may contain newer local work.
+            continue;
+          }
+          await table.add(row);
+        }
       }
     }
   });
