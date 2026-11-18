@@ -109,3 +109,5 @@ Arabic catalog administration is available at `app/catalog.html`. Owners and sta
 - Deployed `patient-portal-lookup` (anonymous endpoint with internal rate limiting) and `publish-report` (JWT-protected) to TEST. Both fail closed until the required origin allowlists and portal hash secret are configured.
 - Storage policies remain private for reports, attachments and backups; only tenant site assets are public-read.
 - The draft development PR is not merged. Full browser tests, PDF upload, cross-branch payment tests, two-tenant RLS tests and offline multi-device replay remain pending. See `docs/batch-19-cloud-hardening.md`.
+
+- Migration-history caution: TEST currently has only the custom `public.schema_migrations` baseline record (1.0.0), and no standard Supabase CLI migration table. Batches 012–016 were applied directly and verified; reconcile migrations 002–011 and record the complete history before any automated migration replay.
