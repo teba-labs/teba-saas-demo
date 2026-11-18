@@ -115,8 +115,8 @@ export async function createVisitBilling({ tenantId, branchId, visitId, grossTot
   return data;
 }
 
-export async function recordPayment({ tenantId, visitId, amount, paymentMethod = 'cash', staffId, notes } = {}) {
-  need(tenantId, 'tenantId'); need(visitId, 'visitId'); need(staffId, 'staffId');
+export async function recordPayment({ tenantId, branchId, visitId, amount, paymentMethod = 'cash', staffId, notes } = {}) {
+  need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(visitId, 'visitId'); need(staffId, 'staffId');
   const value = Number(amount);
   if (!Number.isFinite(value) || value <= 0) throw new Error('Payment amount must be greater than zero.');
   const operationId = uuid();
