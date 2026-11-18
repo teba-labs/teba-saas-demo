@@ -153,7 +153,8 @@ export function analyzeArchiveRelationships(sheets) {
   }
   return results;
 }
-\nfunction hashHex(buffer) {
+
+function hashHex(buffer) {
   return crypto.subtle.digest('SHA-256', buffer).then(bytes =>
     [...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,'0')).join('')
   );
