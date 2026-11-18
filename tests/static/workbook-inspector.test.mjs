@@ -102,3 +102,46 @@ test('sheet-count guard rejects empty or over-limit workbooks',()=>{
  assert.throws(()=>validateSheetCount(0),/عدد أوراق العمل/);
  assert.throws(()=>validateSheetCount(51),/عدد أوراق العمل/);
 });
+
+test('synthetic patient rows detect missing required values, duplicate IDs and invalid numbers',()=>{
+ const {analyzeArchiveSheet}=await import('../../modules/migration/workbook-inspector.js');
+ const rows=[['patient_id','name','age'],['P1','سارة','32'],['P1','','عشرون'],['P2','عمر','8']];
+ const mapping=[{columnIndex:0,header:'patient_id',fieldKey:'source_id'},{columnIndex:1,header:'name',fieldKey:'name'},{columnIndex:2,header:'age',fieldKey:'age'}];
+ const report=analyzeArchiveSheet(rows,0,'patients',mapping);
+ assert.equal(report.nonEmptyRows,3);
+ assert.equal(report.duplicateRows,1);
+ assert.equal(report.missingRequired,1);
+ assert.equal(report.invalidNumbers,0);
+ assert.ok(report.issues.some(x=>x.type==='duplicate'));
+ assert.ok(report.issues.some(x=>x.type==='missing-required'));
+});
+
+test('synthetic ledger rows detect invalid monetary values and blank lines',()=>{
+ const {analyzeArchiveSheet}=await import('../../modules/migration/workbook-inspector.js');
+ const rows=[['type','amount','created_at'],['payment','150','2026-01-01'],['expense','abc','2026-01-02'],['','','']];
+ const mapping=[{columnIndex:0,header:'type',fieldKey:'type'},{columnIndex:1,header:'amount',fieldKey:'amount'},{columnIndex:2,header:'created_at',fieldKey:'created_at'}];
+ const report=analyzeArchiveSheet(rows,0,'ledger',mapping);
+ assert.equal(report.nonEmptyRows,2);
+ assert.equal(report.blankRows,1);
+ assert.equal(report.invalidNumbers,1);
+});
+
+test('synthetic cross-sheet checks identify visits with missing patient references and orphan test rows',()=>{
+ const {analyzeArchiveSheet,analyzeArchiveRelationships}=await import('../../modules/migration/workbook-inspector.js');
+ const patients={entityType:'patients',rawRows:[['id','name'],['P1','سارة']],headerRowIndex:0,columnMapping:[{columnIndex:0,header:'id',fieldKey:'source_id'},{columnIndex:1,header:'name',fieldKey:'name'}]};
+ const visits={entityType:'visits',rawRows:[['visit_id','patient_id','visit_date'],['V1','P1','2026-01-01'],['V2','P9','2026-01-02']],headerRowIndex:0,columnMapping:[{columnIndex:0,header:'visit_id',fieldKey:'source_id'},{columnIndex:1,header:'patient_id',fieldKey:'patient_id'},{columnIndex:2,header:'visit_date',fieldKey:'visit_date'}]};
+ const visitTests={entityType:'visit_tests',rawRows:[['visit_id','test_code'],['V1','CBC'],['V9','TSH']],headerRowIndex:0,columnMapping:[{columnIndex:0,header:'visit_id',fieldKey:'visit_id'},{columnIndex:1,header:'test_code',fieldKey:'test_code'}]};
+ for(const sheet of [patients,visits,visitTests])sheet.analysis=analyzeArchiveSheet(sheet.rawRows,sheet.headerRowIndex,sheet.entityType,sheet.columnMapping);
+ const links=analyzeArchiveRelationships([patients,visits,visitTests]);
+ assert.equal(links.find(x=>x.from==='visits').missing,1);
+ assert.equal(links.find(x=>x.from==='visit_tests').missing,1);
+});
+
+test('mapping UI displays row validation and relationship review while retaining local-only boundary',()=>{
+ const js=read('assets/js/data-import.js');
+ assert.match(js,/analyzeArchiveSheet/);
+ assert.match(js,/analyzeArchiveRelationships/);
+ assert.match(js,/ملاحظات فحص الصفوف/);
+ assert.match(js,/مراجعة الارتباط بين الأوراق/);
+ assert.doesNotMatch(js,/\.from\(|\.rpc\(|fetch\(|localStorage|sessionStorage/);
+});
