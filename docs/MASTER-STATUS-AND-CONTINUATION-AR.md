@@ -286,3 +286,8 @@
 - GitHub Actions أثبت نجاح 121/121 اختبار static على commit `2a35622e9a57d69351aca5cbf436536f55112396`.
 - أضيف فحص صياغة JavaScript/MJS إلى Workflow بعد ذلك؛ ننتظر نتيجة تشغيله.
 - لم يحدث أي تغيير على قاعدة TEST أو نشر Edge Function أو تعديل `main`.
+
+
+### الحالة بعد توحيد السحابة — 19 نوفمبر 2026
+راجع التقرير التفصيلي: `docs/UNIFIED-TEST-INTEGRATION-AR-2026-11-19.md`. تم إنشاء فرع `integration/unified-test-2026-11-19` وPR مسودة #3، دون تعديل `main`. تم توحيد migrations 012–021 وتطبيقها/تسجيلها في Supabase TEST. نجحت 157/157 اختبارات static وفحص صياغة JavaScript/MJS. نجحت تجربة SQL مؤقتة ثم ROLLBACK لدورة النتائج وهوية الموظف وعزل الفرع. تم نشر Edge Functions `invite-branch-employee` و`upload-attachment` مع JWT مفعّل، ومصدرا `patient-portal-lookup` و`publish-report` مطابقان للمصدر المنشور.
+**حاجز الإطلاق المتبقي:** Secrets/Origins لم تضبط بعد، لذلك الوظائف تفشل بشكل مغلق حتى تضاف القيم المحددة في التقرير. لا browser E2E أو cross-tenant test حتى الآن. سجل migrations القياسي يحتوي 012–021، لكن baseline 001–011 يحتاج تسوية قبل أي `db push` آلي. لا تدمج PR #3 أو تنقل بيانات حقيقية قبل إكمال هذه الاختبارات.
