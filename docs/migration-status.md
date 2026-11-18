@@ -1,3 +1,11 @@
+> **تحديث الحالة — 18 نوفمبر 2026:** هذا السجل يحتوي تاريخًا لدفعات قديمة، وليس بيانًا حاليًا بما نُفذ في قاعدة TEST. أداة Supabase أعادت سجل migrations فارغًا، وجدول `public.schema_migrations` يحتوي baseline `1.0.0` فقط، بينما توجد في قاعدة TEST فعليًا دوال ومحفزات لاحقة من وظائف الزيارات والنتائج والتقارير والتحصيل والمصروفات. كما توجد دالتان غير ممثلتين في migrations الحالية: `consume_patient_portal_attempt` و`set_branch_test_price`.
+>
+> لا تستنتج من عبارة قديمة أن Migration 008 أو 010 غير مطبقة، ولا تعِد تنفيذ 002–011. يجب أولًا مطابقة كل migration مع الكائنات الفعلية في TEST وتوثيقها. نسخة `patient-portal-lookup` المنشورة أحدث من ملف GitHub، ونسخة `publish-report` مطابقة للمصدر.
+>
+> الحالة التفصيلية في [التقرير الشامل](FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md) و[سجل الحالة الرئيسي](MASTER-STATUS-AND-CONTINUATION-AR.md).
+>
+> ---
+>
 # Migration status
 
 ## Completed foundations
