@@ -74,3 +74,22 @@ test('offline context, workday, staff, catalog and price snapshots are available
   assert.match(catalog, /getCachedRows\('test_prices'/);
   assert.match(workdayUi, /getCachedRows\('staff_directory'/);
 });
+
+test('offline queue recovery, summaries, conflicts and retries require an exact tenant/branch scope', () => {
+  const source = read('offline/outbox.js');
+  assert.match(source, /recoverExpiredLeases\(now, \{ tenantId, branchId \}\)/);
+  assert.match(source, /item\.tenant_id === tenantId && item\.branch_id === branchId/);
+  assert.match(source, /A tenant and branch must be selected before synchronizing/);
+  assert.match(source, /Tenant and branch are required to view offline queue status/);
+  assert.match(source, /Tenant and branch are required to view offline conflicts/);
+  assert.match(source, /Tenant and branch are required to retry offline operations/);
+});
+
+test('cross-device local restore drops device-local auto IDs and merges without overwriting existing rows', () => {
+  const source = read('offline/backup.js');
+  assert.match(source, /local_id: _deviceLocalId/);
+  assert.match(source, /await table\.add\(row\)/);
+  assert.match(source, /Keep the already-present row/);
+  assert.match(source, /different content\. Restore was rolled back/);
+  assert.doesNotMatch(source, /await table\.bulkPut\(rows\)/);
+});
