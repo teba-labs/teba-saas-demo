@@ -24,7 +24,7 @@ begin
       and sd.branch_id = p_branch_id and sd.is_active
   ) then raise exception 'An active staff identity for this branch is required'; end if;
 
-  select vt.*, v.is_published
+  select vt, v.is_published
     into v_test, v_is_published
     from public.visit_tests vt
     join public.visits v on v.id = vt.visit_id and v.tenant_id = vt.tenant_id
