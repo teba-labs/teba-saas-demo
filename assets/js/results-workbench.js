@@ -48,9 +48,11 @@ async function loadBranch() {
   rememberWorkspaceSelection(state.tenant.id, state.branch.id);
   $('contextStatus').textContent = 'جارٍ تحميل بيانات الفرع…';
   const db = getSupabaseClient();
-  const { data, error } = await db.from('staff_directory')
+  let staffQuery = db.from('staff_directory')
     .select('id, display_name, auth_user_id, is_active').eq('tenant_id', state.tenant.id)
-    .eq('branch_id', state.branch.id).eq('is_active', true).order('display_name');
+    .eq('branch_id', state.branch.id).eq('is_active', true);
+  if (state.tenant.accountType === 'employee') staffQuery = staffQuery.eq('auth_user_id', state.userId);
+  const { data, error } = await staffQuery.order('display_name');
   if (error) throw error;
   state.staff = data ?? [];
   if (state.tenant.accountType === 'employee') state.staff = state.staff.filter(row => row.auth_user_id === state.userId);
