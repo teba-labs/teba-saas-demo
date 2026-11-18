@@ -67,8 +67,8 @@ test('file guards and workbook sheet limit remain enforced',()=>{
  const inspector=read('modules/migration/workbook-inspector.js');
  assert.match(inspector,/MAX_FILE_BYTES = 20 \* 1024 \* 1024/);
  assert.match(inspector,/MAX_SHEETS = 50/);
- assert.match(inspector,/file\.size > MAX_FILE_BYTES/);
- assert.match(inspector,/workbook\.SheetNames\.length > MAX_SHEETS/);
+ assert.match(inspector,/fileSize > MAX_FILE_BYTES/);
+ assert.match(inspector,/count > MAX_SHEETS/);
  assert.match(inspector,/slice\(0, 15\)/);
 });
 
