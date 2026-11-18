@@ -15,7 +15,8 @@ test('catalog screen is Arabic RTL and exposes test, parameter and price managem
 test('catalog screen uses authenticated tenant context and owner-only price editing', () => {
   const js = read('assets/js/catalog.js');
   assert.match(js, /loadMyTenantContext/);
-  assert.match(js, /state\.tenant\.accountType==='owner'/);
+  assert.match(js, /accountType==='owner'/);
+  assert.match(js, /إدارة كتالوج التحاليل والأسعار متاحة لمالك المعمل فقط/);
   assert.match(js, /\$\('priceForm'\)\.hidden=state\.role!=='owner'/);
   assert.match(js, /if\(state\.role!=='owner'\|\|!state\.selectedTest\)return/);
   assert.match(js, /requireOnline\(\)/);
@@ -31,7 +32,7 @@ test('catalog UI uses tenant-scoped repository methods and deactivation instead 
 test('catalog screen and assets are included in the offline application shell', () => {
   const sw = read('service-worker.js');
   for (const asset of ['./app/catalog.html','./assets/css/catalog.css','./assets/js/catalog.js']) assert.ok(sw.includes(asset), `missing ${asset}`);
-  assert.match(sw, /taiba-smart-lab-shell-v3/);
+  assert.match(sw, /taiba-smart-lab-shell-v6/);
 });
 
 test('parameter repository supports inactive rows only when management explicitly requests them', () => {
@@ -40,9 +41,9 @@ test('parameter repository supports inactive rows only when management explicitl
   assert.match(repo, /return \(data \?\? \[\]\)\.filter\(row => includeInactive \|\| row\.is_active\)/);
 });
 
-test('launcher exposes catalog management to both owner and staff roles', () => {
+test('launcher exposes catalog management to owner accounts only', () => {
   const launcher = read('assets/js/app-home.js');
-  assert.match(launcher, /id:'catalog'[\s\S]*?href:'catalog\.html'[\s\S]*?roles:\['owner','staff'\]/);
+  assert.match(launcher, /id:'catalog'[\s\S]*?href:'catalog\.html'[\s\S]*?roles:\['owner'\]/);
 });
 
 test('catalog tenant switching has one change handler and ignores stale asynchronous loads', () => {
