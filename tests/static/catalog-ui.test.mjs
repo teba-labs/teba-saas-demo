@@ -25,14 +25,14 @@ test('catalog screen uses authenticated tenant context and owner-only price edit
 
 test('catalog UI uses tenant-scoped repository methods and deactivation instead of deletion', () => {
   const js = read('assets/js/catalog.js');
-  for (const name of ['listCatalog','listCurrentPrices','listTestParameters','saveCatalogTest','saveTestParameter','setTestParameterActive','setCurrentPrice']) assert.ok(js.includes(name), `missing ${name}`);
+  for (const name of ['listCatalog','listCurrentPrices','listTestParameters','saveCatalogTest','saveTestParameter','setTestParameterActive' ,'setCurrentPrice','setBranchPrice']) assert.ok(js.includes(name), `missing ${name}`);
   assert.doesNotMatch(js, /\.delete\(/);
 });
 
 test('catalog screen and assets are included in the offline application shell', () => {
   const sw = read('service-worker.js');
   for (const asset of ['./app/catalog.html','./assets/css/catalog.css','./assets/js/catalog.js']) assert.ok(sw.includes(asset), `missing ${asset}`);
-  assert.match(sw, /taiba-smart-lab-shell-v6/);
+  assert.match(sw, /taiba-smart-lab-shell-v7/);
 });
 
 test('parameter repository supports inactive rows only when management explicitly requests them', () => {
