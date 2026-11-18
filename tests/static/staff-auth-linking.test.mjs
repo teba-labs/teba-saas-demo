@@ -8,6 +8,7 @@ const html = fs.readFileSync(path.join(root, 'app/settings.html'), 'utf8');
 const script = fs.readFileSync(path.join(root, 'assets/js/settings-center.js'), 'utf8');
 const staffRepo = fs.readFileSync(path.join(root, 'modules/staff/repository.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'database/migrations/014_staff_auth_linking.sql'), 'utf8');
+const actorMigration = fs.readFileSync(path.join(root, 'database/migrations/015_enforce_employee_actor_identity.sql'), 'utf8');
 const edge = fs.readFileSync(path.join(root, 'supabase/functions/invite-branch-employee/index.ts'), 'utf8');
 const config = fs.readFileSync(path.join(root, 'supabase/config.toml'), 'utf8');
 const reception = fs.readFileSync(path.join(root, 'assets/js/reception.js'), 'utf8');
