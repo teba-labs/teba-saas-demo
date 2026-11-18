@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 
 const values = new Map();
-globalThis.localStorage = {
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
   getItem: key => values.get(key) ?? null,
   setItem: (key, value) => values.set(key, String(value)),
   removeItem: key => values.delete(key),
-};
+} });
 
 const tenants = [
   { id: 'tenant-a', branches: [{ id: 'a1' }, { id: 'a2' }] },
