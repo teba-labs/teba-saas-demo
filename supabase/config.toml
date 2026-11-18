@@ -6,3 +6,7 @@ verify_jwt = false
 # Staff-only publication endpoint; keep JWT verification enabled.
 [functions.publish-report]
 verify_jwt = true
+
+# Owner-only employee invitation and Auth identity binding.
+[functions.invite-branch-employee]
+verify_jwt = true
