@@ -16,7 +16,7 @@ alter table public.payments
 alter table public.payments
   drop constraint if exists payments_tenant_id_branch_id_visit_id_fkey;
 
-do $
+do $$
 begin
   if not exists (
     select 1 from pg_constraint
@@ -29,7 +29,7 @@ begin
       references public.visits(tenant_id, branch_id, id)
       on delete restrict;
   end if;
-end $;
+end $$;
 
 create or replace function private.set_payment_origin_branch()
 returns trigger
