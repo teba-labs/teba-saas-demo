@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "feature-completion/**"
+      - "integration/**"
   pull_request:
     branches:
       - main
