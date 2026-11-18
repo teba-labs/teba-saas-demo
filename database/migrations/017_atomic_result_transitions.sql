@@ -26,13 +26,19 @@ begin
       and sd.branch_id = p_branch_id and sd.is_active
   ) then raise exception 'An active staff identity for this branch is required'; end if;
 
-  select vt, v.is_published
-    into v_test, v_is_published
-    from public.visit_tests vt
-    join public.visits v on v.id = vt.visit_id and v.tenant_id = vt.tenant_id
+  -- Lock the parent visit first, then its test row, matching the draft-save lock order.
+  select v.is_published into v_is_published
+    from public.visits v
+    join public.visit_tests vt on vt.visit_id = v.id and vt.tenant_id = v.tenant_id
    where vt.id = p_visit_test_id and vt.tenant_id = p_tenant_id
      and vt.branch_id = p_branch_id and v.branch_id = p_branch_id
-   for update of vt, v;
+   for update of v;
+  if not found then raise exception 'Visit test was not found for this tenant and branch'; end if;
+
+  select * into v_test
+    from public.visit_tests
+   where id = p_visit_test_id and tenant_id = p_tenant_id and branch_id = p_branch_id
+   for update;
   if not found then raise exception 'Visit test was not found for this tenant and branch'; end if;
   if coalesce(v_is_published, false) then
     raise exception 'Published visit cannot be changed through the normal completion flow';
