@@ -180,19 +180,19 @@
 ## 9. أحدث مخرجات GitHub ونقطة الاستئناف
 
 - سجل الحالة الرئيسي: `docs/MASTER-STATUS-AND-CONTINUATION-AR.md`.
-- التقرير الشامل: [FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md](FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md) — آخر تحديث commit `6c229c5425cb06a0848f98c30faecc5be33e0c61`.
+- التقرير الشامل: [FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md](FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md) — آخر تحديث commit `69ba6a92c7aca10aef2edced03c8f78cf1434fd2`.
 - سجل دفعة الإصلاح 01: [fix-batch-01-patient-portal-source-sync.md](fix-batch-01-patient-portal-source-sync.md) — commit `dd971495739a3852463a94f884a8664322abc143`.
 - مصدر Edge Function بعد المزامنة: commit `0ee68057fcdecb8212419b63078ade79a596a123`.
 - migration 012 المصدرية: commit `478f164a134bde157fc2591e2ac3e91f235a1fc0` (لم تُشغّل).
 - اختبار البوابة الثابت: commit `6b95bdf606b2123b67518160a84995b7add27d08` (لم يُشغّل).
-- تحديث README: `11d1436e023ff452f2d6c68d9a97e3345ac1eb09`.
-- تحديث Phase 1: `51d5f3fcb378cdf275250a5e1a05fb505521a028`.
+- تحديث README: `ce452fb00363d150b9ad756a588456dfab02644f`.
+- تحديث Phase 1: `babee027e2e0fa0cf4aa2ba2b33e702ecda7f723`.
 - تحديث Migration Status: `e5bfff4b7fa38f28c09b9a62611fe53bd3fdf9db`.
 - تحديث Handoff التاريخي: `4e5e81f90f40334eddd59357bc75c1990a77461b`.
 - تحديث README بوابة المريض: `8acc16b2fa41a492d124a0a172cf9c37a91a1c93`.
 - لا توجد ملفات GitHub Actions workflows في المستودع؛ لم تُشغّل مجموعة Node الثابتة كاملة. تم تشغيل 3 اختبارات منطقية محلية لمساعد اختيار المعمل/الفرع ونجحت.
 - دفعة الإصلاح 02: helper `c1a74d9453c4e35ec867c46630287b8869a1677e`؛ صفحات التشغيل والإدارة والاختبار موثقة في سجل الدفعة 02؛ سجل الدفعة `1bea9c154d6dcd22a21a81101db3826b032fd305`.
-- آخر تحديث سابق لسجل الاستئناف: commit `9354b373a95e3a7e8ea6014f936685185f98da7d`.
+- آخر تحديث سابق لسجل الاستئناف: commit `9354b373a95e3a7e8ea6014f936685185f98da7d`؛ أحدث commit لهذا الملف بعد هذه المراجعة هو `5b13fc52d2cf3d734d23bc868504b57d7dc55f1c`.
 
 ## 10. تعليمات الاستئناف في محادثة جديدة
 
