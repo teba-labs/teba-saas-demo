@@ -180,14 +180,16 @@
 
 - سجل الحالة الرئيسي: `docs/MASTER-STATUS-AND-CONTINUATION-AR.md` (هذا الملف).
 - تقرير الاستكشاف الأولي: `docs/functional-audit-batch-01-2026-11-18.md`.
-- التقرير الشامل المعتمد لاستكمال التطوير: `docs/FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md`.
+- التقرير الشامل المعتمد لاستكمال التطوير: `docs/FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md` (يشمل أيضًا مشكلة عدم انتقال الفرع المختار وعدم وجود شاشة لتحصيل المديونيات اللاحقة).
 - Commit إنشاء سجل الحالة: `31063c3c74bd1a3b4c602d4e6380486155744c6f`.
 - Commit إنشاء تقرير المراجعة الأولية: `60a7bcf991542dfda114bc085a846a900c7848ed`.
 - Commit إضافة ملاحظة سلامة اعتماد النتائج: `b1effbea7c3e8f4b8b16b82a0317526e0eb30478`.
 - Commit تصحيح تنسيق سجل الحالة والتقرير: `38a7adc0bfaa9843f1c259b640fe705b5a51c6ab` (سجل الحالة) و`01deed5a14f3a1851c75f8b36183d828907d1e19` (التقرير).
-- Commit التقرير الشامل: `97f422b3f5a78aa649b89fe42d42ecc72ac8d541`.
+- Commit التقرير الشامل الأول: `97f422b3f5a78aa649b89fe42d42ecc72ac8d541`.
+- Commit استكمال التقرير الشامل وتصحيح تنسيقه: `4b773b93e7cc0480b72c05bf8ff83a7754a79d21`.
 - Commit تصحيح تقرير الدفعة 01: `7e2574d429892340cb06f767bfd0fce40ec614e2`.
 - Commits تحديث الوثائق القديمة: README `7063e7168137b0ffd1ccfeebe31faa923320fdfe`؛ Phase 1 `5046585fe25df90144108453cd11e4bbb5cba0e4`؛ Migration Status `d4c1dccbc2e199de484c6a2f634195e588b2f069`؛ Handoff `4e5e81f90f40334eddd59357bc75c1990a77461b`؛ Patient Portal README `8774cf12c6b2305bd1c30f724269b322620361ce`.
+- Commit تحديث سجل الحالة بعد التقرير والوثائق: `5c043fed7275dc2ebe1d3872ab58fb7a5a44a091`.
 - آخر تحديث لسجل الحالة: 18 نوفمبر 2026.
 
 ## 10. تعليمات الاستئناف في محادثة جديدة
