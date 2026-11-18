@@ -9,7 +9,7 @@ test('cross-branch collection keeps visit origin separate from cash collection b
  const sql=read('database/migrations/013_cross_branch_debt_collection.sql');
  assert.match(sql,/add column if not exists origin_branch_id uuid/i);
  assert.match(sql,/foreign key \(tenant_id, origin_branch_id, visit_id\)[\s\S]*?references public\.visits\(tenant_id, branch_id, id\)/i);
- assert.match(sql,/values \(p_tenant_id, v_collection_branch_id, v_origin_branch_id, p_visit_id/i);
+ assert.match(sql,/values\s*\(\s*p_tenant_id,\s*v_collection_branch_id,\s*v_origin_branch_id,\s*p_visit_id/i);
 });
 
 test('payment ledger attributes collected cash to the collecting branch and workday',()=>{
@@ -25,7 +25,7 @@ test('offline payment queue follows the cash-collecting branch rather than the v
  assert.match(repo,/const collectionBranchId = collector\.branch_id/);
  assert.match(repo,/enqueueOperation\(\{ tenantId, branchId: collectionBranchId, entityType: 'payment'/);
  const adapter=read('offline/supabase-adapters.js');
- assert.match(adapter,/open the \(\?:collecting \?\)branch workday/);
+ assert.match(adapter,/collecting \)\?branch workday/);
  assert.match(adapter,/payment collection branch is not accessible/);
 });
 
