@@ -10,6 +10,9 @@ const staffRepo = fs.readFileSync(path.join(root, 'modules/staff/repository.js')
 const migration = fs.readFileSync(path.join(root, 'database/migrations/014_staff_auth_linking.sql'), 'utf8');
 const edge = fs.readFileSync(path.join(root, 'supabase/functions/invite-branch-employee/index.ts'), 'utf8');
 const config = fs.readFileSync(path.join(root, 'supabase/config.toml'), 'utf8');
+const reception = fs.readFileSync(path.join(root, 'assets/js/reception.js'), 'utf8');
+const workday = fs.readFileSync(path.join(root, 'assets/js/workday.js'), 'utf8');
+const results = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 'utf8');
 
 test('owner settings provides a separate Auth-account linking flow', () => {
   for (const id of ['inviteStaffForm', 'staffInviteEmail', 'inviteStaffId']) assert.match(html, new RegExp('id="' + id + '"'));
@@ -30,4 +33,13 @@ test('employee Auth linking is tenant and branch scoped and service-role only', 
   assert.match(edge, /owner_assign_branch_employee/);
   assert.match(edge, /deleteUser\(employeeUser\.id\)/);
   assert.match(config, /\[functions\.invite-branch-employee\]\s+verify_jwt = true/);
+});
+
+test('employee operational screens bind staff identity to the authenticated user', () => {
+  for (const source of [reception, workday, results]) {
+    assert.match(source, /accountType==='employee'|accountType === 'employee'/);
+    assert.match(source, /auth_user_id/);
+    assert.match(source, /state\.userId/);
+    assert.match(source, /staffSelect.*disabled/);
+  }
 });
