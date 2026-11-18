@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
 import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
+import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listBranchWork } from '../../modules/laboratory/repository.js';
 import { listResults, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
 import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
@@ -23,14 +24,18 @@ async function startWorkspace() {
   tenantSelect.innerHTML = state.context.tenants.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('');
   if (!state.context.tenants.length) throw new Error('الحساب لا يملك معملًا نشطًا.');
   tenantSelect.onchange = () => selectTenant(tenantSelect.value);
+  tenantSelect.value = getPreferredTenantId(state.context.tenants) || '';
   await selectTenant(tenantSelect.value);
 }
 
 async function selectTenant(tenantId) {
   state.tenant = state.context.tenants.find(t => t.id === tenantId);
-  const branches = state.tenant?.branches ?? [];
+  if (!state.tenant) return;
+  rememberWorkspaceSelection(state.tenant.id);
+  const branches = state.tenant.branches ?? [];
   $('branchSelect').innerHTML = branches.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.name)}</option>`).join('');
   $('branchSelect').onchange = () => loadBranch();
+  $('branchSelect').value = getPreferredBranchId(state.tenant.id, branches) || '';
   if (!branches.length) { $('workList').innerHTML = '<div class="empty">لا يوجد فرع متاح لهذا الحساب.</div>'; return; }
   await loadBranch();
 }
@@ -39,6 +44,7 @@ async function loadBranch() {
   const branchId = $('branchSelect').value;
   state.branch = state.tenant.branches.find(b => b.id === branchId);
   if (!state.branch) return;
+  rememberWorkspaceSelection(state.tenant.id, state.branch.id);
   $('contextStatus').textContent = 'جارٍ تحميل بيانات الفرع…';
   const db = getSupabaseClient();
   const { data, error } = await db.from('staff_directory')
