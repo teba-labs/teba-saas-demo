@@ -25,8 +25,10 @@ test('portal lookup is exact, tenant-scoped, and only returns published reports'
 test('portal uses short-lived private report links and generic lookup failures', () => {
   assert.match(edge, /createSignedUrl\(report\.storage_path, 120\)/);
   assert.match(edge, /تعذر العثور على تقرير مطابق/);
-  assert.match(edge, /MAX_LOOKUP_ATTEMPTS = 5/);
-  assert.match(edge, /MAX_IP_ATTEMPTS = 20/);
+  assert.match(edge, /consume_patient_portal_attempt/);
+  assert.match(edge, /PORTAL_ALLOWED_ORIGINS/);
+  assert.doesNotMatch(edge, /MAX_LOOKUP_ATTEMPTS|MAX_IP_ATTEMPTS/);
+  assert.doesNotMatch(edge, /select\('id', \{ count: 'exact', head: true \}\)/);
 });
 
 test('portal attempts are not exposed to browser roles', () => {
