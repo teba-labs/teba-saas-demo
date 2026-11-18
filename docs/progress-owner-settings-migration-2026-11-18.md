@@ -73,3 +73,12 @@ PR: #1 remains a draft; nothing was merged into `main`.
 - GitHub Actions run 44367700931 passed: 136 tests, 0 failures.
 - All checks remain local-only. No import, browser persistence, DB/schema/RLS/Storage change, deployment, or old-project change.
 - The checks are preliminary consistency checks only; clinical/date validation and identity matching remain incomplete.
+
+
+## Follow-on: preserve paused branch state during edits
+
+- Fixed a branch-management edge case: editing the name/address/phone of a paused branch no longer sets `is_active=true` implicitly.
+- Newly created branches still start active; reactivation remains an explicit action through the dedicated activate control.
+- Added a regression assertion for the update-vs-insert behavior.
+- GitHub Actions run `44371633453` completed successfully on the latest code: 142 tests passed, 0 failed.
+- This is static CI evidence only. No live owner login, browser test, database write, deployment, or migration was performed.
