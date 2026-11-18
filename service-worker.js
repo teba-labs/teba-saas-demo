@@ -1,11 +1,11 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v3';
+const CACHE_NAME = 'taiba-smart-lab-shell-v4';
 const APP_SHELL = [
   './app/index.html', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/sync-center.html',
-  './app/dashboard.html', './app/cms-editor.html', './app/platform-admin.html',
+  './app/dashboard.html', './app/cms-editor.html', './app/platform-admin.html', './app/settings.html',
   './assets/css/app-home.css', './assets/css/catalog.css', './assets/css/reception.css', './assets/css/workday.css', './assets/css/results-workbench.css', './assets/css/sync-center.css',
-  './assets/css/dashboard.css', './assets/css/cms-editor.css', './assets/css/platform-admin.css',
+  './assets/css/dashboard.css', './assets/css/cms-editor.css', './assets/css/platform-admin.css', './assets/css/settings-center.css',
   './assets/js/app-home.js', './assets/js/catalog.js', './assets/js/reception.js', './assets/js/workday.js', './assets/js/results-workbench.js', './assets/js/sync-center.js',
-  './assets/js/dashboard.js', './assets/js/cms-editor.js', './assets/js/platform-admin.js',
+  './assets/js/dashboard.js', './assets/js/cms-editor.js', './assets/js/platform-admin.js', './assets/js/settings-center.js',
   './core/supabase-client.js', './core/auth/session.js', './core/tenant/context.js', './core/data/schema-contract.js', './config/environment.js',
   './offline/database.js', './offline/outbox.js', './offline/cache.js', './offline/backup.js', './offline/supabase-adapters.js', './offline/background-sync.js',
   './modules/catalog/repository.js', './modules/reception/repository.js', './modules/expenses/repository.js', './modules/laboratory/repository.js',
