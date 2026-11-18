@@ -11,6 +11,8 @@ test('archive preflight is owner-only, local-only and linked from settings',()=>
  assert.match(html,/لا يتم رفع محتوى الملف/);
  assert.match(js,/accountType==='owner'/);
  assert.match(js,/inspectWorkbookFile/);
+ assert.match(js,/headerRowSelect/);
+ assert.doesNotMatch(js,/tenantSelect/);
  assert.match(js,/replaceChildren/);
  assert.match(inspector,/workbook\.SheetNames\.map/);
  assert.match(inspector,/sha256/);
