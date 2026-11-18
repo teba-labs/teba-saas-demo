@@ -4,7 +4,7 @@ import path from 'node:path';
 const root = new URL('../../', import.meta.url).pathname;
 const lab = fs.readFileSync(path.join(root, 'modules/laboratory/repository.js'), 'utf8');
 const results = fs.readFileSync(path.join(root, 'modules/results/repository.js'), 'utf8');
-const resultTransitions = fs.readFileSync(path.join(root, 'database/migrations/013_atomic_result_transitions.sql'), 'utf8');
+const resultTransitions = fs.readFileSync(path.join(root, 'database/migrations/017_atomic_result_transitions.sql'), 'utf8');
 assert.match(lab, /tenant_id/); assert.match(lab, /branch_id/);
 assert.match(results, /complete_visit_test_atomic/);
 assert.match(results, /approve_visit_atomic/);
