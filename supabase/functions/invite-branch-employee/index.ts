@@ -65,9 +65,30 @@ Deno.serve(async (req) => {
   if (branchError || staffError || !branch || !staff) {
     return reply({ ok: false, message: 'الفرع أو الاسم التشغيلي غير موجود أو غير نشط.' }, 404, origin);
   }
+  const action = String(body.action ?? 'invite');
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+
+  if (action === 'set-active') {
+    if (!staff.auth_user_id || typeof body.isActive !== 'boolean') {
+      return reply({ ok: false, message: 'لا يوجد حساب موظف مرتبط أو حالة التفعيل غير صحيحة.' }, 400, origin);
+    }
+    const { error } = await admin.rpc('owner_set_branch_employee_active', {
+      p_owner_user_id: authData.user.id,
+      p_tenant_id: tenantId,
+      p_branch_id: branchId,
+      p_staff_id: staffId,
+      p_is_active: body.isActive,
+    });
+    if (error) {
+      console.error('Employee access update failed:', error.message);
+      return reply({ ok: false, message: 'تعذر تحديث صلاحية دخول الموظف.' }, 409, origin);
+    }
+    return reply({ ok: true, message: body.isActive ? 'تم تفعيل حساب الموظف في هذا الفرع.' : 'تم إيقاف حساب الموظف وسحب وصوله إلى هذا الفرع.' }, 200, origin);
+  }
+
+  if (action !== 'invite') return reply({ ok: false, message: 'Unsupported action.' }, 400, origin);
   if (staff.auth_user_id) return reply({ ok: false, message: 'هذا الاسم التشغيلي مرتبط بحساب دخول بالفعل.' }, 409, origin);
 
-  const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   let employeeUser: { id: string } | null = null;
   let newlyInvited = false;
   try {
