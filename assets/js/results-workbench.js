@@ -108,7 +108,7 @@ async function renderWork() {
       return `<section class="parameter" data-test-id="${escapeHtml(item.id)}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
         <div class="parameter-grid">${parameterControls}</div>
-        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">حفظ تصحيح النتيجة</button>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
+        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">حفظ تصحيح النتيجة</button>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '" ' + (item.status === 'completed' ? 'disabled' : '') + '>' + (item.status === 'completed' ? 'تم إنهاء التحليل' : 'إنهاء التحليل') + '</button>'}</div>
       </section>`;
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
