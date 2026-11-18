@@ -53,3 +53,14 @@ PR: #1 remains a draft; nothing was merged into `main`.
 - The inspector does not call Supabase, does not upload file contents, and does not save workbook rows. It is a preflight/inspection step only; it does not yet map columns to patients/visits/results or import any records.
 - Added it to the owner settings center and Service Worker shell v6.
 - Latest CI run `44363666340` passed: 122 tests, 0 failures.
+
+## Follow-on: local archive sheet classification and column mapping
+
+- Added Arabic/English sheet-name classification for patients, visits, visit tests, test results, financial ledger, catalog, expenses, and website content.
+- Added Arabic/English column alias suggestions, duplicate-target protection, required/optional field definitions, and an in-page manual mapping selector for each source column.
+- Changing a sheet's type or selected header row recalculates the suggestions. The owner can review required fields that remain unmapped and duplicate target mappings.
+- Mapping choices remain in page memory only. No browser storage, Supabase calls, upload, or import operation was added.
+- Corrected Arabic hamza normalization after regression tests exposed the spelling variant in 'نتائج'; adjusted the test set to require a title for website content.
+- CI run 44366119599 completed successfully: 128 tests passed, 0 failures.
+- The preflight still does not detect clinical/financial duplicates across rows or validate relational links. It is not an importer.
+- No schema, RLS, Storage, Edge Function, tenant data, or legacy project changes were made.
