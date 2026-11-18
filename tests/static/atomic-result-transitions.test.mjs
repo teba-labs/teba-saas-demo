@@ -29,6 +29,10 @@ test('atomic result transitions validate branch access and active operational st
   assert.match(migration, /Every requested test must be completed before approval/);
   assert.match(migration, /revoke all on function public\.complete_visit_test_atomic/);
   assert.match(migration, /revoke all on function public\.approve_visit_atomic/);
+  assert.match(migration, /guard_result_workflow_transition/);
+  assert.match(migration, /Complete tests through complete_visit_test_atomic/);
+  assert.match(migration, /Approve visits through approve_visit_atomic/);
+  assert.equal((migration.match(/set_config\('app\.atomic_result_transition', 'on', true\)/g) || []).length, 2);
 });
 
 test('results worklist hydrates existing values in one batch query', () => {
