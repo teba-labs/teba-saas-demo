@@ -59,7 +59,7 @@ const ENTITY_FIELDS = {
     ['branch','الفرع',false,['branch','branch_id','الفرع']]
   ]},
   website: { label: 'محتوى الموقع', fields: [
-    ['title','العنوان',false,['title','name','العنوان','الاسم']],
+    ['title','العنوان',true,['title','name','العنوان','الاسم']],
     ['content','المحتوى',false,['content','body','description','المحتوى','الوصف']],
     ['slug','الرابط المختصر',false,['slug','الرابط المختصر']],
     ['is_published','منشور؟',false,['is_published','published','منشور']],
@@ -80,7 +80,7 @@ function cleanCell(value) {
 function normalizeHeader(value) {
   return cleanCell(value).toLocaleLowerCase('ar')
     .normalize('NFKD').replace(/[\u064B-\u065F\u0670]/g,'')
-    .replace(/[أإآ]/g,'ا').replace(/[ىي]/g,'ي')
+    .replace(/[أإآ]/g,'ا').replace(/[ئىىي]/g,'ي').replace(/ؤ/g,'و')
     .replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 }
 function headerCandidates(rows) {
@@ -100,7 +100,7 @@ export function inferSheetType(sheetName) {
   const rules=[
     ['patients',/مرض|patient|patients|عملاء/],['visit_tests',/تحاليل الزيار|visit test|visit_tests|تفاصيل التحاليل/],
     ['visits',/زيار|حالا|visit|visits|استقبال/],
-    ['test_results',/نتائج|result|test_results/],['ledger',/حرك|مالي|ledger|financial|خزين|مدفوع/],
+    ['test_results',/نتائج|نتايج|result|test_results/],['ledger',/حرك|مالي|ledger|financial|خزين|مدفوع/],
     ['catalog',/كتالوج|تحاليل|catalog|tests/],['expenses',/مصروف|expense|بنود/],
     ['website',/موقع|مقال|faq|عرض|package|testimonial|article/]
   ];
