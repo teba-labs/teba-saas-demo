@@ -40,13 +40,13 @@ export async function replaceCachedRows(tableName, rows = [], { tenantId, branch
  * Existing current rows absent from the server response are demoted to history;
  * returned current rows are then upserted into the tenant-scoped cache.
  */
-export async function replaceCachedCurrentPrices(rows = [], { tenantId, testIds, branchId = null } = {}) {
+export async function replaceCachedCurrentPrices(rows = [], { tenantId, testIds, branchId = null, scope = 'all' } = {}) {
   if (!tenantId) throw new Error('tenantId is required for current-price cache refresh.');
   if (!Array.isArray(rows) || !Array.isArray(testIds) || testIds.some(id => !id)) {
     throw new Error('rows and testIds must be arrays with valid test IDs.');
   }
   const scopedIds = new Set(testIds);
-  const inBranchScope = row => !branchId || row.branch_id == null || row.branch_id === branchId;
+  const inBranchScope = row => scope === 'base' ? row.branch_id == null : (!branchId || row.branch_id == null || row.branch_id === branchId);
   const safe = rows.filter(row => row?.id && row.tenant_id === tenantId
     && scopedIds.has(row.test_id) && inBranchScope(row) && row.is_current === true)
     .map(row => ({ ...row, cached_at: new Date().toISOString() }));
