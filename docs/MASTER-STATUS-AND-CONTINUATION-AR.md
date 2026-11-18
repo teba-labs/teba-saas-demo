@@ -180,7 +180,7 @@
 ## 9. أحدث مخرجات GitHub ونقطة الاستئناف
 
 - سجل الحالة الرئيسي: `docs/MASTER-STATUS-AND-CONTINUATION-AR.md`.
-- التقرير الشامل: [FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md](FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md) — آخر تحديث commit `69ba6a92c7aca10aef2edced03c8f78cf1434fd2`.
+- التقرير الشامل: [FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md](FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md) — آخر تحديث commit `83836be0b632342ebb20e5a650e03279e1fd6c22`.
 - سجل دفعة الإصلاح 01: [fix-batch-01-patient-portal-source-sync.md](fix-batch-01-patient-portal-source-sync.md) — commit `dd971495739a3852463a94f884a8664322abc143`.
 - مصدر Edge Function بعد المزامنة: commit `0ee68057fcdecb8212419b63078ade79a596a123`.
 - migration 012 المصدرية: commit `478f164a134bde157fc2591e2ac3e91f235a1fc0` (لم تُشغّل).
@@ -191,7 +191,7 @@
 - تحديث Handoff التاريخي: `4e5e81f90f40334eddd59357bc75c1990a77461b`.
 - تحديث README بوابة المريض: `8acc16b2fa41a492d124a0a172cf9c37a91a1c93`.
 - لا توجد ملفات GitHub Actions workflows في المستودع؛ لم تُشغّل مجموعة Node الثابتة كاملة. تم تشغيل 3 اختبارات منطقية محلية لمساعد اختيار المعمل/الفرع ونجحت.
-- دفعة الإصلاح 02: helper `c1a74d9453c4e35ec867c46630287b8869a1677e`؛ صفحات التشغيل والإدارة والاختبار موثقة في سجل الدفعة 02؛ سجل الدفعة `1bea9c154d6dcd22a21a81101db3826b032fd305`.
+- دفعة الإصلاح 02: helper `c1a74d9453c4e35ec867c46630287b8869a1677e`؛ صفحات التشغيل والإدارة والاختبار موثقة في سجل الدفعة 02؛ سجل الدفعة `76e1d6867c3e68f333be8b410518d5360e7a0170`؛ Service Worker cache v5 `d9d13da39599fac316f768be7d64c5501590208e`؛ اختبار التكامل مع Service Worker `bde16ae507c9e5a177327b22cdf3e98ea2051d41`.
 - سجل الدفعة 02 يوثق جميع commits الخاصة بتوحيد اختيار المعمل والفرع. هذا الملف هو نقطة الاستئناف الأحدث على الفرع `main`.
 
 ## 10. تعليمات الاستئناف في محادثة جديدة
