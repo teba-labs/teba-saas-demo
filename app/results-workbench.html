@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Taiba Smart Lab | تشغيل النتائج</title>
+  <link rel="stylesheet" href="../assets/css/results-workbench.css">
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('../service-worker.js').catch(()=>{}));}</script></head>
+<body>
+  <header class="topbar">
+    <div><strong>Taiba Smart Lab</strong><span>تشغيل المعمل · النتائج والاعتماد</span></div>
+    <a href="index.html" style="color:#fff;font-size:13px">الرئيسية</a>
+    <a href="sync-center.html" style="color:#fff;font-size:13px">المزامنة والنسخ المحلي</a><button id="signOut" class="button button-quiet" hidden>تسجيل الخروج</button>
+  </header>
+  <main class="shell">
+    <section id="loginPanel" class="panel login-panel">
+      <h1>تسجيل دخول المعمل</h1>
+      <p class="muted">استخدم حساب المعمل على مشروع الاختبار فقط.</p>
+      <form id="loginForm" class="stack">
+        <label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label>
+        <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="button" type="submit">دخول</button>
+      </form>
+    </section>
+
+    <section id="workspace" hidden>
+      <section class="panel controls">
+        <div><h1>قائمة العمل</h1><p class="muted">اختر المعمل والفرع، ثم افتح الزيارة لإدخال النتائج ومراجعتها.</p></div>
+        <div class="selectors">
+          <label>المعمل<select id="tenantSelect" required></select></label>
+          <label>الفرع<select id="branchSelect" required></select></label>
+          <label>اسم الموظف<select id="staffSelect" required></select></label>
+        </div>
+        <div class="toolbar"><button id="refreshButton" class="button button-secondary">تحديث القائمة</button><span id="contextStatus" class="muted" role="status"></span></div>
+      </section>
+      <section id="workList" class="work-list" aria-live="polite"></section>
+    </section>
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+  </main>
+  <script type="module" src="../assets/js/results-workbench.js"></script>
+</body>
+</html>

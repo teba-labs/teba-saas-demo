@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#102c3b"><meta name="color-scheme" content="light">
+  <title>Taiba Smart Lab | الرئيسية</title>
+  <link rel="stylesheet" href="../assets/css/app-home.css">
+  <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('../service-worker.js').catch(()=>{}));}</script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="index.html"><span class="brand-mark">T</span><span><strong>Taiba Smart Lab</strong><small>نظام إدارة المعامل الطبية</small></span></a><div class="top-actions"><span id="environment" class="env-badge">بيئة الاختبار</span><button id="signOut" class="button button-light" hidden>تسجيل الخروج</button></div></header>
+  <main class="shell">
+    <section id="loginPanel" class="hero login-card">
+      <div class="hero-copy"><span class="eyebrow">منصة واحدة · كل تشغيل المعمل</span><h1>إدارة معملك<br><em>بشكل أبسط وأوضح</em></h1><p>الاستقبال، النتائج، يوم العمل، الحسابات وإدارة موقع المعمل في مكان واحد.</p><div class="hero-points"><span>✓ صلاحيات حسب دور المستخدم</span><span>✓ بيانات كل معمل مستقلة</span><span>✓ تجهيز للعمل مع انقطاع الإنترنت</span></div></div>
+      <form id="loginForm" class="login-form"><div class="form-icon">↗</div><h2>تسجيل الدخول</h2><p class="muted">استخدم حساب المعمل المخصص لك.</p><label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required placeholder="name@example.com"></label><label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required placeholder="كلمة المرور"></label><button id="loginButton" class="button button-primary" type="submit">دخول إلى النظام</button><p id="configNotice" class="config-notice" hidden></p></form>
+    </section>
+    <section id="workspace" hidden>
+      <section class="welcome panel"><div><span class="eyebrow">مساحة العمل</span><h1>أهلاً بك في Taiba Smart Lab</h1><p id="userLine" class="muted">تم تسجيل الدخول.</p></div><div class="selectors"><label>المعمل<select id="tenantSelect"></select></label><label>الفرع<select id="branchSelect"></select></label></div></section>
+      <div class="section-heading"><div><h2>اختار المهمة</h2><p>الشاشات المتاحة حسب صلاحيات حسابك.</p></div><span id="roleBadge" class="role-badge">—</span></div>
+      <section id="appsGrid" class="apps-grid" aria-live="polite"></section>
+      <section class="status-strip"><span class="status-dot"></span><div><strong id="connectionTitle">حالة الاتصال</strong><small id="connectionText">يتم التحقق من الاتصال…</small></div><a href="sync-center.html">فتح مركز المزامنة ←</a></section>
+    </section>
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <footer>Taiba Smart Lab <span>·</span> نسخة تطوير متصلة بمشروع Supabase TEST فقط</footer>
+  </main>
+  <script type="module" src="../assets/js/app-home.js"></script>
+</body></html>
