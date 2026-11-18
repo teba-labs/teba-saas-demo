@@ -36,6 +36,8 @@ test('price writes remain owner-policy protected and price reads do not expose p
   assert.match(sql, /create policy tsl_test_prices_owner_manage on public\.test_prices for all to authenticated using \(private\.is_tenant_owner\(tenant_id\)\)/);
   assert.match(repo, /Price history is changed by an owner-only database policy/);
   assert.match(repo, /export async function setCurrentPrice/);
+  assert.match(repo, /export async function setBranchPrice/);
+  assert.match(repo, /RPC\.setBranchTestPrice/);
 });
 
 test('catalog and parameter reads cache inactive rows before filtering the visible result', () => {
