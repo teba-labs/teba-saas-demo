@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مساعد طبية ساس</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f7f6; padding: 15px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 100px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px; font-size: 16px; box-sizing: border-box; }
+        .file-upload { background: #f8f9fa; border: 2px dashed #007bff; padding: 15px; text-align: center; border-radius: 5px; margin-bottom: 15px; }
+        .file-upload input[type="file"] { display: none; }
+        .file-upload label { color: #007bff; font-weight: bold; cursor: pointer; display: block; }
+        
+        /* تنسيقات الميكروفون */
+        .mic-container { text-align: center; margin-bottom: 15px; }
+        .mic-btn { background-color: #e9ecef; border: 2px solid #6c757d; color: #333; padding: 10px 20px; border-radius: 50px; font-size: 16px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .mic-btn:hover { background-color: #dee2e6; }
+        .mic-btn.listening { background-color: #dc3545; border-color: #dc3545; color: white; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+
+        button.submit-btn { width: 100%; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        button.submit-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        #result { margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 5px; font-size: 16px; line-height: 1.6; display: none; border-right: 5px solid #28a745; }
+        .loader { display: none; text-align: center; margin-top: 10px; color: #007bff; font-weight: bold; }
+        .file-name { margin-top: 5px; color: #28a745; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="text-align: center; color: #007bff;">مساعد طبية ساس 🤖</h2>
+    
+    <p>1. ارفع التحاليل أو الأشعة (اختياري):</p>
+    <div class="file-upload">
+        <label for="fileInput">اضغط هنا لاختيار ملف 📁</label>
+        <input type="file" id="fileInput" accept="application/pdf, image/*">
+        <div id="fileName" class="file-name"></div>
+    </div>
+
+    <p>2. اكتب شكوى المريض (أو اتكلم بالميكروفون):</p>
+    
+    <!-- زرار الميكروفون -->
+    <div class="mic-container">
+        <button id="micBtn" class="mic-btn" onclick="toggleMic()">
+            🎤 اتكلم بالميكروفون
+        </button>
+    </div>
+
+    <textarea id="patientComplaint" placeholder="اكتب شكوى المريض هنا..."></textarea>
+    
+    <button class="submit-btn" id="sendBtn" onclick="analyzeComplaint()">اعرف التخصص المناسب</button>
+    
+    <div id="loader" class="loader">جاري التحليل... ⏳</div>
+    <div id="result"></div>
+</div>
+
+<script>
+    const API_KEY = "AQ.Ab8RN6IVhFF2Zw29KJS5cyvXFxOKxiytHlLsDScwPhYUuk7roA";
+    
+    // ==========================================
+    // 1. إعدادات الميكروفون (Web Speech API)
+    // ==========================================
+    let recognition;
+    let isListening = false;
+    const micBtn = document.getElementById('micBtn');
+    const complaintInput = document.getElementById('patientComplaint');
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ar-EG'; // اللهجة المصرية
+        recognition.continuous = true; // ميقفش لوحده
+        recognition.interimResults = true; // يكتب وهو بيتكلم
+
+        recognition.onstart = function() {
+            isListening = true;
+            micBtn.classList.add('listening');
+            micBtn.innerHTML = '🔴 جاري الاستماع... (اضغط للإيقاف)';
+        };
+
+        recognition.onresult = function(event) {
+            let finalTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript + ' ';
+                }
+            }
+            if (finalTranscript) {
+                complaintInput.value += finalTranscript;
+            }
+        };
+
+        recognition.onerror = function(event) {
+            console.error("Microphone Error:", event.error);
+            if(event.error === 'not-allowed') {
+                alert("الميكروفون مش مسموح بيه. لو بتفتح الملف من الموبايل، جرب ترفعه على موقع (https) عشان يشتغل. أو استخدم الكيبورد.");
+            }
+            stopMic();
+        };
+
+        recognition.onend = function() {
+            stopMic();
+        };
+    } else {
+        micBtn.style.display = 'none'; // اخفاء الزرار لو المتصفح مش داعمه
+    }
+
+    function toggleMic() {
+        if (isListening) {
+            recognition.stop();
+        } else {
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    }
+
+    function stopMic() {
+        isListening = false;
+        micBtn.classList.remove('listening');
+        micBtn.innerHTML = '🎤 اتكلم بالميكروفون';
+    }
+
+    // ==========================================
+    // 2. إعدادات رفع الملفات وتحليل الشكوى
+    // ==========================================
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const fileName = e.target.files[0] ? e.target.files[0].name : '';
+        document.getElementById('fileName').innerText = fileName ? "تم رفع: " + fileName : "";
+    });
+
+    const SYSTEM_PROMPT = `
+    أنت "مساعد طبية ساس الذكي"، نظام توجيه طبي آلي. 
+    مهمتك: قراءة شكوى المريض، ونتائج التحاليل (إن وجدت)، وتحديد التخصص المناسب والفحوصات المبدئية.
+    
+    [قواعد صارمة]
+    1. ممنوع التشخيص أو ذكر أسماء أمراض أو أدوية علاجية.
+    2. إذا وجدت علامة خطر (ألم صدر ضاغط، ضيق نفس شديد، فقدان وعي، نزيف حاد)، اكتب فقط: "طوارئ فورًا" وتوقف.
+    3. لو الشكوى غامضة، اجعل "باطنة عامة" هو الأساسي.
+    4. إذا لم يرفق المريض أي تحاليل، يجب عليك اقتراح فحوصات وتحاليل مبدئية مناسبة. ممنوع اقتراح أدوية.
+    
+    [طريقة الرد المطلوبة]
+    - درجة الاستعجال: [طوارئ / كشف عاجل / كشف عادي]
+    - التخصص الأساسي: [تخصص واحد فقط] (السبب: ...)
+    - التخصصات المساعدة: [تخصص 1] / [تخصص 2] / [تخصص 3] (حتى 5 تخصصات، مرتبة من الأهم للأقل).
+    - الفحوصات والتحاليل المقترحة (لو مفيش تحاليل مرفقة): [اقترح 3-5 تحاليل أو أشعة مبدئية بالعامية].
+    - تنويه: هذا التوجيه لا يغني عن استشارة الطبيب.
+    `;
+
+    const fileToBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    async function analyzeComplaint() {
+        if (isListening) recognition.stop(); // اقفل الميك لو شغال
+
+        const complaint = complaintInput.value;
+        const file = document.getElementById('fileInput').files[0];
+        const resultDiv = document.getElementById('result');
+        const sendBtn = document.getElementById('sendBtn');
+        const loader = document.getElementById('loader');
+
+        if (!complaint.trim() && !file) {
+            alert('من فضلك ارفع ملف أو اكتب/اتكلم بالشكوى!');
+            return;
+        }
+
+        sendBtn.disabled = true;
+        loader.style.display = 'block';
+        resultDiv.style.display = 'none';
+
+        let parts = [{ text: SYSTEM_PROMPT + "\n\nشكوى المريض:\n" + (complaint || "لم يذكر شكوى، اعتمد على التحليل.") }];
+
+        if (file) {
+            try {
+                const base64Data = await fileToBase64(file);
+                const base64String = base64Data.split(',')[1]; 
+                parts.push({ inlineData: { mimeType: file.type, data: base64String } });
+            } catch (error) {
+                alert("حدث خطأ في قراءة الملف.");
+                sendBtn.disabled = false;
+                loader.style.display = 'none';
+                return;
+            }
+        }
+
+        const models = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-lite-latest'];
+        let lastError = null;
+
+        for (let model of models) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
+            try {
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contents: [{ parts: parts }] })
+                        });
+
+                        const data = await response.json();
+                        
+                        if (data.error && (data.error.code === 503 || data.error.code === 429)) {
+                            throw new Error(`الضغط عالي (${data.error.code})، جاري إعادة المحاولة...`);
+                        }
+                        
+                        if (data.error) throw new Error(data.error.message);
+
+                        const aiResponse = data.candidates[0].content.parts[0].text;
+                        resultDiv.innerHTML = `<strong>نتيجة التحليل:</strong><br><br>${aiResponse.replace(/\n/g, '<br>')}`;
+                        resultDiv.style.display = 'block';
+                        return;
+
+                    } catch (err) {
+                        lastError = err;
+                        if (attempt < 3) await sleep(2000);
+                    }
+                }
+            } catch (err) {
+                lastError = err;
+            }
+        }
+
+        resultDiv.innerHTML = `<span style="color: red;">الخدمة مشغولة جداً حالياً. جرب تاني بعد دقيقة.<br><small>(${lastError.message})</small></span>`;
+        resultDiv.style.display = 'block';
+        sendBtn.disabled = false;
+        loader.style.display = 'none';
+    }
+</script>
+
+</body>
+</html>

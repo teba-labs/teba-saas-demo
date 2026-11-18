@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>بوابة نتائج التحاليل</title>
+  <style>
+    :root{font-family:Tahoma,Arial,sans-serif;color:#17324d;background:#f3f7fa;font-synthesis:none}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:22px}
+    main{width:min(100%,460px);background:#fff;border:1px solid #e2eaf0;border-radius:18px;padding:28px;box-shadow:0 12px 36px #18344d12}
+    .mark{width:54px;height:54px;border-radius:16px;background:#e8f4f2;color:#137b70;display:grid;place-items:center;font-size:25px;margin-bottom:18px}
+    h1{font-size:23px;margin:0 0 8px}p{color:#647789;line-height:1.7;margin:0 0 22px;font-size:14px}
+    label{display:block;font-weight:700;font-size:13px;margin:15px 0 7px}input{width:100%;padding:13px;border:1px solid #cbd8e2;border-radius:10px;font:inherit;font-size:15px;outline:none}
+    input:focus{border-color:#18877b;box-shadow:0 0 0 3px #18877b20}button,.download{width:100%;display:block;text-align:center;border:0;border-radius:10px;background:#147c72;color:#fff;padding:14px;font:inherit;font-weight:700;text-decoration:none;margin-top:22px;cursor:pointer}
+    button:disabled{opacity:.6;cursor:wait}[hidden]{display:none!important}#portal-status{margin-top:16px;padding:11px;border-radius:9px;background:#f2f5f7;font-size:13px;line-height:1.6}
+    #portal-status[data-kind="error"]{background:#fff0ef;color:#9e3028}#portal-status[data-kind="success"]{background:#eaf7f2;color:#17674e}
+    .small{font-size:11px;margin:18px 0 0;text-align:center;color:#8797a5}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mark" aria-hidden="true">✚</div>
+    <h1>بوابة نتائج التحاليل</h1>
+    <p>أدخل اسم المريض ورقم الزيارة كما هو موضح في إيصال المعمل لعرض أحدث تقرير معتمد.</p>
+    <form data-portal-form>
+      <label for="slug">رمز المعمل</label>
+      <input id="slug" name="slug" autocomplete="organization" required minlength="3" maxlength="64" pattern="[a-zA-Z0-9-]+" placeholder="مثال: teba-labs">
+      <label for="patientName">اسم المريض بالكامل</label>
+      <input id="patientName" name="patientName" autocomplete="name" required minlength="2" maxlength="160" placeholder="الاسم كما هو مسجل بالمعمل">
+      <label for="visitNumber">رقم الزيارة</label>
+      <input id="visitNumber" name="visitNumber" required maxlength="40" placeholder="رقم الزيارة على الإيصال">
+      <button type="submit">عرض التقرير</button>
+    </form>
+    <div id="portal-status" data-portal-status role="status" aria-live="polite" hidden></div>
+    <section data-portal-result hidden>
+      <p>التقرير صادر من <strong data-portal-lab></strong></p>
+      <a class="download" data-portal-download target="_blank" rel="noopener noreferrer">فتح / تحميل PDF</a>
+    </section>
+    <p class="small">لا تشارك رابط التقرير مع أي شخص آخر. رابط التحميل مؤقت.</p>
+  </main>
+  <script type="module" src="./lookup.js"></script>
+</body>
+</html>

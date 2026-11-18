@@ -1,0 +1,8 @@
+# Public patient lookup endpoint. Authentication is intentionally handled by
+# exact patient/visit matching plus server-side rate limiting, not a user JWT.
+[functions.patient-portal-lookup]
+verify_jwt = false
+
+# Staff-only publication endpoint; keep JWT verification enabled.
+[functions.publish-report]
+verify_jwt = true

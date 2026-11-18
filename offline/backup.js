@@ -1,0 +1,75 @@
+import { offlineDb } from './database.js';
+
+const FORMAT = 'taiba-smart-lab-local-backup';
+const VERSION = 1;
+const TABLES = ['patients', 'visits', 'visit_tests', 'test_results', 'catalog', 'test_prices', 'test_parameters', 'staff_directory', 'workdays', 'expense_categories', 'financial_ledger', 'daily_closings', 'outbox', 'conflicts', 'sync_meta'];
+
+async function sha256(text) {
+  if (!globalThis.crypto?.subtle) throw new Error('Secure checksum is unavailable in this browser context.');
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+function belongsToScope(row, tenantId, branchId) {
+  return row.tenant_id === tenantId && (!row.branch_id || row.branch_id === branchId);
+}
+
+export async function exportLocalBackup({ tenantId, branchId, tenantName = '', branchName = '' } = {}) {
+  if (!tenantId || !branchId) throw new Error('Choose a tenant and branch before exporting a local backup.');
+  await offlineDb.open();
+  const tables = {};
+  for (const name of TABLES) {
+    const rows = await offlineDb.table(name).toArray();
+    tables[name] = rows.filter(row => name === 'sync_meta' ? row.tenant_id === tenantId && row.branch_id === branchId : belongsToScope(row, tenantId, branchId));
+  }
+  const document = {
+    format: FORMAT, version: VERSION, exported_at: new Date().toISOString(),
+    scope: { tenant_id: tenantId, branch_id: branchId, tenant_name: tenantName, branch_name: branchName },
+    coverage: 'local-device-cache-and-pending-operations-only', tables,
+  };
+  const canonical = JSON.stringify(document);
+  return { ...document, checksum_sha256: await sha256(canonical) };
+}
+
+export async function restoreLocalBackup(document, { tenantId, branchId } = {}) {
+  if (!document || document.format !== FORMAT || document.version !== VERSION) throw new Error('Unsupported backup file format or version.');
+  if (document.scope?.tenant_id !== tenantId || document.scope?.branch_id !== branchId) throw new Error('Backup belongs to a different tenant or branch. Restore was blocked.');
+  if (document.coverage !== 'local-device-cache-and-pending-operations-only') throw new Error('Backup coverage marker is invalid.');
+  const { checksum_sha256: supplied, ...unsigned } = document;
+  const actual = await sha256(JSON.stringify(unsigned));
+  if (!supplied || actual !== supplied) throw new Error('Backup checksum does not match. File may be damaged or modified.');
+  const writes = [];
+  for (const name of TABLES) {
+    const rows = document.tables?.[name];
+    if (!Array.isArray(rows)) throw new Error(`Backup table ${name} is missing or invalid.`);
+    for (const row of rows) {
+      if (!(name === 'sync_meta' ? row.tenant_id === tenantId && row.branch_id === branchId : belongsToScope(row, tenantId, branchId))) throw new Error(`Backup contains a row outside the selected tenant/branch (${name}).`);
+    }
+    writes.push([offlineDb.table(name), rows]);
+  }
+  await offlineDb.transaction('rw', ...writes.map(([table]) => table), async () => {
+    for (const [table, rows] of writes) {
+      if (!rows.length) continue;
+      if (table.name === 'outbox') {
+        for (const original of rows) {
+          const row = original.status === 'syncing' ? { ...original, status: 'pending', sync_owner: null, lease_until: null } : original;
+          const existing = await table.where('operation_id').equals(row.operation_id).first();
+          if (existing) {
+            if (JSON.stringify(existing.payload) !== JSON.stringify(row.payload) || existing.tenant_id !== row.tenant_id || existing.branch_id !== row.branch_id) throw new Error('An operation ID already exists locally with different content. Restore was rolled back.');
+            continue;
+          }
+          await table.add(row);
+        }
+      } else if (table.name === 'conflicts') {
+        for (const row of rows) {
+          const existing = await table.where('conflict_id').equals(row.conflict_id).first();
+          if (!existing) await table.add(row);
+        }
+      } else {
+        await table.bulkPut(rows);
+      }
+    }
+  });
+  return { restoredTables: writes.length, restoredRows: writes.reduce((sum, [, rows]) => sum + rows.length, 0) };
+}
