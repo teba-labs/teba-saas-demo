@@ -50,5 +50,5 @@ begin
 end;
 $$;
 
-revoke all on function public.consume_patient_portal_attempt(uuid,text,text) from public,anon,authenticated;
+revoke all on function public.consume_patient_portal_attempt(uuid,text,text) from public, anon, authenticated;
 grant execute on function public.consume_patient_portal_attempt(uuid,text,text) to service_role;
