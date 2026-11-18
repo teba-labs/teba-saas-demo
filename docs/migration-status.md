@@ -1,8 +1,8 @@
-> **تحديث الحالة — 18 نوفمبر 2026:** هذا السجل يحتوي تاريخًا لدفعات قديمة، وليس بيانًا حاليًا بما نُفذ في قاعدة TEST. أداة Supabase أعادت سجل migrations فارغًا، وجدول `public.schema_migrations` يحتوي baseline `1.0.0` فقط، بينما توجد في قاعدة TEST فعليًا دوال ومحفزات لاحقة من وظائف الزيارات والنتائج والتقارير والتحصيل والمصروفات. كانت دالة `consume_patient_portal_attempt` غير ممثلة، وأُضيف لها الآن مصدر migration 012 دون تشغيله. ما زالت `set_branch_test_price` غير ممثلة في migrations.
+> **تحديث الحالة — 19 نوفمبر 2026:** هذا السجل يحتوي تاريخ الدفعات القديمة أدناه، وليس كل ما نُفذ لاحقًا. تم توحيد cloud-hardening وowner-setup في `integration/unified-test-2026-11-19`، وتطبيق وتسجيل migrations 012–021 على Supabase TEST. سجل `public.schema_migrations` المخصص لا يزال baseline `1.0.0` فقط؛ migrations 001–011 تحتاج تسوية تاريخية قبل أي تشغيل آلي لـdb push.
 >
-> لا تستنتج من عبارة قديمة أن Migration 008 أو 010 غير مطبقة، ولا تعِد تنفيذ 002–011. يجب أولًا مطابقة كل migration مع الكائنات الفعلية في TEST وتوثيقها. تمت مزامنة ملف `patient-portal-lookup` في GitHub مع النسخة المنشورة في دفعة إصلاح 01؛ لم يحدث نشر جديد. نسخة `publish-report` مطابقة للمصدر.
+> مصدر `patient-portal-lookup` و`publish-report` مطابق للمصدر المنشور. نُشرت أيضًا `invite-branch-employee` و`upload-attachment` مع JWT verification. لكن أسرار Origins والبوابة لم تضبط، لذلك جميع الوظائف التي تعتمد عليها تفشل بشكل مغلق حتى إعدادها.
 >
-> الحالة التفصيلية في [التقرير الشامل](FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md) و[سجل الحالة الرئيسي](MASTER-STATUS-AND-CONTINUATION-AR.md).
+> GitHub Actions: 157/157 static tests ناجحة، وفحص JavaScript/MJS ناجح. تجربة SQL مؤقتة transaction/rollback لدورة النتائج وهوية الموظف وعزل الفرع وسجل التدقيق نجحت. لا browser E2E أو cross-tenant test بعد. راجع [تقرير التكامل الموحد](UNIFIED-TEST-INTEGRATION-AR-2026-11-19.md) و[سجل الحالة الرئيسي](MASTER-STATUS-AND-CONTINUATION-AR.md).
 >
 > ---
 >
