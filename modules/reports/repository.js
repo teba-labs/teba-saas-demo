@@ -56,6 +56,14 @@ export async function createReportDownloadUrl({ storagePath, expiresIn = 90 } = 
 }
 
 export function publicationRequiresServerWorkflow() {
-  return { ready: false, implementationReady: true, endpoint: 'publish-report', atomicDatabasePublication: true, auditedCorrections: true,
-    reason: 'Deploy migration 003 and the publish-report Edge Function to TEST, then run live authorization and PDF tests.' };
+  return {
+    ready: false,
+    implementationReady: true,
+    deployedToTest: true,
+    endpoint: 'publish-report',
+    atomicDatabasePublication: true,
+    auditedCorrections: true,
+    requiredSecrets: ['REPORT_ALLOWED_ORIGINS'],
+    reason: 'The Edge Function is deployed to TEST. Configure REPORT_ALLOWED_ORIGINS, then complete authenticated PDF upload and publication tests.',
+  };
 }
