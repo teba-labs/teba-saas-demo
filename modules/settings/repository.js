@@ -93,3 +93,11 @@ export async function savePrintSettings({ tenantId, branchId = null, settings, e
   if (result.error) throw result.error;
   return result.data;
 }
+
+export async function listBranchesForOwner({ tenantId } = {}) {
+  need(tenantId, 'tenantId');
+  const { data, error } = await db().from('branches')
+    .select('id, tenant_id, name, address, phone, is_active').eq('tenant_id', tenantId).order('name');
+  if (error) throw error;
+  return data ?? [];
+}
