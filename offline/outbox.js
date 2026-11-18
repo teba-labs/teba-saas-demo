@@ -25,10 +25,13 @@ export async function enqueueOperation({ tenantId, branchId, entityType, action,
   return operation.operation_id;
 }
 
-async function recoverExpiredLeases(now) {
+async function recoverExpiredLeases(now, { tenantId, branchId }) {
+  // Recover only the selected tenant/branch. A sync started for one lab must not
+  // mutate another lab's local queue, even when both share this browser database.
   const stale = await offlineDb.outbox.where('status').equals('syncing').toArray();
   for (const item of stale) {
-    if (!item.lease_until || item.lease_until <= now) {
+    if (item.tenant_id === tenantId && item.branch_id === branchId
+        && (!item.lease_until || item.lease_until <= now)) {
       await offlineDb.outbox.update(item.local_id, {
         status: 'pending', lease_until: null, sync_owner: null,
         next_attempt_at: now, updated_at: now,
@@ -60,13 +63,15 @@ async function claimOperation(item, owner, now) {
 /** A handler must return { acknowledged: true } only after a server-confirmed, idempotent write. */
 export async function syncOutbox({ handlers, maxAttempts = DEFAULT_MAX_ATTEMPTS, onProgress = () => {}, tenantId, branchId } = {}) {
   if (!handlers || typeof handlers !== 'object') throw new Error('Explicit sync handlers are required.');
+  if (typeof tenantId !== 'string' || !tenantId || typeof branchId !== 'string' || !branchId) {
+    throw new Error('A tenant and branch must be selected before synchronizing offline operations.');
+  }
   if (globalThis.navigator && navigator.onLine === false) return { acknowledged: 0, retained: 0, conflicts: 0, offline: true };
   const run = async () => {
     const now = new Date().toISOString();
-    await recoverExpiredLeases(now);
+    await recoverExpiredLeases(now, { tenantId, branchId });
     let candidates = await offlineDb.outbox.where('status').anyOf('pending', 'failed').toArray();
-    if (tenantId) candidates = candidates.filter(item => item.tenant_id === tenantId);
-    if (branchId) candidates = candidates.filter(item => item.branch_id === branchId);
+    candidates = candidates.filter(item => item.tenant_id === tenantId && item.branch_id === branchId);
     candidates.sort((a, b) => a.priority - b.priority || a.created_at.localeCompare(b.created_at));
     const report = { acknowledged: 0, retained: 0, conflicts: 0, blocked: 0, total: candidates.length };
     const owner = makeId();
