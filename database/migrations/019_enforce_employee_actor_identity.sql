@@ -33,7 +33,10 @@ begin
       continue;
     end if;
     v_staff_id := nullif(v_row->>v_field, '')::uuid;
-    if v_staff_id is not null and not exists (
+    if v_staff_id is null then
+      raise exception 'Employee actions must include the authenticated linked staff identity';
+    end if;
+    if not exists (
       select 1 from public.staff_directory sd
        where sd.id = v_staff_id
          and sd.tenant_id = v_tenant_id
