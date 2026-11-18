@@ -33,9 +33,11 @@ export async function listCurrentPrices({ tenantId, branchId = null, testIds } =
   if (globalThis.navigator?.onLine === false) {
     return selectEffective(await getCachedRows('test_prices', { tenantId }));
   }
-  const { data, error } = await db().from(TABLES.prices)
+  let priceQuery = db().from(TABLES.prices)
     .select('id, tenant_id, test_id, branch_id, selling_price, effective_from, is_current')
     .eq('tenant_id', tenantId).eq('is_current', true).in('test_id', testIds);
+  if (branchId) priceQuery = priceQuery.or(`branch_id.is.null,branch_id.eq.${branchId}`);
+  const { data, error } = await priceQuery;
   if (error) {
     if (/fetch|network|offline/i.test(error.message || '')) {
       return selectEffective(await getCachedRows('test_prices', { tenantId }));
