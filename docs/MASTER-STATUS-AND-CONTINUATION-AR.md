@@ -2,7 +2,7 @@
 
 > **هذه هي نقطة الاستئناف الأساسية لأي محادثة جديدة.** عند استكمال العمل، اقرأ هذا الملف أولًا ثم راجع آخر التغييرات في المستودع. لا تبدأ من وثائق التسليم القديمة وحدها.
 
-- آخر تحديث: 18 نوفمبر 2026 (بعد اكتمال المراجعة المجمّعة وتحديث الوثائق القديمة)
+- آخر تحديث: 18 نوفمبر 2026 (بعد دفعة الإصلاح 01 وتحديث سجل الاستئناف)
 - الحالة: اكتملت المراجعة المجمّعة، وبدأت دفعة الإصلاح 01 بتوحيد مصدر بوابة المريض وإضافة migration مصدرية؛ لم يحدث نشر أو تنفيذ SQL.
 - المستودع: `teba-labs/teba-saas-demo` — الفرع `main`
 - مشروع Supabase المستهدف للتطوير والاختبار: `hgqwpykeazuzceeiumjg` (`teba-lis-demo`)
@@ -179,21 +179,19 @@
 
 ## 9. أحدث مخرجات GitHub ونقطة الاستئناف
 
-- سجل الحالة الرئيسي: `docs/MASTER-STATUS-AND-CONTINUATION-AR.md` (هذا الملف).
-- تقرير الاستكشاف الأولي: `docs/functional-audit-batch-01-2026-11-18.md`.
-- التقرير الشامل: `docs/FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md`.
-- سجل دفعة الإصلاح 01: `docs/fix-batch-01-patient-portal-source-sync.md`.
-- Commit إنشاء سجل الحالة: `31063c3c74bd1a3b4c602d4e6380486155744c6f`.
-- Commit إنشاء تقرير المراجعة الأولية: `60a7bcf991542dfda114bc085a846a900c7848ed`.
-- Commit إضافة ملاحظة سلامة اعتماد النتائج: `b1effbea7c3e8f4b8b16b82a0317526e0eb30478`.
-- Commit تصحيح تنسيق سجل الحالة والتقرير: `38a7adc0bfaa9843f1c259b640fe705b5a51c6ab` (سجل الحالة) و`01deed5a14f3a1851c75f8b36183d828907d1e19` (التقرير).
-- Commit التقرير الشامل الأول: `97f422b3f5a78aa649b89fe42d42ecc72ac8d541`.
-- Commit استكمال التقرير الشامل وتصحيح تنسيقه: `4b773b93e7cc0480b72c05bf8ff83a7754a79d21`.
-- دفعة الإصلاح 01: مزامنة Edge `0ee68057fcdecb8212419b63078ade79a596a123`؛ migration 012 `478f164a134bde157fc2591e2ac3e91f235a1fc0`؛ اختبار ثابت `6b95bdf606b2123b67518160a84995b7add27d08`؛ سجل الدفعة `dd971495739a3852463a94f884a8664322abc143`.
-- Commit تصحيح تقرير الدفعة 01: `7e2574d429892340cb06f767bfd0fce40ec614e2`.
-- Commits تحديث الوثائق القديمة: README `7063e7168137b0ffd1ccfeebe31faa923320fdfe`؛ Phase 1 `5046585fe25df90144108453cd11e4bbb5cba0e4`؛ Migration Status `d4c1dccbc2e199de484c6a2f634195e588b2f069`؛ Handoff `4e5e81f90f40334eddd59357bc75c1990a77461b`؛ Patient Portal README `8774cf12c6b2305bd1c30f724269b322620361ce`.
-- Commit تحديث سجل الحالة بعد التقرير والوثائق: `5c043fed7275dc2ebe1d3872ab58fb7a5a44a091`.
-- آخر تحديث لسجل الحالة: 18 نوفمبر 2026.
+- سجل الحالة الرئيسي: `docs/MASTER-STATUS-AND-CONTINUATION-AR.md`.
+- التقرير الشامل: [FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md](FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md) — آخر تحديث commit `d4df07ff5e245eb43c0ecf2f8d704ed282f859f7`.
+- سجل دفعة الإصلاح 01: [fix-batch-01-patient-portal-source-sync.md](fix-batch-01-patient-portal-source-sync.md) — commit `dd971495739a3852463a94f884a8664322abc143`.
+- مصدر Edge Function بعد المزامنة: commit `0ee68057fcdecb8212419b63078ade79a596a123`.
+- migration 012 المصدرية: commit `478f164a134bde157fc2591e2ac3e91f235a1fc0` (لم تُشغّل).
+- اختبار البوابة الثابت: commit `6b95bdf606b2123b67518160a84995b7add27d08` (لم يُشغّل).
+- تحديث README: `11d1436e023ff452f2d6c68d9a97e3345ac1eb09`.
+- تحديث Phase 1: `51d5f3fcb378cdf275250a5e1a05fb505521a028`.
+- تحديث Migration Status: `e5bfff4b7fa38f28c09b9a62611fe53bd3fdf9db`.
+- تحديث Handoff التاريخي: `4e5e81f90f40334eddd59357bc75c1990a77461b`.
+- تحديث README بوابة المريض: `8acc16b2fa41a492d124a0a172cf9c37a91a1c93`.
+- لا توجد ملفات GitHub Actions workflows في المستودع؛ لم يُشغّل Node test suite في هذه الدفعة.
+- آخر تحديث لهذا السجل قبل هذه المراجعة: commit `51ab8cdeadeb4aa9aefe28d6df70a5518ac73513`.
 
 ## 10. تعليمات الاستئناف في محادثة جديدة
 
