@@ -61,3 +61,9 @@ test('staff publication endpoint keeps JWT verification enabled', () => {
   assert.match(repo, /rpc\('correct_published_result'/);
   assert.doesNotMatch(repo, /from\('report_versions'\)\s*\.insert/);
 });
+
+test('report publication status reflects deployed TEST function and pending origin configuration', () => {
+  assert.match(repo, /deployedToTest: true/);
+  assert.match(repo, /requiredSecrets: \['REPORT_ALLOWED_ORIGINS'\]/);
+  assert.match(repo, /Configure REPORT_ALLOWED_ORIGINS/);
+});
