@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const read = p => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
+const settings = read('../../modules/settings/repository.js');
+const staff = read('../../modules/staff/repository.js');
+const reports = read('../../modules/reports/repository.js');
+const dashboard = read('../../dashboard/repository.js');
+assert.match(settings, /from\('lab_settings'\)/);
+assert.match(settings, /from\('print_settings'\)/);
+assert.match(staff, /from\('staff_directory'\)/);
+assert.match(staff, /\.eq\('tenant_id', tenantId\).*\.eq\('branch_id', branchId\)/s);
+assert.match(reports, /createSignedUrl/);
+assert.match(reports, /publicationRequiresServerWorkflow/);
+assert.doesNotMatch(reports, /\.update\(\{[^}]*is_published:\s*true/s);
+assert.match(dashboard, /from\('financial_ledger'\)/);
+assert.match(dashboard, /from\('visit_billing'\)/);
+assert.match(dashboard, /gross_total,discount_amount,net_total/);
+console.log('PASS: Batch 5 settings/staff/reports/dashboard contracts and fail-closed publication guard.');

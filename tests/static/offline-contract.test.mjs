@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const source = fs.readFileSync(new URL('../../offline/outbox.js', import.meta.url), 'utf8');
+assert.match(source, /result\?\.acknowledged === true/);
+assert.match(source, /await offlineDb\.outbox\.delete\(item\.local_id\)/);
+assert.ok(source.indexOf('result?.acknowledged === true') < source.indexOf('await offlineDb.outbox.delete(item.local_id)'));
+assert.match(source, /tenantId, branchId/);
+assert.match(source, /operationId = makeId\(\)/);
+assert.match(source, /operation_id: operationId/);
+console.log('PASS: Outbox requires tenant/branch scope and explicit acknowledgement before deletion.');
