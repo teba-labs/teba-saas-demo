@@ -3,7 +3,7 @@ import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/ses
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listBranchWork } from '../../modules/laboratory/repository.js';
-import { listResults, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
+import { listResults, listResultsForVisitTests, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
 import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
 
 const $ = (id) => document.getElementById(id);
@@ -122,12 +122,20 @@ async function renderWork() {
   host.querySelectorAll('.correct-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
   host.querySelectorAll('.publish-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
-  // Populate existing values after the cards exist.
+  // Populate all existing values with one scoped query instead of N+1 requests.
+  const resultRows = await listResultsForVisitTests({
+    tenantId: state.tenant.id,
+    visitTestIds: state.work.map(item => item.id),
+  });
+  const resultsByTest = new Map();
+  for (const result of resultRows) {
+    if (!resultsByTest.has(result.visit_test_id)) resultsByTest.set(result.visit_test_id, []);
+    resultsByTest.get(result.visit_test_id).push(result);
+  }
   for (const item of state.work) {
-    const rows = await listResults({ tenantId: state.tenant.id, visitTestId: item.id });
     const section = host.querySelector(`[data-test-id="${CSS.escape(item.id)}"]`);
     if (!section) continue;
-    for (const result of rows) {
+    for (const result of resultsByTest.get(item.id) ?? []) {
       const input = section.querySelector(`[data-param-code="${CSS.escape(result.parameter_code)}"]`);
       if (input) { input.value = result.value_numeric ?? result.value_text ?? ''; input.dataset.resultId = result.id; input.dataset.originalValue = input.value; }
     }
