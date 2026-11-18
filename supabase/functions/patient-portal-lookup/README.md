@@ -1,15 +1,26 @@
-# Patient portal lookup — server-side function
+# Patient portal lookup — حالة المصدر والنشر
 
-This function is intentionally server-side. It uses the Supabase service-role key only in the Edge Function environment; never copy that key into browser code.
+**آخر مراجعة:** 18 نوفمبر 2026  
+**مشروع TEST:** `hgqwpykeazuzceeiumjg`
 
-## Required Edge Function secrets
+## الحالة الحالية
 
-- `SUPABASE_URL` — the TEST project URL.
-- `SUPABASE_SERVICE_ROLE_KEY` — the TEST project's service-role key, stored only as an Edge Function secret.
-- `PORTAL_HASH_SECRET` — a random secret of at least 32 bytes used to HMAC lookup identifiers and IP addresses.
-- `PORTAL_ALLOWED_ORIGINS` — comma-separated exact origins, for example `https://tebalabs.com,https://www.tebalabs.com`; set the final portal host before enabling CORS.
+- الوظيفة `patient-portal-lookup` منشورة ونشطة في مشروع TEST.
+- النسخة المنشورة تستخدم RPC ذريًا `consume_patient_portal_attempt` لحساب محاولات البحث، وتستخدم HMAC لتخزين بصمات بيانات البحث وعنوان IP، وتعيد أحدث تقرير منشور برابط موقّع قصير الصلاحية (120 ثانية).
+- **ملف `index.ts` الموجود في هذا المستودع أقدم من النسخة المنشورة** ويستخدم عدًّا ثم إدخالًا منفصلين للمحاولات. لا تنشر هذا الملف فوق النسخة المنشورة قبل توحيد المصدر.
+- RPC `consume_patient_portal_attempt` موجود في قاعدة TEST لكنه غير ممثل في ملفات migrations الحالية. يجب إضافة migration موثقة له بعد مطابقة تعريف الدالة وسياساتها.
+- لم يتم إجراء اختبار استدعاء حي أو اختبار ضغط/تزامن في هذه المراجعة.
 
-## Request
+## متطلبات الأمان
+
+- مفتاح `SUPABASE_SERVICE_ROLE_KEY` يظل سرًا داخل Edge Function فقط، ولا يوضع في المتصفح أو GitHub.
+- يجب إعداد `PORTAL_HASH_SECRET` بقيمة عشوائية قوية لا تقل عن 32 بايت.
+- يجب إعداد `PORTAL_ALLOWED_ORIGINS` بقائمة Origins دقيقة للبوابة المنشورة.
+- يجب التحقق من مصدر IP الموثوق الذي يمرره Supabase Edge Runtime قبل الاعتماد التجاري.
+- يجب ألا تُقرأ جداول المرضى أو الزيارات مباشرة من دور `anon`.
+- يجب أن تبقى رسائل فشل البحث عامة وألا تكشف وجود المريض أو الزيارة أو التقرير.
+
+## عقد الطلب
 
 `POST /functions/v1/patient-portal-lookup`
 
@@ -17,12 +28,4 @@ This function is intentionally server-side. It uses the Supabase service-role ke
 {"slug":"lab-slug","patientName":"Patient Full Name","visitNumber":"V-000123"}
 ```
 
-Only the newest published report version is returned. The URL expires after 120 seconds. Failure responses do not reveal whether a patient, visit, or report exists.
-
-## Security notes / limitations
-
-- Lookup requires tenant slug + exact normalized patient name + exact visit number.
-- Rate limit: 5 attempts per lookup tuple and 20 per source IP per tenant in a rolling 15-minute window.
-- Attempts are stored as HMAC hashes; raw names, visit numbers, and IPs are not written to the attempts table.
-- This is an initial rate limiter using database counts. Before public launch, add an atomic database-backed limiter or managed edge rate limiting to avoid concurrent-request races, and verify the proxy IP header behavior for the deployed Supabase region.
-- This function is source code only. It has not been deployed or live-tested against the TEST project.
+الاستجابة الناجحة تعيد أحدث نسخة تقرير منشورة فقط ورابطًا موقّعًا قصير الصلاحية. لا تستخدم README أو مصدر GitHub الحالي بوصفه نسخة النشر قبل توحيدهما واختبارهما.
