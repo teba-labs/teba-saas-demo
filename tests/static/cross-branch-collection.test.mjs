@@ -21,6 +21,12 @@ test('payment ledger attributes collected cash to the collecting branch and work
  assert.match(trigger,/new\.branch_id, 'payment', new\.id, 'inflow'/i);
 });
 
+test('offline payment queue follows the cash-collecting branch rather than the visit origin',()=>{
+ const repo=read('modules/reception/repository.js');
+ assert.match(repo,/const collectionBranchId = collector\.branch_id/);
+ assert.match(repo,/enqueueOperation\(\{ tenantId, branchId: collectionBranchId, entityType: 'payment'/);
+});
+
 test('payment retries are acknowledged before staff-active and workday validation',()=>{
  const sql=read('database/migrations/015_cross_branch_payment_retry_hardening.sql');
  const replay=sql.indexOf('select * into v_existing');
