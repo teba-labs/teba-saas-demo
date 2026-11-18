@@ -13,7 +13,7 @@ test('archive preflight is owner-only, local-only and linked from settings',()=>
  assert.match(js,/inspectWorkbookFile/);
  assert.match(js,/replaceChildren/);
  assert.match(inspector,/workbook\.SheetNames\.map/);
- assert.match(inspector,/SHA-256/);
+ assert.match(inspector,/sha256/);
  assert.match(inspector,/20 \* 1024 \* 1024/);
  assert.match(settings,/data-import\.html/);
  assert.doesNotMatch(inspector,/fetch\(|\.from\(['"]|\.rpc\(/);
