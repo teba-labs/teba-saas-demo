@@ -197,3 +197,12 @@ test('archive analysis adds non-destructive age/date/result review metadata',asy
  assert.equal(report.records[0]._legacyAgeReview.rawAgeType,'months');
  assert.equal(report.records[0]._legacyAgeReview.ageYears,null);
 });
+
+
+test('Netlify preview serves the app entry point from an isolated root deployment',()=>{
+ const config=read('netlify.toml');
+ assert.match(config,/publish\s*=\s*"\."/);
+ assert.match(config,/from\s*=\s*"\/"[\s\S]*to\s*=\s*"\/app\/index\.html"/);
+ assert.match(config,/X-Content-Type-Options/);
+ assert.match(config,/X-Frame-Options/);
+});
