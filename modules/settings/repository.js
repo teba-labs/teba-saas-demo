@@ -37,11 +37,12 @@ export async function saveBranch({ tenantId, branchId = null, name, address = nu
   need(tenantId, 'tenantId');
   const cleanName = String(name ?? '').trim();
   if (cleanName.length < 2) throw new Error('Branch name must contain at least 2 characters.');
-  const payload = { tenant_id: tenantId, name: cleanName, address: String(address ?? '').trim() || null, phone: String(phone ?? '').trim() || null, is_active: true };
+  const payload = { tenant_id: tenantId, name: cleanName, address: String(address ?? '').trim() || null, phone: String(phone ?? '').trim() || null };
   let query = db().from('branches');
+  // Editing branch details must never silently reactivate a branch the owner paused.
   const result = branchId
     ? await query.update(payload).eq('tenant_id', tenantId).eq('id', branchId).select('id, tenant_id, name, address, phone, is_active').single()
-    : await query.insert(payload).select('id, tenant_id, name, address, phone, is_active').single();
+    : await query.insert({ ...payload, is_active: true }).select('id, tenant_id, name, address, phone, is_active').single();
   if (result.error) throw result.error;
   return result.data;
 }
