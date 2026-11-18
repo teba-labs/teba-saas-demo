@@ -34,6 +34,9 @@ begin
     end if;
     v_staff_id := nullif(v_row->>v_field, '')::uuid;
     if v_staff_id is null then
+      if tg_op = 'INSERT' and v_field in ('approved_by_staff_id','completed_by_staff_id','closed_by_staff_id') then
+        continue;
+      end if;
       raise exception 'Employee actions must include the authenticated linked staff identity';
     end if;
     if not exists (
