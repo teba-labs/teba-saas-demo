@@ -14,6 +14,8 @@ const config = fs.readFileSync(path.join(root, 'supabase/config.toml'), 'utf8');
 const reception = fs.readFileSync(path.join(root, 'assets/js/reception.js'), 'utf8');
 const workday = fs.readFileSync(path.join(root, 'assets/js/workday.js'), 'utf8');
 const results = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 'utf8');
+const appHome = fs.readFileSync(path.join(root, 'assets/js/app-home.js'), 'utf8');
+const catalog = fs.readFileSync(path.join(root, 'assets/js/catalog.js'), 'utf8');
 
 test('owner settings provides a separate Auth-account linking flow', () => {
   for (const id of ['inviteStaffForm', 'staffInviteEmail', 'inviteStaffId']) assert.match(html, new RegExp('id="' + id + '"'));
@@ -46,4 +48,11 @@ test('employee operational screens bind staff identity to the authenticated user
     assert.match(source, /state\.userId/);
     assert.match(source, /staffSelect.*disabled/);
   }
+});
+
+test('catalog and global financial administration are owner-only', () => {
+  assert.match(appHome, /id:'catalog',[^\n]*roles:\['owner'\]/);
+  assert.match(appHome, /id:'dashboard',[^\n]*roles:\['owner'\]/);
+  assert.match(catalog, /accountType==='owner'/);
+  assert.match(catalog, /إدارة كتالوج التحاليل والأسعار متاحة لمالك المعمل فقط/);
 });
