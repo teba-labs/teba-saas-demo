@@ -180,7 +180,7 @@
 ## 9. أحدث مخرجات GitHub ونقطة الاستئناف
 
 - سجل الحالة الرئيسي: `docs/MASTER-STATUS-AND-CONTINUATION-AR.md`.
-- التقرير الشامل: [FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md](FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md) — آخر تحديث commit `d4df07ff5e245eb43c0ecf2f8d704ed282f859f7`.
+- التقرير الشامل: [FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md](FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md) — آخر تحديث commit `8aa04acb28ec8333b365885c835c974cc1ddd79e`.
 - سجل دفعة الإصلاح 01: [fix-batch-01-patient-portal-source-sync.md](fix-batch-01-patient-portal-source-sync.md) — commit `dd971495739a3852463a94f884a8664322abc143`.
 - مصدر Edge Function بعد المزامنة: commit `0ee68057fcdecb8212419b63078ade79a596a123`.
 - migration 012 المصدرية: commit `478f164a134bde157fc2591e2ac3e91f235a1fc0` (لم تُشغّل).
@@ -191,7 +191,7 @@
 - تحديث Handoff التاريخي: `4e5e81f90f40334eddd59357bc75c1990a77461b`.
 - تحديث README بوابة المريض: `8acc16b2fa41a492d124a0a172cf9c37a91a1c93`.
 - لا توجد ملفات GitHub Actions workflows في المستودع؛ لم يُشغّل Node test suite في هذه الدفعة.
-- آخر تحديث لهذا السجل قبل هذه المراجعة: commit `51ab8cdeadeb4aa9aefe28d6df70a5518ac73513`.
+- آخر تحديث سابق لهذا السجل: commit `51ab8cdeadeb4aa9aefe28d6df70a5518ac73513`؛ تحديث سجل الاستئناف الحالي commit `9354b373a95e3a7e8ea6014f936685185f98da7d`.
 
 ## 10. تعليمات الاستئناف في محادثة جديدة
 
