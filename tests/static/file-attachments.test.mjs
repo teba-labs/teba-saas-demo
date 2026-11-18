@@ -10,6 +10,7 @@ test('attachment upload requires JWT, exact allowed origin, bounded allowlisted 
   assert.match(edge,/auth\.getUser\(bearer\)/);
   assert.match(edge,/ATTACHMENT_ALLOWED_ORIGINS/);
   assert.match(edge,/MAX_BYTES = 10 \* 1024 \* 1024/);
+  assert.match(edge,/declaredLength>MAX_BYTES\\+1024\\*1024/);
   assert.match(edge,/application\/pdf/);
   assert.match(edge,/image\/jpeg/);
   assert.match(edge,/image\/png/);
