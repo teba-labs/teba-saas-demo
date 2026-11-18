@@ -237,3 +237,13 @@
 - تم تشغيل GitHub Actions على commit `2a35622e9a57d69351aca5cbf436536f55112396`.
 - نجحت مجموعة الاختبارات الثابتة: **121 اختبارًا ناجحًا، صفر فشل**.
 - أضيف إلى Workflow فحص صياغة جميع ملفات JavaScript/MJS، ونجح في التشغيل رقم 44413116302 مع نجاح خطوة الفحص.
+
+
+## دفعة التكامل الموحد — 19 نوفمبر 2026
+- جُمعت أعمال cloud-hardening وowner-setup على فرع `integration/unified-test-2026-11-19`، وPR مسودة #3.
+- أعيد ترقيم migrations: cloud 012–016، owner workflow 017–020، وتصحيح actor pending fields في 021. تم تطبيق وتسجيل 012–021 في Supabase TEST.
+- تم ربط الأسعار حسب الفرع والتحصيل عبر الفروع، سجل الحركات، ومرفقات الزيارات في شاشة النتائج. تم قفل نتائج التحليل المكتمل من واجهة المستخدم وRPC.
+- نُشرت `invite-branch-employee` و`upload-attachment` مع JWT verification. مصدر بوابة المريض ونشر التقارير مطابق للمصدر المنشور.
+- GitHub Actions: 157/157 static tests ناجحة، وJavaScript/MJS syntax check ناجح.
+- اختبار SQL مؤقت transaction/rollback لدورة النتائج وهوية الموظف وعزل الفرع وسجل التدقيق نجح؛ لم تترك بيانات اختبار.
+- المتبقي: ضبط Secrets/Origins، browser E2E، cross-tenant isolation، وتوثيق baseline 001–011 قبل أي db push. لا نشر إنتاجي.
