@@ -6,6 +6,7 @@ const edge = await readFile(new URL('../../supabase/functions/patient-portal-loo
 const page = await readFile(new URL('../../portal/index.html', import.meta.url), 'utf8');
 const client = await readFile(new URL('../../portal/lookup.js', import.meta.url), 'utf8');
 const migration = await readFile(new URL('../../database/migrations/002_patient_portal_hardening.sql', import.meta.url), 'utf8');
+const atomicLimiter = await readFile(new URL('../../database/migrations/012_atomic_patient_portal_rate_limit.sql', import.meta.url), 'utf8');
 const supabaseConfig = await readFile(new URL('../../supabase/config.toml', import.meta.url), 'utf8');
 
 test('patient portal keeps privileged credentials server-side', () => {
@@ -25,8 +26,9 @@ test('portal lookup is exact, tenant-scoped, and only returns published reports'
 test('portal uses short-lived private report links and generic lookup failures', () => {
   assert.match(edge, /createSignedUrl\(report\.storage_path, 120\)/);
   assert.match(edge, /تعذر العثور على تقرير مطابق/);
-  assert.match(edge, /MAX_LOOKUP_ATTEMPTS = 5/);
-  assert.match(edge, /MAX_IP_ATTEMPTS = 20/);
+  assert.match(edge, /rpc\('consume_patient_portal_attempt'/);
+  assert.match(edge, /rateLimit\.allowed/);
+  assert.doesNotMatch(edge, /from\('portal_access_attempts'\)\s*\.select/);
 });
 
 test('portal attempts are not exposed to browser roles', () => {
@@ -45,4 +47,12 @@ test('patient portal page collects only the agreed lookup fields', () => {
 test('public lookup function is configured for anonymous invocation', () => {
   assert.match(supabaseConfig, /\[functions\.patient-portal-lookup\]/);
   assert.match(supabaseConfig, /verify_jwt\s*=\s*false/);
+});
+
+test('portal rate limiting is atomic and callable only by the Edge service role', () => {
+  assert.match(atomicLimiter, /pg_advisory_xact_lock/);
+  assert.match(atomicLimiter, /v_lookup_count >= 5/);
+  assert.match(atomicLimiter, /v_ip_count >= 20/);
+  assert.match(atomicLimiter, /revoke all on function public\.consume_patient_portal_attempt\(uuid,text,text\) from public, anon, authenticated/i);
+  assert.match(atomicLimiter, /grant execute on function public\.consume_patient_portal_attempt\(uuid,text,text\) to service_role/i);
 });
