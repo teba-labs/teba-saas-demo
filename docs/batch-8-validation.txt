@@ -1,0 +1,5 @@
+Batch 8 static validation
+Command: node --test tests/static/*.test.mjs
+Result: 21 tests passed; 0 failed.
+Scope: source-contract/static assertions only.
+Not covered: SQL execution, Edge Function deployment/runtime, real JWT, Storage RLS, multi-tenant denial, actual PDF upload, correction transaction, live portal lookup.

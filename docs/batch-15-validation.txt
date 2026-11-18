@@ -1,0 +1,35 @@
+Taiba Smart Lab — Batch 15 validation
+Date: 2026-11-17
+
+Static suite:
+- Command: node --test tests/static/*.test.mjs
+- Result: 63 passed, 0 failed.
+
+Syntax checks:
+- assets/js/reception.js PASS
+- assets/js/workday.js PASS
+- assets/js/sync-center.js PASS
+- offline/outbox.js PASS
+- offline/supabase-adapters.js PASS
+- offline/backup.js PASS
+- offline/background-sync.js PASS
+- offline/cache.js PASS
+- core/tenant/context.js PASS
+- modules/reception/repository.js PASS
+- modules/catalog/repository.js PASS
+- modules/workday/repository.js PASS
+- service-worker.js PASS
+
+Service worker:
+- 30 app-shell assets listed.
+- All local app-shell paths exist.
+- Supabase API host responses are not cached.
+- ESM CDN dependencies are cached after first successful online load.
+
+Not tested:
+- SQL execution / migration 007 on TEST.
+- Live login / RLS / multi-tenant isolation.
+- Browser runtime offline/online transitions.
+- Real duplicate replay and price-change conflict.
+- Local backup export/restore in a real browser.
+- Full cloud backup/restore (not implemented in this batch).

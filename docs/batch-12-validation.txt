@@ -1,0 +1,17 @@
+TAIBA SMART LAB — BATCH 12 VALIDATION
+Date: 2026-11-17
+
+PASS: node --check assets/js/dashboard.js
+PASS: node --check dashboard/repository.js
+PASS: node --test tests/static/*.test.mjs — 42 passed, 0 failed
+PASS: Relative import path scan — missing 0
+PASS: Dashboard repository reads collections/expenses from financial_ledger
+PASS: Invoice gross/discount/net and receivables are kept separate
+PASS: Owner-only dashboard UI gate and branch/month filters are present
+
+NOT VERIFIED:
+- No browser run against Supabase (TEST publishable key remains blank).
+- No live tenant/branch RLS or manager/employee authorization test.
+- No reconciliation against real accounting exports.
+- No per-test profitability until unit costs and overhead allocation are modeled.
+- No production files or production Supabase project were modified.

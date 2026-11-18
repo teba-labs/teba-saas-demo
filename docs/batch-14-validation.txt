@@ -1,0 +1,351 @@
+TAP version 13
+# PASS: Batch 5 settings/staff/reports/dashboard contracts and fail-closed publication guard.
+# Subtest: tests/static/batch5-contract.test.mjs
+ok 1 - tests/static/batch5-contract.test.mjs
+  ---
+  duration_ms: 33.027804
+  type: 'test'
+  ...
+# Subtest: CMS contract restricts table names, scopes writes by tenant and relies on RLS
+ok 2 - CMS contract restricts table names, scopes writes by tenant and relies on RLS
+  ---
+  duration_ms: 0.664922
+  type: 'test'
+  ...
+# Subtest: Public site loader resolves published slug and reads only public CMS collections
+ok 3 - Public site loader resolves published slug and reads only public CMS collections
+  ---
+  duration_ms: 0.286502
+  type: 'test'
+  ...
+# Subtest: CMS editor includes all eight tenant-owned website collections
+ok 4 - CMS editor includes all eight tenant-owned website collections
+  ---
+  duration_ms: 1.506139
+  type: 'test'
+  ...
+# Subtest: CMS editor requires owner membership and uses tenant-scoped repository methods
+ok 5 - CMS editor requires owner membership and uses tenant-scoped repository methods
+  ---
+  duration_ms: 0.166691
+  type: 'test'
+  ...
+# Subtest: CMS editor keeps publication separate from operational catalog and patient data
+ok 6 - CMS editor keeps publication separate from operational catalog and patient data
+  ---
+  duration_ms: 0.177969
+  type: 'test'
+  ...
+# Subtest: CMS editor escapes database content before rendering list labels
+ok 7 - CMS editor escapes database content before rendering list labels
+  ---
+  duration_ms: 0.109806
+  type: 'test'
+  ...
+# Subtest: CMS editor validates JSON and key public fields before save
+ok 8 - CMS editor validates JSON and key public fields before save
+  ---
+  duration_ms: 0.09988
+  type: 'test'
+  ...
+# Subtest: CMS editor assets and navigation controls are present
+ok 9 - CMS editor assets and navigation controls are present
+  ---
+  duration_ms: 0.17245
+  type: 'test'
+  ...
+# PASS: test project URL is configured; missing key blocks startup safely.
+# Subtest: tests/static/core-config.test.mjs
+ok 4 - tests/static/core-config.test.mjs
+  ---
+  duration_ms: 30.737191
+  type: 'test'
+  ...
+# PASS: Lab and results repositories enforce branch scope, required-result completion and a fail-closed published-result path.
+# Subtest: tests/static/lab-results-contract.test.mjs
+ok 5 - tests/static/lab-results-contract.test.mjs
+  ---
+  duration_ms: 30.027322
+  type: 'test'
+  ...
+# PASS: Outbox requires tenant/branch scope and explicit acknowledgement before deletion.
+# Subtest: tests/static/offline-contract.test.mjs
+ok 6 - tests/static/offline-contract.test.mjs
+  ---
+  duration_ms: 28.281552
+  type: 'test'
+  ...
+# Subtest: owner dashboard is Arabic RTL and includes month, tenant and branch filters
+ok 13 - owner dashboard is Arabic RTL and includes month, tenant and branch filters
+  ---
+  duration_ms: 1.541744
+  type: 'test'
+  ...
+# Subtest: dashboard is restricted in the interface to tenant owners
+ok 14 - dashboard is restricted in the interface to tenant owners
+  ---
+  duration_ms: 0.163106
+  type: 'test'
+  ...
+# Subtest: cash collections and expenses are sourced from financial ledger, not invoice totals
+ok 15 - cash collections and expenses are sourced from financial ledger, not invoice totals
+  ---
+  duration_ms: 0.116075
+  type: 'test'
+  ...
+# Subtest: invoice gross, discount and net amounts are shown separately
+ok 16 - invoice gross, discount and net amounts are shown separately
+  ---
+  duration_ms: 0.10599
+  type: 'test'
+  ...
+# Subtest: test movement is reported without inventing per-test profit margins
+ok 17 - test movement is reported without inventing per-test profit margins
+  ---
+  duration_ms: 0.098889
+  type: 'test'
+  ...
+# Subtest: summary copy action is available and report supports all branches or one branch
+ok 18 - summary copy action is available and report supports all branches or one branch
+  ---
+  duration_ms: 0.089545
+  type: 'test'
+  ...
+# Subtest: patient portal keeps privileged credentials server-side
+ok 19 - patient portal keeps privileged credentials server-side
+  ---
+  duration_ms: 0.78987
+  type: 'test'
+  ...
+# Subtest: portal lookup is exact, tenant-scoped, and only returns published reports
+ok 20 - portal lookup is exact, tenant-scoped, and only returns published reports
+  ---
+  duration_ms: 0.18552
+  type: 'test'
+  ...
+# Subtest: portal uses short-lived private report links and generic lookup failures
+ok 21 - portal uses short-lived private report links and generic lookup failures
+  ---
+  duration_ms: 0.144257
+  type: 'test'
+  ...
+# Subtest: portal attempts are not exposed to browser roles
+ok 22 - portal attempts are not exposed to browser roles
+  ---
+  duration_ms: 0.262095
+  type: 'test'
+  ...
+# Subtest: patient portal page collects only the agreed lookup fields
+ok 23 - patient portal page collects only the agreed lookup fields
+  ---
+  duration_ms: 0.162084
+  type: 'test'
+  ...
+# Subtest: public lookup function is configured for anonymous invocation
+ok 24 - public lookup function is configured for anonymous invocation
+  ---
+  duration_ms: 0.126631
+  type: 'test'
+  ...
+# Subtest: platform console is a separate Arabic RTL screen with authentication
+ok 25 - platform console is a separate Arabic RTL screen with authentication
+  ---
+  duration_ms: 1.631328
+  type: 'test'
+  ...
+# Subtest: platform RPCs fail closed for non platform administrators
+ok 26 - platform RPCs fail closed for non platform administrators
+  ---
+  duration_ms: 0.141003
+  type: 'test'
+  ...
+# Subtest: tenant onboarding requires an existing registered owner and creates isolated tenant foundations
+ok 27 - tenant onboarding requires an existing registered owner and creates isolated tenant foundations
+  ---
+  duration_ms: 0.157767
+  type: 'test'
+  ...
+# Subtest: platform tenant list returns aggregate metadata and excludes patient-level and clinical fields
+ok 28 - platform tenant list returns aggregate metadata and excludes patient-level and clinical fields
+  ---
+  duration_ms: 0.633856
+  type: 'test'
+  ...
+# Subtest: platform admin can update tenant and subscription states through guarded RPCs
+ok 29 - platform admin can update tenant and subscription states through guarded RPCs
+  ---
+  duration_ms: 0.11987
+  type: 'test'
+  ...
+# Subtest: plan editor and tenant console are wired to platform RPCs and plan metadata only
+ok 30 - plan editor and tenant console are wired to platform RPCs and plan metadata only
+  ---
+  duration_ms: 0.215074
+  type: 'test'
+  ...
+# Subtest: migration locks down platform RPCs from anonymous and public roles
+ok 31 - migration locks down platform RPCs from anonymous and public roles
+  ---
+  duration_ms: 0.093951
+  type: 'test'
+  ...
+# Subtest: platform screen assets exist
+ok 32 - platform screen assets exist
+  ---
+  duration_ms: 0.182294
+  type: 'test'
+  ...
+# Subtest: reception page is Arabic RTL and includes patient, visit, catalog and billing workflow
+ok 33 - reception page is Arabic RTL and includes patient, visit, catalog and billing workflow
+  ---
+  duration_ms: 1.641804
+  type: 'test'
+  ...
+# Subtest: reception resolves authenticated tenant and branch context and requires open workday
+ok 34 - reception resolves authenticated tenant and branch context and requires open workday
+  ---
+  duration_ms: 0.158229
+  type: 'test'
+  ...
+# Subtest: patient search and creation are branch-scoped
+ok 35 - patient search and creation are branch-scoped
+  ---
+  duration_ms: 0.104968
+  type: 'test'
+  ...
+# Subtest: visit uses database price snapshots and creates billing from actual selected test prices
+ok 36 - visit uses database price snapshots and creates billing from actual selected test prices
+  ---
+  duration_ms: 0.091388
+  type: 'test'
+  ...
+# Subtest: intake validates patient, unique visit number input, test selection and payment bounds
+ok 37 - intake validates patient, unique visit number input, test selection and payment bounds
+  ---
+  duration_ms: 0.143336
+  type: 'test'
+  ...
+# Subtest: patient search safely handles user input without compound filter syntax
+ok 38 - patient search safely handles user input without compound filter syntax
+  ---
+  duration_ms: 0.117497
+  type: 'test'
+  ...
+# Subtest: visit intake RPC is atomic, tenant/branch scoped and derives invoice totals from database snapshots
+ok 39 - visit intake RPC is atomic, tenant/branch scoped and derives invoice totals from database snapshots
+  ---
+  duration_ms: 0.224838
+  type: 'test'
+  ...
+# Subtest: publication is a single authenticated database transaction
+ok 40 - publication is a single authenticated database transaction
+  ---
+  duration_ms: 1.096272
+  type: 'test'
+  ...
+# Subtest: publication enforces branch membership, active staff, approval and required results
+ok 41 - publication enforces branch membership, active staff, approval and required results
+  ---
+  duration_ms: 0.282306
+  type: 'test'
+  ...
+# Subtest: corrections require a reason and use audited before/after updates
+ok 42 - corrections require a reason and use audited before/after updates
+  ---
+  duration_ms: 0.211048
+  type: 'test'
+  ...
+# Subtest: published report versions are immutable and append-only
+ok 43 - published report versions are immutable and append-only
+  ---
+  duration_ms: 0.13264
+  type: 'test'
+  ...
+# Subtest: Edge Function verifies user identity and keeps service key server-side
+ok 44 - Edge Function verifies user identity and keeps service key server-side
+  ---
+  duration_ms: 0.157207
+  type: 'test'
+  ...
+# Subtest: Edge Function accepts only bounded PDF files and reports RPC success
+ok 45 - Edge Function accepts only bounded PDF files and reports RPC success
+  ---
+  duration_ms: 0.187583
+  type: 'test'
+  ...
+# Subtest: staff publication endpoint keeps JWT verification enabled
+ok 46 - staff publication endpoint keeps JWT verification enabled
+  ---
+  duration_ms: 0.135755
+  type: 'test'
+  ...
+# Subtest: browser repository calls server workflow rather than inserting report rows
+ok 47 - browser repository calls server workflow rather than inserting report rows
+  ---
+  duration_ms: 0.137647
+  type: 'test'
+  ...
+# PASS: Catalog, reception and expense repositories follow the new schema contract and avoid production credentials.
+# Subtest: tests/static/repository-contract.test.mjs
+ok 12 - tests/static/repository-contract.test.mjs
+  ---
+  duration_ms: 29.606457
+  type: 'test'
+  ...
+# Subtest: results workbench is a separate authenticated page and imports tenant-scoped repositories
+ok 49 - results workbench is a separate authenticated page and imports tenant-scoped repositories
+  ---
+  duration_ms: 0.685624
+  type: 'test'
+  ...
+# Subtest: workbench separates draft entry, approval, audited correction and PDF publication actions
+ok 50 - workbench separates draft entry, approval, audited correction and PDF publication actions
+  ---
+  duration_ms: 1.046767
+  type: 'test'
+  ...
+# Subtest: result repository supports numeric and non-numeric catalog parameter types
+ok 51 - result repository supports numeric and non-numeric catalog parameter types
+  ---
+  duration_ms: 0.127192
+  type: 'test'
+  ...
+# Subtest: workday page is Arabic RTL and includes open, close, expense and cash summary controls
+ok 52 - workday page is Arabic RTL and includes open, close, expense and cash summary controls
+  ---
+  duration_ms: 1.576836
+  type: 'test'
+  ...
+# Subtest: workday actions are called through scoped RPC contracts and active staff selection
+ok 53 - workday actions are called through scoped RPC contracts and active staff selection
+  ---
+  duration_ms: 0.177437
+  type: 'test'
+  ...
+# Subtest: closing requires explicit confirmation and refreshes immutable closing snapshot display
+ok 54 - closing requires explicit confirmation and refreshes immutable closing snapshot display
+  ---
+  duration_ms: 0.149786
+  type: 'test'
+  ...
+# Subtest: expense and payment movements require an open workday and are assigned to its date
+ok 55 - expense and payment movements require an open workday and are assigned to its date
+  ---
+  duration_ms: 0.123817
+  type: 'test'
+  ...
+# Subtest: cash ledger is generated by database triggers and cannot be edited from the UI
+ok 56 - cash ledger is generated by database triggers and cannot be edited from the UI
+  ---
+  duration_ms: 0.313803
+  type: 'test'
+  ...
+1..56
+# tests 56
+# suites 0
+# pass 56
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 599.280131

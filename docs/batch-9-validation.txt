@@ -1,0 +1,8 @@
+Batch 9 static validation
+Command: node --test tests/static/*.test.mjs
+Result: 24 tests passed; 0 failed.
+Additional checks:
+- node --check assets/js/results-workbench.js: PASS
+- node --check modules/results/repository.js: PASS
+Scope: source-contract/static assertions and JavaScript syntax checks only.
+Not covered: browser rendering, authentication, Supabase runtime, RLS, live report upload/publication, clinical verification.

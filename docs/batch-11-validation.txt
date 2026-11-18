@@ -1,0 +1,23 @@
+BATCH 11 VALIDATION
+Date: 2026-11-17
+
+Static test suite:
+node --test tests/static/*.test.mjs
+Result: 36 tests passed, 0 failed.
+
+Syntax checks:
+node --check assets/js/workday.js : PASS
+node --check modules/workday/repository.js : PASS
+node --check assets/js/reception.js : PASS
+node --check modules/reception/repository.js : PASS
+
+Import-path check:
+PASS (see generated package validation below)
+
+Supabase/PostgreSQL migration execution:
+NOT RUN — TEST project credentials/key are intentionally not configured in browser environment.
+Live browser workflow / RLS / concurrency:
+NOT RUN.
+
+Production files:
+source_original/ was not edited.

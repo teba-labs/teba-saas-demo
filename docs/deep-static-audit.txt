@@ -1,0 +1,130 @@
+ROOT_EXISTS True DEV_EXISTS True
+FILE_COUNT 31 TOTAL_BYTES 1370289
+DEV_COPY_MISMATCH []
+
+DUPLICATES
+3 ['config.js', 'dashboard/config.js', 'system/config.js']
+2 ['dashboard/styles.css', 'system/styles.css']
+2 ['header.png', 'system/header.png']
+2 ['logo.png', 'system/logo.png']
+
+MISSING_LOCAL_REFS 3
+('index.html', 'brand-logo.png')
+('system/home.html', '../brand-logo.png')
+('system/reception.html', '../brand-logo.png')
+
+HTML REF MAP
+dashboard/admin.html => ['https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net', 'https://cdn.sheetjs.com', 'https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap', 'styles.css?v=136', 'admin.css?v=136', 'styles.css?v=136', 'admin.css?v=136', '../manifest.json', 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'config.js?v=136', 'https://cdn.jsdelivr.net/npm/chart.js', 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js', 'admin.js?v=136']
+index.html => ['manifest.json', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap', 'logo.png', 'styles.css?v=151', 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'config.js?v=150', 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js', 'data.js?v=130', 'app.js?v=130', 'features.js?v=130', 'site_dynamic.js?v=151', 'patient_portal.js?v=130']
+settings.html => ['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'config.js?v=150', 'https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap']
+super-admin.html => ['https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap', 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js', 'config.js?v=150']
+system/home.html => ['../logo.png', '../manifest.json', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap', 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'config.js?v=157']
+system/lab.html => ['../logo.png', '../manifest.json', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap', 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'https://unpkg.com/dexie/dist/dexie.js', 'config.js?v=126', 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js', 'lab.css?v=126', 'lab.js?v=126']
+system/reception.html => ['../logo.png', '../manifest.json', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap', 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'https://unpkg.com/dexie/dist/dexie.js', 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js', 'config.js?v=140']
+system/settings.html => ['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js', 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js', 'config.js?v=155', 'https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap']
+system/tests_manage.html => ['../manifest.json', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap', 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', 'https://unpkg.com/dexie/dist/dexie.js', 'config.js?v=130']
+test.html => []
+
+HTML SCRIPT SUMMARY
+dashboard/admin.html script_blocks 7 inline 1 ids 157 duplicate_ids []
+index.html script_blocks 9 inline 1 ids 62 duplicate_ids []
+settings.html script_blocks 3 inline 1 ids 53 duplicate_ids []
+super-admin.html script_blocks 4 inline 1 ids 20 duplicate_ids []
+system/home.html script_blocks 3 inline 1 ids 18 duplicate_ids []
+system/lab.html script_blocks 6 inline 1 ids 34 duplicate_ids []
+system/reception.html script_blocks 5 inline 1 ids 60 duplicate_ids []
+system/settings.html script_blocks 5 inline 1 ids 59 duplicate_ids []
+system/tests_manage.html script_blocks 5 inline 2 ids 20 duplicate_ids []
+test.html script_blocks 1 inline 1 ids 7 duplicate_ids []
+
+supabase_from distinct 20
+  audit_logs in system/lab.js,system/reception.html,system/settings.html,system/tests_manage.html
+  branches in settings.html,site_dynamic.js,system/home.html,system/lab.js,system/reception.html,system/settings.html
+  expense_categories in system/reception.html,system/settings.html
+  financial_ledger in dashboard/admin.js,system/lab.js,system/reception.html
+  historical_results in system/settings.html
+  lab-assets in system/settings.html
+  monthly_approvals in dashboard/admin.js
+  offers in settings.html,site_dynamic.js
+  patients in system/lab.js,system/reception.html
+  site_articles in settings.html
+  site_faqs in settings.html
+  site_packages in settings.html
+  site_settings in site_dynamic.js,system/home.html,system/lab.js,system/settings.html
+  site_testimonials in settings.html
+  tenants in super-admin.html,system/home.html,system/settings.html
+  test_results in dashboard/admin.js,patient_portal.js,system/lab.js,system/reception.html
+  tests_catalog in dashboard/admin.js,patient_portal.js,super-admin.html,system/lab.js,system/reception.html,system/tests_manage.html
+  users in dashboard/admin.js,settings.html,super-admin.html,system/home.html,system/settings.html
+  visit_tests in dashboard/admin.js,patient_portal.js,system/lab.js,system/reception.html
+  visits in dashboard/admin.js,patient_portal.js,system/lab.js,system/reception.html,system/settings.html
+
+rpc distinct 3
+  create_employee in system/settings.html
+  create_new_tenant in super-admin.html
+  verify_branch_password in system/home.html
+
+storage_bucket distinct 1
+  lab-assets in system/settings.html
+
+localstorage_keys distinct 17
+  teba_admin_theme in dashboard/admin.js
+  teba_cart in app.js,features.js
+  teba_current_branch in system/home.html,system/lab.js,system/reception.html
+  teba_install_dismissed in features.js
+  teba_last_upload_date in dashboard/admin.js
+  teba_logo_url in config.js,dashboard/config.js,system/config.js,system/home.html,system/settings.html
+  teba_phone in config.js,dashboard/config.js,system/config.js,system/home.html,system/settings.html
+  teba_popup_shown in app.js
+  teba_primary_color in config.js,dashboard/config.js,system/config.js,system/home.html,system/settings.html
+  teba_print_footer in system/lab.js,system/settings.html
+  teba_print_header in system/lab.js,system/settings.html
+  teba_tenant_id in config.js,dashboard/admin.js,dashboard/config.js,system/config.js,system/home.html,system/lab.js,system/reception.html,system/tests_manage.html
+  teba_tenant_name in config.js,dashboard/config.js,system/config.js,system/home.html,system/settings.html,system/tests_manage.html
+  teba_tenant_name_en in system/home.html,system/settings.html
+  teba_theme in system/home.html,system/lab.html,system/reception.html
+  teba_user_role in dashboard/admin.js,system/home.html,system/lab.js,system/reception.html,system/tests_manage.html
+  teba_whatsapp in config.js,dashboard/config.js,system/config.js,system/home.html,system/settings.html
+
+indexeddb_tables distinct 2
+  patients: 'id, name, phone',             visits: 'visit_id, patient_id, branch_id, is_published, hidden_in_lab, server_id',             visit_tests: 'id, visit_ in system/reception.html,system/tests_manage.html
+  patients: 'id, name, phone',     visits: 'visit_id, patient_id, branch_id, is_published, hidden_in_lab, server_id',     visit_tests: 'id, visit_id, test_code',  in system/lab.js
+
+cache_names distinct 0
+
+OUTBOX CONTEXTS
+
+FILE system/lab.js POS 10651 
+                 for(let res of pendingResults) {                                     if(res.payload.visit_test_id == oldId) {                                         res.payload.visit_test_id = newId;                                         await db.outbox.put(res);                                     }                                 }                             }                         }                     } else if (item.action === 'UPDATE') {                         const { error } = await _supabase.from('visit_tests').update(item.payload).eq('id', item.payload.id).eq('tenant_id', TEBA_CONFIG.tenant.id);                         if (error) throw error;                     } else if (item.action === 'DELETE') {                         
+
+FILE system/lab.js POS 15608 
+ (item.table_name === 'audit_logs') {                     const { error } = await _supabase.from('audit_logs').insert([item.payload]);                     if (error) console.warn('Audit log failed', error);                 }                  await db.outbox.delete(item.id);                 successCount++;             } catch (e) {                  console.error("Outbox item sync failed:", item, e);                  failCount++;             }         }          if (successCount > 0 && failCount === 0) showToast(`✅ تمت مزامنة ${successCount} عملية بنجاح!`);         else if (successCount > 0 && failCount > 0) showToast(`⚠️ نجح ${successCount} وفشل ${failCount}.`, true);         else if (failCount > 0) showToast(`❌ فشل مزامنة ${failCount} عملية.
+
+FILE system/reception.html POS 44249 
+        }                         }                         else if (item.table_name === 'audit_logs') {                             await _supabase.from('audit_logs').insert([item.payload]);                         }                         await db.outbox.delete(item.id);                         successCount++;                     } catch (e) { console.error(e); failCount++; }                 }                 if (successCount > 0) showToast(`✅ تمت مزامنة ${successCount} عملية`);                 const remaining = await db.outbox.count();                 if (remaining === 0) btn.style.display = 'none';                 else btn.innerText = '🔄 مزامنة البيانات';                 updateLiveTicker(); loadRecentPatients();             } catch(e) {
+
+FILE system/reception.html POS 64030 
+ howToast('✅ تم حفظ الطلب محلياً!');                 }                  document.getElementById('displayVisitId').innerText = String(visitIdToUse).padStart(4, '0');                 await startNewPatient();                 if (navigator.onLine) processOutbox();                 loadRecentPatients();             } catch (e) { console.error(e); showToast('❌ حدث خطأ أثناء الحفظ', true); }              finally { btn.innerText = '💾 حفظ الطلب'; btn.disabled = false; isSavingOrder = false; }         };          // ==== باقي الدوال المساعدة ====         window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; }                  window.deleteVisit = async function(visitId) {             if(!confirm('حذف هذه الحالة من السيس
+
+FILE system/reception.html POS 64798 
+  المسجلة في الخزنة لن تتأثر وستظل في الداشبورد)')) return;             try {                 await db.visits.delete(Number(visitId));                 await db.visit_tests.where('visit_id').equals(Number(visitId)).delete();                 await addToOutbox('visits', 'DELETE', { visit_id: Number(visitId) });                                  showToast('🗑️ تم حذف الحالة من السيستم، والفلوس باقية في الخزنة!');                  document.getElementById('patientListModal').style.display = 'none';                 loadRecentPatients(); if (navigator.onLine) processOutbox();              } catch(e) { console.error(e); }         }          async function getNextSequentialVisitId() {             try { const last = await db.visits.orderBy('visit_id').la
+
+FILE system/tests_manage.html POS 18331 
+ s') {                             const { error } = await _supabase.from('audit_logs').insert([item.payload]);                             if (error) console.warn('Audit log failed', error);                         }                         await db.outbox.delete(item.id);                         successCount++;                     } catch (e) {                          console.error("Outbox item sync failed:", e);                          throw new Error("فشل رفع البيانات للسحابة، تأكد من الصلاحيات والاتصال.");                      }                 }                  if (successCount > 0) showToast(`✅ تمت مزامنة ${successCount} عملية!`);                                  const remaining = await db.outbox.count();                 if (remain
+
+FILE system/tests_manage.html POS 20132 
+ block';             setTimeout(() => t.style.display = 'none', 3000);         }          // ==== دوال العرض والتحميل ====         async function loadTests() {             try {                 if (navigator.onLine) {                     await processOutbox();                                           const { data, error } = await _supabase.from('tests_catalog').select('*').eq('tenant_id', TEBA_CONFIG.tenant.id).order('code', { ascending: true });                     if (!error && data) {                         if (data.length === 0) {                             await db.catalog.clear();                         } else {                             await db.catalog.clear();                             await db.catalog.bulkPut(data.map(t => 
+
+FILE system/tests_manage.html POS 23657 
+ يل Audit Log) ====         window.deleteTest = async function(code, name) {             if (!confirm(`هل أنت متأكد من حذف التحليل (${code}) نهائياً؟`)) return;             try {                 await db.catalog.delete(code);                 await db.outbox.add({ table_name: 'tests_catalog', action: 'DELETE', payload: { code: code, tenant_id: TEBA_CONFIG.tenant.id }, timestamp: new Date().toISOString() });                                  // تسجيل الإجراء في سجل التعديلات                 const userName = localStorage.getItem('teba_tenant_name') || 'موظف';                 await db.outbox.add({                      table_name: 'audit_logs',                      action: 'INSERT',                      payload: {                          tenant_i
+
+BRANDING OCCURRENCES
+معمل طيبة 0 []
+معامل طيبة 40 [('app.js', 6), ('dashboard/admin.html', 1), ('dashboard/admin.js', 2), ('dashboard/styles.css', 1), ('data.js', 5), ('features.js', 6), ('index.html', 11), ('manifest.json', 1), ('system/lab.html', 1), ('system/lab.js', 1), ('system/reception.html', 3), ('system/styles.css', 1), ('system/tests_manage.html', 1)]
+الجعافرة 74 [('dashboard/admin.html', 16), ('dashboard/admin.js', 51), ('data.js', 1), ('index.html', 1), ('patient_portal.js', 1), ('system/lab.html', 2), ('system/reception.html', 1), ('system/settings.html', 1)]
+بهتيم 70 [('dashboard/admin.html', 16), ('dashboard/admin.js', 46), ('data.js', 2), ('index.html', 1), ('patient_portal.js', 1), ('system/lab.html', 2), ('system/reception.html', 1), ('system/settings.html', 1)]
+معمل الشفاء 2 [('system/settings.html', 2)]
+Taiba 0 []
+TEBA 201 [('app.js', 2), ('config.js', 15), ('dashboard/admin.css', 1), ('dashboard/admin.html', 6), ('dashboard/admin.js', 20), ('dashboard/config.js', 15), ('dashboard/styles.css', 1), ('data.js', 2), ('features.js', 4), ('index.html', 5), ('manifest.json', 1), ('patient_portal.js', 15), ('service-worker.js', 1), ('settings.html', 3), ('site_dynamic.js', 8), ('super-admin.html', 2), ('system/config.js', 15), ('system/home.html', 3), ('system/lab.css', 1), ('system/lab.js', 38), ('system/reception.html', 27), ('system/settings.html', 3), ('system/styles.css', 1), ('system/tests_manage.html', 12)]
+brand-logo.png 6 [('index.html', 1), ('manifest.json', 2), ('service-worker.js', 1), ('system/home.html', 1), ('system/reception.html', 1)]
+lab-assets 4 [('system/settings.html', 4)]
