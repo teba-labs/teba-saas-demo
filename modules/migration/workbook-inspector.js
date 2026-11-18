@@ -83,7 +83,7 @@ function normalizeHeader(value) {
     .replace(/[أإآ]/g,'ا').replace(/[ئىىي]/g,'ي').replace(/ؤ/g,'و')
     .replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 }
-function headerCandidates(rows) {
+export function rankHeaderCandidates(rows) {
   return rows.slice(0, 15).map((row, index) => {
     const values = (row || []).map(cleanCell).filter(Boolean);
     const unique = new Set(values.map(normalizeHeader));
@@ -122,6 +122,15 @@ export function suggestColumnMapping(headers, entityType) {
     return {columnIndex:index,header:cleanCell(header),fieldKey:key,confidence:key?(best.score===100?'high':'review'):'unmapped'};
   });
 }
+export function validateArchiveFileMeta(fileName,fileSize){
+  if (!/\\.(xlsx|xls|csv)$/i.test(String(fileName||''))) throw new Error('الملفات المدعومة الآن: XLSX وXLS وCSV.');
+  if (!fileSize || fileSize > MAX_FILE_BYTES) throw new Error('حجم الملف يجب أن يكون أقل من 20 ميجابايت.');
+  return true;
+}
+export function validateSheetCount(count){
+  if (!Number.isInteger(count) || count < 1 || count > MAX_SHEETS) throw new Error('عدد أوراق العمل غير صالح أو يتجاوز الحد المسموح (50 ورقة).');
+  return true;
+}
 export function getEntityOptions(){return ENTITY_OPTIONS.map(([value,label])=>({value,label}));}
 export function getEntityFields(entityType){return (ENTITY_FIELDS[entityType]?.fields||[]).map(([key,label,required])=>({key,label,required}));}
 
@@ -133,14 +142,14 @@ export async function inspectWorkbookFile(file) {
   if (!globalThis.crypto?.subtle) throw new Error('المتصفح لا يدعم فحص بصمة الملف بأمان. افتح الصفحة عبر HTTPS.');
   const buffer = await file.arrayBuffer();
   const [sha256, XLSX] = await Promise.all([hashHex(buffer), import(XLSX_URL)]);
-  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true, raw: false });
-  if (!workbook.SheetNames.length || workbook.SheetNames.length > MAX_SHEETS) {
-    throw new Error('عدد أوراق العمل غير صالح أو يتجاوز الحد المسموح (50 ورقة).');
-  }
+  let workbook;
+  try { workbook = XLSX.read(buffer, { type: 'array', cellDates: true, raw: false }); }
+  catch { throw new Error('تعذر قراءة الملف. تأكد أنه ملف Excel أو CSV سليم وغير تالف.'); }
+  validateSheetCount(workbook.SheetNames.length);
   const sheets = workbook.SheetNames.map(name => {
     const worksheet = workbook.Sheets[name];
     const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false, blankrows: false });
-    const candidates = headerCandidates(rows);
+    const candidates = rankHeaderCandidates(rows);
     const suggested = candidates[0]?.rowIndex ?? 0;
     const header = (rows[suggested] || []).map(cleanCell);
     return {
