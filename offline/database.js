@@ -21,6 +21,10 @@ const stores = {
 };
 offlineDb.version(1).stores({ ...stores });
 offlineDb.version(2).stores({ ...stores });
+offlineDb.version(3).stores({
+  ...stores,
+  test_prices: 'id, tenant_id, test_id, branch_id, is_current, effective_from',
+});
 
 export async function assertOfflineDatabaseReady() {
   await offlineDb.open();
