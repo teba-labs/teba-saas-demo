@@ -1,9 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 
 const GENERIC_FAILURE = { ok: false, message: 'تعذر العثور على تقرير مطابق. راجع الاسم ورقم الزيارة وحاول مرة أخرى.' };
-const MAX_LOOKUP_ATTEMPTS = 5;
-const MAX_IP_ATTEMPTS = 20;
-const WINDOW_MINUTES = 15;
 
 function json(body: unknown, status = 200, origin = '') {
   const headers: Record<string, string> = {
@@ -32,9 +29,13 @@ async function digest(secret: string, value: string) {
 Deno.serve(async (req) => {
   const allowed = (Deno.env.get('PORTAL_ALLOWED_ORIGINS') ?? '').split(',').map(v => v.trim()).filter(Boolean);
   const origin = req.headers.get('origin') ?? '';
+  if (!allowed.length) {
+    console.error('Patient portal origin allowlist is not configured.');
+    return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503);
+  }
   if (req.method === 'OPTIONS') return json({ ok: true }, 200, allowed.includes(origin) ? origin : '');
   if (req.method !== 'POST') return json({ ok: false, message: 'Method not allowed.' }, 405);
-  if (allowed.length && (!origin || !allowed.includes(origin))) return json({ ok: false, message: 'Origin not allowed.' }, 403);
+  if (!origin || !allowed.includes(origin)) return json({ ok: false, message: 'Origin not allowed.' }, 403);
 
   let payload: Record<string, unknown>;
   try { payload = await req.json(); } catch { return json(GENERIC_FAILURE, 400, origin); }
@@ -58,25 +59,26 @@ Deno.serve(async (req) => {
     .select('id, name, slug').eq('slug', slug).in('status', ['trial', 'active']).maybeSingle();
   if (tenantError || !tenant) return json(GENERIC_FAILURE, 200, origin);
 
-  const lookupHash = await digest(pepper, `${slug}|${normalizeName(patientName)}|${visitNumber.toLocaleLowerCase()}`);
-  const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '';
-  const clientIp = forwarded || req.headers.get('cf-connecting-ip') || 'unknown';
-  const ipHash = await digest(pepper, `ip|${clientIp}`);
-  const since = new Date(Date.now() - WINDOW_MINUTES * 60_000).toISOString();
-
-  const [lookupCount, ipCount] = await Promise.all([
-    admin.from('portal_access_attempts').select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenant.id).eq('lookup_hash', lookupHash).gte('attempted_at', since),
-    admin.from('portal_access_attempts').select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenant.id).eq('ip_hash', ipHash).gte('attempted_at', since),
-  ]);
-  if (lookupCount.error || ipCount.error) {
-    console.error('Portal rate-limit check failed.', lookupCount.error?.message, ipCount.error?.message);
+  const lookupHash = await digest(pepper, `${slug}|${normalizeName(patientName)}|${visitNumber.toLowerCase()}`);
+  const clientIp = req.headers.get('cf-connecting-ip')?.trim()
+    || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')?.trim();
+  if (!clientIp) {
+    console.error('Patient portal request did not include a trusted client IP.');
     return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503, origin);
   }
-  if ((lookupCount.count ?? 0) >= MAX_LOOKUP_ATTEMPTS || (ipCount.count ?? 0) >= MAX_IP_ATTEMPTS) {
+  const ipHash = await digest(pepper, `ip|${clientIp}`);
+  const { data: rateLimit, error: rateLimitError } = await admin.rpc('consume_patient_portal_attempt', {
+    p_tenant_id: tenant.id, p_lookup_hash: lookupHash, p_ip_hash: ipHash,
+  });
+  if (rateLimitError || !rateLimit) {
+    console.error('Atomic portal rate-limit failed.', rateLimitError?.message);
+    return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503, origin);
+  }
+  if (!rateLimit.allowed) {
     return json({ ok: false, message: 'محاولات كثيرة. انتظر 15 دقيقة ثم حاول مرة أخرى.' }, 429, origin);
   }
+  const attemptId = String(rateLimit.attempt_id ?? '');
 
   const wantedName = normalizeName(patientName);
   let visit: Record<string, unknown> | undefined;
@@ -116,11 +118,11 @@ Deno.serve(async (req) => {
     }
   }
 
-  const { error: logError } = await admin.from('portal_access_attempts').insert({
-    tenant_id: tenant.id, lookup_hash: lookupHash, ip_hash: ipHash,
-    succeeded: Boolean(signedUrl),
-  });
-  if (logError) console.error('Portal attempt logging failed.', logError.message);
+  if (signedUrl && attemptId) {
+    const { error: markError } = await admin.from('portal_access_attempts')
+      .update({ succeeded: true }).eq('tenant_id', tenant.id).eq('id', attemptId);
+    if (markError) console.error('Portal success audit update failed.', markError.message);
+  }
 
   if (!signedUrl) return json(GENERIC_FAILURE, 200, origin);
   return json({
