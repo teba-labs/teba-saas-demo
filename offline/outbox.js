@@ -135,9 +135,9 @@ async function markFailure(item, message, maxAttempts) {
 }
 
 export async function getOutboxSummary({ tenantId, branchId } = {}) {
+  if (!tenantId || !branchId) throw new Error('Tenant and branch are required to view offline queue status.');
   let rows = await offlineDb.outbox.toArray();
-  if (tenantId) rows = rows.filter(row => row.tenant_id === tenantId);
-  if (branchId) rows = rows.filter(row => row.branch_id === branchId);
+  rows = rows.filter(row => row.tenant_id === tenantId && row.branch_id === branchId);
   return rows.reduce((summary, row) => {
     if (!ALLOWED_STATUSES.has(row.status)) summary.invalid++;
     else summary[row.status]++;
@@ -147,16 +147,16 @@ export async function getOutboxSummary({ tenantId, branchId } = {}) {
 }
 
 export async function listOpenConflicts({ tenantId, branchId } = {}) {
+  if (!tenantId || !branchId) throw new Error('Tenant and branch are required to view offline conflicts.');
   let rows = await offlineDb.conflicts.where('status').equals('open').toArray();
-  if (tenantId) rows = rows.filter(row => row.tenant_id === tenantId);
-  if (branchId) rows = rows.filter(row => row.branch_id === branchId);
+  rows = rows.filter(row => row.tenant_id === tenantId && row.branch_id === branchId);
   return rows.sort((a, b) => a.created_at.localeCompare(b.created_at));
 }
 
 export async function retryFailedOperations({ tenantId, branchId } = {}) {
+  if (!tenantId || !branchId) throw new Error('Tenant and branch are required to retry offline operations.');
   let rows = await offlineDb.outbox.where('status').equals('failed').toArray();
-  if (tenantId) rows = rows.filter(row => row.tenant_id === tenantId);
-  if (branchId) rows = rows.filter(row => row.branch_id === branchId);
+  rows = rows.filter(row => row.tenant_id === tenantId && row.branch_id === branchId);
   for (const row of rows) await offlineDb.outbox.update(row.local_id, { status: 'pending', attempts: 0, next_attempt_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString() });
   return rows.length;
 }
