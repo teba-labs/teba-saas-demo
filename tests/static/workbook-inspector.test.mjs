@@ -146,3 +146,51 @@ test('mapping UI displays row validation and relationship review while retaining
  assert.match(js,/مراجعة الارتباط بين الأوراق/);
  assert.doesNotMatch(js,/\.from\(|\.rpc\(|fetch\(|localStorage|sessionStorage/);
 });
+
+
+test('legacy age retains original value and unit without lossy conversion',async()=>{
+ const {inspectLegacyAge}=await import('../../modules/migration/workbook-inspector.js');
+ for(const [value,unit] of [['40','years'],['6','months'],['2','days']]){
+  const result=inspectLegacyAge(value,unit);
+  assert.equal(result.rawAge,value);assert.equal(result.rawAgeType,unit);
+  assert.equal(result.ageYears,null);assert.equal(result.status,'unit-preserved');
+ }
+ assert.equal(inspectLegacyAge('unknown','years').status,'needs-review');
+});
+
+test('legacy date parser refuses ambiguous day-month dates and does not guess locale',async()=>{
+ const {inspectLegacyDate}=await import('../../modules/migration/workbook-inspector.js');
+ assert.deepEqual(inspectLegacyDate('2024-02-01'),{raw:'2024-02-01',status:'valid',isoDate:'2024-02-01'});
+ assert.equal(inspectLegacyDate('01/02/2024').status,'ambiguous');
+ assert.equal(inspectLegacyDate('31/02/2024').status,'invalid');
+ assert.equal(inspectLegacyDate('Feb 1 2024').status,'needs-review');
+});
+
+test('legacy finance flags possible duplicate representation without adding payments',async()=>{
+ const {inspectLegacyFinance}=await import('../../modules/migration/workbook-inspector.js');
+ const review=inspectLegacyFinance({paidAmount:'150',ledgerEntries:[{visit_id:7,amount:100},{visit_id:7,amount:50}]});
+ assert.equal(review.status,'possible-duplicate-representation');
+ assert.equal(review.rawPaidAmount,'150');
+ assert.equal(review.linkedLedgerAbsoluteTotal,150);
+ assert.equal(inspectLegacyFinance({paidAmount:80,ledgerEntries:[]}).status,'cumulative-only-no-payment-history');
+});
+
+test('legacy result payload inspection preserves raw JSON and identifies parameter paths',async()=>{
+ const {inspectLegacyResultPayload}=await import('../../modules/migration/workbook-inspector.js');
+ const raw='{"Hb":{"value":"12.5","unit":"g/dL"},"WBC":7}';
+ const review=inspectLegacyResultPayload(raw);
+ assert.equal(review.valid,true);assert.equal(review.rawOriginal,raw);
+ assert.ok(review.paths.some(x=>x.path==='Hb.value'));
+ assert.equal(inspectLegacyResultPayload('{broken').valid,false);
+});
+
+test('archive analysis adds non-destructive age/date/result review metadata',async()=>{
+ const {analyzeArchiveSheet}=await import('../../modules/migration/workbook-inspector.js');
+ const rows=[['name','age','age_type','created_at'],['سارة','6','months','01/02/2024']];
+ const map=[['name','name'],['age','age'],['age_type','age_type'],['created_at','created_at']].map(([header,fieldKey],columnIndex)=>({header,fieldKey,columnIndex}));
+ const report=analyzeArchiveSheet(rows,0,'patients',map);
+ assert.equal(report.legacyReview.ageRows,1);
+ assert.equal(report.legacyReview.dateAmbiguous,1);
+ assert.equal(report.records[0]._legacyAgeReview.rawAgeType,'months');
+ assert.equal(report.records[0]._legacyAgeReview.ageYears,null);
+});
