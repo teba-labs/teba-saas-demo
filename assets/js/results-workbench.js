@@ -5,6 +5,7 @@ import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection 
 import { listBranchWork } from '../../modules/laboratory/repository.js';
 import { listResultsForVisitTests, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
 import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
+import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
 
 const $ = (id) => document.getElementById(id);
 const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [] };
@@ -115,6 +116,8 @@ async function renderWork() {
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
       <div class="actions"><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
       <div class="file-row"><label>ملف التقرير PDF<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!group.visit?.status || (!isPublished && group.visit.status !== 'approved') ? 'disabled' : ''}></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
+      <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
+      <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
       <p class="danger-note">التصحيح بعد النشر يحتاج سببًا موثقًا، ويجب إدخال التصحيح من مسار التصحيح المعتمد قبل رفع النسخة الجديدة.</p>`;
     host.append(card);
   }
@@ -123,6 +126,9 @@ async function renderWork() {
   host.querySelectorAll('.correct-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
   host.querySelectorAll('.publish-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
+  host.querySelectorAll('.upload-attachment').forEach(btn => btn.addEventListener('click', () => uploadAttachment(btn)));
+  host.querySelectorAll('.list-attachments').forEach(btn => btn.addEventListener('click', () => loadAttachments(btn.dataset.visitId)));
+  host.querySelectorAll('.attachment-download').forEach(btn => btn.addEventListener('click', () => downloadAttachment(btn)));
   // Populate all existing values with one scoped query instead of N+1 requests.
   const resultRows = await listResultsForVisitTests({
     tenantId: state.tenant.id,
@@ -181,6 +187,40 @@ async function correctTest(button) {
     for (const input of changed) input.dataset.originalValue = input.value;
   } catch (error) { showNotice(error.message || 'تعذر تصحيح النتيجة.', true); }
   finally { setBusy(button, false); }
+}
+
+
+async function loadAttachments(visitId) {
+  const host=document.querySelector(`[data-attachment-list="${CSS.escape(visitId)}"]`);
+  if(!host) return;
+  host.textContent='جارٍ تحميل المرفقات…';
+  try {
+    const files=await listVisitAttachments({tenantId:state.tenant.id,branchId:state.branch.id,visitId});
+    host.innerHTML=files.length?files.map(file=>`<div class="attachment-item"><span>${escapeHtml(file.mime_type)} · ${Math.ceil(file.size_bytes/1024)} KB · ${escapeHtml(new Date(file.created_at).toLocaleString('ar-EG'))}</span><button class="button button-secondary attachment-download" data-file-id="${escapeHtml(file.id)}">فتح</button></div>`).join(''):'<p class="muted">لا توجد مرفقات لهذه الزيارة.</p>';
+    host.querySelectorAll('.attachment-download').forEach(btn=>btn.addEventListener('click',()=>downloadAttachment(btn)));
+  } catch(error) { host.textContent=error.message||'تعذر تحميل المرفقات.'; }
+}
+async function uploadAttachment(button) {
+  try {
+    const visitId=button.dataset.visitId;
+    const input=document.querySelector(`[data-attachment-file="${CSS.escape(visitId)}"]`);
+    const file=input?.files?.[0];
+    if(!file) throw new Error('اختر الملف المراد إرفاقه أولًا.');
+    setBusy(button,true,'جارٍ رفع المرفق…');
+    await uploadVisitAttachment({tenantId:state.tenant.id,branchId:state.branch.id,visitId,file});
+    input.value='';
+    showNotice('تم رفع المرفق وربطه بالزيارة.');
+    await loadAttachments(visitId);
+  } catch(error) { showNotice(error.message||'تعذر رفع المرفق.',true); }
+  finally { setBusy(button,false); }
+}
+async function downloadAttachment(button) {
+  try {
+    setBusy(button,true,'جارٍ تجهيز الرابط…');
+    const url=await createAttachmentDownloadUrl({tenantId:state.tenant.id,branchId:state.branch.id,fileId:button.dataset.fileId,expiresIn:90});
+    window.open(url,'_blank','noopener');
+  } catch(error) { showNotice(error.message||'تعذر فتح المرفق.',true); }
+  finally { setBusy(button,false); }
 }
 
 async function completeTest(button) {
