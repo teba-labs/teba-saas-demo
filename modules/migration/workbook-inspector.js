@@ -123,7 +123,7 @@ export function suggestColumnMapping(headers, entityType) {
   });
 }
 export function validateArchiveFileMeta(fileName,fileSize){
-  if (!/\\.(xlsx|xls|csv)$/i.test(String(fileName||''))) throw new Error('الملفات المدعومة الآن: XLSX وXLS وCSV.');
+  if (!/\.(xlsx|xls|csv)$/i.test(String(fileName||''))) throw new Error('الملفات المدعومة الآن: XLSX وXLS وCSV.');
   if (!fileSize || fileSize > MAX_FILE_BYTES) throw new Error('حجم الملف يجب أن يكون أقل من 20 ميجابايت.');
   return true;
 }
