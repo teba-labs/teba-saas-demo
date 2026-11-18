@@ -129,7 +129,7 @@ export async function recordPayment({ tenantId, branchId, visitId, amount, payme
     if (visit.error) { if (/fetch|network|offline/i.test(visit.error.message || '')) { visitRow = (await getCachedRows('visits', { tenantId })).find(row => row.id === visitId); if (!visitRow) throw visit.error; } else throw visit.error; } else { visitRow = visit.data; await cacheRows('visits', [visitRow]); }
   }
   const payload = { visit_id: visitId, amount: value, payment_method: paymentMethod, staff_id: staffId, notes: notes ?? null };
-  const queue = async () => { await enqueueOperation({ tenantId, branchId: visitRow.branch_id, entityType: 'payment', action: 'create', operationId, payload }); return { queued: true, operationId }; };
+  const queue = async () => { await enqueueOperation({ tenantId, branchId, entityType: 'payment', action: 'create', operationId, payload }); return { queued: true, operationId }; };
   if (globalThis.navigator?.onLine === false) return queue();
   const { data, error } = await db().rpc(RPC.recordPatientPayment, {
     p_tenant_id: tenantId, p_visit_id: visitId, p_amount: value,
