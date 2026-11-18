@@ -8,6 +8,7 @@ export async function listExpenseCategories({ tenantId, includeInactive = false 
   let query = db().from(TABLES.expenseCategories)
     .select('id, name, is_active').eq('tenant_id', tenantId).order('name');
   if (!includeInactive) query = query.eq('is_active', true);
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
