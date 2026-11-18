@@ -27,6 +27,18 @@ function renderSheet(){
  const status=el('div');status.className='mappingStatus';
  status.textContent=s.entityType==='unknown'?'حدد نوع البيانات أولًا.':`تم ربط ${mapped.length} عمودًا · أعمدة مطلوبة غير مربوطة: ${missing.length} · تعيينات مكررة: ${duplicates.length}`;
  root.append(status);
+ if(s.entityType!=='unknown'){
+  const report=el('section');report.className='validationPanel';
+  const stats=el('div');stats.className='validationStats';
+  for(const [label,value] of [['صفوف البيانات',s.analysis.nonEmptyRows],['صفوف فارغة',s.analysis.blankRows],['حقول مطلوبة ناقصة',s.analysis.missingRequired],['أرقام غير صالحة',s.analysis.invalidNumbers],['تكرارات محتملة',s.analysis.duplicateRows],['عناوين مكررة',s.analysis.duplicateHeaders]]){const item=el('div');item.append(el('small',label),el('b',value));stats.append(item);}
+  report.append(stats);report.append(el('h3','ملاحظات فحص الصفوف'));
+  if(!s.analysis.issues.length)report.append(el('p','لم تظهر أخطاء من القواعد الحالية في هذه الورقة. هذا لا يعني اعتماد البيانات أو صلاحيتها للاستيراد.'));
+  else {const list=el('ul');for(const issue of s.analysis.issues)list.append(el('li',`صف ${issue.rowNumber}: ${issue.message}`));report.append(list);if(s.analysis.issueCount>s.analysis.issues.length)report.append(el('small','تم إظهار أول '+s.analysis.issues.length+' ملاحظة فقط من أصل '+s.analysis.issueCount+'.'));}
+  const links=analyzeArchiveRelationships(state.result.sheets);
+  if(links.length){report.append(el('h3','مراجعة الارتباط بين الأوراق'));for(const link of links){const line=el('p',link.label+': '+link.missing+' مرجع غير مطابق من '+link.total+' صف.');if(link.sampleRows.length)line.textContent+=' أمثلة صفوف: '+link.sampleRows.join('، ');report.append(line);}}
+  root.append(report);
+ }
+
  const mapTable=el('table'),mapHead=el('thead'),mapRow=el('tr');
  for(const label of ['اسم العمود في الملف','الحقل المقترح في النظام','حالة المطابقة'])mapRow.append(el('th',label));
  mapHead.append(mapRow);mapTable.append(mapHead);
