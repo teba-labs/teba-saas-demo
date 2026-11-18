@@ -46,3 +46,6 @@ Do not send these values in chat and never place them in browser code. The funct
 - Not yet tested end-to-end: authenticated login, real PDF upload/publication, patient portal browser request with configured origins/secrets, cross-branch collection with two live staff accounts, two-tenant RLS isolation, and offline replay on multiple devices.
 
 This batch is a TEST development step, not a production release.
+
+## Migration registry note
+The live project currently exposes only the custom `public.schema_migrations` table with the initial `1.0.0` record; the standard `supabase_migrations.schema_migrations` table is absent. Migrations 012–016 were applied directly and verified, but no partial history records were inserted because migrations 002–011 must first be reconciled as a complete sequence. Do not run an automated migration replay until that reconciliation is completed.
