@@ -100,3 +100,12 @@ Batch 6 adds the tenant-scoped website CMS repository and public-site content lo
 
 ## Catalog management (Batch 18)
 Arabic catalog administration is available at `app/catalog.html`. Owners and staff can manage test and technical parameter records; current price editing is owner-only and additionally protected by Supabase RLS. Catalog writes currently require an online connection. See `docs/batch-18-catalog-ui.md` for validation and known limitations.
+
+
+## Batch 19 — TEST cloud hardening (2026-11-18)
+- Migrations 012–016 are applied to the separate TEST Supabase project. The existing 46 public tables were preserved; no table rebuild or destructive data migration was performed.
+- Added cross-branch payment attribution, branch-specific test prices with immutable visit snapshots, and atomic patient-portal rate limiting.
+- Catalog/reception and offline price caching now resolve the effective price for the selected branch. Service-worker shell cache is v5.
+- Deployed `patient-portal-lookup` (anonymous endpoint with internal rate limiting) and `publish-report` (JWT-protected) to TEST. Both fail closed until the required origin allowlists and portal hash secret are configured.
+- Storage policies remain private for reports, attachments and backups; only tenant site assets are public-read.
+- The draft development PR is not merged. Full browser tests, PDF upload, cross-branch payment tests, two-tenant RLS tests and offline multi-device replay remain pending. See `docs/batch-19-cloud-hardening.md`.
