@@ -98,8 +98,8 @@ function hashHex(buffer) {
 export function inferSheetType(sheetName) {
   const n=normalizeHeader(sheetName);
   const rules=[
-    ['patients',/مرض|patient|patients|عملاء/],['visits',/زيار|حالا|visit|visits|استقبال/],
-    ['visit_tests',/تحاليل الزيار|visit test|visit_tests|تفاصيل التحاليل/],
+    ['patients',/مرض|patient|patients|عملاء/],['visit_tests',/تحاليل الزيار|visit test|visit_tests|تفاصيل التحاليل/],
+    ['visits',/زيار|حالا|visit|visits|استقبال/],
     ['test_results',/نتائج|result|test_results/],['ledger',/حرك|مالي|ledger|financial|خزين|مدفوع/],
     ['catalog',/كتالوج|تحاليل|catalog|tests/],['expenses',/مصروف|expense|بنود/],
     ['website',/موقع|مقال|faq|عرض|package|testimonial|article/]
