@@ -37,6 +37,7 @@ test('catalog repository returns one effective price per test for a selected bra
  assert.match(repo,/Number\(b\.branch_id === branchId\) - Number\(a\.branch_id === branchId\)/);
  assert.match(repo,/setBranchPrice/);
  assert.match(repo,/RPC\.setBranchTestPrice/);
+ assert.match(repo,/replaceCachedCurrentPrices\(\[data\], \{ tenantId, testIds: \[testId\], branchId, scope: 'branch' \}\)/);
 });
 
 test('offline cache preserves other branches current prices when refreshing one branch',()=>{
