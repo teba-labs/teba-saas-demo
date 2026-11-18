@@ -19,7 +19,7 @@ export async function saveStaffName({ tenantId, branchId, displayName, id } = {}
   const name = String(displayName ?? '').trim();
   if (!name) throw new Error('displayName is required.');
   const payload = { tenant_id: tenantId, branch_id: branchId, display_name: name, is_active: true, ...(id ? { id } : {}) };
-  const { data, error } = await db().from('staff_directory').upsert(payload).select().single();
+  const { data, error } = await db().from('staff_directory').upsert(payload, { onConflict: 'tenant_id,branch_id,display_name' }).select().single();
   if (error) throw error;
   return data;
 }
