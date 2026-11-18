@@ -6,7 +6,7 @@ const root=path.resolve(import.meta.dirname,'../..');
 const html=fs.readFileSync(path.join(root,'app/reception.html'),'utf8');
 const script=fs.readFileSync(path.join(root,'assets/js/reception.js'),'utf8');
 const repo=fs.readFileSync(path.join(root,'modules/reception/repository.js'),'utf8');
-const migration=fs.readFileSync(path.join(root,'database/migrations/016_branch_outstanding_balances.sql'),'utf8');
+const migration=fs.readFileSync(path.join(root,'database/migrations/020_branch_outstanding_balances.sql'),'utf8');
 
 test('reception displays branch outstanding balances and allows later collection',()=>{
   for(const id of ['balancePanel','refreshBalances','balancesList']) assert.match(html,new RegExp('id="'+id+'"'));
