@@ -10,7 +10,7 @@
 - معمل طيبة موجود في مشروع TEST بحالة active.
 - فرعان مسجلان، و3 عضويات معمل نشطة، وعضويتان نشطتان على مستوى الفروع.
 - المستخدم أكد ظهور تفاصيل الاشتراك في لوحة مالك المنصة.
-- migrations 012–021 مطبقة ومسجلة في سجل Supabase القياسي. `public.schema_migrations` ما زال baseline `1.0.0` فقط؛ يجب توثيق 001–011 قبل db push آلي.
+- migrations 012–022 مطبقة ومسجلة في سجل Supabase القياسي. `public.schema_migrations` ما زال baseline `1.0.0` فقط؛ يجب توثيق 001–011 قبل db push آلي.
 - مصدر `patient-portal-lookup` و`publish-report` مطابق للمصدر المنشور؛ Edge Functions `invite-branch-employee` و`upload-attachment` منشورة مع JWT. Secrets/Origins ما زالت غير مضبوطة، والوظائف fail-closed.
 - جميع جداول public الـ46 عليها RLS وFORCE RLS.
 - تجربة SQL transaction/rollback أثبتت عزل الفرع وهوية الموظف وسجل التدقيق ودورة النتائج. لم يختبر عزل عميلين مختلفين.
@@ -35,7 +35,7 @@
 ## 3. أولويات الإصلاح
 
 ### أُنجز في التكامل الموحد
-- [x] توحيد cloud-hardening وowner-setup وترتيب migrations 012–021 وتطبيقها على TEST.
+- [x] توحيد cloud-hardening وowner-setup وترتيب migrations 012–022 وتطبيقها على TEST.
 - [x] ربط حسابات الموظفين بالهوية التشغيلية، وفرض هوية المنفذ مع سجل تدقيق.
 - [x] نقل إكمال التحليل واعتماد الزيارة إلى RPCs ذرية وقفل النتائج المكتملة.
 - [x] دمج أسعار الفروع والتحصيل بين الفروع وربطها بواجهات الاستقبال والكتالوج.
