@@ -82,3 +82,14 @@ PR: #1 remains a draft; nothing was merged into `main`.
 - Added a regression assertion for the update-vs-insert behavior.
 - GitHub Actions run `44371633453` completed successfully on the latest code: 142 tests passed, 0 failed.
 - This is static CI evidence only. No live owner login, browser test, database write, deployment, or migration was performed.
+
+
+## Follow-on: owner audit log visibility
+
+- Added a read-only owner audit list showing the latest 50 tenant-scoped events, with branch, action, table and timestamp.
+- The query is constrained by tenant ID and capped at 100 rows maximum; it intentionally does not fetch clinical payloads, free-text reasons, old/new row contents, patient names, or result values.
+- The screen relies on the existing owner-only RLS policy for `audit_logs`; no schema or policy change was made.
+- Added the new module to the offline app shell and bumped the shell cache version to v7.
+- Updated static checks for tenant scoping, data minimization, cache contents and JavaScript syntax.
+- GitHub Actions run `44372603767` passed: 142 tests, 0 failures; JavaScript module syntax step passed.
+- Live owner authorization and browser rendering remain unverified until a preview and owner login are available.
