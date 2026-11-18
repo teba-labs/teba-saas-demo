@@ -103,7 +103,7 @@ test('sheet-count guard rejects empty or over-limit workbooks',()=>{
  assert.throws(()=>validateSheetCount(51),/عدد أوراق العمل/);
 });
 
-test('synthetic patient rows detect missing required values, duplicate IDs and invalid numbers',()=>{
+test('synthetic patient rows detect missing required values, duplicate IDs and invalid numbers',async()=>{
  const {analyzeArchiveSheet}=await import('../../modules/migration/workbook-inspector.js');
  const rows=[['patient_id','name','age'],['P1','سارة','32'],['P1','','عشرون'],['P2','عمر','8']];
  const mapping=[{columnIndex:0,header:'patient_id',fieldKey:'source_id'},{columnIndex:1,header:'name',fieldKey:'name'},{columnIndex:2,header:'age',fieldKey:'age'}];
@@ -116,7 +116,7 @@ test('synthetic patient rows detect missing required values, duplicate IDs and i
  assert.ok(report.issues.some(x=>x.type==='missing-required'));
 });
 
-test('synthetic ledger rows detect invalid monetary values and blank lines',()=>{
+test('synthetic ledger rows detect invalid monetary values and blank lines',async()=>{
  const {analyzeArchiveSheet}=await import('../../modules/migration/workbook-inspector.js');
  const rows=[['type','amount','created_at'],['payment','150','2026-01-01'],['expense','abc','2026-01-02'],['','','']];
  const mapping=[{columnIndex:0,header:'type',fieldKey:'type'},{columnIndex:1,header:'amount',fieldKey:'amount'},{columnIndex:2,header:'created_at',fieldKey:'created_at'}];
@@ -126,7 +126,7 @@ test('synthetic ledger rows detect invalid monetary values and blank lines',()=>
  assert.equal(report.invalidNumbers,1);
 });
 
-test('synthetic cross-sheet checks identify visits with missing patient references and orphan test rows',()=>{
+test('synthetic cross-sheet checks identify visits with missing patient references and orphan test rows',async()=>{
  const {analyzeArchiveSheet,analyzeArchiveRelationships}=await import('../../modules/migration/workbook-inspector.js');
  const patients={entityType:'patients',rawRows:[['id','name'],['P1','سارة']],headerRowIndex:0,columnMapping:[{columnIndex:0,header:'id',fieldKey:'source_id'},{columnIndex:1,header:'name',fieldKey:'name'}]};
  const visits={entityType:'visits',rawRows:[['visit_id','patient_id','visit_date'],['V1','P1','2026-01-01'],['V2','P9','2026-01-02']],headerRowIndex:0,columnMapping:[{columnIndex:0,header:'visit_id',fieldKey:'source_id'},{columnIndex:1,header:'patient_id',fieldKey:'patient_id'},{columnIndex:2,header:'visit_date',fieldKey:'visit_date'}]};
