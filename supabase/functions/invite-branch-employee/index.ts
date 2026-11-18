@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
   }
 
   if (action !== 'invite') return reply({ ok: false, message: 'Unsupported action.' }, 400, origin);
-  if (staff.auth_user_id) return reply({ ok: false, message: 'هذا الاسم التشغيلي مرتبط بحساب دخول بالفعل.' }, 409, origin);
+  if (action === 'invite' && staff.auth_user_id) return reply({ ok: false, message: 'هذا الاسم التشغيلي مرتبط بحساب دخول بالفعل.' }, 409, origin);
 
   let employeeUser: { id: string } | null = null;
   let newlyInvited = false;
