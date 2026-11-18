@@ -2,6 +2,7 @@ import { getSupabaseClient } from '../../core/supabase-client.js';
 import { TABLES, RPC } from '../../core/data/schema-contract.js';
 import { enqueueOperation } from '../../offline/outbox.js';
 import { cacheRows, getCachedRows } from '../../offline/cache.js';
+import { listExpenseCategories as listActiveExpenseCategories } from '../expenses/repository.js';
 const db = () => getSupabaseClient();
 const required = (value, name) => { if (!value) throw new Error(`${name} is required.`); };
 export async function getCurrentWorkday({ tenantId, branchId } = {}) {
@@ -24,9 +25,14 @@ export async function closeWorkday({tenantId,branchId,workDate,staffId}={}) {
 export async function listExpenseCategories({tenantId}={}) {
   required(tenantId,'tenantId');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('expense_categories', { tenantId })).filter(row => row.is_active);
-  const {data,error}=await db().from(TABLES.expenseCategories).select('id,tenant_id,name,is_active').eq('tenant_id',tenantId).eq('is_active',true).order('name');
-  if(error) { if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('expense_categories', { tenantId })).filter(row => row.is_active); throw error; }
-  await cacheRows('expense_categories', data ?? []); return data??[];
+  try {
+    const rows = await listActiveExpenseCategories({ tenantId });
+    await cacheRows('expense_categories', rows);
+    return rows;
+  } catch (error) {
+    if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('expense_categories', { tenantId })).filter(row => row.is_active);
+    throw error;
+  }
 }
 export async function addWorkdayExpense({tenantId,branchId,categoryId,amount,description,staffId}={}) {
   for(const [v,n] of [[tenantId,'tenantId'],[branchId,'branchId'],[categoryId,'categoryId'],[staffId,'staffId']]) required(v,n);
