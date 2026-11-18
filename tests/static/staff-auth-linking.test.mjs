@@ -10,6 +10,7 @@ const staffRepo = fs.readFileSync(path.join(root, 'modules/staff/repository.js')
 const migration = fs.readFileSync(path.join(root, 'database/migrations/018_staff_auth_linking.sql'), 'utf8');
 const actorMigration = fs.readFileSync(path.join(root, 'database/migrations/019_enforce_employee_actor_identity.sql'), 'utf8');
 const actorFixMigration = fs.readFileSync(path.join(root, 'database/migrations/021_employee_actor_pending_fields.sql'), 'utf8');
+const reactivationMigration = fs.readFileSync(path.join(root, 'database/migrations/022_employee_reactivation_order.sql'), 'utf8');
 const edge = fs.readFileSync(path.join(root, 'supabase/functions/invite-branch-employee/index.ts'), 'utf8');
 const config = fs.readFileSync(path.join(root, 'supabase/config.toml'), 'utf8');
 const reception = fs.readFileSync(path.join(root, 'assets/js/reception.js'), 'utf8');
@@ -36,6 +37,7 @@ test('employee Auth linking is tenant and branch scoped and service-role only', 
   assert.match(actorMigration, /auth_user_id = auth\.uid\(\)/);
   assert.match(actorMigration, /Patient creation is also attributed/);
   assert.match(actorFixMigration, /v_field in \('approved_by_staff_id','completed_by_staff_id','closed_by_staff_id'\)/);
+  assert.match(reactivationMigration, /if v_active then[\\s\\S]*update public\.tenant_memberships[\\s\\S]*update public\.branch_memberships/);
   assert.match(edge, /auth\.getUser\(bearer\)/);
   assert.match(edge, /account_type', 'owner'/);
   assert.match(edge, /owner_assign_branch_employee/);
