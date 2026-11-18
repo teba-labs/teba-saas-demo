@@ -16,11 +16,20 @@ alter table public.payments
 alter table public.payments
   drop constraint if exists payments_tenant_id_branch_id_visit_id_fkey;
 
-alter table public.payments
-  add constraint payments_tenant_id_origin_branch_id_visit_id_fkey
-  foreign key (tenant_id, origin_branch_id, visit_id)
-  references public.visits(tenant_id, branch_id, id)
-  on delete restrict;
+do $
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'payments_tenant_id_origin_branch_id_visit_id_fkey'
+      and conrelid = 'public.payments'::regclass
+  ) then
+    alter table public.payments
+      add constraint payments_tenant_id_origin_branch_id_visit_id_fkey
+      foreign key (tenant_id, origin_branch_id, visit_id)
+      references public.visits(tenant_id, branch_id, id)
+      on delete restrict;
+  end if;
+end $;
 
 create or replace function private.set_payment_origin_branch()
 returns trigger
