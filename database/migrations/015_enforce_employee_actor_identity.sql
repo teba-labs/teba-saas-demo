@@ -8,6 +8,7 @@ set search_path = pg_catalog, public, private
 as $function$
 declare
   v_row jsonb := to_jsonb(new);
+  v_old jsonb;
   v_tenant_id uuid;
   v_branch_id uuid;
   v_staff_id uuid;
@@ -26,7 +27,11 @@ begin
   if v_account_type is distinct from 'employee' then return new; end if;
 
   v_branch_id := nullif(v_row->>'branch_id', '')::uuid;
+  if tg_op = 'UPDATE' then v_old := to_jsonb(old); end if;
   foreach v_field in array tg_argv loop
+    if tg_op = 'UPDATE' and (v_row->>v_field) is not distinct from (v_old->>v_field) then
+      continue;
+    end if;
     v_staff_id := nullif(v_row->>v_field, '')::uuid;
     if v_staff_id is not null and not exists (
       select 1 from public.staff_directory sd
