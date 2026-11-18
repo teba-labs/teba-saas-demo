@@ -1,4 +1,4 @@
-> **تحديث الحالة — 19 نوفمبر 2026:** هذا السجل يحتوي تاريخ الدفعات القديمة أدناه، وليس كل ما نُفذ لاحقًا. تم توحيد cloud-hardening وowner-setup في `integration/unified-test-2026-11-19`، وتطبيق وتسجيل migrations 012–021 على Supabase TEST. سجل `public.schema_migrations` المخصص لا يزال baseline `1.0.0` فقط؛ migrations 001–011 تحتاج تسوية تاريخية قبل أي تشغيل آلي لـdb push.
+> **تحديث الحالة — 19 نوفمبر 2026:** هذا السجل يحتوي تاريخ الدفعات القديمة أدناه، وليس كل ما نُفذ لاحقًا. تم توحيد cloud-hardening وowner-setup في `integration/unified-test-2026-11-19`، وتطبيق وتسجيل migrations 012–022 على Supabase TEST. سجل `public.schema_migrations` المخصص لا يزال baseline `1.0.0` فقط؛ migrations 001–011 تحتاج تسوية تاريخية قبل أي تشغيل آلي لـdb push.
 >
 > مصدر `patient-portal-lookup` و`publish-report` مطابق للمصدر المنشور. نُشرت أيضًا `invite-branch-employee` و`upload-attachment` مع JWT verification. لكن أسرار Origins والبوابة لم تضبط، لذلك جميع الوظائف التي تعتمد عليها تفشل بشكل مغلق حتى إعدادها.
 >
