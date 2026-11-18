@@ -33,3 +33,12 @@ test('attachment downloads first verify RLS-scoped metadata and use short-lived 
 test('attachment Edge Function keeps JWT verification enabled',()=>{
   assert.match(config,/\[functions\.upload-attachment\][\s\S]*verify_jwt\s*=\s*true/);
 });
+
+test('results workbench wires private visit attachments to the authenticated repository', () => {
+  const screen = read('assets/js/results-workbench.js');
+  assert.match(screen, /uploadVisitAttachment/);
+  assert.match(screen, /listVisitAttachments/);
+  assert.match(screen, /createAttachmentDownloadUrl/);
+  assert.match(screen, /data-attachment-file/);
+  assert.match(screen, /upload-attachment/);
+});
