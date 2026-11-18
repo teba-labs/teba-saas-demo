@@ -6,3 +6,9 @@ for(const fn of ['listBranchStaff','saveStaffName','setStaffActive'])assert.matc
 assert.match(j,/refreshOwnerData/);assert.match(j,/data-toggle-branch/);assert.match(j,/data-toggle-category/);assert.match(j,/savePrintSettings/);
 assert.match(h,/ليس إنشاء حسابات دخول أو كلمات مرور/);
 console.log('PASS: owner controls are wired to tenant-scoped repositories; staff directory is not misrepresented as auth provisioning.');
+
+const branchSave=r.slice(r.indexOf('export async function saveBranch'),r.indexOf('export async function setBranchActive'));
+assert.match(branchSave,/update\(payload\)/);
+assert.doesNotMatch(branchSave.slice(0,branchSave.indexOf(': await query.insert')),/is_active\s*:/);
+assert.match(branchSave,/insert\(\{ \.\.\.payload, is_active: true \}\)/);
+console.log('PASS: editing branch details preserves its active/paused state; only new branches start active.');
