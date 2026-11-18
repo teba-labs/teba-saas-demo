@@ -6,3 +6,7 @@ verify_jwt = false
 # Staff-only publication endpoint; keep JWT verification enabled.
 [functions.publish-report]
 verify_jwt = true
+
+# Authenticated branch-scoped attachment upload with server-side orphan cleanup.
+[functions.upload-attachment]
+verify_jwt = true
