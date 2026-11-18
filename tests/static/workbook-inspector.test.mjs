@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {inferSheetType,suggestColumnMapping,getEntityFields} from '../../modules/migration/workbook-inspector.js';
 const root=path.resolve(import.meta.dirname,'../..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
 test('archive preflight is owner-only, local-only and linked from settings',()=>{
  const html=read('app/data-import.html'),js=read('assets/js/data-import.js'),inspector=read('modules/migration/workbook-inspector.js'),settings=read('app/settings.html');
  assert.match(html,/مرحلة الفحص فقط/);
- assert.match(html,/لا يتم رفع محتوى الملف/);
+ assert.match(html,/لا يتم رفع الملف/);
  assert.match(js,/accountType==='owner'/);
  assert.match(js,/inspectWorkbookFile/);
  assert.match(js,/headerRowSelect/);
@@ -19,4 +20,59 @@ test('archive preflight is owner-only, local-only and linked from settings',()=>
  assert.match(inspector,/20 \* 1024 \* 1024/);
  assert.match(settings,/data-import\.html/);
  assert.doesNotMatch(inspector,/fetch\(|\.from\(['"]|\.rpc\(/);
+});
+
+test('Arabic and English sheet names are classified, with specific sheets before generic ones',()=>{
+ assert.equal(inferSheetType('المرضى'),'patients');
+ assert.equal(inferSheetType('Patients'),'patients');
+ assert.equal(inferSheetType('تحاليل الزيارة'),'visit_tests');
+ assert.equal(inferSheetType('الزيارات'),'visits');
+ assert.equal(inferSheetType('نتائج التحاليل'),'test_results');
+ assert.equal(inferSheetType('Financial Ledger'),'ledger');
+ assert.equal(inferSheetType('كتالوج التحاليل'),'catalog');
+ assert.equal(inferSheetType('المصروفات'),'expenses');
+ assert.equal(inferSheetType('مقالات الموقع'),'website');
+ assert.equal(inferSheetType('ورقة غير معروفة'),'unknown');
+});
+
+test('column suggestions recognize Arabic and English aliases and avoid duplicate target mappings',()=>{
+ const mapped=suggestColumnMapping(['اسم المريض','Phone','العمر','اسم المريض','تاريخ الزيارة'],'patients');
+ assert.equal(mapped[0].fieldKey,'name');
+ assert.equal(mapped[1].fieldKey,'phone');
+ assert.equal(mapped[2].fieldKey,'age');
+ assert.equal(mapped[3].fieldKey,'');
+ assert.equal(mapped[4].fieldKey,'');
+ const visit=suggestColumnMapping(['visit_id','patient_id','visit_date','paid_amount'],'visits');
+ assert.deepEqual(visit.map(x=>x.fieldKey),['source_id','patient_id','visit_date','paid_amount']);
+});
+
+test('required fields are explicitly identified for each supported entity',()=>{
+ for(const entity of ['patients','visits','visit_tests','test_results','ledger','catalog','expenses','website']){
+  assert.ok(getEntityFields(entity).some(field=>field.required),entity+' should define required fields');
+ }
+ assert.deepEqual(getEntityFields('unknown'),[]);
+});
+
+test('mapping review is interactive but remains in-memory and has no import or persistence action',()=>{
+ const js=read('assets/js/data-import.js'),html=read('app/data-import.html');
+ assert.match(js,/suggestColumnMapping/);
+ assert.match(js,/addEventListener\('change'/);
+ assert.match(js,/columnMapping/);
+ assert.match(js,/تغييرات مؤقتة داخل الصفحة فقط/);
+ assert.doesNotMatch(js,/localStorage|sessionStorage|\.from\(|\.rpc\(|fetch\(/);
+ assert.match(html,/لا يوجد استيراد/);
+});
+
+test('file guards and workbook sheet limit remain enforced',()=>{
+ const inspector=read('modules/migration/workbook-inspector.js');
+ assert.match(inspector,/MAX_FILE_BYTES = 20 \* 1024 \* 1024/);
+ assert.match(inspector,/MAX_SHEETS = 50/);
+ assert.match(inspector,/file\.size > MAX_FILE_BYTES/);
+ assert.match(inspector,/workbook\.SheetNames\.length > MAX_SHEETS/);
+ assert.match(inspector,/slice\(0, 15\)/);
+});
+
+test('all archive tool assets are in the offline shell',()=>{
+ const sw=read('service-worker.js');
+ for(const asset of ['./app/data-import.html','./assets/css/data-import.css','./assets/js/data-import.js','./modules/migration/workbook-inspector.js'])assert.ok(sw.includes(asset),asset);
 });
