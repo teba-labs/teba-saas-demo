@@ -56,7 +56,7 @@ export function createSupabaseSyncHandlers() {
         p_idempotency_key: operation.operation_id, p_staff_id: p.staff_id,
         p_notes: p.notes ?? null,
       });
-      if (error) return throwUnlessConflict(error, /open the branch workday|workday.*open|remaining balance|active staff|invalid payment amount|visit not accessible|visit billing not found|idempotency key reused|branch not accessible/i);
+      if (error) return throwUnlessConflict(error, /open the (?:collecting )?branch workday|workday.*open|remaining balance|active staff|invalid payment amount|visit not accessible|visit not found for this tenant|visit billing not found|idempotency key reused|payment collection branch is not accessible|branch not accessible/i);
       if (!data) throw new Error('Server returned no payment ID.');
       return { acknowledged: true, resultId: data };
     },
