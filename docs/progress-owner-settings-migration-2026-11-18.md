@@ -45,3 +45,11 @@ PR: #1 remains a draft; nothing was merged into `main`.
 3. Build a dry-run workbook/archive inspector with all-sheet discovery, column mapping, deterministic source keys, duplicate suggestions, and per-row error reporting.
 4. Test the inspector with synthetic/de-identified fixtures before any real patient data is used.
 5. Implement secure employee invitation only after the exact Owner authorization, Auth lifecycle, branch membership, and staff-directory linkage are verified end-to-end.
+
+## Follow-on: local archive preflight screen
+
+- Added `app/data-import.html`, `assets/js/data-import.js`, and `modules/migration/workbook-inspector.js`.
+- Owner-only screen reads XLSX/XLS/CSV files locally in the browser (20 MB limit, up to 50 sheets), lists every sheet, counts non-empty rows, computes SHA-256, suggests likely header rows, and allows the owner to switch the header-row preview.
+- The inspector does not call Supabase, does not upload file contents, and does not save workbook rows. It is a preflight/inspection step only; it does not yet map columns to patients/visits/results or import any records.
+- Added it to the owner settings center and Service Worker shell v6.
+- Latest CI run `44363666340` passed: 122 tests, 0 failures.
