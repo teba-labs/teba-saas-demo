@@ -211,7 +211,7 @@ export async function inspectWorkbookFile(file) {
   validateSheetCount(workbook.SheetNames.length);
   const sheets = workbook.SheetNames.map(name => {
     const worksheet = workbook.Sheets[name];
-    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false, blankrows: false });
+    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false, blankrows: true });
     const candidates = rankHeaderCandidates(rows);
     const suggested = candidates[0]?.rowIndex ?? 0;
     const header = (rows[suggested] || []).map(cleanCell);
