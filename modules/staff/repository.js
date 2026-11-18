@@ -5,7 +5,7 @@ const need = (v, n) => { if (!v) throw new Error(`${n} is required.`); };
 export async function listBranchStaff({ tenantId, branchId, includeInactive = false } = {}) {
   need(tenantId, 'tenantId'); need(branchId, 'branchId');
   let query = db().from('staff_directory')
-    .select('id, tenant_id, branch_id, display_name, is_active, created_at, updated_at')
+    .select('id, tenant_id, branch_id, display_name, auth_user_id, is_active, created_at, updated_at')
     .eq('tenant_id', tenantId).eq('branch_id', branchId).order('display_name');
   if (!includeInactive) query = query.eq('is_active', true);
   const { data, error } = await query;
