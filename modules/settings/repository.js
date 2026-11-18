@@ -31,3 +31,16 @@ export async function getPrintSettings({ tenantId, branchId = null } = {}) {
   if (error) throw error;
   return data;
 }
+
+/** Owner-only through database RLS. A null branch_id means tenant-wide defaults. */
+export async function savePrintSettings({ tenantId, branchId = null, settings } = {}) {
+  need(tenantId, 'tenantId');
+  need(settings && typeof settings === 'object' && !Array.isArray(settings), 'settings');
+  const serialized = JSON.stringify(settings);
+  if (serialized.length > 20000) throw new Error('Print settings exceed the 20 KB limit.');
+  const { data, error } = await db().from('print_settings')
+    .upsert({ tenant_id: tenantId, branch_id: branchId, settings_json: settings }, { onConflict: 'tenant_id,branch_id' })
+    .select('id, tenant_id, branch_id, settings_json, updated_at').single();
+  if (error) throw error;
+  return data;
+}
