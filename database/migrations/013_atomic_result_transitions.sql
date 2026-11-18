@@ -1,4 +1,6 @@
 -- Atomic result workflow transitions. Source candidate only; reconcile TEST migration drift before applying.
+alter table public.visit_tests add column if not exists completed_by_staff_id uuid references public.staff_directory(id) on delete set null;
+alter table public.visit_tests add column if not exists completed_at timestamptz;
 create or replace function public.complete_visit_test_atomic(
   p_tenant_id uuid,
   p_branch_id uuid,
@@ -50,7 +52,7 @@ begin
   ) then raise exception 'Required results are missing'; end if;
 
   update public.visit_tests
-     set status = 'completed'
+     set status = 'completed', completed_by_staff_id = p_staff_id, completed_at = now()
    where id = p_visit_test_id and tenant_id = p_tenant_id
    returning * into v_test;
   return v_test;
