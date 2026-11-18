@@ -26,7 +26,7 @@ test('atomic result transitions validate branch access and active operational st
   assert.match(migration, /completed_by_staff_id = p_staff_id/);
   assert.match(migration, /completed_at = now\(\)/);
   assert.match(migration, /Required results are missing/);
-  assert.match(migration, /Every requested test must be completed before approval/);
+  assert.match(migration, /Every requested test must be completed before approval/);\n  assert.match(migration, /Required results are missing; approval is blocked/);
   assert.match(migration, /revoke all on function public\.complete_visit_test_atomic/);
   assert.match(migration, /revoke all on function public\.approve_visit_atomic/);
   assert.match(migration, /guard_result_workflow_transition/);
