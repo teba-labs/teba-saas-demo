@@ -85,6 +85,7 @@ async function renderWork() {
     const visitTitle = `زيارة ${group.visit?.visit_number ?? '—'} · ${group.visit?.patients?.full_name ?? 'مريض'}`;
     const isPublished = Boolean(group.visit?.is_published);
     const itemsMarkup = group.items.map(item => {
+      const locked = item.status === 'completed';
       const params = item.technical_snapshot?.parameters ?? [];
       const parameterControls = params.map(p => {
         const type = p.value_type ?? 'numeric';
@@ -93,13 +94,13 @@ async function renderWork() {
         const metadata = `data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit ?? '')}" data-value-type="${escapeHtml(type)}" data-range='${escapeHtml(JSON.stringify(p.reference_ranges ?? {}))}' data-choices='${escapeHtml(JSON.stringify(p.choices ?? []))}'`;
         let control;
         if (type === 'boolean') {
-          control = `<select ${metadata}><option value="">اختر نعم أو لا</option><option value="true">نعم</option><option value="false">لا</option></select>`;
+          control = `<select ${metadata}${locked ? ' disabled' : ''}><option value="">اختر نعم أو لا</option><option value="true">نعم</option><option value="false">لا</option></select>`;
         } else if (type === 'choice') {
           const choices = Array.isArray(p.choices) ? p.choices : [];
-          control = `<select ${metadata}><option value="">اختر النتيجة</option>${choices.map(choice => `<option value="${escapeHtml(choice)}">${escapeHtml(choice)}</option>`).join('')}</select>`;
+          control = `<select ${metadata}${locked ? ' disabled' : ''}><option value="">اختر النتيجة</option>${choices.map(choice => `<option value="${escapeHtml(choice)}">${escapeHtml(choice)}</option>`).join('')}</select>`;
         } else if (type === 'numeric') {
           const decimals = Math.max(0, Math.min(6, Number(p.decimal_places ?? 2)));
-          control = `<input type="number" step="${decimals === 0 ? '1' : String(10 ** -decimals)}" ${metadata} placeholder="أدخل النتيجة" />`;
+          control = `<input type="number" step="${decimals === 0 ? '1' : String(10 ** -decimals)}" ${metadata}${locked ? ' disabled' : ''} placeholder="أدخل النتيجة" />`;
         } else {
           control = `<input type="text" ${metadata} placeholder="أدخل النتيجة" />`;
         }
@@ -108,7 +109,7 @@ async function renderWork() {
       return `<section class="parameter" data-test-id="${escapeHtml(item.id)}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
         <div class="parameter-grid">${parameterControls}</div>
-        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">حفظ تصحيح النتيجة</button>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '" ' + (item.status === 'completed' ? 'disabled' : '') + '>' + (item.status === 'completed' ? 'تم إنهاء التحليل' : 'إنهاء التحليل') + '</button>'}</div>
+        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">حفظ تصحيح النتيجة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
       </section>`;
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
