@@ -62,6 +62,6 @@ test('current-price cache refresh preserves historical rows and demotes stale cu
   assert.match(cache, /table\.bulkPut\(historicalized\)/);
   assert.match(cache, /table\.bulkPut\(safe\)/);
   assert.match(repository, /replaceCachedCurrentPrices\(data \?\? \[\], \{ tenantId, testIds, branchId \}\)/);
-  assert.match(repository, /replaceCachedCurrentPrices\(\[data\], \{ tenantId, testIds: \[testId\], branchId \}\)/);
+  assert.match(repository, /replaceCachedCurrentPrices\(\[data\], \{ tenantId, testIds: \[testId\], scope: 'base' \}\)/);
   assert.doesNotMatch(repository, /replaceCachedRows\('test_prices'/);
 });
