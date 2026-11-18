@@ -38,6 +38,7 @@ begin
     join public.patients p on p.id = v.patient_id and p.tenant_id = v.tenant_id
     left join public.payments py on py.tenant_id = vb.tenant_id and py.visit_id = vb.visit_id
    where vb.tenant_id = p_tenant_id and vb.branch_id = p_branch_id
+     and v.status <> 'cancelled'
    group by vb.visit_id, v.visit_number, p.full_name, v.created_at,
             vb.gross_total, vb.discount_amount, vb.net_total
   having coalesce(vb.net_total, vb.gross_total - vb.discount_amount) - coalesce(sum(py.amount), 0) > 0.005
