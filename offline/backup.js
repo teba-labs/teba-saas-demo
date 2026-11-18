@@ -53,7 +53,14 @@ export async function restoreLocalBackup(document, { tenantId, branchId } = {}) 
   await offlineDb.transaction('rw', ...writes.map(([table]) => table), async () => {
     for (const [table, rows] of writes) {
       if (!rows.length) continue;
-      if (table.name === 'outbox') {
+      if (table.name === 'sync_meta') {
+        for (const row of rows) {
+          if (!row?.key) throw new Error('Backup contains an invalid sync metadata key. Restore was rolled back.');
+          const existing = await table.get(row.key);
+          if (!existing) await table.add(row);
+          // Keep existing acknowledgement/context metadata; never replace newer local state.
+        }
+      } else if (table.name === 'outbox') {
         for (const original of rows) {
           const { local_id: _deviceLocalId, ...portable } = original;
           const row = portable.status === 'syncing'
