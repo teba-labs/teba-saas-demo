@@ -143,9 +143,12 @@ export function inspectLegacyAge(age,ageType) {
 export function inspectLegacyFinance({paidAmount,ledgerEntries=[]}={}) {
   const paid=paidAmount===undefined||paidAmount===null||paidAmount===''?null:Number(String(paidAmount).replace(/,/g,''));
   const linked=ledgerEntries.filter(x=>x&&x.visit_id!==undefined&&x.visit_id!==null);
-  const ledgerTotal=linked.reduce((sum,x)=>sum+Math.abs(Number(x.amount)||0),0);
-  return {rawPaidAmount:paidAmount??null,linkedLedgerCount:linked.length,linkedLedgerAbsoluteTotal:ledgerTotal,
-    status:paid===null?'no-cumulative-paid-value':linked.length&&Math.abs(ledgerTotal-paid)<0.005?'possible-duplicate-representation':linked.length?'manual-reconciliation-required':'cumulative-only-no-payment-history'};
+  const explicitlyConfirmedPayments=linked.filter(x=>x.confirmedPayment===true);
+  const confirmedTotal=explicitlyConfirmedPayments.reduce((sum,x)=>sum+Math.abs(Number(x.amount)||0),0);
+  return {rawPaidAmount:paidAmount??null,linkedLedgerCount:linked.length,confirmedPaymentCount:explicitlyConfirmedPayments.length,
+    confirmedPaymentTotal:confirmedTotal,status:paid===null?'no-cumulative-paid-value':
+    explicitlyConfirmedPayments.length?'manual-reconciliation-required':
+    linked.length?'ledger-semantics-unknown-manual-review':'cumulative-only-no-payment-history'};
 }
 export function inspectLegacyResultPayload(raw) {
   let parsed=raw,valid=true;
