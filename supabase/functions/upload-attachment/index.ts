@@ -40,6 +40,10 @@ Deno.serve(async req => {
   const {data:auth,error:authError}=await user.auth.getUser(bearer);
   if (authError || !auth.user) return reply({ok:false,message:'Authentication required.'},401,origin);
 
+  const declaredLength=Number(req.headers.get('content-length')??0);
+  if (Number.isFinite(declaredLength) && declaredLength>MAX_BYTES+1024*1024) {
+    return reply({ok:false,message:'حجم الطلب أكبر من المسموح.'},413,origin);
+  }
   let form:FormData;
   try { form=await req.formData(); } catch { return reply({ok:false,message:'Invalid request.'},400,origin); }
   const tenantId=String(form.get('tenantId')??'');
