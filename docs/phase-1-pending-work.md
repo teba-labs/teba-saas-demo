@@ -1,51 +1,89 @@
-# Taiba Smart Lab — Phase 1 Pending Work
+# Taiba Smart Lab — سجل الأعمال المتبقية بعد المراجعة الشاملة
 
-Updated: 2026-11-18  
-Scope: `teba-saas-demo` and the new Supabase TEST project only. The legacy `teba-lab` repository and old Supabase project are out of scope.
+**آخر تحديث:** 18 نوفمبر 2026  
+**المرجع الحالي:** [سجل الحالة الرئيسي](MASTER-STATUS-AND-CONTINUATION-AR.md) و[التقرير الوظيفي والتقني الشامل](FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md).
 
-This is the working deferred-task register. Items are not considered complete unless an execution result or test evidence is recorded.
+> هذا الملف حلّ محل قائمة Phase 1 القديمة. لا تعتمد على البنود التاريخية التي كانت تطلب إنشاء طيبة أو تطبيق migrations 002–011؛ هذه العبارات لم تعد تصف حالة TEST الحالية.
 
-## Immediate gate — before tenant onboarding
+## 1. الحالة المؤكدة
 
-- [ ] **P0 — TEST database backup/export:** take a recoverable backup of the TEST project before applying the consolidated migrations.
-- [ ] **P0 — Apply migrations 002–011:** use the reviewed consolidated SQL deployment file; do not rerun migration 001. The SQL has been prepared locally but has **not** been executed against Supabase.
-- [ ] **P0 — Review deployment result:** require all in-script post-flight assertions to pass; capture the returned deployment summary. If it fails, stop and preserve the exact error.
-- [ ] **P0 — Confirm platform-admin identity:** verify that the existing platform-admin row belongs to the intended trusted platform-owner Auth account. Do not create or promote another account without explicit approval.
-- [ ] **P0 — Live tenant-isolation test:** test two separate test tenants and verify that neither tenant can read or mutate the other's patients, visits, results, files, staff, or financial records. Static tests are not a substitute.
+- معمل طيبة موجود في مشروع TEST بحالة active.
+- فرعان مسجلان، و3 عضويات معمل نشطة، وعضويتان نشطتان على مستوى الفروع.
+- المستخدم أكد ظهور تفاصيل الاشتراك في لوحة مالك المنصة.
+- قاعدة TEST تحتوي على دوال ومحفزات لاحقة، لكن سجل migrations في Supabase فارغ، و`public.schema_migrations` يحتوي baseline `1.0.0` فقط.
+- Edge Function `patient-portal-lookup` منشورة بنسخة أحدث من ملف GitHub، بينما `publish-report` متطابقة مع المصدر.
+- جميع جداول public الـ46 عليها RLS وFORCE RLS.
+- محاكاة SQL أثبتت أن المالك يرى الفرعين وأن الموظف يرى فرعًا واحدًا. لم يختبر عزل عميلين مختلفين.
 
-## First real workflow — Taiba as the pilot tenant
+## 2. جاهزية التشغيل الحالية
 
-- [ ] **P1 — Create Taiba tenant:** only after the database deployment and security gate pass.
-- [ ] **P1 — Create branches:** Gaafara and Bahtim, with correct tenant and branch memberships.
-- [ ] **P1 — Create staff identities and branch permissions:** verify owner, manager, reception, lab, and read-only permissions as applicable.
-- [ ] **P1 — End-to-end workflow:** open workday → patient → visit/intake → payment → results → approval → report publication → report correction with reason → expense → workday close.
-- [ ] **P1 — Cash replay tests:** simulate ambiguous commit/retry, repeated operation IDs, same operation from two tabs/devices, and retry after staff deactivation or workday closure.
-- [ ] **P1 — Offline dependency tests:** patient creation must sync before dependent visit intake; verify conflict visibility and no silent operation loss.
+| عنصر الإعداد | الحالة في TEST |
+|---|---:|
+| الفروع | 2 |
+| عضويات المعمل النشطة | 3 |
+| عضويات الفروع النشطة | 2 |
+| أسماء الموظفين التشغيلية | 0 |
+| التحاليل النشطة | 0 |
+| البارامترات الفنية النشطة | 0 |
+| الأسعار الحالية | 0 |
+| أيام العمل المفتوحة | 0 |
+| المرضى | 0 |
+| الزيارات | 0 |
 
-## Security, files, and recovery — before external customer launch
+**النتيجة:** لا يمكن اختبار الاستقبال والنتائج ويوم العمل ميدانيًا قبل استكمال إعداد بيانات المعمل. كما أن واجهات إدارة الفروع والموظفين وبنود المصروفات غير مكتملة.
 
-- [ ] **P0 — Storage isolation:** verify private buckets, tenant-scoped object paths, Storage RLS policies, and cross-tenant denial.
-- [ ] **P0 — Report publication live test:** deploy and test the authenticated Edge Function, PDF upload, atomic publication RPC, private download, and orphan cleanup on failure.
-- [ ] **P0 — Edge Function validation:** TypeScript type-check, review JWT verification, confirm service credentials remain server-side, and test failure paths.
-- [ ] **P0 — Backup and restore:** verify cloud database backup/restore and Storage recovery per tenant. Local IndexedDB backup alone is not sufficient.
-- [ ] **P1 — Browser/device QA:** test supported desktop/mobile browsers, offline/online transitions, multiple tabs, refresh, and sync conflict handling.
-- [ ] **P1 — RLS regression matrix:** execute the manual matrix in `database/tests/manual_rls_test_matrix.md` using separate test identities and tenants.
+## 3. أولويات الإصلاح
 
-## Deferred non-blockers
+### P0 — قبل أي تشغيل فعلي أو عميل جديد
+- [ ] توحيد حالة قاعدة TEST مع migrations: حصر كل جدول/دالة/trigger/index فعلي ومقارنته بالملفات، وإضافة migrations مفقودة للدوال الموجودة خارج المستودع.
+- [ ] توحيد مصدر Edge Function `patient-portal-lookup` مع النسخة المنشورة، حتى لا يؤدي النشر من GitHub إلى استبدال محدد المحاولات الذري بنسخة أقدم.
+- [ ] فرض حالة tenant والاشتراك وحالة الفرع داخل صلاحيات قاعدة البيانات وRPC، وليس في واجهة المستخدم فقط.
+- [ ] اعتماد مصفوفة صلاحيات نهائية: مالك المعمل، الاستقبال، الفني، المراجع/المعتمد، ومالك المنصة.
+- [ ] منع الموظف من قراءة تفاصيل المالية التي لا يحتاجها؛ توفير ملخص شفت محدود عند الحاجة.
+- [ ] بناء إدارة الفروع ودعوات حسابات Auth وربطها بعضويات الفروع، مع إدارة سجل أسماء الموظفين التشغيلي.
+- [ ] نقل إنهاء التحليل واعتماد الزيارة إلى RPCs ذرية، مع تسجيل الموظف المنفذ والتحقق من النتائج والصلاحية داخل قاعدة البيانات.
+- [ ] مراجعة السعر العام وسعر الفرع وربط واجهة الاستقبال بالفرع الصحيح.
 
-- [ ] **P2 — Documentation refresh:** update README and installation notes after the deployment workflow is stable; documentation cleanup must not block functional testing.
-- [ ] **P2 — UI polish/accessibility:** visual refinements and accessibility pass after core workflows are verified.
-- [ ] **P2 — Usage/storage alerts and subscription refinements:** validate limits and operational alerts before commercial rollout.
+### P1 — إكمال دورة التشغيل
+- [ ] إدارة بنود المصروفات وإعدادات الطباعة ورفع الشعار وسجل التعديلات.
+- [ ] إضافة اختيار طريقة الدفع في الاستقبال وضوابط الخصم وحدوده وأسباب الخصم.
+- [ ] تحسين قائمة النتائج بالفلترة والترقيم وجلب النتائج دفعة واحدة.
+- [ ] توفير حل فعلي للتعارضات Offline؛ العرض الحالي لا يوفر حلًا أو إعادة إرسال للتعارض.
+- [ ] منع إغلاق يوم العمل قبل فحص العمليات المحلية المعلقة.
+- [ ] إنشاء نسخ احتياطي سحابي واستعادة مجربة، وتأمين النسخ المحلية وسياسة حذف/احتفاظ بعد الخروج.
+- [ ] إكمال واجهة الموقع العام ورفع الصور والمعاينة قبل النشر.
+- [ ] تحسين دقة لوحة المالك، pagination، واستبعاد الزيارات والتحاليل الملغاة.
+- [ ] تفعيل عدادات الاستخدام وفرض حدود الباقات وإدارة تواريخ انتهاء الاشتراك.
+- [ ] إنشاء واجهة عرض سجل التعديلات وإضافة تدقيق لتغييرات الاشتراك والعضويات.
 
-## Evidence recorded so far
+### P2 — بعد ثبات التشغيل
+- [ ] استيراد بيانات Excel التاريخية.
+- [ ] التقارير السنوية وربحية التحاليل وBCG وخطة الشهر والتوقعات بعد بناء نموذج تكلفة موثوق.
+- [ ] تحسين الفهارس وسياسات RLS وفق الاستعلامات الفعلية.
+- [ ] تفعيل حماية كلمات المرور المسربة والنظر في MFA لمالك المنصة.
 
-- Batch25 static test suite rerun: **104 passed, 0 failed**.
-- JavaScript syntax checks previously rerun: **71/71 passed**.
-- TEST database diagnostic supplied on 2026-11-18: 46 public tables; all 46 had RLS enabled and FORCE RLS; 87 policies; 43 triggers; 29 functions; 1 Auth user; 1 platform admin; 0 tenants; 0 branches; 0 tenant memberships.
-- `schema_migrations` showed only baseline version `1.0.0`. This table does not prove migrations 002–011 were installed.
-- Migration markers indicated the baseline schema exists, while most post-baseline changes were absent. The consolidated 002–011 SQL is prepared locally, but **no SQL has been run against the live TEST database by the assistant**.
-- No live PostgreSQL, Supabase Storage, Edge Function, browser, or cross-tenant RLS test is claimed complete.
+## 4. اختبارات القبول المطلوبة بعد الإصلاح
 
-## Change log
+- [ ] عميلان مستقلان: منع القراءة/الكتابة المتبادلة في المرضى والزيارات والنتائج والملفات والمالية.
+- [ ] مالك مقابل موظف: نطاق الفروع والصلاحيات المالية والإدارية.
+- [ ] فرع معطل واشتراك موقوف: منع التشغيل عبر API مع إبقاء صلاحيات المالك المتفق عليها.
+- [ ] استقبال: مريض جديد/قديم، أكثر من تحليل، خصم، دفعة نقدية وغير نقدية، وسعر خاص بفرع إن كان مدعومًا.
+- [ ] نتائج: numeric/text/boolean/choice، نقص بارامتر إلزامي، إنهاء، اعتماد، نشر PDF.
+- [ ] تصحيح نتيجة منشورة ثم إصدار نسخة جديدة، مع اختبار فشل رفع PDF.
+- [ ] يوم العمل: مصروف، تحصيل، إغلاق، ومطابقة النقد الفعلي.
+- [ ] Offline: إنشاء مريض ثم زيارة تابعة، انقطاع/عودة الشبكة، تكرار الطلب، تغير السعر، إغلاق اليوم أثناء وجود عمليات معلقة، وحل التعارض.
+- [ ] النسخ: تصدير، استعادة محلية، نسخة سحابية، واستعادة بعد فقد جهاز.
+- [ ] بوابة المريض: بحث صحيح وخاطئ، rate limit، رابط منتهي، Origin غير مسموح.
 
-- 2026-11-18: created the phase-one pending-work register from the Batch25 review and TEST database diagnostics.
+## 5. ما لا يجوز فعله الآن
+
+- لا تعِد إنشاء معمل طيبة؛ هو موجود بالفعل.
+- لا تشغّل migrations 002–011 قبل مطابقة قاعدة TEST.
+- لا تنشر ملف GitHub الحالي لـ`patient-portal-lookup` قبل توحيده مع النسخة المنشورة.
+- لا تنفذ اختبار عزل عميلين باستخدام بيانات حقيقية؛ جهّز عميلين تجريبيين مستقلين.
+- لا تنفذ تغييرات على قاعدة TEST أو الإنتاج أو تنشر Edge Functions دون مراجعة وموافقة صريحة.
+- لا تعتبر نجاح الاختبارات الثابتة دليلًا على نجاح التشغيل الميداني.
+
+## 6. نقطة الاستئناف
+
+ابدأ من التقرير الشامل، ثم نفذ دفعة الإصلاح الأولى في المصدر مع اختبارات. لا تطلب من صاحب المنتج إعادة شرح الرؤية أو إعادة فحوص سبق توثيقها. اطلب منه فقط خطوات المعاينة الميدانية التي لا يمكن تنفيذها من طرفك، بعد تجهيز بيانات تشغيل تجريبية صالحة.
