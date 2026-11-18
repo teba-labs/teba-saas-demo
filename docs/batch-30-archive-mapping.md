@@ -24,7 +24,7 @@ Scope: local browser-only workbook inspection and mapping suggestions. No import
 
 ## Test result
 
-GitHub Actions run 44366119599 passed on commit 43a0c83ba59c7c35c2fdc939c4084143f3b642a5: 128 tests passed, 0 failed.
+GitHub Actions run 44366695084 passed on commit 93f604772d5aa6466ff2c94842090254b1d4eecc: 132 tests passed, 0 failed. Synthetic fixtures cover multiple Arabic/English sheet types, blank rows, repeated header names, a late header row, unsupported extensions, empty files, the 20 MB boundary, and the 50-sheet boundary.
 
 The first mapping test run exposed two issues: the Arabic hamza form in 'نتائج' was not normalized for sheet classification, and the CMS title field had no required marker. Both were corrected and the complete static suite passed.
 
