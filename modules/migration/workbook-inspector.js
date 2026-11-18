@@ -103,9 +103,41 @@ const RELATIONSHIPS = [
   {from:'ledger',field:'visit_id',to:'visits',targetField:'source_id',optional:true,label:'الزيارة المرتبطة بالحركة المالية'}
 ];
 function rowObject(row, mapping) {
-  const out={};
-  for(const item of mapping||[]) if(item.fieldKey) out[item.fieldKey]=cleanCell(row?.[item.columnIndex]);
+  const out={}, counts=new Map();
+  for(const item of mapping||[]) if(item.fieldKey) counts.set(item.fieldKey,(counts.get(item.fieldKey)||0)+1);
+  for(const item of mapping||[]) if(item.fieldKey && counts.get(item.fieldKey)===1) out[item.fieldKey]=cleanCell(row?.[item.columnIndex]);
   return out;
+}
+function numericValue(value) {
+  let text=cleanCell(value).replace(/[٠-٩۰-۹]/g,d=>String('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹'.indexOf(d)%10));
+  text=text.replace(/[٬,،\s]/g,'').replace(/٫/g,'.').replace(/جنيه(مصري)?|ج\.م|EGP/gi,'').trim();
+  return text && /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(text) && Number.isFinite(Number(text)) ? Number(text) : null;
+}
+function dateStatus(value) {
+  const text=cleanCell(value);
+  if(!text)return 'empty';
+  let m=text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T].*)?$/);
+  if(m){const y=+m[1],mo=+m[2],d=+m[3];const date=new Date(Date.UTC(y,mo-1,d));return date.getUTCFullYear()===y&&date.getUTCMonth()===mo-1&&date.getUTCDate()===d?'valid':'invalid';}
+  m=text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if(m){const a=+m[1],b=+m[2];if(a>12&&b<=12)return b>=1&&b<=12&&a>=1&&a<=31?'valid':'invalid';if(b>12&&a<=12)return a>=1&&a<=12&&b>=1&&b<=31?'valid':'invalid';if(a>=1&&a<=12&&b>=1&&b<=12)return 'ambiguous';return 'invalid';}
+  const parsed=Date.parse(text);
+  return Number.isNaN(parsed)?'invalid':'ambiguous';
+}
+export function inspectLegacyAge(age,ageType) {
+  return {rawAge:age===undefined||age===null?'':String(age),rawAgeType:ageType===undefined||ageType===null?'':String(ageType),ageYears:null,status:(age!==undefined&&age!==null&&String(age).trim()!=='')?'unit-review-required':'empty'};
+}
+export function inspectLegacyResultPayload(raw) {
+  let parsed=raw,valid=true;
+  if(typeof raw==='string'){try{parsed=JSON.parse(raw);}catch{valid=false;}}
+  const paths=[];
+  const walk=(value,path='',depth=0)=>{
+    if(paths.length>=100||depth>8)return;
+    if(value&&typeof value==='object'&&!Array.isArray(value)){for(const [key,item] of Object.entries(value))walk(item,path?path+'.'+key:key,depth+1);}
+    else if(Array.isArray(value)){if(!value.length)paths.push({path,type:'empty-array'});else value.slice(0,30).forEach((item,index)=>walk(item,path+'['+index+']',depth+1));}
+    else paths.push({path,type:value===null?'null':typeof value});
+  };
+  if(valid)walk(parsed);
+  return {valid,rawOriginal:raw,topLevelType:parsed===null?'null':Array.isArray(parsed)?'array':typeof parsed,paths,truncated:paths.length>=100};
 }
 export function analyzeArchiveSheet(rows, headerRowIndex, entityType, mapping) {
   const data=(rows||[]).slice(headerRowIndex+1);
