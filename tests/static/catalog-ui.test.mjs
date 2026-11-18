@@ -7,7 +7,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('catalog screen is Arabic RTL and exposes test, parameter and price management controls', () => {
   const html = read('app/catalog.html');
-  for (const token of ['lang="ar"', 'dir="rtl"', 'testForm', 'parameterForm', 'priceForm', 'tenantSelect', 'showInactive']) assert.ok(html.includes(token), `missing ${token}`);
+  for (const token of ['lang="ar"', 'dir="rtl"', 'testForm', 'parameterForm', 'priceForm', 'priceBranchSelect', 'tenantSelect', 'showInactive']) assert.ok(html.includes(token), `missing ${token}`);
   assert.ok(fs.existsSync(path.join(root, 'assets/css/catalog.css')));
   assert.ok(fs.existsSync(path.join(root, 'assets/js/catalog.js')));
 });
@@ -24,7 +24,7 @@ test('catalog screen uses authenticated tenant context and owner-only price edit
 
 test('catalog UI uses tenant-scoped repository methods and deactivation instead of deletion', () => {
   const js = read('assets/js/catalog.js');
-  for (const name of ['listCatalog','listCurrentPrices','listTestParameters','saveCatalogTest','saveTestParameter','setTestParameterActive','setCurrentPrice']) assert.ok(js.includes(name), `missing ${name}`);
+  for (const name of ['listCatalog','listCurrentPrices','listTestParameters','saveCatalogTest','saveTestParameter','setTestParameterActive','setCurrentPrice','setBranchPrice']) assert.ok(js.includes(name), `missing ${name}`);
   assert.doesNotMatch(js, /\.delete\(/);
 });
 
