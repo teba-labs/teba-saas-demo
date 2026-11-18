@@ -1,5 +1,6 @@
 import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
+import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { getOutboxSummary, listOpenConflicts, retryFailedOperations, syncOutbox } from '../../offline/outbox.js';
 import { createSupabaseSyncHandlers } from '../../offline/supabase-adapters.js';
 import { exportLocalBackup, restoreLocalBackup } from '../../offline/backup.js';
@@ -17,16 +18,22 @@ async function start() {
   $('loginPanel').hidden = true; $('workspace').hidden = false; $('signOut').hidden = false;
   $('tenantSelect').innerHTML = state.context.tenants.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
   $('tenantSelect').onchange = () => selectTenant($('tenantSelect').value);
-  await selectTenant(state.context.tenants[0].id);
+  const preferredTenantId = getPreferredTenantId(state.context.tenants);
+  $('tenantSelect').value = preferredTenantId || '';
+  await selectTenant(preferredTenantId);
 }
 async function selectTenant(id) {
   state.tenant = state.context.tenants.find(t => t.id === id);
+  if (!state.tenant) return;
+  rememberWorkspaceSelection(state.tenant.id);
   $('branchSelect').innerHTML = (state.tenant?.branches || []).map(b => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
   $('branchSelect').onchange = () => selectBranch($('branchSelect').value);
   if (!state.tenant?.branches?.length) { state.branch = null; await refresh(); return; }
-  await selectBranch(state.tenant.branches[0].id);
+  const preferredBranchId = getPreferredBranchId(state.tenant.id, state.tenant.branches);
+  $('branchSelect').value = preferredBranchId || '';
+  await selectBranch(preferredBranchId);
 }
-async function selectBranch(id) { state.branch = state.tenant?.branches.find(b => b.id === id) || null; await refresh(); }
+async function selectBranch(id) { state.branch = state.tenant?.branches.find(b => b.id === id) || null; if(state.branch)rememberWorkspaceSelection(state.tenant.id,state.branch.id); await refresh(); }
 async function refresh() {
   updateConnection();
   if (!state.tenant || !state.branch) { $('syncMessage').textContent = 'لا يوجد فرع متاح لهذا الحساب.'; return; }
