@@ -176,3 +176,17 @@ export async function createVisitIntake({ tenantId, branchId, patientId, visitNu
   }
   return data;
 }
+
+/** Returns branch visits with a remaining balance; the RPC aggregates payments securely across collection branches. */
+export async function listBranchOutstandingBalances({ tenantId, branchId, limit = 50 } = {}) {
+  need(tenantId, 'tenantId'); need(branchId, 'branchId');
+  if (globalThis.navigator?.onLine === false) {
+    throw new Error('عرض المديونيات يحتاج اتصالًا بالإنترنت؛ لم نعرض أرقامًا محلية قد تكون غير مكتملة.');
+  }
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
+  const { data, error } = await db().rpc('list_branch_outstanding_balances', {
+    p_tenant_id: tenantId, p_branch_id: branchId, p_limit: safeLimit,
+  });
+  if (error) throw error;
+  return data ?? [];
+}
