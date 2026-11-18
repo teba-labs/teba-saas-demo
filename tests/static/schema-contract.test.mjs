@@ -10,4 +10,5 @@ test('central RPC contract matches the idempotent reception intake implementatio
   assert.match(repository, /create_visit_intake_idempotent/);
   assert.match(migration, /create or replace function public\.create_visit_intake_idempotent/i);
   assert.equal(Object.hasOwn(RPC, 'createVisitIntake'), false);
+  assert.equal(RPC.setBranchTestPrice, 'set_branch_test_price');
 });
