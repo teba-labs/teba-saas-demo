@@ -157,7 +157,7 @@ export async function setBranchPrice({ tenantId, branchId, testId, sellingPrice 
     || data.test_id !== testId || data.is_current !== true) {
     throw new Error('The branch price update did not return a valid current-price record.');
   }
-  await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId], branchId });
+  await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId], branchId, scope: 'branch' });
   return data;
 }
 
