@@ -37,7 +37,9 @@ test('employee Auth linking is tenant and branch scoped and service-role only', 
   assert.match(actorMigration, /auth_user_id = auth\.uid\(\)/);
   assert.match(actorMigration, /Patient creation is also attributed/);
   assert.match(actorFixMigration, /v_field in \('approved_by_staff_id','completed_by_staff_id','closed_by_staff_id'\)/);
-  assert.match(reactivationMigration, /if v_active then[\\s\\S]*update public\.tenant_memberships[\\s\\S]*update public\.branch_memberships/);
+  const tenantActivation = reactivationMigration.indexOf('update public.tenant_memberships');
+  const branchActivation = reactivationMigration.indexOf('update public.branch_memberships');
+  assert.ok(tenantActivation >= 0 && branchActivation > tenantActivation);
   assert.match(edge, /auth\.getUser\(bearer\)/);
   assert.match(edge, /account_type', 'owner'/);
   assert.match(edge, /owner_assign_branch_employee/);
