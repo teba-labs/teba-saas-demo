@@ -88,6 +88,8 @@ test('offline queue recovery, summaries, conflicts and retries require an exact 
 test('cross-device local restore drops device-local auto IDs and merges without overwriting existing rows', () => {
   const source = read('offline/backup.js');
   assert.match(source, /local_id: _deviceLocalId/);
+  assert.match(source, /table\.name === 'sync_meta'/);
+  assert.match(source, /table\.get\(row\.key\)/);
   assert.match(source, /await table\.add\(row\)/);
   assert.match(source, /Keep the already-present row/);
   assert.match(source, /different content\. Restore was rolled back/);
