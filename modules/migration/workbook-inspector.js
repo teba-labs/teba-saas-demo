@@ -137,8 +137,7 @@ export function getEntityFields(entityType){return (ENTITY_FIELDS[entityType]?.f
 /** Reads workbook bytes in this browser tab only. It never uploads or persists source rows. */
 export async function inspectWorkbookFile(file) {
   if (!(file instanceof File)) throw new Error('اختر ملف Excel أو CSV أولًا.');
-  if (!/\.(xlsx|xls|csv)$/i.test(file.name)) throw new Error('الملفات المدعومة الآن: XLSX وXLS وCSV.');
-  if (!file.size || file.size > MAX_FILE_BYTES) throw new Error('حجم الملف يجب أن يكون أقل من 20 ميجابايت.');
+  validateArchiveFileMeta(file.name,file.size);
   if (!globalThis.crypto?.subtle) throw new Error('المتصفح لا يدعم فحص بصمة الملف بأمان. افتح الصفحة عبر HTTPS.');
   const buffer = await file.arrayBuffer();
   const [sha256, XLSX] = await Promise.all([hashHex(buffer), import(XLSX_URL)]);
