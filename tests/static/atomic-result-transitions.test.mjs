@@ -7,7 +7,7 @@ const root = path.resolve(import.meta.dirname, '../..');
 const repository = fs.readFileSync(path.join(root, 'modules/results/repository.js'), 'utf8');
 const worklist = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 'utf8');
 const page = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 'utf8');
-const migration = fs.readFileSync(path.join(root, 'database/migrations/013_atomic_result_transitions.sql'), 'utf8');
+const migration = fs.readFileSync(path.join(root, 'database/migrations/017_atomic_result_transitions.sql'), 'utf8');
 
 test('result completion and visit approval use atomic server RPCs', () => {
   assert.match(repository, /rpc\('complete_visit_test_atomic'/);
