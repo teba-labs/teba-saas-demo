@@ -1,6 +1,7 @@
 name: Static regression tests
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - cloud-hardening-2026-11-18
