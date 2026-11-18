@@ -24,6 +24,9 @@ test('offline payment queue follows the cash-collecting branch rather than the v
  const repo=read('modules/reception/repository.js');
  assert.match(repo,/const collectionBranchId = collector\.branch_id/);
  assert.match(repo,/enqueueOperation\(\{ tenantId, branchId: collectionBranchId, entityType: 'payment'/);
+ const adapter=read('offline/supabase-adapters.js');
+ assert.match(adapter,/open the \(\?:collecting \?\)branch workday/);
+ assert.match(adapter,/payment collection branch is not accessible/);
 });
 
 test('payment retries are acknowledged before staff-active and workday validation',()=>{
