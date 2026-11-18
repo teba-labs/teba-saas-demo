@@ -32,6 +32,9 @@ test('employee Auth linking is tenant and branch scoped and service-role only', 
   assert.match(edge, /auth\.getUser\(bearer\)/);
   assert.match(edge, /account_type', 'owner'/);
   assert.match(edge, /owner_assign_branch_employee/);
+  assert.match(edge, /owner_set_branch_employee_active/);
+  assert.equal((edge.match(/const action = String\(body\.action/g) || []).length, 1);
+  assert.match(edge, /action === 'invite' && \(email\.length > 254 \|\| !EMAIL\.test\(email\)\)/);
   assert.match(edge, /deleteUser\(employeeUser\.id\)/);
   assert.match(config, /\[functions\.invite-branch-employee\]\s+verify_jwt = true/);
 });
