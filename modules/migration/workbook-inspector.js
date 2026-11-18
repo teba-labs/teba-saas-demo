@@ -147,9 +147,6 @@ export function inspectLegacyFinance({paidAmount,ledgerEntries=[]}={}) {
   return {rawPaidAmount:paidAmount??null,linkedLedgerCount:linked.length,linkedLedgerAbsoluteTotal:ledgerTotal,
     status:paid===null?'no-cumulative-paid-value':linked.length&&Math.abs(ledgerTotal-paid)<0.005?'possible-duplicate-representation':linked.length?'manual-reconciliation-required':'cumulative-only-no-payment-history'};
 }
-export function inspectLegacyAge(age,ageType) {
-  return {rawAge:age===undefined||age===null?'':String(age),rawAgeType:ageType===undefined||ageType===null?'':String(ageType),ageYears:null,status:(age!==undefined&&age!==null&&String(age).trim()!=='')?'unit-review-required':'empty'};
-}
 export function inspectLegacyResultPayload(raw) {
   let parsed=raw,valid=true;
   if(typeof raw==='string'){try{parsed=JSON.parse(raw);}catch{valid=false;}}
