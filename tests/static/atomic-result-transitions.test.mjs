@@ -22,6 +22,8 @@ test('atomic result transitions validate branch access and active operational st
   }
   assert.equal((migration.match(/private\.can_access_branch\(p_tenant_id, p_branch_id\)/g) || []).length, 2);
   assert.equal((migration.match(/sd\.branch_id = p_branch_id and sd\.is_active/g) || []).length, 2);
+  assert.match(migration, /completed_by_staff_id = p_staff_id/);
+  assert.match(migration, /completed_at = now\(\)/);
   assert.match(migration, /Required results are missing/);
   assert.match(migration, /Every requested test must be completed before approval/);
   assert.match(migration, /revoke all on function public\.complete_visit_test_atomic/);
