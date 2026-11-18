@@ -172,7 +172,10 @@ test('legacy finance flags possible duplicate representation without adding paym
  assert.equal(review.status,'ledger-semantics-unknown-manual-review');
  assert.equal(review.rawPaidAmount,'150');
  assert.equal(review.linkedLedgerCount,2);
- assert.equal(inspectLegacyFinance({paidAmount:80,ledgerEntries:[]}).status,'cumulative-only-no-payment-history');\n const explicit=inspectLegacyFinance({paidAmount:150,ledgerEntries:[{visit_id:7,amount:150,confirmedPayment:true}]});\n assert.equal(explicit.status,'manual-reconciliation-required');\n assert.equal(explicit.confirmedPaymentTotal,150);
+ assert.equal(inspectLegacyFinance({paidAmount:80,ledgerEntries:[]}).status,'cumulative-only-no-payment-history');
+ const explicit=inspectLegacyFinance({paidAmount:150,ledgerEntries:[{visit_id:7,amount:150,confirmedPayment:true}]});
+ assert.equal(explicit.status,'manual-reconciliation-required');
+ assert.equal(explicit.confirmedPaymentTotal,150);
 });
 
 test('legacy result payload inspection preserves raw JSON and identifies parameter paths',async()=>{
