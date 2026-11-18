@@ -7,7 +7,7 @@ import { listResults, saveDraftResults, completeVisitTest, approveVisit } from '
 import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, tenant: null, branch: null, staff: [], work: [] };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [] };
 const showNotice = (message, error = false) => {
   const el = $('notice'); el.textContent = message; el.className = `notice show${error ? ' error' : ''}`;
   window.clearTimeout(showNotice.timer); showNotice.timer = window.setTimeout(() => el.className = 'notice', 5000);
@@ -19,6 +19,7 @@ async function startWorkspace() {
   const session = await getCurrentSession();
   if (!session) { $('loginPanel').hidden = false; $('workspace').hidden = true; $('signOut').hidden = true; return; }
   state.context = await loadMyTenantContext();
+  state.userId = state.context.user.id;
   $('loginPanel').hidden = true; $('workspace').hidden = false; $('signOut').hidden = false;
   const tenantSelect = $('tenantSelect');
   tenantSelect.innerHTML = state.context.tenants.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('');
@@ -48,10 +49,12 @@ async function loadBranch() {
   $('contextStatus').textContent = 'جارٍ تحميل بيانات الفرع…';
   const db = getSupabaseClient();
   const { data, error } = await db.from('staff_directory')
-    .select('id, display_name, is_active').eq('tenant_id', state.tenant.id)
+    .select('id, display_name, auth_user_id, is_active').eq('tenant_id', state.tenant.id)
     .eq('branch_id', state.branch.id).eq('is_active', true).order('display_name');
   if (error) throw error;
   state.staff = data ?? [];
+  if (state.tenant.accountType === 'employee') state.staff = state.staff.filter(row => row.auth_user_id === state.userId);
+  $('staffSelect').disabled = state.tenant.accountType === 'employee';
   $('staffSelect').innerHTML = state.staff.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.display_name)}</option>`).join('');
   if (!state.staff.length) { $('workList').innerHTML = '<div class="empty">لا يوجد موظف نشط مسجل لهذا الفرع. أضف الموظفين من إعدادات المعمل أولًا.</div>'; $('contextStatus').textContent = ''; return; }
   await refreshWork();
