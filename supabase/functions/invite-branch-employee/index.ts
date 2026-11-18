@@ -44,11 +44,12 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return reply({ ok: false, message: 'Invalid request.' }, 400, origin); }
+  const action = String(body.action ?? 'invite');
   const tenantId = String(body.tenantId ?? '');
   const branchId = String(body.branchId ?? '');
   const staffId = String(body.staffId ?? '');
   const email = String(body.email ?? '').trim().toLowerCase();
-  if (![tenantId, branchId, staffId].every(v => UUID.test(v)) || email.length > 254 || !EMAIL.test(email)) {
+  if (![tenantId, branchId, staffId].every(v => UUID.test(v)) || (action === 'invite' && (email.length > 254 || !EMAIL.test(email)))) {
     return reply({ ok: false, message: 'راجع البريد الإلكتروني والفرع واسم الموظف.' }, 400, origin);
   }
 
@@ -57,7 +58,6 @@ Deno.serve(async (req) => {
     .eq('account_type', 'owner').eq('is_active', true).maybeSingle();
   if (ownerError || !owner) return reply({ ok: false, message: 'هذه العملية متاحة لمالك المعمل فقط.' }, 403, origin);
 
-  const action = String(body.action ?? 'invite');
   const [{ data: branch, error: branchError }, { data: staff, error: staffError }] = await Promise.all([
     userClient.from('branches').select('id').eq('id', branchId).eq('tenant_id', tenantId).eq('is_active', true).maybeSingle(),
     userClient.from('staff_directory').select('id, auth_user_id, is_active').eq('id', staffId)
@@ -66,7 +66,6 @@ Deno.serve(async (req) => {
   if (branchError || staffError || !branch || !staff) {
     return reply({ ok: false, message: 'الفرع أو الاسم التشغيلي غير موجود أو غير نشط.' }, 404, origin);
   }
-  const action = String(body.action ?? 'invite');
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
   if (action === 'set-active') {
@@ -88,7 +87,8 @@ Deno.serve(async (req) => {
   }
 
   if (action !== 'invite') return reply({ ok: false, message: 'Unsupported action.' }, 400, origin);
-  if (action === 'invite' && staff.auth_user_id) return reply({ ok: false, message: 'هذا الاسم التشغيلي مرتبط بحساب دخول بالفعل.' }, 409, origin);
+  if (!staff.is_active) return reply({ ok: false, message: 'فعّل الاسم التشغيلي قبل ربط حساب دخول.' }, 409, origin);
+  if (staff.auth_user_id) return reply({ ok: false, message: 'هذا الاسم التشغيلي مرتبط بحساب دخول بالفعل.' }, 409, origin);
 
   let employeeUser: { id: string } | null = null;
   let newlyInvited = false;
