@@ -32,7 +32,15 @@ function renderSheet(){
   const report=el('section');report.className='validationPanel';
   const stats=el('div');stats.className='validationStats';
   for(const [label,value] of [['صفوف البيانات',s.analysis.nonEmptyRows],['صفوف فارغة',s.analysis.blankRows],['حقول مطلوبة ناقصة',s.analysis.missingRequired],['أرقام غير صالحة',s.analysis.invalidNumbers],['تكرارات محتملة',s.analysis.duplicateRows],['عناوين مكررة',s.analysis.duplicateHeaders]]){const item=el('div');item.append(el('small',label),el('b',value));stats.append(item);}
-  report.append(stats);report.append(el('h3','ملاحظات فحص الصفوف'));
+  report.append(stats);
+  const legacy=s.analysis.legacyReview||{};
+  const legacyStats=el('div');legacyStats.className='validationStats';
+  for(const [label,value] of [['أعمار تحتاج مراجعة وحدة',legacy.ageRows||0],['تواريخ ملتبسة',legacy.dateAmbiguous||0],['تواريخ غير معروفة/غير صالحة',legacy.dateInvalid||0],['نتائج JSON غير قابلة للقراءة',legacy.resultPayloadInvalid||0]]){const item=el('div');item.append(el('small',label),el('b',value));legacyStats.append(item);}
+  report.append(el('h3','مراجعة الحفاظ على البيانات القديمة'));report.append(legacyStats);
+  if(s.entityType==='patients')report.append(el('p','العمر الأصلي ووحدته محفوظان كما وردا في الملف؛ لا نحولهما إلى سنوات تلقائيًا.'));
+  if(s.entityType==='visits')report.append(el('p','المدفوع التراكمي لا يتحول إلى دفعة جديدة. يجب مطابقته مع دفتر الحركة قبل أي استيراد.'));
+  if(s.entityType==='test_results')report.append(el('p','تُفحص بنية النتائج فقط، ويظل JSON الأصلي محفوظًا دون تفكيك أو إعادة كتابة.'));
+  report.append(el('h3','ملاحظات فحص الصفوف'));
   if(!s.analysis.issues.length)report.append(el('p','لم تظهر أخطاء من القواعد الحالية في هذه الورقة. هذا لا يعني اعتماد البيانات أو صلاحيتها للاستيراد.'));
   else {const list=el('ul');for(const issue of s.analysis.issues)list.append(el('li',`صف ${issue.rowNumber}: ${issue.message}`));report.append(list);if(s.analysis.issueCount>s.analysis.issues.length)report.append(el('small','تم إظهار أول '+s.analysis.issues.length+' ملاحظة فقط من أصل '+s.analysis.issueCount+'.'));}
   const links=analyzeArchiveRelationships(state.result.sheets);
