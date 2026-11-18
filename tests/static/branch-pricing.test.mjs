@@ -38,6 +38,9 @@ test('catalog repository returns one effective price per test for a selected bra
  assert.match(repo,/setBranchPrice/);
  assert.match(repo,/RPC\.setBranchTestPrice/);
  assert.match(repo,/replaceCachedCurrentPrices\(\[data\], \{ tenantId, testIds: \[testId\], branchId, scope: 'branch' \}\)/);
+ const ui=read('assets/js/catalog.js');
+ assert.match(ui,/priceBranchId=state\.role==='owner'\?null:state\.tenant\.branches\?\.\[0\]/);
+ assert.match(ui,/priceBranchSelect/);
 });
 
 test('offline cache preserves other branches current prices when refreshing one branch',()=>{
