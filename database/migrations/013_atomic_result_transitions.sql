@@ -106,6 +106,21 @@ begin
     raise exception 'Every requested test must be completed before approval';
   end if;
 
+  if exists (
+    select 1
+      from public.visit_tests vt
+      cross join lateral jsonb_array_elements(coalesce(vt.technical_snapshot->'parameters', '[]'::jsonb)) p
+     where vt.tenant_id = p_tenant_id and vt.branch_id = p_branch_id
+       and vt.visit_id = p_visit_id and vt.status <> 'cancelled'
+       and coalesce((p->>'is_required')::boolean, true)
+       and not exists (
+         select 1 from public.test_results tr
+          where tr.tenant_id = p_tenant_id
+            and tr.visit_test_id = vt.id
+            and tr.parameter_code = p->>'code'
+       )
+  ) then raise exception 'Required results are missing; approval is blocked'; end if;
+
   perform set_config('app.atomic_result_transition', 'on', true);
   update public.visits
      set status = 'approved',
