@@ -9,7 +9,7 @@ const repo=fs.readFileSync(path.join(root,'modules/reception/repository.js'),'ut
 
 test('reception page is Arabic RTL and includes patient, visit, catalog and billing workflow',()=>{
   assert.match(page,/lang="ar" dir="rtl"/);
-  for(const id of ['patientSearch','patientName','visitNumber','catalogList','discount','initialPayment','createVisit']) assert.match(page,new RegExp(`id="${id}"`));
+  for(const id of ['patientSearch','patientName','visitNumber','catalogList','discount','initialPayment','initialPaymentMethod','createVisit']) assert.match(page,new RegExp(`id="${id}"`));
 });
 test('reception resolves authenticated tenant and branch context and requires open workday',()=>{
   assert.match(script,/loadMyTenantContext/);
@@ -25,6 +25,9 @@ test('visit uses database price snapshots and creates billing from actual select
   assert.match(script,/createVisitIntake\(/);
   assert.match(script,/testIds:\[\.\.\.state\.selected\]/);
   assert.match(script,/discountAmount:discount,initialPayment:paid/);
+  assert.match(script,/paymentMethod:\$\('initialPaymentMethod'\)\.value/);
+  assert.match(page,/value="bank_transfer"/);
+  assert.match(page,/value="wallet"/);
 });
 test('intake validates patient, unique visit number input, test selection and payment bounds',()=>{
   assert.match(script,/if\(!state\.patient\)/);
