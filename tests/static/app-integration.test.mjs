@@ -22,6 +22,7 @@ test('launcher only exposes financial dashboard and CMS to tenant owners', () =>
   assert.match(js, /href:'dashboard\.html'.*roles:\['owner'\]/);
   assert.match(js, /href:'cms-editor\.html'.*roles:\['owner'\]/);
   assert.match(js, /href:'reception\.html'.*roles:\['owner','staff'\]/);
+  assert.match(js, /href:'catalog\.html'.*roles:\['owner'\]/);
   assert.match(js, /href:'results-workbench\.html'.*roles:\['owner','staff'\]/);
 });
 
@@ -33,7 +34,7 @@ test('all tenant and platform screens link back to the launcher', () => {
 
 test('service worker pre-caches all application screens and local assets', () => {
   const sw = read('service-worker.js');
-  assert.match(sw, /taiba-smart-lab-shell-v3/);
+  assert.match(sw, /taiba-smart-lab-shell-v6/);
   const shell = sw.match(/const APP_SHELL = \[([\s\S]*?)\];/)[1];
   const assets = [...shell.matchAll(/'\.\/([^']+)'/g)].map(m => m[1]);
   assert.ok(assets.includes('app/index.html'));
