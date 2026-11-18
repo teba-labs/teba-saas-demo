@@ -35,7 +35,7 @@ test('attachment Edge Function keeps JWT verification enabled',()=>{
 });
 
 test('results workbench wires private visit attachments to the authenticated repository', () => {
-  const screen = read('assets/js/results-workbench.js');
+  const screen = fs.readFileSync(new URL('../../assets/js/results-workbench.js',import.meta.url),'utf8');
   assert.match(screen, /uploadVisitAttachment/);
   assert.match(screen, /listVisitAttachments/);
   assert.match(screen, /createAttachmentDownloadUrl/);
