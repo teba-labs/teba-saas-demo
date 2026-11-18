@@ -95,6 +95,7 @@ begin
    for update;
   if not found then raise exception 'Visit not found for this tenant and branch'; end if;
   if v_visit.is_published then raise exception 'Published visit cannot be re-approved'; end if;
+  if v_visit.status = 'approved' then raise exception 'Visit is already approved'; end if;
   if v_visit.status = 'cancelled' then raise exception 'Cancelled visit cannot be approved'; end if;
 
   select count(*), count(*) filter (where status <> 'completed')
