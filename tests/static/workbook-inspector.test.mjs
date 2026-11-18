@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {inferSheetType,suggestColumnMapping,getEntityFields} from '../../modules/migration/workbook-inspector.js';
+import {inferSheetType,suggestColumnMapping,getEntityFields,rankHeaderCandidates,validateArchiveFileMeta,validateSheetCount} from '../../modules/migration/workbook-inspector.js';
 const root=path.resolve(import.meta.dirname,'../..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
@@ -75,4 +75,30 @@ test('file guards and workbook sheet limit remain enforced',()=>{
 test('all archive tool assets are in the offline shell',()=>{
  const sw=read('service-worker.js');
  for(const asset of ['./app/data-import.html','./assets/css/data-import.css','./assets/js/data-import.js','./modules/migration/workbook-inspector.js'])assert.ok(sw.includes(asset),asset);
+});
+
+test('synthetic workbook fixture finds a late Arabic header row and ignores blank rows',()=>{
+ const rows=[['تقرير الأرشيف'],[],['تم التصدير'],[],[],[],[],['اسم المريض','رقم الهاتف','اسم المريض'],['سارة','0100',''],[],['عمر','0111','']];
+ const candidates=rankHeaderCandidates(rows);
+ assert.equal(candidates[0].rowIndex,7);
+ assert.deepEqual(candidates[0].values,['اسم المريض','رقم الهاتف','اسم المريض']);
+ assert.ok(candidates[0].preview.some(row=>row[0]==='سارة'));
+});
+
+test('synthetic multi-sheet names retain distinct entity classifications',()=>{
+ const sheets=['Patients','الزيارات','تحاليل الزيارة','نتائج التحاليل','Financial Ledger','كتالوج التحاليل','المصروفات','مقالات الموقع'];
+ assert.deepEqual(sheets.map(inferSheetType),['patients','visits','visit_tests','test_results','ledger','catalog','expenses','website']);
+});
+
+test('archive file validation rejects malformed extensions, empty files and files above 20 MB',()=>{
+ assert.equal(validateArchiveFileMeta('backup.xlsx',20*1024*1024),true);
+ assert.throws(()=>validateArchiveFileMeta('backup.pdf',100),/الملفات المدعومة/);
+ assert.throws(()=>validateArchiveFileMeta('empty.csv',0),/حجم الملف/);
+ assert.throws(()=>validateArchiveFileMeta('oversized.xlsx',20*1024*1024+1),/حجم الملف/);
+});
+
+test('sheet-count guard rejects empty or over-limit workbooks',()=>{
+ assert.equal(validateSheetCount(50),true);
+ assert.throws(()=>validateSheetCount(0),/عدد أوراق العمل/);
+ assert.throws(()=>validateSheetCount(51),/عدد أوراق العمل/);
 });
