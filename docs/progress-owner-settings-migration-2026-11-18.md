@@ -64,3 +64,12 @@ PR: #1 remains a draft; nothing was merged into `main`.
 - CI run 44366119599 completed successfully: 128 tests passed, 0 failures.
 - The preflight still does not detect clinical/financial duplicates across rows or validate relational links. It is not an importer.
 - No schema, RLS, Storage, Edge Function, tenant data, or legacy project changes were made.
+## Follow-on: local archive row validation and cross-sheet checks
+
+- Added in-memory row analysis after sheet/column mapping: required fields, duplicate keys, numeric fields, blank rows, and duplicate headers.
+- Preserved blank worksheet rows during parsing so row references and blank-row counts remain meaningful.
+- Added cross-sheet reference checks for visits → patients, visit tests → visits, results → visits, and optional ledger → visits.
+- The UI reports counts and a limited set of row numbers/messages; it does not display or upload entire row contents.
+- GitHub Actions run 44367700931 passed: 136 tests, 0 failures.
+- All checks remain local-only. No import, browser persistence, DB/schema/RLS/Storage change, deployment, or old-project change.
+- The checks are preliminary consistency checks only; clinical/date validation and identity matching remain incomplete.
