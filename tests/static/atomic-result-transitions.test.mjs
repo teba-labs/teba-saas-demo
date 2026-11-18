@@ -45,3 +45,14 @@ test('results worklist hydrates existing values in one batch query', () => {
   assert.match(worklist, /listResultsForVisitTests\(/);
   assert.doesNotMatch(worklist, /for \(const item of state\.work\) \{\s*const rows = await listResults/);
 });
+
+test('completed test cards are read-only and the server rejects post-completion draft writes', () => {
+  const migration = read('database/migrations/017_atomic_result_transitions.sql');
+  const screen = read('assets/js/results-workbench.js');
+  assert.match(migration, /v_test\.status = 'completed'[\s\S]*?Test is already completed/);
+  assert.match(migration, /v_test_status = 'completed'[\s\S]*?Completed test results are locked/);
+  assert.match(migration, /v_visit_status in \('approved','published'\)/);
+  assert.match(screen, /const locked = item\.status === 'completed'/);
+  assert.match(screen, /locked \? ' disabled' : ''/);
+  assert.match(screen, /التحليل مكتمل — النتائج للعرض فقط/);
+});
