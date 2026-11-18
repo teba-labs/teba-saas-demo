@@ -37,6 +37,7 @@ test('catalog repository returns one effective price per test for a selected bra
  assert.match(repo,/Number\(b\.branch_id === branchId\) - Number\(a\.branch_id === branchId\)/);
  assert.match(repo,/setBranchPrice/);
  assert.match(repo,/RPC\.setBranchTestPrice/);
+ assert.match(repo,/priceQuery\.or\(`branch_id\.is\.null,branch_id\.eq\.\$\{branchId\}`\)/);
  assert.match(repo,/replaceCachedCurrentPrices\(\[data\], \{ tenantId, testIds: \[testId\], branchId, scope: 'branch' \}\)/);
  const ui=read('assets/js/catalog.js');
  assert.match(ui,/priceBranchId=state\.role==='owner'\?null:state\.tenant\.branches\?\.\[0\]/);
