@@ -51,6 +51,7 @@ begin
        )
   ) then raise exception 'Required results are missing'; end if;
 
+  perform set_config('app.atomic_result_transition', 'on', true);
   update public.visit_tests
      set status = 'completed', completed_by_staff_id = p_staff_id, completed_at = now()
    where id = p_visit_test_id and tenant_id = p_tenant_id
@@ -105,6 +106,7 @@ begin
     raise exception 'Every requested test must be completed before approval';
   end if;
 
+  perform set_config('app.atomic_result_transition', 'on', true);
   update public.visits
      set status = 'approved',
          approved_by_staff_id = p_staff_id,
@@ -117,3 +119,48 @@ $function$;
 
 revoke all on function public.approve_visit_atomic(uuid,uuid,uuid,uuid) from public, anon;
 grant execute on function public.approve_visit_atomic(uuid,uuid,uuid,uuid) to authenticated;
+
+-- Prevent browser-side direct updates from bypassing the atomic completion/approval RPCs.
+create or replace function private.guard_result_workflow_transition()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public, private
+as $function$
+begin
+  if current_setting('app.atomic_result_transition', true) = 'on' then
+    return new;
+  end if;
+
+  if tg_table_name = 'visit_tests' then
+    if new.status is distinct from old.status and new.status = 'completed' then
+      raise exception 'Complete tests through complete_visit_test_atomic';
+    end if;
+    if new.completed_by_staff_id is distinct from old.completed_by_staff_id
+       or new.completed_at is distinct from old.completed_at then
+      raise exception 'Completion audit fields are server-managed';
+    end if;
+  elsif tg_table_name = 'visits' then
+    if new.status is distinct from old.status and new.status = 'approved' then
+      raise exception 'Approve visits through approve_visit_atomic';
+    end if;
+    if new.approved_by_staff_id is distinct from old.approved_by_staff_id
+       or new.approved_at is distinct from old.approved_at then
+      raise exception 'Approval audit fields are server-managed';
+    end if;
+  end if;
+  return new;
+end;
+$function$;
+
+revoke all on function private.guard_result_workflow_transition() from public, anon;
+grant execute on function private.guard_result_workflow_transition() to authenticated, service_role;
+
+drop trigger if exists guard_atomic_visit_test_completion on public.visit_tests;
+create trigger guard_atomic_visit_test_completion
+before update on public.visit_tests
+for each row execute function private.guard_result_workflow_transition();
+
+drop trigger if exists guard_atomic_visit_approval on public.visits;
+create trigger guard_atomic_visit_approval
+before update on public.visits
+for each row execute function private.guard_result_workflow_transition();
