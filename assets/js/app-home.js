@@ -13,6 +13,7 @@ const apps = [
   { id:'sync', title:'المزامنة والنسخ المحلي', desc:'متابعة العمليات المعلقة والتعارضات والنسخ المحلية.', href:'sync-center.html', icon:'⟳', roles:['owner','staff'] },
   { id:'dashboard', title:'لوحة الإدارة والتحليل', desc:'التحصيل والمصروفات والفواتير والمديونيات ومقارنة الفروع.', href:'dashboard.html', icon:'▥', roles:['owner'] },
   { id:'cms', title:'إدارة موقع المعمل', desc:'إدارة المحتوى والتحاليل المعروضة والعروض والفروع المنشورة.', href:'cms-editor.html', icon:'▣', roles:['owner'] },
+  { id:'settings', title:'مركز قيادة المعمل', desc:'إعدادات وهوية المعمل ومراكز الإدارة لصاحب المعمل.', href:'settings.html', icon:'⚙', roles:['owner'] },
 ];
 function notice(message, error=false) { $('notice').textContent=message; $('notice').className=`notice show${error?' error':''}`; }
 function updateConnection() { const online=navigator.onLine; $('connectionTitle').textContent=online?'متصل بالإنترنت':'غير متصل بالإنترنت'; $('connectionText').textContent=online?'يمكن مزامنة العمليات مع خادم المعمل.':'يمكن استخدام البيانات المحفوظة محليًا للوظائف المدعومة.'; document.querySelector('.status-dot').style.background=online?'#229b78':'#d99b38'; }
