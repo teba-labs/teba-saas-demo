@@ -46,7 +46,7 @@ export async function replaceCachedCurrentPrices(rows = [], { tenantId, testIds,
     throw new Error('rows and testIds must be arrays with valid test IDs.');
   }
   const scopedIds = new Set(testIds);
-  const inBranchScope = row => scope === 'base' ? row.branch_id == null : (!branchId || row.branch_id == null || row.branch_id === branchId);
+  const inBranchScope = row => scope === 'base' ? row.branch_id == null : scope === 'branch' ? row.branch_id === branchId : (!branchId || row.branch_id == null || row.branch_id === branchId);
   const safe = rows.filter(row => row?.id && row.tenant_id === tenantId
     && scopedIds.has(row.test_id) && inBranchScope(row) && row.is_current === true)
     .map(row => ({ ...row, cached_at: new Date().toISOString() }));
