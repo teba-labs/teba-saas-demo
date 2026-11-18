@@ -11,7 +11,7 @@ function headerCandidates(rows) {
   return rows.slice(0, 15).map((row, index) => {
     const values = (row || []).map(cleanCell).filter(Boolean);
     const unique = new Set(values.map(v => v.toLocaleLowerCase('ar')));
-    return { rowIndex: index, nonEmpty: values.length, unique: unique.size, score: values.length + unique.size * 0.25 };
+    return { rowIndex: index, nonEmpty: values.length, unique: unique.size, score: values.length + unique.size * 0.25, values: (row || []).map(cleanCell), preview: rows.slice(index + 1, index + 6).map(next => next.map(cleanCell)) };
   }).filter(x => x.nonEmpty >= 2).sort((a,b) => b.score-a.score).slice(0,5);
 }
 function hashHex(buffer) {
