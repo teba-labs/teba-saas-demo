@@ -90,7 +90,70 @@ export function rankHeaderCandidates(rows) {
     return { rowIndex: index, nonEmpty: values.length, unique: unique.size, score: values.length + unique.size * 0.25, values: (row || []).map(cleanCell), preview: rows.slice(index + 1, index + 6).map(next => next.map(cleanCell)) };
   }).filter(x => x.nonEmpty >= 2).sort((a,b) => b.score-a.score).slice(0,5);
 }
-function hashHex(buffer) {
+
+const UNIQUE_KEYS = {
+  patients:['source_id'], visits:['source_id'], ledger:['source_id'], catalog:['test_code'],
+  visit_tests:['visit_id','test_code'], test_results:['visit_id','test_code']
+};
+const NUMERIC_FIELDS = new Set(['total_amount','discount','paid_amount','amount','price','sort_order']);
+const RELATIONSHIPS = [
+  {from:'visits',field:'patient_id',to:'patients',targetField:'source_id',label:'المريض المرتبط بالزيارة'},
+  {from:'visit_tests',field:'visit_id',to:'visits',targetField:'source_id',label:'الزيارة المرتبطة بالتحليل'},
+  {from:'test_results',field:'visit_id',to:'visits',targetField:'source_id',label:'الزيارة المرتبطة بالنتيجة'},
+  {from:'ledger',field:'visit_id',to:'visits',targetField:'source_id',optional:true,label:'الزيارة المرتبطة بالحركة المالية'}
+];
+function rowObject(row, mapping) {
+  const out={};
+  for(const item of mapping||[]) if(item.fieldKey) out[item.fieldKey]=cleanCell(row?.[item.columnIndex]);
+  return out;
+}
+export function analyzeArchiveSheet(rows, headerRowIndex, entityType, mapping) {
+  const data=(rows||[]).slice(headerRowIndex+1);
+  const fields=ENTITY_FIELDS[entityType]?.fields||[];
+  const required=fields.filter(f=>f[2]).map(f=>f[0]);
+  const keys=UNIQUE_KEYS[entityType]||[];
+  const seen=new Map(), issues=[];
+  let blankRows=0, missingRequired=0, invalidNumbers=0, duplicateRows=0;
+  const records=[];
+  const add=(type,rowNumber,message)=>{if(issues.length<25)issues.push({type,rowNumber,message});};
+  data.forEach((row,index)=>{
+    const record=rowObject(row,mapping);
+    if(!Object.values(record).some(Boolean)){blankRows++;return;}
+    records.push({...record,_rowNumber:headerRowIndex+index+2});
+    for(const key of required) if(!String(record[key]||'').trim()){missingRequired++;add('missing-required',headerRowIndex+index+2,'حقل مطلوب فارغ: '+(fields.find(f=>f[0]===key)?.[1]||key));}
+    for(const key of NUMERIC_FIELDS) if(record[key] && !Number.isFinite(Number(record[key].replace(/[,،]/g,'')))){invalidNumbers++;add('invalid-number',headerRowIndex+index+2,'قيمة رقمية غير صالحة في '+key);}
+    if(keys.length && keys.every(k=>record[k])){
+      const signature=keys.map(k=>record[k].toLocaleLowerCase('ar')).join('|');
+      if(seen.has(signature)){duplicateRows++;add('duplicate',headerRowIndex+index+2,'تكرار محتمل للمفتاح '+keys.join(' + ')+'؛ يظهر أيضًا في الصف '+seen.get(signature));}
+      else seen.set(signature,headerRowIndex+index+2);
+    }
+  });
+  const headerNames=(mapping||[]).map(m=>normalizeHeader(m.header)).filter(Boolean);
+  const duplicateHeaders=headerNames.filter((name,index)=>headerNames.indexOf(name)!==index).length;
+  if(duplicateHeaders)add('duplicate-header',headerRowIndex+1,'يوجد '+duplicateHeaders+' عنوان عمود مكرر؛ راجع المطابقة يدويًا.');
+  return {entityType,totalRows:data.length,nonEmptyRows:records.length,blankRows,missingRequired,invalidNumbers,duplicateRows,duplicateHeaders,issueCount:missingRequired+invalidNumbers+duplicateRows+(duplicateHeaders?1:0),issues,records};
+}
+export function analyzeArchiveRelationships(sheets) {
+  const results=[];
+  for(const relation of RELATIONSHIPS){
+    const source=sheets.find(s=>s.entityType===relation.from);
+    const target=sheets.find(s=>s.entityType===relation.to);
+    if(!source||!target)continue;
+    const sourceRecords=source.analysis?.records||[];
+    const targetRecords=target.analysis?.records||[];
+    if(!sourceRecords.length||!targetRecords.length)continue;
+    const targetIds=new Set(targetRecords.map(r=>String(r[relation.targetField]||'').trim()).filter(Boolean));
+    let missing=0;const samples=[];
+    for(const record of sourceRecords){
+      const value=String(record[relation.field]||'').trim();
+      if(!value&&relation.optional)continue;
+      if(!value||!targetIds.has(value)){missing++;if(samples.length<10)samples.push(record._rowNumber);}
+    }
+    results.push({from:relation.from,to:relation.to,field:relation.field,missing,total:sourceRecords.length,sampleRows:samples,label:relation.label});
+  }
+  return results;
+}
+\nfunction hashHex(buffer) {
   return crypto.subtle.digest('SHA-256', buffer).then(bytes =>
     [...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,'0')).join('')
   );
@@ -155,7 +218,7 @@ export async function inspectWorkbookFile(file) {
       name, rowCount: rows.filter(row => row.some(cell => cleanCell(cell) !== '')).length,
       headerRowIndex: suggested, headerCandidates: candidates,
       headers: header, preview: rows.slice(suggested + 1, suggested + 6).map(row => row.map(cleanCell)),
-      entityType: inferSheetType(name), columnMapping: suggestColumnMapping(header,inferSheetType(name))
+      entityType: inferSheetType(name), columnMapping: suggestColumnMapping(header,inferSheetType(name)), rawRows: rows
     };
   });
   return { fileName:file.name,fileSize:file.size,sha256,sheetCount:sheets.length,sheets,inspectedAt:new Date().toISOString(),privacy:'local-only' };
