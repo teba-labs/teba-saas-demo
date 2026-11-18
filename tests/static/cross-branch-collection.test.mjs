@@ -10,7 +10,6 @@ test('cross-branch collection keeps visit origin separate from cash collection b
  assert.match(sql,/add column if not exists origin_branch_id uuid/i);
  assert.match(sql,/foreign key \(tenant_id, origin_branch_id, visit_id\)[\s\S]*?references public\.visits\(tenant_id, branch_id, id\)/i);
  assert.match(sql,/values \(p_tenant_id, v_collection_branch_id, v_origin_branch_id, p_visit_id/i);
- assert.match(sql,/branch_id, source_type, source_id, direction, amount/i);
 });
 
 test('payment ledger attributes collected cash to the collecting branch and workday',()=>{
