@@ -6,9 +6,11 @@ const ui = await readFile(new URL('assets/js/dashboard-history.js', root), 'utf8
 assert.match(engine, /buildHistoricalProductPortfolio/);
 assert.match(engine, /buildHistoricalAnnualReport/);
 assert.match(engine, /buildHistoricalCaseSeasonality/);
+assert.match(engine, /buildHistoricalAnnualTrend/);
 assert.match(ui, /buildHistoricalProductPortfolio/);
 assert.match(ui, /report\.annual\.totals/);
 assert.match(ui, /report\.seasonality\.monthTotals/);
+assert.match(ui, /report\.annualTrend/);
 assert.match(ui, /portfolio\.bcg/);
 assert.match(ui, /portfolio\.needOffers/);
 assert.match(ui, /portfolio\.leastProfitable/);
