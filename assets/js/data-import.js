@@ -71,10 +71,10 @@ function renderSheet(){
  if(s.entityType==='catalog'){
   const importButton=el('button','استيراد التحاليل الجديدة فقط');importButton.type='button';importButton.addEventListener('click',()=>importCatalogSheet(s,importButton));root.append(importButton);
   const importHint=el('p','استيراد الكتالوج ينشئ الأكواد غير الموجودة فقط ولا يعدّل كودًا قائمًا.');root.append(importHint);
-  if(s.columnMapping.filter(item=>item.fieldKey==='test_code').length===1&&s.columnMapping.filter(item=>item.fieldKey==='price').length===1){
-   const priceButton=el('button','استيراد أسعار البيع الأساسية الجديدة فقط');priceButton.type='button';priceButton.addEventListener('click',()=>importBasePricesSheet(s,priceButton));root.append(priceButton);
-   const priceHint=el('p','مسار الأسعار مستقل: يضيف السعر العام للتحليل النشط إذا لم يكن له سعر عام حالي. لا يغيّر سعرًا موجودًا ولا أي سعر خاص بفرع.');root.append(priceHint);
-  }
+ }
+ if(s.entityType==='prices'||(s.entityType==='catalog'&&s.columnMapping.filter(item=>item.fieldKey==='test_code').length===1&&s.columnMapping.filter(item=>item.fieldKey==='price').length===1)){
+  const priceButton=el('button','استيراد أسعار البيع الأساسية الجديدة فقط');priceButton.type='button';priceButton.addEventListener('click',()=>importBasePricesSheet(s,priceButton));root.append(priceButton);
+  const priceHint=el('p','مسار الأسعار مستقل: يضيف السعر العام للتحليل النشط إذا لم يكن له سعر عام حالي. لا يغيّر سعرًا موجودًا ولا أي سعر خاص بفرع.');root.append(priceHint);
  }
  const previewTitle=el('h3','عينة من الصفوف تحت العناوين');root.append(previewTitle);
  const table=el('table'),thead=el('thead'),tr=el('tr');
@@ -107,10 +107,9 @@ async function importBasePricesSheet(sheet,button){
  const mapping=sheet.columnMapping||[];
  const codeColumns=mapping.filter(item=>item.fieldKey==='test_code'),priceColumns=mapping.filter(item=>item.fieldKey==='price');
  if(codeColumns.length!==1||priceColumns.length!==1)throw new Error('اربط عمود كود التحليل وعمود السعر مرة واحدة قبل الاستيراد.');
- const codeIndex=codeColumns[0].columnIndex,priceIndex=priceColumns[0].columnIndex;
- const records=sheet.rawRows.slice(sheet.headerRowIndex+1).map((row,index)=>({
-  test_code:row?.[codeIndex],selling_price:row?.[priceIndex],_rowNumber:sheet.headerRowIndex+index+2
- }));
+ const analysis=analyzeArchiveSheet(sheet.rawRows,sheet.headerRowIndex,'prices',mapping);
+ if(analysis.missingRequired||analysis.duplicateRows||analysis.duplicateHeaders)throw new Error('أصلح أكواد التحاليل والأسعار والتكرارات قبل الاستيراد. لم يتم حفظ أي سعر.');
+ const records=analysis.records.map(row=>({test_code:row.test_code,selling_price:row.price,_rowNumber:row._rowNumber}));
  button.disabled=true;button.textContent='جارٍ إضافة الأسعار العامة الجديدة…';
  try{
   const result=await importNewBasePrices({tenantId:state.tenantId,records,listCatalog,listExistingPrices:listCurrentBasePrices,savePrice:addBasePriceIfMissing});
