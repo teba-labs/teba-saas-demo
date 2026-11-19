@@ -18,4 +18,14 @@ assert.equal(rows.find(x => x.key === 'paymentCount').difference, 2);
 assert.equal(rows.find(x => x.key === 'expenseCount').difference, 1);
 assert.equal(rows.find(x => x.key === 'receivables').changePercent, null);
 assert.equal(rows.find(x => x.key === 'visits').changePercent, 100);
+const branches = mod.buildBranchPerformanceMetrics({branches:[
+ {id:'a',name:'A',visits:10,netBilled:1000,collected:700,expenses:300,netCash:400,receivables:200,tests:20},
+ {id:'b',name:'B',visits:0,netBilled:0,collected:0,expenses:0,netCash:0,receivables:0,tests:0}
+]});
+assert.equal(branches[0].averageInvoice,100);
+assert.equal(branches[0].collectionRate,80);
+assert.equal(branches[0].expenseToCollectionRate,300/7);
+assert.equal(branches[1].averageInvoice,0);
+assert.equal(branches[1].collectionRate,null);
+assert.equal(branches[1].expenseToCollectionRate,null);
 console.log('PASS: previous-month range and dashboard period comparison calculations');
