@@ -1,0 +1,83 @@
+name: Test branch Netlify preview
+
+on:
+  push:
+    branches:
+      - "integration/unified-test-2026-11-19"
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taiba-unified-test-netlify-preview
+  cancel-in-progress: true
+
+jobs:
+  draft-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+    steps:
+      - name: Check out the test branch only
+        uses: actions/checkout@v4
+        with:
+          ref: integration/unified-test-2026-11-19
+
+      - name: Check whether preview credentials are available
+        id: credentials
+        shell: bash
+        run: |
+          if [[ -n "$NETLIFY_AUTH_TOKEN" && -n "$NETLIFY_SITE_ID" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Netlify preview skipped: repository secrets are not configured." > netlify-preview-skipped.txt
+          fi
+
+      - name: Set up Node.js
+        if: steps.credentials.outputs.available == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+
+      - name: Stage browser-facing files only
+        if: steps.credentials.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for dir in app assets config core dashboard modules offline portal website; do
+            test -d "$dir"
+            cp -R "$dir" dist/
+          done
+          cp service-worker.js dist/
+          test ! -e dist/database
+          test ! -e dist/docs
+          test ! -e dist/supabase
+          test ! -e dist/.github
+
+      - name: Publish a non-production draft preview
+        if: steps.credentials.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes netlify-cli@27.20.0 deploy --dir=dist --no-build --alias=taiba-unified-test --json > netlify-preview.json
+          node -e "const d=require('./netlify-preview.json'); const url=d.deploy_url || d.url || d.ssl_url; if(!url || !/^https:\/\//.test(url)) process.exit(1); require('fs').writeFileSync('netlify-preview-url.txt',url+'\n'); console.log('Draft preview published: '+url)"
+
+      - name: Upload preview status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taiba-unified-test-preview-status
+          path: |
+            netlify-preview.json
+            netlify-preview-url.txt
+            netlify-preview-skipped.txt
+          if-no-files-found: ignore
+          retention-days: 7

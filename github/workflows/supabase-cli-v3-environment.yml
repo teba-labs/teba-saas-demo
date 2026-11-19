@@ -1,0 +1,63 @@
+name: Supabase CLI v3 environment check
+
+on:
+  push:
+    branches:
+      - "integration/unified-test-2026-11-19"
+    paths:
+      - ".github/workflows/supabase-cli-v3-environment.yml"
+      - "supabase/config.toml"
+      - "database/migrations/**"
+      - "supabase/migrations/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-supabase-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the exact development branch
+        uses: actions/checkout@v4
+        with:
+          ref: integration/unified-test-2026-11-19
+
+      - name: Set up Supabase CLI v3
+        uses: supabase/setup-cli@v3
+        with:
+          version: 3.2.0
+
+      - name: Verify toolchain and Docker daemon
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          node --version
+          supabase --version
+          docker version
+          docker info
+
+      - name: Start an isolated local Supabase stack
+        run: |
+          set -o pipefail
+          supabase start 2>&1 | sed -E '/(Publishable|Secret|Access Key|Secret Key)/Id' | tee supabase-local-start.log
+
+      - name: Verify local services
+        run: |
+          set -euo pipefail
+          docker ps --format 'table {{.Names}}\t{{.Status}}'
+          test "$(docker ps --filter 'name=supabase_db_teba-saas-demo' --filter status=running -q | wc -l)" -eq 1
+
+      - name: Stop disposable local stack
+        if: always()
+        run: supabase stop || true
+
+      - name: Preserve sanitized diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-cli-v3-environment-diagnostics
+          path: supabase-local-start.log
+          if-no-files-found: ignore
+          retention-days: 7
