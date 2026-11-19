@@ -181,3 +181,61 @@ export async function setCurrentPrice({ tenantId, testId, sellingPrice } = {}) {
   await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId], scope: 'base' });
   return data;
 }
+
+
+/** Read only current tenant-wide base prices; branch overrides are deliberately excluded. */
+export async function listCurrentBasePrices({ tenantId, testIds } = {}) {
+  required(tenantId, 'tenantId');
+  if (!Array.isArray(testIds) || testIds.length === 0) return [];
+  const { data, error } = await db().from(TABLES.prices)
+    .select('id, tenant_id, test_id, branch_id, selling_price, effective_from, is_current')
+    .eq('tenant_id', tenantId).eq('is_current', true).is('branch_id', null)
+    .in('test_id', testIds);
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * Insert a missing base price without replacing an existing one.
+ * The partial unique index uq_test_prices_current_base is the concurrency guard.
+ */
+export async function addBasePriceIfMissing({ tenantId, testId, sellingPrice } = {}) {
+  required(tenantId, 'tenantId'); required(testId, 'testId');
+  const price = Number(sellingPrice);
+  if (!Number.isFinite(price) || price < 0 || price > 9999999999.99
+    || Math.round(price * 100) !== price * 100) {
+    throw new Error('sellingPrice must be a non-negative amount with at most two decimal places.');
+  }
+  const { data: authData, error: authError } = await db().auth.getUser();
+  if (authError) throw authError;
+  const userId = authData?.user?.id;
+  if (!userId) throw new Error('An authenticated owner session is required to import prices.');
+
+  const { data: test, error: testError } = await db().from(TABLES.catalog)
+    .select('id').eq('tenant_id', tenantId).eq('id', testId).eq('is_active', true).maybeSingle();
+  if (testError) throw testError;
+  if (!test) throw new Error('The active catalog test was not found for this tenant.');
+
+  const findCurrent = () => db().from(TABLES.prices)
+    .select('id, tenant_id, test_id, branch_id, selling_price, effective_from, is_current')
+    .eq('tenant_id', tenantId).eq('test_id', testId).eq('is_current', true)
+    .is('branch_id', null).maybeSingle();
+  const { data: existing, error: existingError } = await findCurrent();
+  if (existingError) throw existingError;
+  if (existing) return { created: false, price: existing };
+
+  const { data, error } = await db().from(TABLES.prices).insert({
+    tenant_id: tenantId, test_id: testId, branch_id: null,
+    selling_price: price, is_current: true, updated_by: userId,
+  }).select('id, tenant_id, test_id, branch_id, selling_price, effective_from, is_current').single();
+  if (error) {
+    if (error.code === '23505') {
+      const { data: current, error: rereadError } = await findCurrent();
+      if (rereadError) throw rereadError;
+      if (current) return { created: false, price: current };
+    }
+    throw error;
+  }
+  await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId], scope: 'base' });
+  return { created: true, price: data };
+}
