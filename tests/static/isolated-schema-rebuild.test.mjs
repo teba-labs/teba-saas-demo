@@ -25,12 +25,12 @@ test('isolated rebuild packages legacy 001-011 into a CLI baseline and resets on
   assert.match(workflow, /database\/migrations\/01\{0,1\}_\*\.sql/);
 });
 
-test('012-022 are generated with Supabase CLI and applied locally without remote credentials', async () => {
+test('012-023 are generated with Supabase CLI and applied locally without remote credentials', async () => {
   const workflow = await read('.github/workflows/supabase-schema-rebuild-audit.yml');
   assert.match(workflow, /supabase migration new "\$name"/);
   assert.match(workflow, /supabase db reset/);
   assert.match(workflow, /Unexpected hosted database credential/);
-  for (const version of ['20261118225924','20261118230038','20261118230051','20261118230054','20261118230057','20261118230348','20261118230358','20261118230400','20261118230402','20261118231112','20261118232302']) {
+  for (const version of ['20261118225924','20261118230038','20261118230051','20261118230054','20261118230057','20261118230348','20261118230358','20261118230400','20261118230402','20261118231112','20261118232302','20261119160000']) {
     assert.ok(workflow.includes(version), `missing TEST ledger version ${version}`);
   }
 });
