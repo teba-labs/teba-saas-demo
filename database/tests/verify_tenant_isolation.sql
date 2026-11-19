@@ -47,12 +47,23 @@ insert into public.branch_workdays(id,tenant_id,branch_id,work_date,status,opene
 values ('aa400000-0000-4000-8000-000000000001',
         'aa000000-0000-4000-8000-000000000001',
         'aa100000-0000-4000-8000-000000000001',
-        date '2026-11-19','closed',
+        date '2026-11-19','open',
         'a1000000-0000-4000-8000-000000000002');
 
 insert into public.tests_catalog(id,tenant_id,code,name)
 values ('aa500000-0000-4000-8000-000000000001',
         'aa000000-0000-4000-8000-000000000001','RLS-TST-001','Synthetic RLS test');
+
+insert into public.test_prices(id,tenant_id,test_id,selling_price,is_current)
+values ('aa510000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa500000-0000-4000-8000-000000000001',100,true);
+
+insert into public.test_parameters(id,tenant_id,test_id,parameter_code,parameter_name,value_type,is_required)
+values ('aa520000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa500000-0000-4000-8000-000000000001',
+        'RLS-PARAM','Synthetic parameter','text',true);
 
 insert into public.visits(id,tenant_id,branch_id,patient_id,workday_id,visit_number,created_by)
 values ('aa600000-0000-4000-8000-000000000001',
@@ -62,6 +73,10 @@ values ('aa600000-0000-4000-8000-000000000001',
         'aa400000-0000-4000-8000-000000000001',
         'RLS-VISIT-A1-001',
         'a1000000-0000-4000-8000-000000000002');
+
+update public.branch_workdays
+   set status='closed'
+ where id='aa400000-0000-4000-8000-000000000001';
 
 insert into public.visit_tests(id,tenant_id,branch_id,visit_id,test_id,test_code_snapshot,test_name_snapshot,created_by)
 values ('aa700000-0000-4000-8000-000000000001',
@@ -93,11 +108,7 @@ values ('ab100000-0000-4000-8000-000000000001',
         'ab100000-0000-4000-8000-000000000002',
         'a1000000-0000-4000-8000-000000000002');
 
-insert into public.financial_ledger(id,tenant_id,branch_id,source_type,source_id,direction,amount,description)
-values ('ab200000-0000-4000-8000-000000000001',
-        'aa000000-0000-4000-8000-000000000001',
-        'aa100000-0000-4000-8000-000000000001',
-        'payment','ab100000-0000-4000-8000-000000000001','inflow',50,'Synthetic RLS payment');
+-- Payment and expense triggers create the corresponding synthetic ledger rows.
 
 insert into public.expense_categories(id,tenant_id,name)
 values ('ab300000-0000-4000-8000-000000000001',
