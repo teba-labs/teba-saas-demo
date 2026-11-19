@@ -34,7 +34,7 @@ export async function loadMyTenantContext() {
 
   const { data: branches, error: branchError } = await db
     .from('branches')
-    .select('id, tenant_id, name, address, phone, is_active')
+    .select('id, tenant_id, name, address, phone, map_link, is_active')
     .in('tenant_id', tenantIds)
     .eq('is_active', true);
   if (branchError) throw branchError;
