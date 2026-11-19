@@ -1,1 +1,14 @@
 import assert from'node:assert/strict';import fs from'node:fs';const root=new URL('../../',import.meta.url);const html=fs.readFileSync(new URL('app/dashboard.html',root),'utf8'),js=fs.readFileSync(new URL('assets/js/dashboard.js',root),'utf8'),history=fs.readFileSync(new URL('assets/js/dashboard-history.js',root),'utf8'),repository=fs.readFileSync(new URL('modules/dashboard/historical-workbooks.js',root),'utf8');assert.match(html,/historyFilesList/);assert.match(html,/xlsx-0\.20\.3/);assert.match(js,/mountHistoricalWorkbookPanel/);assert.match(history,/ملفات Excel التاريخية مستقلة عن بيانات التشغيل الحية/);assert.match(history,/20\*1024\*1024/);assert.match(history,/const tenantId=activeTenantId/);assert.match(history,/refreshList\(tenantId\)/);assert.match(history,/الشهرية/);assert.match(history,/السنوية/);assert.match(history,/التحاليل/);assert.match(repository,/TaibaSmartLabDashboardHistory/);assert.match(repository,/tenantId\)\+'::'\+String\(type\)/);assert.match(repository,/index\('tenantId'\)/);assert.doesNotMatch(repository,/getSupabaseClient|historical_results/);console.log('PASS: tenant-scoped local historical workbook archive remains separate from live cloud data.');
+const analysis=fs.readFileSync(new URL('modules/dashboard/historical-analysis.js',root),'utf8');
+assert.match(history,/buildHistoricalDashboardReport/);
+assert.match(history,/getHistoricalWorkbook/);
+assert.match(history,/historyAnalysisResults/);
+assert.match(history,/refreshHistoricalDashboard/);
+assert.match(analysis,/extractHistoricalMonth/);
+assert.match(analysis,/extractHistoricalYear/);
+assert.match(analysis,/extractHistoricalExpenseBreakdown/);
+assert.match(analysis,/totalPoints/);
+assert.match(analysis,/trueProfitUnit/);
+assert.match(analysis,/source:'historical-excel'/);
+assert.doesNotMatch(analysis,/supabase|tenant_id/);
+console.log('PASS: archived Excel is the explicit source for historical calculations and remains isolated from live Supabase.');
