@@ -35,9 +35,9 @@ assert.match(migration, /No branch, membership, patient, visit, result, or finan
 
 // Offline boundary: an employee device may still use previously cached context/data
 // until it reconnects. Archival is server-side authorization, not remote cache erasure.
-assert.match(context, /if \\(globalThis\\.navigator\\?\\.onLine === false\\) return cachedContext\\(\\)/);
-assert.match(context, /offlineDb\\.sync_meta\\.put/);
+assert.match(context, /if \(globalThis\.navigator\?\.onLine === false\) return cachedContext\(\)/);
+assert.match(context, /offlineDb\.sync_meta\.put/);
 assert.match(offlineDatabase, /Dexie/);
-assert.doesNotMatch(migration, /Dexie|offlineDb|clear\\(/i);
+assert.doesNotMatch(migration, /Dexie|offlineDb|clear\(/i);
 
 console.log('PASS: branch archive static contract and offline-cache boundary (no runtime RLS claim).');
