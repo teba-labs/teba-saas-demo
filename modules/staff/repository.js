@@ -44,3 +44,15 @@ export async function setStaffActive({ tenantId, branchId, staffId, isActive } =
   if (error) throw error;
   return data;
 }
+
+/** Rename an existing staff directory row without changing its Auth linkage or branch identity. */
+export async function updateStaffName({tenantId,branchId,staffId,displayName}={}){
+ need(tenantId,'tenantId');need(branchId,'branchId');need(staffId,'staffId');
+ const name=String(displayName??'').trim();
+ if(!name||name.length>120)throw new Error('اسم الموظف يجب أن يكون بين حرف واحد و120 حرفًا.');
+ const {data,error}=await db().from('staff_directory').update({display_name:name})
+  .eq('tenant_id',tenantId).eq('branch_id',branchId).eq('id',staffId)
+  .select('id,tenant_id,branch_id,display_name,auth_user_id,is_active,updated_at').single();
+ if(error)throw error;
+ return data;
+}
