@@ -18,4 +18,7 @@ assert.match(importer,/كود مكرر داخل ملف Excel/);
 assert.match(importer,/result\.failed/);
 assert.match(catalog,/export async function saveCatalogTest/);
 assert.match(schema,/unique \(tenant_id, code\)/);
+const sw=await readFile(new URL('service-worker.js',root),'utf8');
+assert.match(sw,/taiba-smart-lab-shell-v8/);
+assert.match(sw,/modules\/migration\/catalog-importer\.js/);
 console.log('PASS: Excel import is limited to insert-only catalog records with tenant-code uniqueness and pre-write duplicate validation.');
