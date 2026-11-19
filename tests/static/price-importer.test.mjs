@@ -14,6 +14,7 @@ const [ui,importer,repoSource,migration,sw,html]=await Promise.all([
 assert.match(ui,/importNewBasePrices/);
 assert.match(ui,/listCurrentBasePrices,addBasePriceIfMissing/);
 assert.match(ui,/async function importBasePricesSheet/);
+assert.match(ui,/importBasePricesSheet\(s,priceButton\)\.catch/);
 assert.match(ui,/const fields=getEntityFields\(s\.entityType\)/);
 assert.match(ui,/fieldKey==='price'/);
 assert.match(ui,/navigator\.onLine===false/);
