@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     const { data: visitRows, error: visitError } = await admin.from('visits')
       .select('id, tenant_id, branch_id, visit_number, is_published, patients!inner(full_name)')
       .eq('tenant_id', tenant.id).eq('visit_number', visitNumber).eq('is_published', true)
-      .range(offset, offset + 499);
+      .order('id', { ascending: true }).range(offset, offset + 499);
     if (visitError) {
       console.error('Portal visit lookup failed.', visitError.message);
       return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503, origin);
