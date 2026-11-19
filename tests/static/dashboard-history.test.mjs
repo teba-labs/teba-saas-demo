@@ -21,3 +21,6 @@ assert.match(dashboardJs, /renderLiveHistoricalReconciliation/);
 assert.match(dashboardJs, /await renderLiveHistoricalReconciliation/);
 assert.match(history, /إيراد Excel/);
 assert.match(history, /لم يتم تخمين الربط/);
+const historicalEngine = fs.readFileSync(new URL('modules/dashboard/historical-analysis.js', root), 'utf8');
+assert.match(historicalEngine, /compareHistoricalAndLiveReports/);
+assert.match(historicalEngine, /Branch names must match exactly/);
