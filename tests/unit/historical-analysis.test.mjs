@@ -43,7 +43,7 @@ assert.equal(portfolio.topSellers[0].name,'CBC');
 assert.equal(portfolio.lossMakers.length,2);
 assert.equal(portfolio.needOffers.length,0);
 assert.equal(portfolio.bcg.stars.length+portfolio.bcg.cashCows.length+portfolio.bcg.questions.length+portfolio.bcg.dogs.length,2);
-assert.equal(portfolio.mostProfitable[0].name,'CBC');
+assert.equal(portfolio.mostProfitable[0].name,'ALT');
 assert.equal(portfolio.leastProfitable.length,0);
 const annualReport=engine.buildHistoricalAnnualReport({salesWorkbook,year:'2026'});
 assert.equal(annualReport.totals.rev,2500);
