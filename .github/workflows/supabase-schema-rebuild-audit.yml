@@ -88,7 +88,7 @@ jobs:
           test -s "$target"
           echo "Prepared CLI-created baseline migration: $target" | tee schema-rebuild.log
 
-      - name: Materialize CLI-created standard migrations 012-022 using TEST ledger versions
+      - name: Materialize CLI-created standard migrations 012-023 using TEST ledger versions
         shell: bash
         run: |
           set -euo pipefail
@@ -130,7 +130,7 @@ jobs:
           MIGRATIONS
           test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 13
 
-      - name: Reset the disposable local DB and apply the complete 001-022 chain
+      - name: Reset the disposable local DB and apply the complete 001-023 chain
         run: |
           set -euo pipefail
           supabase db reset
@@ -146,8 +146,8 @@ jobs:
           set +a
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f database/tests/verify_after_install.sql > post-install-verification.log 2>&1
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f database/tests/verify_tenant_isolation.sql > tenant-isolation-verification.log 2>&1
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -Atc "select schemaname || '.' || tablename || ' | ' || policyname || ' | ' || cmd || ' | USING=' || coalesce(qual,'') || ' | CHECK=' || coalesce(with_check,'') from pg_policies where schemaname in ('public','storage') and (coalesce(qual,'') || ' ' || coalesce(with_check,'')) ilike '%can_access_branch%' order by schemaname,tablename,policyname;" | tee branch-archive-rls-policy-inventory.txt
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -Atc "select n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosrc ilike '%can_access_branch%' order by 1;" | tee branch-archive-dependent-function-inventory.txt
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -Atc "with recursive helpers(function_name) as (select p.proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosrc ilike '%can_access_branch%' union select p.proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace join helpers h on p.prosrc ilike '%' || h.function_name || '%' where n.nspname in ('public','private')) select distinct pol.schemaname || '.' || pol.tablename || ' | ' || pol.policyname || ' | ' || pol.cmd || ' | USING=' || coalesce(pol.qual,'') || ' | CHECK=' || coalesce(pol.with_check,'') from pg_policies pol join helpers h on (coalesce(pol.qual,'') || ' ' || coalesce(pol.with_check,'')) ilike '%' || h.function_name || '%' where pol.schemaname in ('public','storage') order by 1;" | tee branch-archive-rls-policy-inventory.txt
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -Atc "with recursive helpers(oid) as (select p.oid from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosrc ilike '%can_access_branch%' union select p.oid from pg_proc p join pg_namespace n on n.oid=p.pronamespace join helpers h on p.prosrc ilike '%' || (select proname from pg_proc where oid=h.oid) || '%' where n.nspname in ('public','private')) select distinct n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' from helpers h join pg_proc p on p.oid=h.oid join pg_namespace n on n.oid=p.pronamespace order by 1;" | tee branch-archive-dependent-function-inventory.txt
           psql "$DB_URL" -v ON_ERROR_STOP=1 -Atc "
             select 'public_tables=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p');
             select 'public_functions=' || count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public';
