@@ -80,7 +80,7 @@ export function buildHistoricalDashboardReport({salesWorkbook,pricesWorkbook,det
   if(fixed===0&&totals.exp>0)fixed=Math.max(0,totals.exp-variable);
   const pointValue=points>0?fixed/points:0;
   const tests=movement.filter(t=>prices.has(normalize(t.name))).map(t=>{const p=prices.get(normalize(t.name)),trueCost=p.baseCost+p.weight*pointValue,profitUnit=p.sell-trueCost;return{name:t.name,count:t.count,type:p.type,baseCost:p.baseCost,weight:p.weight,sell:p.sell,trueCost,trueProfitUnit:profitUnit,trueTotalProfit:profitUnit*t.count};});
-  return{branch,...totals,profit:totals.rev-totals.exp,margin:totals.rev>0?(totals.rev-totals.exp)/totals.rev*100:0,tests,unmatchedTests:movement.filter(t=>!prices.has(normalize(t.name))).map(t=>t.name),allocation:{variableCost:variable,fixedCost:fixed,totalPoints:points,pointValue,expenseBreakdownAvailable:Boolean(breakdown)}};
+  return{branch,...totals,profit:totals.rev-totals.exp,margin:totals.rev>0?(totals.rev-totals.exp)/totals.rev*100:0,tests,unmatchedTests:movement.filter(t=>!prices.has(normalize(t.name))).map(t=>t.name),expenseBreakdown:breakdown?{chemicals:breakdown.chemicals,salaries:breakdown.salaries,misc:breakdown.misc,total:fixed}:null,allocation:{variableCost:variable,fixedCost:fixed,totalPoints:points,pointValue,expenseBreakdownAvailable:Boolean(breakdown)}};
  });
  const combined=new Map();
  for(const b of branchReports)for(const t of b.tests){const key=normalize(t.name);if(!combined.has(key))combined.set(key,{...t,count:0,trueTotalProfit:0});const item=combined.get(key);item.count+=t.count;item.trueTotalProfit+=t.trueTotalProfit;}
