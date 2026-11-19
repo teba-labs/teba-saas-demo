@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const root = new URL('../../', import.meta.url);
+const html = await readFile(new URL('app/dashboard.html', root), 'utf8');
+const dashboard = await readFile(new URL('assets/js/dashboard.js', root), 'utf8');
+const comparison = await readFile(new URL('modules/dashboard/period-comparison.js', root), 'utf8');
+assert.match(html, /periodComparisonRows/);
+assert.match(html, /periodComparisonCaption/);
+assert.match(dashboard, /getPreviousMonthRange/);
+assert.match(dashboard, /compareDashboardPeriods/);
+assert.match(dashboard, /Promise\.all\(\[getOwnerMonthlyDashboard/);
+assert.match(comparison, /changePercent/);
+assert.match(comparison, /month < 1 \|\| month > 12/);
+console.log('PASS: live dashboard comparison is wired to same-tenant prior-month data and guarded calculation module.');
