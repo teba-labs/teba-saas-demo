@@ -14,4 +14,7 @@ assert.match(ui, /report\.annualTrend/);
 assert.match(ui, /portfolio\.bcg/);
 assert.match(ui, /portfolio\.needOffers/);
 assert.match(ui, /portfolio\.leastProfitable/);
+assert.match(ui, /portfolio\.urgent\.losses/);
+assert.match(ui, /تفاصيل فئات BCG/);
+assert.match(ui, /portfolioRows\(items\)/);
 console.log('PASS: historical portfolio, annual, seasonal analytics are wired to the historical dashboard.');
