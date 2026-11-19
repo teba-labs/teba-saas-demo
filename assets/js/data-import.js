@@ -69,11 +69,11 @@ function renderSheet(){
  });
  mapTable.append(mapBody);const mapWrap=el('div');mapWrap.className='tableWrap';mapWrap.append(mapTable);root.append(mapWrap);
  if(s.entityType==='catalog'){
-  const importButton=el('button','استيراد التحاليل الجديدة فقط');importButton.type='button';importButton.addEventListener('click',()=>importCatalogSheet(s,importButton));root.append(importButton);
+  const importButton=el('button','استيراد التحاليل الجديدة فقط');importButton.type='button';importButton.addEventListener('click',()=>importCatalogSheet(s,importButton).catch(error=>note(error.message||'تعذر استيراد كتالوج التحاليل.',true)));root.append(importButton);
   const importHint=el('p','استيراد الكتالوج ينشئ الأكواد غير الموجودة فقط ولا يعدّل كودًا قائمًا.');root.append(importHint);
  }
  if(s.entityType==='prices'||(s.entityType==='catalog'&&s.columnMapping.filter(item=>item.fieldKey==='test_code').length===1&&s.columnMapping.filter(item=>item.fieldKey==='price').length===1)){
-  const priceButton=el('button','استيراد أسعار البيع الأساسية الجديدة فقط');priceButton.type='button';priceButton.addEventListener('click',()=>importBasePricesSheet(s,priceButton));root.append(priceButton);
+  const priceButton=el('button','استيراد أسعار البيع الأساسية الجديدة فقط');priceButton.type='button';priceButton.addEventListener('click',()=>importBasePricesSheet(s,priceButton).catch(error=>note(error.message||'تعذر استيراد أسعار التحاليل.',true)));root.append(priceButton);
   const priceHint=el('p','مسار الأسعار مستقل: يضيف السعر العام للتحليل النشط إذا لم يكن له سعر عام حالي. لا يغيّر سعرًا موجودًا ولا أي سعر خاص بفرع.');root.append(priceHint);
  }
  const previewTitle=el('h3','عينة من الصفوف تحت العناوين');root.append(previewTitle);
