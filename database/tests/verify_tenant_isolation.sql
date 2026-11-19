@@ -147,8 +147,13 @@ begin
     where pol.schemaname in ('public','storage')
       and pol.cmd in ('SELECT','ALL')
  loop
-   execute format('select count(*) from %I.%I',policy_row.schemaname,policy_row.tablename)
-      into visible_rows;
+   begin
+     execute format('select count(*) from %I.%I',policy_row.schemaname,policy_row.tablename)
+        into visible_rows;
+   exception when insufficient_privilege then
+     -- No table privilege is itself an effective denial for this employee.
+     visible_rows := 0;
+   end;
    if visible_rows <> 0 then
      raise exception 'RLS FAIL: employee sees % rows through dependent policy on %.%',
        visible_rows, policy_row.schemaname, policy_row.tablename;
