@@ -203,7 +203,7 @@ export async function addBasePriceIfMissing({ tenantId, testId, sellingPrice } =
   required(tenantId, 'tenantId'); required(testId, 'testId');
   const price = Number(sellingPrice);
   if (!Number.isFinite(price) || price < 0 || price > 9999999999.99
-    || Math.round(price * 100) !== price * 100) {
+    || Math.abs(price * 100 - Math.round(price * 100)) > 1e-7) {
     throw new Error('sellingPrice must be a non-negative amount with at most two decimal places.');
   }
   const { data: authData, error: authError } = await db().auth.getUser();
