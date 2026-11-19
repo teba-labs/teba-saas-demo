@@ -25,12 +25,12 @@ test('isolated rebuild packages legacy 001-011 into a CLI baseline and resets on
   assert.match(workflow, /database\/migrations\/01\{0,1\}_\*\.sql/);
 });
 
-test('012-022 are generated with Supabase CLI and applied locally without remote credentials', async () => {
+test('012-023 are generated with Supabase CLI and applied locally without remote credentials', async () => {
   const workflow = await read('.github/workflows/supabase-schema-rebuild-audit.yml');
   assert.match(workflow, /supabase migration new "\$name"/);
   assert.match(workflow, /supabase db reset/);
   assert.match(workflow, /Unexpected hosted database credential/);
-  for (const version of ['20261118225924','20261118230038','20261118230051','20261118230054','20261118230057','20261118230348','20261118230358','20261118230400','20261118230402','20261118231112','20261118232302']) {
+  for (const version of ['20261118225924','20261118230038','20261118230051','20261118230054','20261118230057','20261118230348','20261118230358','20261118230400','20261118230402','20261118231112','20261118232302','20261119160000']) {
     assert.ok(workflow.includes(version), `missing TEST ledger version ${version}`);
   }
 });
@@ -57,8 +57,18 @@ test('test-branch preview deploys only a Netlify draft and requires preconfigure
   assert.match(workflow, /secrets\.NETLIFY_SITE_ID/);
   assert.match(workflow, /netlify-cli@27\.20\.0/);
   assert.match(workflow, /--dir=dist/);
-  assert.match(workflow, /test ! -e dist\\/database/);
-  assert.match(workflow, /test ! -e dist\\/supabase/);
+  assert.ok(workflow.includes('test ! -e dist/database'));
+  assert.ok(workflow.includes('test ! -e dist/supabase'));
   assert.match(workflow, /--alias=taiba-unified-test/);
   assert.doesNotMatch(workflow, /--prod\b|prod-if-unlocked|functions deploy/i);
+});
+
+test('development source backup is packaged only after the exact branch passes checks', async () => {
+  const workflow = await read('.github/workflows/static-contract-tests.yml');
+  assert.ok(workflow.includes('ref: integration/unified-test-2026-11-19'));
+  assert.ok(workflow.includes('node --test tests/static/*.test.mjs'));
+  assert.ok(workflow.includes('node --experimental-default-type=module --check'));
+  assert.ok(workflow.includes('git archive --format=zip'));
+  assert.ok(workflow.includes('actions/upload-artifact@v4'));
+  assert.ok(workflow.includes('retention-days: 30'));
 });
