@@ -51,8 +51,12 @@ jobs:
       - name: Start a disposable local Supabase stack
         run: |
           set -euo pipefail
-          supabase start > supabase-start.log 2>&1
-          supabase status
+          supabase start > supabase-start.raw.log 2>&1
+          sed -E '/(Publishable|Secret|Access Key|Secret Key|JWT)/Id' supabase-start.raw.log > supabase-start.log
+          rm -f supabase-start.raw.log
+          supabase status > supabase-status.raw.log 2>&1
+          sed -E '/(Publishable|Secret|Access Key|Secret Key|JWT)/Id' supabase-status.raw.log > supabase-status.log
+          rm -f supabase-status.raw.log
           supabase status -o env > "$RUNNER_TEMP/supabase-local.env"
           grep -q '^DB_URL=' "$RUNNER_TEMP/supabase-local.env"
 
@@ -78,11 +82,11 @@ jobs:
           mkdir -p supabase/migrations
           while read -r version name; do
             test -n "$version"
-            source_file="database/migrations/${name#*_}.sql"
-            # Preserve exact legacy source path even though its prefix is numeric.
+            # Preserve the exact historical source path and ledger version.
             source_file="database/migrations/${name}.sql"
             test -f "$source_file"
             supabase migration new "$name" >/dev/null
+            sleep 1
             generated="$(find supabase/migrations -maxdepth 1 -type f -name "*_${name}.sql" | head -n 1)"
             test -n "$generated"
             target="supabase/migrations/${version}_${name}.sql"
@@ -142,6 +146,7 @@ jobs:
           name: taiba-isolated-schema-rebuild-evidence
           path: |
             supabase-start.log
+            supabase-status.log
             schema-rebuild.log
             migration-list-local.txt
             post-install-verification.log
