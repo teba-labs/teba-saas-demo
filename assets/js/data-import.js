@@ -113,7 +113,8 @@ async function importBasePricesSheet(sheet,button){
  button.disabled=true;button.textContent='جارٍ إضافة الأسعار العامة الجديدة…';
  try{
   const result=await importNewBasePrices({tenantId:state.tenantId,records,listCatalog,listExistingPrices:listCurrentBasePrices,savePrice:addBasePriceIfMissing});
-  note('تمت إضافة '+result.created.length+' سعر أساسي جديد، وتخطي '+result.skipped.length+' صف، وفشل '+result.failed.length+'. لم يتم تعديل أي سعر حالي أو سعر فرع.');
+  const cacheWarnings=result.created.filter(item=>item.cacheUpdated===false).length;
+  note('تمت إضافة '+result.created.length+' سعر أساسي جديد، وتخطي '+result.skipped.length+' صف، وفشل '+result.failed.length+'. لم يتم تعديل أي سعر حالي أو سعر فرع.'+(cacheWarnings?' تعذر تحديث الذاكرة المحلية لبعض الأسعار؛ ستُحدّث عند قراءة الكتالوج مع الاتصال.':''),result.failed.length>0);
   if(result.failed.length){const detail=el('ul');for(const item of result.failed)detail.append(el('li',item.code+': '+item.message));$('sheetDetails').append(detail);}
  }catch(error){note(error.message||'تعذر استيراد أسعار التحاليل.',true);}
  finally{button.disabled=false;button.textContent='استيراد أسعار البيع الأساسية الجديدة فقط';}
