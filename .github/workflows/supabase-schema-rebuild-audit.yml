@@ -131,6 +131,7 @@ jobs:
           source "$RUNNER_TEMP/supabase-local.env"
           set +a
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f database/tests/verify_after_install.sql > post-install-verification.log 2>&1
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f database/tests/verify_tenant_isolation.sql > tenant-isolation-verification.log 2>&1
           psql "$DB_URL" -v ON_ERROR_STOP=1 -Atc "
             select 'public_tables=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p');
             select 'public_functions=' || count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public';
@@ -163,6 +164,7 @@ jobs:
             schema-rebuild.log
             migration-list-local.txt
             post-install-verification.log
+            tenant-isolation-verification.log
             schema-inventory.txt
             schema-fingerprint-local.json
             schema-object-details-local.json
