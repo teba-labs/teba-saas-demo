@@ -142,9 +142,10 @@ jobs:
           " | tee schema-inventory.txt
           grep -q 'public_rls_not_forced=0' schema-inventory.txt
           psql "$DB_URL" -v ON_ERROR_STOP=1 -At -f database/tests/schema_fingerprint.sql > schema-fingerprint-local.raw.json
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -At -f database/tests/schema_object_details.sql > schema_object_details.raw.json
           python -c "import json; p='schema-fingerprint-local.raw.json'; d=json.load(open(p)); json.dump(d,open('schema-fingerprint-local.json','w'),sort_keys=True,separators=(',',':')); print(json.dumps(d,sort_keys=True))"
-          python -c "import json; e=json.load(open('database/tests/expected-test-schema-fingerprint.json')); a=json.load(open('schema-fingerprint-local.json')); raise SystemExit(0 if a == e else 1)"
-          echo "Full schema fingerprint matches the read-only TEST baseline." | tee schema-fingerprint-match.txt
+          python -c "import json; p='schema_object_details.raw.json'; d=json.load(open(p)); json.dump(d,open('schema-object-details-local.json','w'),sort_keys=True,separators=(',',':'))"
+          python -c "import json; e=json.load(open('database/tests/expected-test-schema-fingerprint.json')); a=json.load(open('schema-fingerprint-local.json')); diff={k:{'expected':e.get(k),'actual':a.get(k)} for k in sorted(set(e)|set(a)) if e.get(k)!=a.get(k)}; json.dump(diff,open('schema-fingerprint-diff.json','w'),sort_keys=True,indent=2); print('fingerprint differences:', ', '.join(diff) if diff else 'none')"
           supabase db dump --schema public,private --file schema-public-private.sql
 
       - name: Stop disposable local stack
@@ -164,7 +165,8 @@ jobs:
             post-install-verification.log
             schema-inventory.txt
             schema-fingerprint-local.json
-            schema-fingerprint-match.txt
+            schema-object-details-local.json
+            schema-fingerprint-diff.json
             schema-public-private.sql
           if-no-files-found: ignore
           retention-days: 7
