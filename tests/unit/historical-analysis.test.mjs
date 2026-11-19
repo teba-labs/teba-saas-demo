@@ -8,7 +8,7 @@ const monthly = [
  ['','','300','1500','11',30,'فرع باء','2026'],
  ['','','99','999','التقفيل',0,'فرع ألف','2026']
 ];
-const annual = [['','','expenses','revenue','branch','year'],['', '',500,2500,'فرع ألف','2026']];
+const annual = [['','','expenses','revenue','branch','year'],['', '',500,2500,'فرع ألف','2026'],['', '',400,2000,'فرع ألف','2025']];
 assert.deepEqual(engine.extractHistoricalMonth(monthly,'2026','11','فرع ألف'),{rev:1000,exp:200,cases:20});
 assert.deepEqual(engine.extractHistoricalYear(annual,'2026','فرع ألف'),{rev:2500,exp:500});
 assert.deepEqual(engine.findLatestHistoricalPeriod([{name:'الشهرية',rows:monthly}]),{year:'2026',month:'11'});
@@ -49,8 +49,9 @@ const annualReport=engine.buildHistoricalAnnualReport({salesWorkbook,year:'2026'
 assert.equal(annualReport.totals.rev,2500);
 assert.equal(annualReport.branches[0].margin,80);
 const annualTrend=engine.buildHistoricalAnnualTrend({salesWorkbook});
-assert.equal(annualTrend.length,1);
+assert.equal(annualTrend.length,2);
 assert.equal(annualTrend[0].revenueGrowth,null);
+assert.equal(annualTrend[1].revenueGrowth,25);
 assert.equal(annualTrend[0].rev,2500);
 const seasonality=engine.buildHistoricalCaseSeasonality({salesWorkbook,years:['2026'],branch:'فرع ألف'});
 assert.equal(seasonality.series[0].months[10],20);
