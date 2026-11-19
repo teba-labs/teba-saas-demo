@@ -9,7 +9,8 @@ const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 test('archive preflight is owner-only, local-only and linked from settings',()=>{
  const html=read('app/data-import.html'),js=read('assets/js/data-import.js'),inspector=read('modules/migration/workbook-inspector.js'),settings=read('app/settings.html');
  assert.match(html,/فحص شامل واستيراد محدود آمن/);
- assert.match(html,/لا يتم رفع الملف/);
+ assert.match(html,/المعاينة محلية/);
+ assert.match(html,/بقية أنواع البيانات تظل معاينة دون ترحيل/);
  assert.match(js,/accountType==='owner'/);
  assert.match(js,/inspectWorkbookFile/);
  assert.match(js,/headerRowSelect/);
