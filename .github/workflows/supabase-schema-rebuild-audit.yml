@@ -85,7 +85,7 @@ jobs:
             supabase migration new "$name" >/dev/null
             generated="$(find supabase/migrations -maxdepth 1 -type f -name "*_${name}.sql" | head -n 1)"
             test -n "$generated"
-            target="supabase/migrations/${version}_${name#*_}.sql"
+            target="supabase/migrations/${version}_${name}.sql"
             mv "$generated" "$target"
             cp "$source_file" "$target"
             echo "Prepared CLI-created migration $version ($name)"
