@@ -1,5 +1,5 @@
 import{saveHistoricalWorkbook,listHistoricalWorkbooks,getHistoricalWorkbook,deleteHistoricalWorkbook}from'../../modules/dashboard/historical-workbooks.js';
-import{buildHistoricalDashboardReport,buildHistoricalProductPortfolio,findLatestHistoricalPeriod}from'../../modules/dashboard/historical-analysis.js';
+import{buildHistoricalDashboardReport,buildHistoricalProductPortfolio,compareHistoricalAndLiveReports,findLatestHistoricalPeriod}from'../../modules/dashboard/historical-analysis.js';
 const FILES=[{type:'sales',label:'ملف المتابعة السنوية والشهرية',hint:'يحتوي أوراق الشهرية والسنوية وحركة التحاليل'},{type:'prices',label:'ملف أسعار وتكلفة التحاليل',hint:'يحتوي ورقة التحاليل وأسعار البيع والتكلفة والوزن'},{type:'detail2025',label:'تفصيل التحاليل لعام 2025',hint:'ملف تاريخي مستقل لتحليل حركة التحاليل'},{type:'detail2026',label:'تفصيل التحاليل لعام 2026',hint:'ملف تاريخي مستقل لتحليل حركة التحاليل'}];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const formatSize=n=>(Number(n||0)/1024/1024).toFixed(2)+' MB';let activeTenantId=null,bound=false,monthBound=false;
@@ -42,14 +42,11 @@ export async function renderLiveHistoricalReconciliation(liveReport,tenantId,bra
   const [year,month]=liveReport.period.monthStart.split('-');
   const sheets=workbookSheets(sales),priceSheets=workbookSheets(prices),detailSheets=workbookSheets(Number(year)===2025?detail25:detail26);
   const historical=buildHistoricalDashboardReport({salesWorkbook:sheets,pricesWorkbook:priceSheets,detailWorkbook:detailSheets,movementWorkbooks:sheets,year,month});
-  let liveRevenue=liveReport.totals.collected,liveCases=liveReport.totals.visits,excelRevenue=historical.totals.rev,excelCases=historical.totals.cases,scope='كل الفروع';
-  if(branchId){
-   const liveBranch=liveReport.branches.find(item=>item.id===branchId);
-   const historicalBranch=historical.branches.find(item=>clean(item.branch)===clean(liveBranch?.name));
-   if(!liveBranch||!historicalBranch){target.textContent='تعذرت مطابقة هذا الفرع: اسم الفرع في ملف Excel يجب أن يطابق اسم الفرع المسجل في النظام حرفيًا. لم يتم تخمين الربط.';return;}
-   liveRevenue=liveBranch.collected;liveCases=liveBranch.visits;excelRevenue=historicalBranch.rev;excelCases=historicalBranch.cases;scope=liveBranch.name;
-  }
-  const revenueDiff=liveRevenue-excelRevenue,casesDiff=liveCases-excelCases;
+  const liveBranch=branchId?liveReport.branches.find(item=>item.id===branchId):null;
+  const reconciliation=compareHistoricalAndLiveReports({historicalReport:historical,liveReport,branchName:branchId?liveBranch?.name:null});
+  if(!reconciliation.matched){target.textContent='تعذرت مطابقة هذا الفرع: اسم الفرع في ملف Excel يجب أن يطابق اسم الفرع المسجل في النظام حرفيًا. لم يتم تخمين الربط.';return;}
+  const {liveRevenue,historicalRevenue:excelRevenue,liveCases,historicalCases:excelCases,revenueDifference:revenueDiff,casesDifference:casesDiff}=reconciliation;
+  const scope=branchId?reconciliation.scope:'كل الفروع';
   target.innerHTML='<p>الفترة '+esc(year+'-'+month)+' · '+esc(scope)+'</p><div class="history-analysis-kpis"><article><span>تحصيل النظام</span><strong>'+money(liveRevenue)+'</strong></article><article><span>إيراد Excel</span><strong>'+money(excelRevenue)+'</strong></article><article><span>فرق القيمة</span><strong>'+money(revenueDiff)+'</strong></article><article><span>فرق الحالات</span><strong>'+casesDiff.toLocaleString('ar-EG')+'</strong></article></div><p class="hint">هذه مطابقة استرشادية: النظام يعرض التحصيل النقدي المسجل في دفتر الحركات، وExcel يعرض الإيراد التاريخي في ورقة الشهرية. اختلاف تعريف المؤشر أو توقيت التحصيل قد يفسر فرق الإيراد؛ لا يتم اعتماد أو تعديل أي بيانات تلقائيًا.</p>';
  }catch(error){target.textContent=error.message||'تعذرت مطابقة بيانات Excel مع التشغيل الحي.';}
 }
