@@ -110,7 +110,7 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
 /** Date-range test demand report; tenant/branch scoped and paginated without changing data. */
 export async function getOwnerTestRangeReport({tenantId,fromDate,toDateExclusive,branchId=null,search=''}={}){
  need(tenantId,'tenantId');need(fromDate,'fromDate');need(toDateExclusive,'toDateExclusive');
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(fromDate)||!/^\\d{4}-\\d{2}-\\d{2}$/.test(toDateExclusive)||toDateExclusive<=fromDate)throw new Error('A valid half-open date range is required.');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(fromDate)||!/^\d{4}-\d{2}-\d{2}$/.test(toDateExclusive)||toDateExclusive<=fromDate)throw new Error('A valid half-open date range is required.');
  const client=db();
  let visitQuery=client.from('visits').select('id,branch_id').eq('tenant_id',tenantId)
   .gte('visit_work_date',fromDate).lt('visit_work_date',toDateExclusive).neq('status','cancelled')
