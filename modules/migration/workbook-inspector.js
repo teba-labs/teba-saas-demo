@@ -51,6 +51,10 @@ const ENTITY_FIELDS = {
     ['price','السعر',false,['price','selling_price','السعر']],
     ['parameters','المعلمات / التفاصيل',false,['parameters','parameter','المعلمات','البارامترات']]
   ]},
+  prices: { label: 'أسعار التحاليل', fields: [
+    ['test_code','كود التحليل',true,['test_code','code','كود التحليل','الكود']],
+    ['price','سعر البيع العام',true,['price','selling_price','سعر البيع','السعر','price egp']]
+  ]},
   expenses: { label: 'بنود / مصروفات', fields: [
     ['category','بند المصروف',true,['category','category_name','expense category','بند المصروف','البند']],
     ['amount','المبلغ',false,['amount','المبلغ']],
@@ -69,7 +73,7 @@ const ENTITY_FIELDS = {
 const ENTITY_OPTIONS = [
   ['unknown','غير محدد'],['patients','المرضى'],['visits','الزيارات / الحالات'],
   ['visit_tests','تحاليل الزيارة'],['test_results','نتائج التحاليل'],['ledger','الحركة المالية'],
-  ['catalog','كتالوج التحاليل'],['expenses','بنود / مصروفات'],['website','محتوى الموقع']
+  ['catalog','كتالوج التحاليل'],['prices','أسعار التحاليل'],['expenses','بنود / مصروفات'],['website','محتوى الموقع']
 ];
 
 function cleanCell(value) {
@@ -92,7 +96,7 @@ export function rankHeaderCandidates(rows) {
 }
 
 const UNIQUE_KEYS = {
-  patients:['source_id'], visits:['source_id'], ledger:['source_id'], catalog:['test_code'],
+  patients:['source_id'], visits:['source_id'], ledger:['source_id'], catalog:['test_code'], prices:['test_code'],
   visit_tests:['visit_id','test_code'], test_results:['visit_id','test_code']
 };
 const NUMERIC_FIELDS = new Set(['total_amount','discount','paid_amount','amount','price','sort_order']);
@@ -229,7 +233,7 @@ export function inferSheetType(sheetName) {
     ['patients',/مرض|patient|patients|عملاء/],['visit_tests',/تحاليل الزيار|visit test|visit_tests|تفاصيل التحاليل/],
     ['visits',/زيار|حالا|visit|visits|استقبال/],
     ['test_results',/نتائج|نتايج|result|test_results/],['ledger',/حرك|مالي|ledger|financial|خزين|مدفوع/],
-    ['catalog',/كتالوج|تحاليل|catalog|tests/],['expenses',/مصروف|expense|بنود/],
+    ['prices',/سعر|اسعار|price|prices/],['catalog',/كتالوج|تحاليل|catalog|tests/],['expenses',/مصروف|expense|بنود/],
     ['website',/موقع|مقال|faq|عرض|package|testimonial|article/]
   ];
   return rules.find(([,pattern])=>pattern.test(n))?.[0]||'unknown';
