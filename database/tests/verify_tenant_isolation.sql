@@ -41,6 +41,126 @@ insert into public.patients (id,tenant_id,branch_id,patient_number,full_name) va
  ('aa300000-0000-4000-8000-000000000002','aa000000-0000-4000-8000-000000000001','aa100000-0000-4000-8000-000000000002','RLS-A2-001','RLS Patient A2'),
  ('bb300000-0000-4000-8000-000000000001','bb000000-0000-4000-8000-000000000001','bb100000-0000-4000-8000-000000000001','RLS-B1-001','RLS Patient B1');
 
+-- Seed representative clinical, operational and financial history for A1.
+-- Every row is synthetic and remains inside this transaction, which ends in ROLLBACK.
+insert into public.branch_workdays(id,tenant_id,branch_id,work_date,status,opened_by)
+values ('aa400000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        date '2026-11-19','closed',
+        'a1000000-0000-4000-8000-000000000002');
+
+insert into public.tests_catalog(id,tenant_id,code,name)
+values ('aa500000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001','RLS-TST-001','Synthetic RLS test');
+
+insert into public.visits(id,tenant_id,branch_id,patient_id,workday_id,visit_number,created_by)
+values ('aa600000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'aa300000-0000-4000-8000-000000000001',
+        'aa400000-0000-4000-8000-000000000001',
+        'RLS-VISIT-A1-001',
+        'a1000000-0000-4000-8000-000000000002');
+
+insert into public.visit_tests(id,tenant_id,branch_id,visit_id,test_id,test_code_snapshot,test_name_snapshot,created_by)
+values ('aa700000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'aa600000-0000-4000-8000-000000000001',
+        'aa500000-0000-4000-8000-000000000001',
+        'RLS-TST-001','Synthetic RLS test',
+        'a1000000-0000-4000-8000-000000000002');
+
+insert into public.test_results(id,tenant_id,visit_test_id,parameter_code,parameter_name_snapshot,value_text,entered_by)
+values ('aa900000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa700000-0000-4000-8000-000000000001',
+        'RLS-PARAM','Synthetic parameter','synthetic-result',
+        'a1000000-0000-4000-8000-000000000002');
+
+insert into public.visit_billing(id,tenant_id,branch_id,visit_id,gross_total,discount_amount)
+values ('ab000000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'aa600000-0000-4000-8000-000000000001',100,0);
+
+insert into public.payments(id,tenant_id,branch_id,visit_id,amount,idempotency_key,received_by)
+values ('ab100000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'aa600000-0000-4000-8000-000000000001',50,
+        'ab100000-0000-4000-8000-000000000002',
+        'a1000000-0000-4000-8000-000000000002');
+
+insert into public.financial_ledger(id,tenant_id,branch_id,source_type,source_id,direction,amount,description)
+values ('ab200000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'payment','ab100000-0000-4000-8000-000000000001','inflow',50,'Synthetic RLS payment');
+
+insert into public.expense_categories(id,tenant_id,name)
+values ('ab300000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001','Synthetic RLS category');
+
+insert into public.expenses(id,tenant_id,branch_id,category_id,amount,idempotency_key,spent_by)
+values ('ab400000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'ab300000-0000-4000-8000-000000000001',10,
+        'ab400000-0000-4000-8000-000000000002',
+        'a1000000-0000-4000-8000-000000000002');
+
+insert into public.daily_closings(id,tenant_id,branch_id,workday_id,work_date,closing_snapshot)
+values ('ab500000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'aa400000-0000-4000-8000-000000000001',
+        date '2026-11-19','{"synthetic":true}'::jsonb);
+
+insert into public.report_versions(id,tenant_id,branch_id,visit_id,version_number,storage_path,report_snapshot)
+values ('ab600000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'aa600000-0000-4000-8000-000000000001',1,
+        'synthetic/rls-test/report.pdf','{"synthetic":true}'::jsonb);
+
+insert into public.historical_results(id,tenant_id,branch_id,patient_id,patient_name_snapshot,test_code,test_name_snapshot,result_date,result_data)
+values ('ab700000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'aa300000-0000-4000-8000-000000000001',
+        'RLS Patient A1','RLS-TST-001','Synthetic RLS test',
+        date '2026-11-19','{"synthetic":true}'::jsonb);
+
+insert into public.file_metadata(id,tenant_id,branch_id,related_visit_id,bucket_id,storage_path,file_kind)
+values ('ab800000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'aa600000-0000-4000-8000-000000000001',
+        'tenant-attachments','synthetic/rls-test/attachment.pdf','attachment');
+
+insert into public.sync_operations(id,tenant_id,branch_id,operation_id,operation_type,status)
+values ('ab900000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'ab900000-0000-4000-8000-000000000002','patient.create','applied');
+
+insert into public.sync_conflicts(id,tenant_id,branch_id,operation_id,entity_type,entity_id,local_payload,server_payload)
+values ('aba00000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'ab900000-0000-4000-8000-000000000002',
+        'patient','aa300000-0000-4000-8000-000000000001',
+        '{"synthetic":"local"}'::jsonb,'{"synthetic":"server"}'::jsonb);
+
+insert into public.audit_logs(id,tenant_id,branch_id,actor_user_id,action,table_name,record_id)
+values ('abb00000-0000-4000-8000-000000000001',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'a1000000-0000-4000-8000-000000000002',
+        'synthetic-test','patients','aa300000-0000-4000-8000-000000000001');
+
 -- Tenant A owner must see both branches and patients in A, but nothing in B.
 select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select set_config('request.jwt.claim.sub','a1000000-0000-4000-8000-000000000001',true);
@@ -75,10 +195,21 @@ insert into branch_archive_counts_before values
  ('branch_memberships',(select count(*) from public.branch_memberships)),
  ('staff_directory',(select count(*) from public.staff_directory)),
  ('patients',(select count(*) from public.patients)),
+ ('branch_workdays',(select count(*) from public.branch_workdays)),
  ('visits',(select count(*) from public.visits)),
+ ('visit_tests',(select count(*) from public.visit_tests)),
  ('test_results',(select count(*) from public.test_results)),
+ ('visit_billing',(select count(*) from public.visit_billing)),
  ('payments',(select count(*) from public.payments)),
- ('financial_ledger',(select count(*) from public.financial_ledger));
+ ('financial_ledger',(select count(*) from public.financial_ledger)),
+ ('expenses',(select count(*) from public.expenses)),
+ ('daily_closings',(select count(*) from public.daily_closings)),
+ ('report_versions',(select count(*) from public.report_versions)),
+ ('historical_results',(select count(*) from public.historical_results)),
+ ('file_metadata',(select count(*) from public.file_metadata)),
+ ('sync_operations',(select count(*) from public.sync_operations)),
+ ('sync_conflicts',(select count(*) from public.sync_conflicts)),
+ ('audit_logs',(select count(*) from public.audit_logs));
 
 -- Archive A1 as the privileged test harness would. No related rows are changed.
 do $archive$
