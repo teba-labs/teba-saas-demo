@@ -1,0 +1,151 @@
+name: Supabase isolated schema rebuild audit
+
+on:
+  push:
+    branches:
+      - "integration/unified-test-2026-11-19"
+    paths:
+      - ".github/workflows/supabase-schema-rebuild-audit.yml"
+      - "database/migrations/**"
+      - "database/tests/**"
+      - "supabase/config.toml"
+      - "supabase/migrations/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-schema-rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the exact development branch
+        uses: actions/checkout@v4
+        with:
+          ref: integration/unified-test-2026-11-19
+
+      - name: Set up Supabase CLI v3
+        uses: supabase/setup-cli@v3
+        with:
+          version: 3.2.0
+
+      - name: Verify isolated toolchain and CLI command contracts
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "integration/unified-test-2026-11-19"
+          git rev-parse HEAD
+          node --version
+          supabase --version
+          docker version
+          docker info
+          supabase migration new --help >/dev/null
+          supabase migration up --help >/dev/null
+          supabase migration list --help >/dev/null
+          supabase db dump --help >/dev/null
+          if env | grep -Eq '^(SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|DATABASE_URL)='; then
+            echo "Unexpected hosted database credential in this isolated job."
+            exit 1
+          fi
+
+      - name: Start a disposable local Supabase stack
+        run: |
+          set -euo pipefail
+          supabase start > supabase-start.log 2>&1
+          supabase status
+          supabase status -o env > "$RUNNER_TEMP/supabase-local.env"
+          grep -q '^DB_URL=' "$RUNNER_TEMP/supabase-local.env"
+
+      - name: Rebuild the legacy baseline 001-011 on the clean local database
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source "$RUNNER_TEMP/supabase-local.env"
+          set +a
+          test -n "${DB_URL:-}"
+          for file in database/migrations/0{01..09}_*.sql database/migrations/01{0,1}_*.sql; do
+            test -f "$file"
+            echo "Applying isolated legacy source: $file"
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$file" >> schema-rebuild.log 2>&1
+          done
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "select version, description from public.schema_migrations order by version;" >> schema-rebuild.log
+
+      - name: Materialize CLI-created standard migrations 012-022 using TEST ledger versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p supabase/migrations
+          while read -r version name; do
+            test -n "$version"
+            source_file="database/migrations/${name#*_}.sql"
+            # Preserve exact legacy source path even though its prefix is numeric.
+            source_file="database/migrations/${name}.sql"
+            test -f "$source_file"
+            supabase migration new "$name" >/dev/null
+            generated="$(find supabase/migrations -maxdepth 1 -type f -name "*_${name}.sql" | head -n 1)"
+            test -n "$generated"
+            target="supabase/migrations/${version}_${name#*_}.sql"
+            mv "$generated" "$target"
+            cp "$source_file" "$target"
+            echo "Prepared CLI-created migration $version ($name)"
+          done <<'MIGRATIONS'
+          20261118225924 012_restrict_trigger_function_execute
+          20261118230038 013_cross_branch_debt_collection
+          20261118230051 014_branch_specific_test_prices
+          20261118230054 015_cross_branch_payment_retry_hardening
+          20261118230057 016_atomic_patient_portal_rate_limit
+          20261118230348 017_atomic_result_transitions
+          20261118230358 018_staff_auth_linking
+          20261118230400 019_enforce_employee_actor_identity
+          20261118230402 020_branch_outstanding_balances
+          20261118231112 021_employee_actor_pending_fields
+          20261118232302 022_employee_reactivation_order
+          MIGRATIONS
+          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 11
+
+      - name: Apply standard migrations 012-022 to the local stack only
+        run: |
+          set -euo pipefail
+          supabase migration up
+          supabase migration list | tee migration-list-local.txt
+          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 11
+
+      - name: Run post-install structural and security assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source "$RUNNER_TEMP/supabase-local.env"
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f database/tests/verify_after_install.sql > post-install-verification.log 2>&1
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -Atc "
+            select 'public_tables=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p');
+            select 'public_functions=' || count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public';
+            select 'public_triggers=' || count(*) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and not t.tgisinternal;
+            select 'public_policies=' || count(*) from pg_policies where schemaname='public';
+            select 'public_indexes=' || count(*) from pg_indexes where schemaname='public';
+            select 'public_foreign_keys=' || count(*) from pg_constraint con join pg_class c on c.oid=con.conrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and con.contype='f';
+            select 'public_rls_not_forced=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p') and (not c.relrowsecurity or not c.relforcerowsecurity);
+          " | tee schema-inventory.txt
+          grep -q 'public_rls_not_forced=0' schema-inventory.txt
+          supabase db dump --schema public,private --file schema-public-private.sql
+
+      - name: Stop disposable local stack
+        if: always()
+        run: supabase stop || true
+
+      - name: Upload sanitized rebuild evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taiba-isolated-schema-rebuild-evidence
+          path: |
+            supabase-start.log
+            schema-rebuild.log
+            migration-list-local.txt
+            post-install-verification.log
+            schema-inventory.txt
+            schema-public-private.sql
+          if-no-files-found: ignore
+          retention-days: 7
