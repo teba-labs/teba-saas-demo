@@ -117,3 +117,28 @@ export function buildHistoricalProductPortfolio(report){
   bcg:{stars:withProfit.filter(test=>test.segment==='star'),cashCows:withProfit.filter(test=>test.segment==='cash-cow'),questions:withProfit.filter(test=>test.segment==='question'),dogs:withProfit.filter(test=>test.segment==='dog')}
  };
 }
+
+/** Annual revenue/expense comparison from the historical annual worksheet. */
+export function buildHistoricalAnnualReport({salesWorkbook,year}={}){
+ if(!salesWorkbook||!year)throw new Error('Historical sales workbook and year are required.');
+ const rows=salesWorkbook.find(sheet=>sheet.name.includes('السنوية'))?.rows||[];
+ if(!rows.length)throw new Error('The annual worksheet is missing.');
+ const branches=[...new Set(rows.slice(1).filter(row=>clean(row?.[5])===String(year)).map(row=>clean(row?.[4])).filter(Boolean))];
+ const byBranch=branches.map(branch=>({branch,...extractHistoricalYear(rows,year,branch)})).map(item=>({...item,profit:item.rev-item.exp,margin:item.rev>0?(item.rev-item.exp)/item.rev*100:0}));
+ const totals=byBranch.reduce((acc,item)=>({rev:acc.rev+item.rev,exp:acc.exp+item.exp,profit:acc.profit+item.profit}),{rev:0,exp:0,profit:0});
+ return {year:String(year),branches:byBranch,totals:{...totals,margin:totals.rev>0?totals.profit/totals.rev*100:0}};
+}
+
+/** Monthly case seasonality; missing months stay zero and are not silently averaged as active months. */
+export function buildHistoricalCaseSeasonality({salesWorkbook,years,branch='all'}={}){
+ const rows=salesWorkbook?.find(sheet=>sheet.name.includes('الشهرية'))?.rows||[];
+ if(!rows.length)throw new Error('The monthly worksheet is missing.');
+ const selectedYears=(years||[...new Set(rows.slice(1).map(row=>clean(row?.[7])).filter(Boolean))]).map(String).sort();
+ const series=selectedYears.map(year=>{
+  const months=Array.from({length:12},(_,index)=>extractHistoricalMonth(rows,year,String(index+1),branch).cases);
+  const activeMonths=months.filter(value=>value>0).length;
+  return {year,months,total:months.reduce((sum,value)=>sum+value,0),activeMonths,averagePerActiveMonth:activeMonths?months.reduce((sum,value)=>sum+value,0)/activeMonths:0};
+ });
+ const monthTotals=Array.from({length:12},(_,index)=>series.reduce((sum,item)=>sum+item.months[index],0));
+ return {branch,series,monthTotals,busiestMonths:monthTotals.map((cases,index)=>({month:index+1,cases})).filter(item=>item.cases>0).sort((a,b)=>b.cases-a.cases).slice(0,3),quietestMonths:monthTotals.map((cases,index)=>({month:index+1,cases})).filter(item=>item.cases>0).sort((a,b)=>a.cases-b.cases).slice(0,3)};
+}
