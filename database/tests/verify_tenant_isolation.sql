@@ -384,6 +384,59 @@ begin
   exception when insufficient_privilege then
     null;
   end;
+  if not exists (select 1 from storage.objects where name='attachments/aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf') then
+    raise exception 'DATA INTEGRITY FAIL: employee delete changed archived attachment';
+  end if;
+
+  -- RPC-only writes must reject the archived branch before touching billing,
+  -- expense or offline-intake data.
+  declare
+    denied boolean;
+  begin
+    denied := false;
+    begin
+      perform public.record_patient_payment(
+        'aa000000-0000-4000-8000-000000000001',
+        'aa600000-0000-4000-8000-000000000001',
+        1,'cash','abd00000-0000-4000-8000-000000000001',
+        'aa200000-0000-4000-8000-000000000001',null
+      );
+    exception when others then
+      if sqlerrm = 'Visit not accessible' then denied := true; else raise; end if;
+    end;
+    if not denied then raise exception 'RLS FAIL: payment RPC accepted archived branch'; end if;
+
+    denied := false;
+    begin
+      perform public.record_branch_expense(
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'ab300000-0000-4000-8000-000000000001',
+        1,'synthetic denied expense',
+        'abd00000-0000-4000-8000-000000000002',
+        'aa200000-0000-4000-8000-000000000001'
+      );
+    exception when others then
+      if sqlerrm = 'Branch not accessible' then denied := true; else raise; end if;
+    end;
+    if not denied then raise exception 'RLS FAIL: expense RPC accepted archived branch'; end if;
+
+    denied := false;
+    begin
+      perform public.create_visit_intake_idempotent(
+        'abd00000-0000-4000-8000-000000000003',
+        'aa000000-0000-4000-8000-000000000001',
+        'aa100000-0000-4000-8000-000000000001',
+        'aa300000-0000-4000-8000-000000000001',
+        'RLS-OFFLINE-DENIED',
+        'aa200000-0000-4000-8000-000000000001',
+        array[]::uuid[],0,0,'cash',null,null,'[]'::jsonb
+      );
+    exception when others then
+      if sqlerrm = 'Branch not accessible' then denied := true; else raise; end if;
+    end;
+    if not denied then raise exception 'RLS FAIL: offline intake RPC accepted archived branch'; end if;
+  end;
 end $archive$;
 reset role;
 
