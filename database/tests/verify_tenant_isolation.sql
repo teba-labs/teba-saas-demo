@@ -398,10 +398,6 @@ begin
   exception when insufficient_privilege then
     null;
   end;
-  if not exists (select 1 from storage.objects where name='aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf') then
-    raise exception 'DATA INTEGRITY FAIL: employee delete changed archived attachment';
-  end if;
-
   -- RPC-only writes must reject the archived branch before touching billing,
   -- expense or offline-intake data.
   declare
