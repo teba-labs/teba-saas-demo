@@ -26,7 +26,7 @@ select jsonb_build_object(
   ), '')) from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname in ('public', 'private') and not t.tgisinternal),
   'functions_md5',
   (select md5(coalesce(string_agg(
-    format('%I.%s(%s):%s:%s:%s', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), md5(p.prosrc), p.prosecdef, coalesce(array_to_string(p.proconfig, ','), '')),
+    format('%I.%s(%s):%s:%s:%s', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), md5(regexp_replace(replace(p.prosrc, E'\r', ''), E'[ \t]+', ' ', 'gm')), p.prosecdef, coalesce(array_to_string(p.proconfig, ','), '')),
     E'\n' order by n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)
   ), '')) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public', 'private')),
   'table_rls_md5',
