@@ -2,13 +2,13 @@ import { getSupabaseClient } from '../../core/supabase-client.js';
 import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
-import { listBranchWork } from '../../modules/laboratory/repository.js';
+import { listBranchWorkPage } from '../../modules/laboratory/repository.js';
 import { listResultsForVisitTests, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
 import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [] };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0 };
 const showNotice = (message, error = false) => {
   const el = $('notice'); el.textContent = message; el.className = `notice show${error ? ' error' : ''}`;
   window.clearTimeout(showNotice.timer); showNotice.timer = window.setTimeout(() => el.className = 'notice', 5000);
@@ -60,13 +60,26 @@ async function loadBranch() {
   $('staffSelect').disabled = state.tenant.accountType === 'employee';
   $('staffSelect').innerHTML = state.staff.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.display_name)}</option>`).join('');
   if (!state.staff.length) { $('workList').innerHTML = '<div class="empty">لا يوجد موظف نشط مسجل لهذا الفرع. أضف الموظفين من إعدادات المعمل أولًا.</div>'; $('contextStatus').textContent = ''; return; }
+  state.workPage = 0;
   await refreshWork();
 }
 
 async function refreshWork() {
   $('contextStatus').textContent = 'جارٍ تحديث قائمة العمل…';
-  state.work = await listBranchWork({ tenantId: state.tenant.id, branchId: state.branch.id });
-  $('contextStatus').textContent = `الفرع: ${state.branch.name} · ${state.work.length} تحليل قيد المتابعة`;
+  let result = await listBranchWorkPage({ tenantId: state.tenant.id, branchId: state.branch.id, page: state.workPage, pageSize: state.workPageSize });
+  const lastPage = Math.max(0, Math.ceil(result.count / state.workPageSize) - 1);
+  if (state.workPage > lastPage) {
+    state.workPage = lastPage;
+    result = await listBranchWorkPage({ tenantId: state.tenant.id, branchId: state.branch.id, page: state.workPage, pageSize: state.workPageSize });
+  }
+  state.work = result.rows;
+  state.workCount = result.count;
+  $('contextStatus').textContent = `الفرع: ${state.branch.name} · ${state.workCount} تحليل قيد المتابعة`;
+  const pager = $('workPager');
+  pager.hidden = state.workCount <= state.workPageSize;
+  $('workPageStatus').textContent = `صفحة ${state.workPage + 1} من ${Math.max(1, Math.ceil(state.workCount / state.workPageSize))} · ${state.workCount} تحليل`;
+  $('prevWorkPage').disabled = state.workPage === 0;
+  $('nextWorkPage').disabled = (state.workPage + 1) * state.workPageSize >= state.workCount;
   await renderWork();
 }
 
@@ -258,3 +271,14 @@ $('signOut').addEventListener('click', async () => { try { await signOut(); awai
 $('refreshButton').addEventListener('click', async () => { try { await refreshWork(); } catch (error) { showNotice(error.message, true); } });
 
 try { await startWorkspace(); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
+
+$('prevWorkPage').addEventListener('click', async () => {
+  if (state.workPage <= 0) return;
+  state.workPage -= 1;
+  try { await refreshWork(); } catch (error) { showNotice(error.message || 'تعذر تحميل الصفحة السابقة.', true); }
+});
+$('nextWorkPage').addEventListener('click', async () => {
+  if ((state.workPage + 1) * state.workPageSize >= state.workCount) return;
+  state.workPage += 1;
+  try { await refreshWork(); } catch (error) { showNotice(error.message || 'تعذر تحميل الصفحة التالية.', true); }
+});
