@@ -106,3 +106,30 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
     ledger,
   };
 }
+
+/** Date-range test demand report; tenant/branch scoped and paginated without changing data. */
+export async function getOwnerTestRangeReport({tenantId,fromDate,toDateExclusive,branchId=null,search=''}={}){
+ need(tenantId,'tenantId');need(fromDate,'fromDate');need(toDateExclusive,'toDateExclusive');
+ if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(fromDate)||!/^\\d{4}-\\d{2}-\\d{2}$/.test(toDateExclusive)||toDateExclusive<=fromDate)throw new Error('A valid half-open date range is required.');
+ const client=db();
+ let visitQuery=client.from('visits').select('id,branch_id').eq('tenant_id',tenantId)
+  .gte('visit_work_date',fromDate).lt('visit_work_date',toDateExclusive).neq('status','cancelled')
+  .order('visit_work_date').order('id');
+ if(branchId)visitQuery=visitQuery.eq('branch_id',branchId);
+ const visits=await readAllPages(()=>visitQuery);
+ const counts=new Map();
+ for(let offset=0;offset<visits.length;offset+=500){
+  const ids=visits.slice(offset,offset+500).map(row=>row.id);
+  const tests=await readAllPages(()=>client.from('visit_tests')
+   .select('test_id,test_name_snapshot,price_snapshot,status')
+   .eq('tenant_id',tenantId).in('visit_id',ids).neq('status','cancelled').order('test_id'));
+  for(const row of tests){
+   const key=String(row.test_id||row.test_name_snapshot||'').trim();if(!key)continue;
+   const item=counts.get(key)||{testId:row.test_id,name:row.test_name_snapshot||key,count:0,billed:0};
+   item.count+=1;item.billed+=Number(row.price_snapshot||0);counts.set(key,item);
+  }
+ }
+ const needle=String(search||'').trim().toLocaleLowerCase('ar');
+ const tests=[...counts.values()].filter(item=>!needle||String(item.name).toLocaleLowerCase('ar').includes(needle)||String(item.testId||'').toLocaleLowerCase('ar').includes(needle)).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'ar'));
+ return {period:{fromDate,toDateExclusive},visitCount:visits.length,testCount:tests.reduce((sum,item)=>sum+item.count,0),tests};
+}
