@@ -13,7 +13,7 @@ export function findLatestHistoricalPeriod(salesWorkbook){
 export function extractHistoricalMonth(monthlyRows,year,month,branch){
  let rev=0,exp=0,cases=0;
  for(let i=1;i<monthlyRows.length;i++){const row=monthlyRows[i];if(!row)continue;
-  if(clean(row[7])!==String(year)||clean(row[6])!==clean(branch))continue;
+  if(clean(row[7])!==String(year)||(branch!=='all'&&clean(row[6])!==clean(branch)))continue;
   const rowMonth=clean(row[4]);if(month!=='all'&&rowMonth!==String(month))continue;
   if(rowMonth==='التقفيل'||rowMonth==='')continue;
   rev+=number(row[3]);exp+=number(row[2]);cases+=number(row[5]);
