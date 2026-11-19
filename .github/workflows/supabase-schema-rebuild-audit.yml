@@ -84,11 +84,19 @@ jobs:
             test -n "$version"
             # Preserve the exact historical source path and ledger version.
             source_file="database/migrations/${name}.sql"
-            test -f "$source_file"
-            supabase migration new "$name" >/dev/null
+            if [[ ! -f "$source_file" ]]; then
+              echo "Missing historical migration source: $source_file"
+              exit 1
+            fi
+            # Keep the heredoc feeding the loop; the CLI must not inherit it as stdin.
+            supabase migration new "$name" </dev/null
             sleep 1
             generated="$(find supabase/migrations -maxdepth 1 -type f -name "*_${name}.sql" | head -n 1)"
-            test -n "$generated"
+            if [[ -z "$generated" ]]; then
+              echo "CLI-created migration file was not found for $name"
+              find supabase/migrations -maxdepth 1 -type f -print
+              exit 1
+            fi
             target="supabase/migrations/${version}_${name}.sql"
             mv "$generated" "$target"
             cp "$source_file" "$target"
