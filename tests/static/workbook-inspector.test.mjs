@@ -32,6 +32,7 @@ test('Arabic and English sheet names are classified, with specific sheets before
  assert.equal(inferSheetType('نتائج التحاليل'),'test_results');
  assert.equal(inferSheetType('Financial Ledger'),'ledger');
  assert.equal(inferSheetType('كتالوج التحاليل'),'catalog');
+ assert.equal(inferSheetType('أسعار التحاليل'),'prices');
  assert.equal(inferSheetType('المصروفات'),'expenses');
  assert.equal(inferSheetType('مقالات الموقع'),'website');
  assert.equal(inferSheetType('ورقة غير معروفة'),'unknown');
@@ -49,20 +50,21 @@ test('column suggestions recognize Arabic and English aliases and avoid duplicat
 });
 
 test('required fields are explicitly identified for each supported entity',()=>{
- for(const entity of ['patients','visits','visit_tests','test_results','ledger','catalog','expenses','website']){
+ for(const entity of ['patients','visits','visit_tests','test_results','ledger','catalog','prices','expenses','website']){
   assert.ok(getEntityFields(entity).some(field=>field.required),entity+' should define required fields');
  }
  assert.deepEqual(getEntityFields('unknown'),[]);
 });
 
-test('mapping review stays in-memory and only catalog has restricted insert-only import',()=>{
+test('mapping review stays in-memory and imports are restricted to catalog and base prices',()=>{
  const js=read('assets/js/data-import.js'),html=read('app/data-import.html');
  assert.match(js,/suggestColumnMapping/);
  assert.match(js,/addEventListener\('change'/);
  assert.match(js,/columnMapping/);
  assert.match(js,/تغييرات مؤقتة داخل الصفحة فقط/);
  assert.doesNotMatch(js,/localStorage|sessionStorage|\.from\(|\.rpc\(|fetch\(/);
- assert.match(html,/استيراد أكواد كتالوج التحاليل الجديدة فقط/);
+ assert.match(js,/importNewBasePrices/);
+ assert.match(html,/أسعار البيع العامة/);
 });
 
 test('file guards and workbook sheet limit remain enforced',()=>{
@@ -76,7 +78,7 @@ test('file guards and workbook sheet limit remain enforced',()=>{
 
 test('all archive tool assets are in the offline shell',()=>{
  const sw=read('service-worker.js');
- for(const asset of ['./app/data-import.html','./assets/css/data-import.css','./assets/js/data-import.js','./modules/migration/workbook-inspector.js'])assert.ok(sw.includes(asset),asset);
+ for(const asset of ['./app/data-import.html','./assets/css/data-import.css','./assets/js/data-import.js','./modules/migration/workbook-inspector.js','./modules/migration/price-importer.js'])assert.ok(sw.includes(asset),asset);
 });
 
 test('synthetic workbook fixture finds a late Arabic header row and ignores blank rows',()=>{
@@ -88,8 +90,8 @@ test('synthetic workbook fixture finds a late Arabic header row and ignores blan
 });
 
 test('synthetic multi-sheet names retain distinct entity classifications',()=>{
- const sheets=['Patients','الزيارات','تحاليل الزيارة','نتائج التحاليل','Financial Ledger','كتالوج التحاليل','المصروفات','مقالات الموقع'];
- assert.deepEqual(sheets.map(inferSheetType),['patients','visits','visit_tests','test_results','ledger','catalog','expenses','website']);
+ const sheets=['Patients','الزيارات','تحاليل الزيارة','نتائج التحاليل','Financial Ledger','كتالوج التحاليل','أسعار التحاليل','المصروفات','مقالات الموقع'];
+ assert.deepEqual(sheets.map(inferSheetType),['patients','visits','visit_tests','test_results','ledger','catalog','prices','expenses','website']);
 });
 
 test('archive file validation rejects malformed extensions, empty files and files above 20 MB',()=>{
