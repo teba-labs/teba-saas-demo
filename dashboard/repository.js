@@ -82,11 +82,24 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
   });
 
   const dailyMap = new Map();
+  const dailyItem = date => {
+    const item = dailyMap.get(date) ?? { date, collected: 0, expenses: 0, visits: 0, tests: 0 };
+    dailyMap.set(date, item);
+    return item;
+  };
   for (const row of ledger) {
-    const item = dailyMap.get(row.work_date) ?? { date: row.work_date, collected: 0, expenses: 0 };
+    const item = dailyItem(row.work_date);
     if (row.direction === 'inflow') item.collected += Number(row.amount);
     if (row.direction === 'outflow') item.expenses += Number(row.amount);
-    dailyMap.set(row.work_date, item);
+  }
+  const visitDateById = new Map();
+  for (const visit of visits) {
+    visitDateById.set(visit.id, visit.visit_work_date);
+    dailyItem(visit.visit_work_date).visits += 1;
+  }
+  for (const test of visitTests) {
+    const date = visitDateById.get(test.visit_id);
+    if (date) dailyItem(date).tests += 1;
   }
   const testMap = new Map();
   for (const row of visitTests) {
