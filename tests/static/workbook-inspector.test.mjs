@@ -55,14 +55,14 @@ test('required fields are explicitly identified for each supported entity',()=>{
  assert.deepEqual(getEntityFields('unknown'),[]);
 });
 
-test('mapping review is interactive but remains in-memory and has no import or persistence action',()=>{
+test('mapping review stays in-memory and only catalog has restricted insert-only import',()=>{
  const js=read('assets/js/data-import.js'),html=read('app/data-import.html');
  assert.match(js,/suggestColumnMapping/);
  assert.match(js,/addEventListener\('change'/);
  assert.match(js,/columnMapping/);
  assert.match(js,/تغييرات مؤقتة داخل الصفحة فقط/);
  assert.doesNotMatch(js,/localStorage|sessionStorage|\.from\(|\.rpc\(|fetch\(/);
- assert.match(html,/لا يوجد استيراد/);
+ assert.match(html,/استيراد أكواد كتالوج التحاليل الجديدة فقط/);
 });
 
 test('file guards and workbook sheet limit remain enforced',()=>{
