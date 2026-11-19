@@ -7,6 +7,10 @@ const comparison = await readFile(new URL('modules/dashboard/period-comparison.j
 assert.match(html, /periodComparisonRows/);
 assert.match(html, /periodComparisonCaption/);
 assert.match(dashboard, /getPreviousMonthRange/);
+assert.match(dashboard, /getSameMonthPreviousYearRange/);
+assert.match(dashboard, /previousYearReport/);
+assert.match(html, /yearComparisonRows/);
+assert.match(html, /مقارنة نفس الشهر بالعام السابق/);
 assert.match(dashboard, /compareDashboardPeriods/);
 assert.match(dashboard, /buildBranchPerformanceMetrics/);
 assert.match(html, /متوسط الفاتورة/);
