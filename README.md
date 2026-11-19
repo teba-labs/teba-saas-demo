@@ -1,10 +1,14 @@
-> **الحالة الحالية — 19 نوفمبر 2026:** هذا المستودع نسخة تطوير SaaS على Supabase TEST. تم توحيد cloud-hardening وowner-setup في الفرع `integration/unified-test-2026-11-19` وPR مسودة #3. معمل طيبة مسجل وله فرعان واشتراك نشط، لكن بيانات التشغيل الفعلية في TEST ما زالت غير مجهزة؛ لذلك لا تنقل تشغيل المعمل الحقيقي بعد.
+> **الحالة الحالية — 20 نوفمبر 2026:** تم دمج تاريخ `main` ذي الـ13 commit داخل فرع التطوير، مع الحفاظ على شجرة التطوير الأحدث ونقاط الرجوع. فرع التطوير الحالي هو `integration/unified-test-2026-11-19`. `main` لم يتغير بعد؛ PR #3 ما زال مسودة بانتظار بوابات الأمان والنشر.
 >
-> **اقرأ قبل أي تنفيذ:** [سجل الحالة الرئيسي](docs/MASTER-STATUS-AND-CONTINUATION-AR.md)، [المراجعة الوظيفية والتقنية](docs/FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md)، ثم [تقرير التكامل الموحد](docs/UNIFIED-TEST-INTEGRATION-AR-2026-11-19.md).
+> **سجل الدمج:** [تقرير تسوية التحديثات الـ13 والاختبارات](docs/MAIN-13-COMMITS-RECONCILIATION-AR-2026-11-20.md). Commit الدمج الأول `b8fc0cc4b590df821d9d113199b3cf62c2a47aa8`. نقطتا الرجوع: `backup/pre-unification-dev-2026-11-20` و`backup/pre-unification-main-2026-11-20`.
 >
-> **حالة قاعدة البيانات:** migrations 012–022 مطبقة ومسجلة في Supabase TEST. سجل `public.schema_migrations` المنفصل لا يزال على baseline `1.0.0`، وتاريخ migrations 001–011 يحتاج تسوية قبل أي `supabase db push` آلي. لا تشغّل 001–011 عشوائيًا.
+> **حالة قاعدة البيانات:** Supabase TEST يسجل migrations القياسية 012–023. الجدول المخصص `public.schema_migrations` يحتفظ بالـbaseline `1.0.0` بشكل منفصل. إعادة بناء محلية مؤقتة للسلسلة 001–023 نجحت، وبصمة المخطط طابقت المتوقع بالكامل. لا تستخدم `db push` أو `migration repair` تلقائيًا.
 >
-> **حدود التحقق:** نجحت 157/157 اختبارات static وفحص صياغة JavaScript/MJS. نجحت تجربة SQL مؤقتة لعزل الفرع وهوية الموظف وسجل التدقيق ودورة النتائج ثم تم التراجع عنها بالكامل. Edge Functions للدعوة والمرفقات منشورة مع JWT، ومصدرا بوابة المريض ونشر التقارير مطابقان للمصدر المنشور. لكن Secrets/Origins لم تضبط بعد، ولذلك هذه الوظائف تفشل بشكل مغلق. لم يجرَ browser E2E أو اختبار عزل مستأجرين مختلفين. `main` لم يتغير، وPR #3 ما زال مسودة.
+> **الاختبارات:** 188/188 اختبار static/unit ناجح، وفحص JavaScript ناجح. اختبار RLS لمستأجرين وفرعين وأرشفة فرع نجح داخل معاملة `ROLLBACK` على TEST، وتم التحقق من عدم بقاء أي بيانات اصطناعية. كما نجحت إعادة بناء Supabase المحلية للسلسلة 001–023.
+>
+> **حدود النشر:** تم إصلاح إعداد Netlify ليُنشر `dist` فقط بدل جذر المستودع، مع استبعاد migrations والتوثيق والاختبارات والمصدر المرجعي. لكن معاينة Netlify لم تُنشر لأن `NETLIFY_AUTH_TOKEN` و`NETLIFY_SITE_ID` غير موجودين في GitHub Secrets. لا يوجد اختبار متصفح حي بعد، ولا إثبات لإعداد أسرار/Origins الخاصة بوظائف Edge؛ لذلك لا تدمج إلى `main` أو تنقل تشغيل المعمل الحقيقي بعد.
+>
+> **اقرأ قبل أي تنفيذ:** [سجل الحالة الرئيسي](docs/MASTER-STATUS-AND-CONTINUATION-AR.md)، [المراجعة الوظيفية والتقنية](docs/FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md)، ثم [تقرير تسوية الدمج](docs/MAIN-13-COMMITS-RECONCILIATION-AR-2026-11-20.md).
 >
 > ---
 >
@@ -25,12 +29,12 @@ This is a separate development copy. `source_original/teba-lab-main/` is immutab
 - The legacy source remains unchanged.
 
 ## Current verification boundary
-- المستخدم أكد نجاح دخوله كمالك المنصة وظهور اشتراك طيبة. هذا لا يثبت جميع وظائف إدارة الاشتراك.
-- اختبار RLS محدود داخل TEST أثبت أن الموظف يرى فرعه فقط، وتجربة transaction/rollback أثبتت منع انتحال هوية موظف فرع آخر. اختبار عميلين منفصلين لم يحدث.
-- لم يُجرَ اختبار متصفح حي أو رحلة استقبال/نتائج/تقرير كاملة.
-- لم يُختبر Offline على أجهزة متعددة أو استعادة نسخة حقيقية.
-- Secrets/Origins للـEdge Functions لم تضبط بعد، لذا الوظائف تفشل بشكل مغلق حتى إعدادها.
-- راجع تقرير التدقيق الشامل لمعرفة ما ثبت وما لم يثبت.
+- اختبار RLS على TEST شمل مستأجرين مختلفين، وفرعين، وموظفين، وبيانات سريرية ومالية اصطناعية؛ انتهى بـROLLBACK وتأكدنا أن عدد السجلات الاصطناعية المتبقية صفر.
+- إعادة بناء Supabase محلية مؤقتة طبقت baseline 001–011 ثم migrations 012–023، ونجحت اختبارات ما بعد التثبيت وعزل المستأجرين. بصمة المخطط المحلية مطابقة للبصمة المتوقعة من TEST.
+- لم يُجرَ اختبار متصفح حي أو رحلة استقبال/نتائج/تقرير كاملة، ولم يُختبر Offline على أجهزة متعددة أو استعادة نسخة تشغيل حقيقية.
+- معاينة Netlify متوقفة بسبب غياب GitHub Secrets الخاصة بـNETLIFY_AUTH_TOKEN وNETLIFY_SITE_ID. تم تأمين إعداد النشر ليستخدم dist فقط.
+- إعداد أسرار/Origins لوظائف Edge لم يتم إثباته؛ الوظائف مصممة لتفشل بشكل مغلق إذا كانت القيم المطلوبة ناقصة.
+- راجع [تقرير تسوية الدمج والاختبارات](docs/MAIN-13-COMMITS-RECONCILIATION-AR-2026-11-20.md) لمعرفة ما ثبت وما لم يثبت.
 
 ## Run the static config test
 From this folder, with Node.js installed:
@@ -118,4 +122,4 @@ Batch 6 adds the tenant-scoped website CMS repository and public-site content lo
 Arabic catalog administration is available at `app/catalog.html`. Owners and staff can manage test and technical parameter records; current price editing is owner-only and additionally protected by Supabase RLS. Catalog writes currently require an online connection. See `docs/batch-18-catalog-ui.md` for validation and known limitations.
 
 
-> **تحديث التكامل الموحد — 19 نوفمبر 2026:** تم جمع cloud-hardening وowner-setup في الفرع `integration/unified-test-2026-11-19` وPR مسودة #3. migrations 012–022 مطبقة ومسجلة على Supabase TEST. نجحت 157/157 اختبارات static وفحص صياغة JavaScript/MJS، كما نجحت تجربة SQL مؤقتة لدورة النتائج وهوية الموظف وعزل الفرع ثم تم التراجع عنها بالكامل. Edge Functions للدعوة والمرفقات منشورة مع JWT verification، ومصدرا بوابة المريض ونشر التقارير مطابقان للمصدر المنشور. **لا تزال Secrets/Origins غير مضبوطة**؛ لذلك الوظائف تفشل بشكل مغلق حتى إضافة القيم، ولم يُجرَ browser E2E أو cross-tenant test. لا تدمج PR #3 أو تنشر على `main` قبل إكمال ذلك. راجع [تقرير التكامل الموحد](docs/UNIFIED-TEST-INTEGRATION-AR-2026-11-19.md).
+> **تحديث تاريخي — 19 نوفمبر 2026:** هذا الملخص يصف حالة ما قبل دمج تحديثات main واختبار المستأجرين. الحالة الحالية المعتمدة موضحة في بداية الملف وفي [تقرير التسوية](docs/MAIN-13-COMMITS-RECONCILIATION-AR-2026-11-20.md).
