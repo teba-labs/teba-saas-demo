@@ -47,7 +47,7 @@ export function buildBranchPerformanceMetrics(report){
   const netBilled=Number(branch.netBilled||0),collected=Number(branch.collected||0),expenses=Number(branch.expenses||0);
   return {...branch,
    averageInvoice:branch.visits>0?netBilled/branch.visits:0,
-   collectionRate:netBilled>0?Math.min(100,collected/netBilled*100):null,
+   collectionRate:netBilled>0?Math.max(0,(netBilled-Number(branch.receivables||0))/netBilled*100):null,
    expenseToCollectionRate:collected>0?expenses/collected*100:null,
    netCashMargin:collected>0?(collected-expenses)/collected*100:null
   };
