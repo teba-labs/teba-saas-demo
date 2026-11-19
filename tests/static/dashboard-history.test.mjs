@@ -12,3 +12,12 @@ assert.match(analysis,/trueProfitUnit/);
 assert.match(analysis,/source:'historical-excel'/);
 assert.doesNotMatch(analysis,/supabase|tenant_id/);
 console.log('PASS: archived Excel is the explicit source for historical calculations and remains isolated from live Supabase.');
+
+import { readFile as readDashboardFile } from 'node:fs/promises';
+const dashboardHtml = await readDashboardFile(new URL('../../app/dashboard.html', import.meta.url), 'utf8');
+const dashboardJs = await readDashboardFile(new URL('../../assets/js/dashboard.js', import.meta.url), 'utf8');
+assert.match(dashboardHtml, /historyLiveReconciliation/);
+assert.match(dashboardJs, /renderLiveHistoricalReconciliation/);
+assert.match(dashboardJs, /await renderLiveHistoricalReconciliation/);
+assert.match(source, /إيراد Excel/);
+assert.match(source, /لم يتم تخمين الربط/);
