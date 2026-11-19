@@ -100,13 +100,14 @@ values ('ab000000-0000-4000-8000-000000000001',
         'aa100000-0000-4000-8000-000000000001',
         'aa600000-0000-4000-8000-000000000001',100,0);
 
-insert into public.payments(id,tenant_id,branch_id,visit_id,amount,idempotency_key,received_by)
+insert into public.payments(id,tenant_id,branch_id,visit_id,amount,idempotency_key,received_by,workday_id)
 values ('ab100000-0000-4000-8000-000000000001',
         'aa000000-0000-4000-8000-000000000001',
         'aa100000-0000-4000-8000-000000000001',
         'aa600000-0000-4000-8000-000000000001',50,
         'ab100000-0000-4000-8000-000000000002',
-        'a1000000-0000-4000-8000-000000000002');
+        'a1000000-0000-4000-8000-000000000002',
+        'aa400000-0000-4000-8000-000000000001');
 
 -- Payment and expense triggers create the corresponding synthetic ledger rows.
 
@@ -114,13 +115,14 @@ insert into public.expense_categories(id,tenant_id,name)
 values ('ab300000-0000-4000-8000-000000000001',
         'aa000000-0000-4000-8000-000000000001','Synthetic RLS category');
 
-insert into public.expenses(id,tenant_id,branch_id,category_id,amount,idempotency_key,spent_by)
+insert into public.expenses(id,tenant_id,branch_id,category_id,amount,idempotency_key,spent_by,workday_id)
 values ('ab400000-0000-4000-8000-000000000001',
         'aa000000-0000-4000-8000-000000000001',
         'aa100000-0000-4000-8000-000000000001',
         'ab300000-0000-4000-8000-000000000001',10,
         'ab400000-0000-4000-8000-000000000002',
-        'a1000000-0000-4000-8000-000000000002');
+        'a1000000-0000-4000-8000-000000000002',
+        'aa400000-0000-4000-8000-000000000001');
 
 insert into public.daily_closings(id,tenant_id,branch_id,workday_id,work_date,closing_snapshot)
 values ('ab500000-0000-4000-8000-000000000001',
