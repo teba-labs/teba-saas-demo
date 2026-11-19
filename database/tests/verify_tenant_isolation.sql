@@ -456,14 +456,23 @@ do $archive$
 declare
   item record;
   current_count bigint;
+  expected_count bigint;
 begin
  for item in select table_name,row_count from branch_archive_counts_before loop
    execute format('select count(*) from public.%I',item.table_name) into current_count;
-   if current_count <> item.row_count then
-     raise exception 'DATA INTEGRITY FAIL: % count changed from % to %',
-       item.table_name,item.row_count,current_count;
+   expected_count := item.row_count + case when item.table_name='audit_logs' then 1 else 0 end;
+   if current_count <> expected_count then
+     raise exception 'DATA INTEGRITY FAIL: % count expected % but found %',
+       item.table_name,expected_count,current_count;
    end if;
  end loop;
+ if (select count(*) from public.audit_logs
+      where tenant_id='aa000000-0000-4000-8000-000000000001'
+        and branch_id='aa100000-0000-4000-8000-000000000001'
+        and table_name='branches' and record_id='aa100000-0000-4000-8000-000000000001'
+        and action='update') <> 1 then
+   raise exception 'DATA INTEGRITY FAIL: branch archival audit event missing or duplicated';
+ end if;
  if not exists (select 1 from public.branches where id='aa100000-0000-4000-8000-000000000001' and is_active=false) then
    raise exception 'DATA INTEGRITY FAIL: archived branch ID/status missing';
  end if;
