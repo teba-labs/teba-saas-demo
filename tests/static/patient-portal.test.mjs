@@ -6,7 +6,7 @@ const edge = await readFile(new URL('../../supabase/functions/patient-portal-loo
 const page = await readFile(new URL('../../portal/index.html', import.meta.url), 'utf8');
 const client = await readFile(new URL('../../portal/lookup.js', import.meta.url), 'utf8');
 const migration = await readFile(new URL('../../database/migrations/002_patient_portal_hardening.sql', import.meta.url), 'utf8');
-const atomicLimiter = await readFile(new URL('../../database/migrations/012_atomic_patient_portal_rate_limit.sql', import.meta.url), 'utf8');
+const atomicLimiter = await readFile(new URL('../../database/migrations/016_atomic_patient_portal_rate_limit.sql', import.meta.url), 'utf8');
 const supabaseConfig = await readFile(new URL('../../supabase/config.toml', import.meta.url), 'utf8');
 
 test('patient portal keeps privileged credentials server-side', () => {

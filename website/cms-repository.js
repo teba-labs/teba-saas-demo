@@ -84,4 +84,24 @@ export async function setCmsItemVisibility({ tenantId, collection: name, id, vis
   return data;
 }
 
+
+/** Owner-only public CMS image upload. Storage RLS checks the tenant folder; no patient files use this bucket. */
+export async function uploadCmsAsset({ tenantId, file } = {}) {
+  need(tenantId, 'tenantId'); need(file, 'file');
+  if (!(file instanceof File)) throw new Error('A valid image file is required.');
+  const allowed = new Map([['image/jpeg','jpg'],['image/png','png'],['image/webp','webp']]);
+  const extension = allowed.get(file.type);
+  if (!extension) throw new Error('المسموح صور JPG أو PNG أو WebP فقط.');
+  if (!file.size || file.size > 10 * 1024 * 1024) throw new Error('حجم الصورة يجب ألا يتجاوز 10 ميجابايت.');
+  const path = `${tenantId}/cms/${crypto.randomUUID()}.${extension}`;
+  const client = db();
+  const { error } = await client.storage.from('tenant-site-assets').upload(path, file, {
+    cacheControl: '3600', contentType: file.type, upsert: false,
+  });
+  if (error) throw error;
+  const { data } = client.storage.from('tenant-site-assets').getPublicUrl(path);
+  if (!data?.publicUrl) throw new Error('تعذر إنشاء رابط الصورة العامة.');
+  return { path, publicUrl: data.publicUrl, sizeBytes: file.size, mimeType: file.type };
+}
+
 export const cmsCollectionNames = Object.freeze(Object.keys(COLLECTIONS));

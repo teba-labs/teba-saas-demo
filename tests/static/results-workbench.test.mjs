@@ -11,8 +11,12 @@ test('results workbench is a separate authenticated page and imports tenant-scop
   assert.match(page, /lang="ar" dir="rtl"/);
   assert.match(script, /signInWithEmail/);
   assert.match(script, /loadMyTenantContext/);
-  assert.match(script, /listBranchWork\(\{ tenantId: state\.tenant\.id, branchId: state\.branch\.id \}\)/);
-  assert.match(script, /listResults\(\{ tenantId: state\.tenant\.id, visitTestId: item\.id \}\)/);
+  assert.match(script, /listBranchWorkPage\(\{ tenantId: state\.tenant\.id, branchId: state\.branch\.id, page: state\.workPage, pageSize: state\.workPageSize \}\)/);
+  assert.match(script, /listResultsForVisitTests\(/);
+  assert.match(repository, /\.in\('visit_test_id', chunk\)/);
+  assert.match(page, /id="workPager"/);
+  assert.match(script, /prevWorkPage/);
+  assert.match(script, /nextWorkPage/);
 });
 
 test('workbench separates draft entry, approval, audited correction and PDF publication actions', () => {

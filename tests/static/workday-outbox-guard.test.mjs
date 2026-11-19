@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const root = new URL('../../', import.meta.url);
+const workday = fs.readFileSync(new URL('assets/js/workday.js', root), 'utf8');
+const outbox = fs.readFileSync(new URL('offline/outbox.js', root), 'utf8');
+assert.match(workday, /getOutboxSummary/);
+assert.match(workday, /pending\.total/);
+assert.match(workday, /latestPending\.total/);
+assert.match(workday, /مركز المزامنة/);
+assert.match(workday, /navigator\.onLine===false/);
+assert.match(outbox, /export async function getOutboxSummary/);
+assert.match(outbox, /pending: 0, syncing: 0, failed: 0, conflict: 0/);
+console.log('PASS: workday close guard checks the branch outbox before and immediately before closing.');
