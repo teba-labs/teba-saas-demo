@@ -19,5 +19,5 @@ const dashboardJs = await readDashboardFile(new URL('../../assets/js/dashboard.j
 assert.match(dashboardHtml, /historyLiveReconciliation/);
 assert.match(dashboardJs, /renderLiveHistoricalReconciliation/);
 assert.match(dashboardJs, /await renderLiveHistoricalReconciliation/);
-assert.match(source, /إيراد Excel/);
-assert.match(source, /لم يتم تخمين الربط/);
+assert.match(history, /إيراد Excel/);
+assert.match(history, /لم يتم تخمين الربط/);
