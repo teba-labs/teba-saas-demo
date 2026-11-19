@@ -146,7 +146,6 @@ begin
      join helper_functions h
        on (coalesce(pol.qual,'') || ' ' || coalesce(pol.with_check,'')) ilike '%' || h.function_name || '%'
     where pol.schemaname in ('public','storage')
-      and pol.cmd in ('SELECT','ALL')
  loop
    policy_count := policy_count + 1;
    begin
@@ -164,6 +163,47 @@ begin
  if policy_count = 0 then
    raise exception 'RLS FAIL: no direct or transitive policies reference can_access_branch';
  end if;
+end $archive$;
+
+-- Exercise direct employee write paths against the archived synthetic patient.
+-- RLS denial must block UPDATE, DELETE and INSERT; no real rows are involved.
+do $archive$
+declare
+  affected integer := 0;
+begin
+  begin
+    update public.patients
+       set full_name=full_name
+     where id='aa300000-0000-4000-8000-000000000001';
+    get diagnostics affected = row_count;
+  exception when insufficient_privilege then
+    affected := 0;
+  end;
+  if affected <> 0 then
+    raise exception 'RLS FAIL: employee can update archived branch patient';
+  end if;
+
+  begin
+    delete from public.patients
+     where id='aa300000-0000-4000-8000-000000000001';
+    get diagnostics affected = row_count;
+  exception when insufficient_privilege then
+    affected := 0;
+  end;
+  if affected <> 0 then
+    raise exception 'RLS FAIL: employee can delete archived branch patient';
+  end if;
+
+  begin
+    insert into public.patients(id,tenant_id,branch_id,patient_number,full_name)
+    values ('aa300000-0000-4000-8000-000000000099',
+            'aa000000-0000-4000-8000-000000000001',
+            'aa100000-0000-4000-8000-000000000001',
+            'RLS-A1-INSERT-BLOCK','Should be rejected by RLS');
+    raise exception 'RLS FAIL: employee can insert patient into archived branch';
+  exception when insufficient_privilege then
+    null;
+  end;
 end $archive$;
 reset role;
 
