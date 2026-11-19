@@ -3,7 +3,7 @@ const normalizeCode=value=>String(value??'').trim().toLocaleUpperCase('en');
 function parseSellingPrice(value,rowNumber){
  if(value===null||value===undefined||String(value).trim()==='')return null;
  if(typeof value==='number'){
-  if(!Number.isFinite(value)||value<0||value>9999999999.99||Math.round(value*100)!==value*100)throw new Error('صف '+rowNumber+': السعر يجب أن يكون رقمًا موجبًا أو صفرًا وبحد أقصى منزلتين عشريتين.');
+  if(!Number.isFinite(value)||value<0||value>9999999999.99||Math.abs(value*100-Math.round(value*100))>1e-7)throw new Error('صف '+rowNumber+': السعر يجب أن يكون رقمًا موجبًا أو صفرًا وبحد أقصى منزلتين عشريتين.');
   return value;
  }
  let text=String(value).trim()
