@@ -34,3 +34,12 @@ test('summary copy action is available and report supports all branches or one b
   assert.match(page,/id="copySummary"/); assert.match(script,/navigator\.clipboard\.writeText/);
   assert.match(repo,/branchId = null/); assert.match(repo,/branchId\)/);
 });
+
+test('owner dashboard paginates every source query and excludes cancelled visits and tests',()=>{
+  assert.match(repo,/async function readAllPages/);
+  assert.match(repo,/\.range\(offset, offset \+ pageSize - 1\)/);
+  assert.match(repo,/\.neq\('status', 'cancelled'\)/);
+  assert.match(repo,/visit_billing/);
+  assert.match(repo,/payments/);
+  assert.match(repo,/visit_tests/);
+});
