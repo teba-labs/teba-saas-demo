@@ -10,5 +10,7 @@ assert.match(dashboard, /getPreviousMonthRange/);
 assert.match(dashboard, /compareDashboardPeriods/);
 assert.match(dashboard, /Promise\.all\(\[getOwnerMonthlyDashboard/);
 assert.match(comparison, /changePercent/);
+assert.match(comparison, /grossBilled/);
+assert.match(comparison, /discounts/);
 assert.match(comparison, /month < 1 \|\| month > 12/);
 console.log('PASS: live dashboard comparison is wired to same-tenant prior-month data and guarded calculation module.');
