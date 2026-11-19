@@ -31,6 +31,14 @@ function resetBranchForm(){ $('branchForm').reset();$('editBranchId').value='';$
 $('cancelBranchEdit').addEventListener('click',resetBranchForm);
 function resetStaffForm(){$('staffNameForm').reset();$('editStaffId').value='';$('saveStaffName').textContent='إضافة اسم';$('cancelStaffEdit').hidden=true;}
 $('cancelStaffEdit').addEventListener('click',resetStaffForm);
+$('staffNamesList').addEventListener('click',async e=>{
+ const edit=e.target.closest('[data-edit-staff]');
+ if(edit){$('editStaffId').value=edit.dataset.editStaff;$('staffDisplayName').value=edit.dataset.name||'';$('saveStaffName').textContent='حفظ تعديل الاسم';$('cancelStaffEdit').hidden=false;$('staffNameForm').scrollIntoView({behavior:'smooth',block:'center'});return;}
+ const button=e.target.closest('[data-staff-id]');if(!button)return;button.disabled=true;
+ try{await setStaffActive({tenantId:state.tenant.id,branchId:$('staffBranch').value,staffId:button.dataset.staffId,isActive:button.dataset.active!=='true'});await loadStaffNames();note('تم تحديث حالة الاسم التشغيلي.');}
+ catch(error){note(error.message||'تعذر تحديث الاسم.',true);}
+ finally{button.disabled=false;}
+});
 $('staffNameForm').addEventListener('submit',async e=>{e.preventDefault();const b=$('saveStaffName'),id=$('editStaffId').value,branchId=$('staffBranch').value;b.disabled=true;try{if(navigator.onLine===false)throw Error('إدارة أسماء فريق العمل تحتاج اتصالًا بالإنترنت.');if(id)await updateStaffName({tenantId:state.tenant.id,branchId,staffId:id,displayName:$('staffDisplayName').value});else await saveStaffName({tenantId:state.tenant.id,branchId,displayName:$('staffDisplayName').value});resetStaffForm();await loadStaffNames();note(id?'تم تعديل اسم الموظف مع الحفاظ على ربط حساب الدخول.':'تم إضافة الاسم التشغيلي.');}catch(x){note(x.message||'تعذر حفظ الاسم.',true);}finally{b.disabled=false;}});
 
 $('inviteStaffForm').addEventListener('submit',async e=>{e.preventDefault();const b=$('inviteStaffButton');b.disabled=true;b.textContent='جارٍ ربط الحساب…';try{if(navigator.onLine===false)throw Error('ربط حساب الموظف يحتاج اتصالًا بالإنترنت.');const staffId=$('inviteStaffId').value;if(!staffId)throw Error('أضف اسمًا تشغيليًا نشطًا واختره أولًا.');const {data,error}=await getSupabaseClient().functions.invoke('invite-branch-employee',{body:{tenantId:state.tenant.id,branchId:$('staffBranch').value,staffId,email:$('staffInviteEmail').value.trim()}});if(error)throw error;if(!data?.ok)throw Error(data?.message||'تعذر ربط حساب الموظف.');$('staffInviteEmail').value='';note(data.message||'تم ربط حساب الموظف.');await loadStaffNames();}catch(x){note(x.message||'تعذر ربط حساب الموظف.',true);}finally{b.disabled=false;b.textContent='إرسال الدعوة وربط الحساب';}});
