@@ -178,3 +178,31 @@ export function compareHistoricalAndLiveReports({historicalReport,liveReport,bra
  return {matched:true,scope,liveRevenue,historicalRevenue,revenueDifference:liveRevenue-historicalRevenue,
   liveCases,historicalCases,casesDifference:liveCases-historicalCases};
 }
+
+/** Seasonal next-month plan. Targets are historical averages, not guarantees or AI forecasts. */
+export function buildHistoricalMonthlyPlan({salesWorkbook,latestPeriod=findLatestHistoricalPeriod(salesWorkbook)}={}){
+ if(!salesWorkbook||!latestPeriod)throw new Error('A historical sales workbook and latest revenue month are required.');
+ const monthly=salesWorkbook.find(sheet=>sheet.name.includes('الشهرية'))?.rows||[];
+ const latestYear=Number(latestPeriod.year),latestMonth=Number(latestPeriod.month);
+ const targetDate=new Date(Date.UTC(latestYear,latestMonth,1));
+ const targetYear=targetDate.getUTCFullYear(),targetMonth=targetDate.getUTCMonth()+1;
+ const monthRows=monthly.slice(1).filter(row=>clean(row?.[6])&&clean(row?.[4])!=='التقفيل');
+ const branches=[...new Set(monthRows.map(row=>clean(row[6])))];
+ const plans=branches.map(branch=>{
+  let history=[];
+  for(const year of [...new Set(monthRows.map(row=>Number(row[7])).filter(y=>y<targetYear))].sort((a,b)=>b-a)){
+   const values=extractHistoricalMonth(monthly,String(year),String(targetMonth),branch);
+   if(values.rev>0||values.cases>0)history.push({year, ...values});
+  }
+  const usedFallback=history.length===0;
+  if(usedFallback)history=[{year:latestYear,...extractHistoricalMonth(monthly,String(latestYear),String(latestMonth),branch)}].filter(item=>item.rev>0||item.cases>0);
+  const average=key=>history.length?history.reduce((sum,item)=>sum+item[key],0)/history.length:0;
+  const revenue=average('rev'),cases=average('cases');
+  return {branch,history,usedFallback,targetRevenue:revenue,targetCases:cases,averageInvoice:cases?revenue/cases:0,
+   weeklyTargets:Array.from({length:4},(_,index)=>({week:index+1,revenue:revenue/4,cases:cases/4}))};
+ });
+ const totals=plans.reduce((sum,item)=>({revenue:sum.revenue+item.targetRevenue,cases:sum.cases+item.targetCases}),{revenue:0,cases:0});
+ return {source:'historical-seasonality',basedOn:{year:String(latestYear),month:String(latestMonth).padStart(2,'0')},
+  target:{year:String(targetYear),month:String(targetMonth).padStart(2,'0')},branches:plans,totals,
+  note:'Targets are the arithmetic average of available prior-year data for the same calendar month. If none exists, the latest month is used and flagged.'};
+}
