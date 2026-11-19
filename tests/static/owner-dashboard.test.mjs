@@ -8,7 +8,7 @@ const script=fs.readFileSync(path.join(root,'assets/js/dashboard.js'),'utf8');
 const repo=fs.readFileSync(path.join(root,'dashboard/repository.js'),'utf8');
 test('owner dashboard is Arabic RTL and includes month, tenant and branch filters',()=>{
   assert.match(page,/lang="ar" dir="rtl"/);
-  for(const id of ['tenantSelect','branchSelect','month','collected','expenses','netCash','receivables','grossBilled','discounts','netBilled','dailyRows','branchRows','testRows','summaryText']) assert.match(page,new RegExp(`id="${id}"`));
+  for(const id of ['tenantSelect','branchSelect','month','collected','expenses','netCash','receivables','grossBilled','discounts','netBilled','dailyRows','expenseBreakdownRows','branchRows','testRows','summaryText']) assert.match(page,new RegExp(`id="${id}"`));
 });
 test('dashboard is restricted in the interface to tenant owners',()=>{
   assert.match(script,/filter\(t=>t\.accountType==='owner'\)/);
@@ -51,4 +51,19 @@ test('daily dashboard trend combines live visits, tests and ledger movements by 
   assert.match(script,/d\.tests\|\|0/);
   assert.match(page,/الزيارات/);
   assert.match(page,/التحاليل/);
+});
+
+test('live expense details reconcile ledger outflows to tenant-scoped expense categories',()=>{
+  const breakdown=fs.readFileSync(path.join(root,'modules/dashboard/expense-breakdown.js'),'utf8');
+  assert.match(repo,/buildExpenseBreakdown/);
+  assert.match(repo,/source_type === 'expense'/);
+  assert.match(repo,/from\('expenses'\)/);
+  assert.match(repo,/from\('expense_categories'\)/);
+  assert.match(repo,/\.eq\('tenant_id', tenantId\)/);
+  assert.match(repo,/offset \+= 500/);
+  assert.match(repo,/expenseBreakdown,/);
+  assert.match(breakdown,/ledger\.source_type==='expense'/);
+  assert.match(breakdown,/categoryName/);
+  assert.match(script,/report\.expenseBreakdown/);
+  assert.match(page,/تفصيل المصروفات حسب البند/);
 });
