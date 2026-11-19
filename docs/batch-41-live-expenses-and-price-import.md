@@ -77,7 +77,10 @@
 ## 5. الاختبارات والحدود
 
 - أضيف tests/unit/price-importer.test.mjs وtests/static/price-importer.test.mjs وtests/unit/expense-breakdown.test.mjs، وتم تحديث اختبارات workbook inspector وcatalog وowner dashboard وbranch archive.
-- آخر CI موثق سابقًا قبل هذه الدفعة كان 183/183 PASS. شُغّل محليًا Node v22.16.0 على اختباري الوحدة المضافين (price-importer وexpense-breakdown): 2/2 PASS. كما نُفذت 20 مراجعة source-contract مباشرة على ملفات الفرع الحالية، وكلها PASS. هذه فحوص مركزة وليست تشغيلًا لمجموعة المستودع كاملة. لم يظهر في جلسة العمل سجل Workflow جديد مرتبط بآخر commits؛ لذلك لا أسجل اختبارات static الجديدة على أنها PASS حتى يظهر تشغيل CI فعلي. لا يوجد ادعاء باختبار متصفح حي.
+- GitHub Actions run 44622127794 على commit a314eb76254beedb71d1ff0c2d43be0c49d7539a نجح: 188/188 PASS، صفر فشل، وفحص صياغة جميع ملفات JS/MJS المتتبعة نجح. مقارنة commit a314 مع commit الاختبارات db56 أظهرت أن الفرق الوحيد توثيق master status، فلا توجد تغييرات كود بعد الاختبار.
+- شُغّل محليًا Node v22.16.0 على اختباري الوحدة المضافين (price-importer وexpense-breakdown): 2/2 PASS، كما نجحت 20 مراجعة source-contract مباشرة على ملفات الفرع.
+- Workflow رفع نسخة ZIP كاملة من الملفات المتتبعة باسم taiba-smart-lab-development-source، وحجمها النهائي 505,119 bytes، صالحة 30 يومًا: https://github.com/teba-labs/teba-saas-demo/actions/runs/44622127794/artifacts/14578165893
+- تشغيل Test branch Netlify preview رقم 44621837957 انتهى Success لكن خطوة النشر تخطت العمل لأن NETLIFY_AUTH_TOKEN وNETLIFY_SITE_ID غير مضبوطين؛ لا يوجد نشر حي أو رابط معاينة جديد. لم يتم اختبار متصفح حي.
 - لا توجد تغييرات دائمة في Supabase schema أو RLS أو Storage أو Secrets. اختبار RLS على TEST انتهى بـROLLBACK.
 - لا يوجد استيراد أسعار حي أو تعديل أسعار موجودة.
 - لم يتم تعديل main أو فرع الرجوع أو دمج Pull Request.
