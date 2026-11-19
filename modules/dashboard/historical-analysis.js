@@ -23,7 +23,7 @@ export function extractHistoricalMonth(monthlyRows,year,month,branch){
 export function extractHistoricalYear(annualRows,year,branch){
  let rev=0,exp=0;
  for(let i=1;i<annualRows.length;i++){const row=annualRows[i];if(!row)continue;
-  if(clean(row[5])===String(year)&&clean(row[4])===clean(branch)){rev+=number(row[3]);exp+=number(row[2]);}
+  if(clean(row[5])===String(year)&&(branch==='all'||clean(row[4])===clean(branch))){rev+=number(row[3]);exp+=number(row[2]);}
  }
  return{rev,exp};
 }
