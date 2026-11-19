@@ -5,7 +5,7 @@ select jsonb_build_object(
       'schema', n.nspname,
       'name', p.proname,
       'args', pg_get_function_identity_arguments(p.oid),
-      'source_md5', md5(p.prosrc),
+      'source_md5', md5(regexp_replace(replace(p.prosrc, E'\r', ''), E'[ \t]+', ' ', 'gm')),
       'security_definer', p.prosecdef,
       'config', p.proconfig
     ) order by n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)
