@@ -43,3 +43,12 @@ test('owner dashboard paginates every source query and excludes cancelled visits
   assert.match(repo,/payments/);
   assert.match(repo,/visit_tests/);
 });
+
+test('daily dashboard trend combines live visits, tests and ledger movements by work date',()=>{
+  assert.match(repo,/dailyItem\(visit\.visit_work_date\)\.visits \+= 1/);
+  assert.match(repo,/dailyItem\(date\)\.tests \+= 1/);
+  assert.match(script,/d\.visits\|\|0/);
+  assert.match(script,/d\.tests\|\|0/);
+  assert.match(page,/الزيارات/);
+  assert.match(page,/التحاليل/);
+});
