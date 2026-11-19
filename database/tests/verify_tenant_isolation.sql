@@ -117,6 +117,7 @@ set local role authenticated;
 do $archive$
 declare
   visible_rows bigint;
+  policy_count integer := 0;
   policy_row record;
 begin
  if private.can_access_branch('aa000000-0000-4000-8000-000000000001','aa100000-0000-4000-8000-000000000001') then
@@ -147,6 +148,7 @@ begin
     where pol.schemaname in ('public','storage')
       and pol.cmd in ('SELECT','ALL')
  loop
+   policy_count := policy_count + 1;
    begin
      execute format('select count(*) from %I.%I',policy_row.schemaname,policy_row.tablename)
         into visible_rows;
@@ -159,6 +161,9 @@ begin
        visible_rows, policy_row.schemaname, policy_row.tablename;
    end if;
  end loop;
+ if policy_count = 0 then
+   raise exception 'RLS FAIL: no direct or transitive policies reference can_access_branch';
+ end if;
 end $archive$;
 reset role;
 
