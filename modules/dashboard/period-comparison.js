@@ -1,4 +1,6 @@
 const METRICS = [
+  ['grossBilled','إجمالي الفواتير قبل الخصم','money'],
+  ['discounts','الخصومات','money'],
   ['netBilled','صافي الفواتير','money'],
   ['collected','التحصيل الفعلي','money'],
   ['expenses','المصروفات','money'],
