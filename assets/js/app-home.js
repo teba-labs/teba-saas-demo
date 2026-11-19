@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 const state = { context: null, tenant: null, branch: null };
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const apps = [
-  { id:'catalog', title:'كتالوج التحاليل', desc:'إدارة بيانات التحاليل والبارامترات الفنية والأسعار حسب الصلاحية.', href:'catalog.html', icon:'⚗', roles:['owner','staff'] },
+  { id:'catalog', title:'كتالوج التحاليل', desc:'إدارة بيانات التحاليل والبارامترات الفنية والأسعار حسب الصلاحية.', href:'catalog.html', icon:'⚗', roles:['owner'] },
   { id:'reception', title:'الاستقبال والزيارات', desc:'تسجيل المرضى واختيار التحاليل والفواتير.', href:'reception.html', icon:'＋', roles:['owner','staff'] },
   { id:'results', title:'النتائج وتشغيل المعمل', desc:'قائمة العمل وإدخال النتائج والاعتماد ونشر التقارير.', href:'results-workbench.html', icon:'⚗', roles:['owner','staff'] },
   { id:'workday', title:'يوم العمل والنقدية', desc:'فتح وإغلاق اليوم وتسجيل المصروفات ومراجعة التحصيل.', href:'workday.html', icon:'▤', roles:['owner','staff'] },

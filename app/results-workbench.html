@@ -35,6 +35,11 @@
         <div class="toolbar"><button id="refreshButton" class="button button-secondary">تحديث القائمة</button><span id="contextStatus" class="muted" role="status"></span></div>
       </section>
       <section id="workList" class="work-list" aria-live="polite"></section>
+      <nav id="workPager" class="toolbar" aria-label="صفحات قائمة التحاليل" hidden>
+        <button id="prevWorkPage" class="button button-secondary" type="button">السابق</button>
+        <span id="workPageStatus" class="muted" role="status"></span>
+        <button id="nextWorkPage" class="button button-secondary" type="button">التالي</button>
+      </nav>
     </section>
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
   </main>

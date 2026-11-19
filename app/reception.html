@@ -27,10 +27,13 @@
       <label>بحث في قائمة التحاليل<input id="catalogSearch" placeholder="ابحث باسم التحليل أو الكود"></label>
       <div id="catalogList" class="catalog-list"><p class="muted">جارٍ تحميل قائمة التحاليل…</p></div>
       <div class="billing"><div><span>إجمالي التحاليل</span><strong id="grossTotal">0.00 ج.م</strong></div><div><span>الخصم</span><label class="inline-input"><input id="discount" type="number" min="0" step="0.01" value="0"><small>ج.م</small></label></div><div><span>صافي الفاتورة</span><strong id="netTotal">0.00 ج.م</strong></div><div><span>المدفوع الآن (اختياري)</span><label class="inline-input"><input id="initialPayment" type="number" min="0" step="0.01" value="0"><small>ج.م</small></label></div></div>
+      <label>طريقة تحصيل الدفعة الأولى<select id="initialPaymentMethod"><option value="cash">نقدي</option><option value="card">بطاقة</option><option value="wallet">محفظة إلكترونية</option><option value="bank_transfer">تحويل بنكي</option><option value="other">أخرى</option></select></label>
       <div class="actions"><button id="createVisit" class="button" type="button" disabled>تسجيل الزيارة والفاتورة</button><button id="resetSelection" class="button button-quiet-dark" type="button">مسح الاختيارات</button></div>
       <p class="danger-note">لن يتم تسجيل الزيارة إذا لم يكن يوم العمل مفتوحًا، أو لم يكن للمريض اختيار، أو لم تُحدد تحاليل لها سعر نشط ومعاملات فنية معرفة.</p>
     </section>
     <section id="recentPanel" class="panel"><div class="section-head"><div><h2>آخر الزيارات المسجلة</h2><p class="muted">سجل الفرع الحالي فقط.</p></div><button id="refreshRecent" class="button button-secondary">تحديث</button></div><div id="recentVisits" class="matches"><p class="muted">اختر الفرع لعرض الزيارات.</p></div></section>
+    <section id="paymentReceipt" class="panel" hidden><div id="paymentReceiptContent"></div><div class="actions print-actions"><button id="printPaymentReceipt" class="button button-secondary" type="button">طباعة إيصال التحصيل</button></div></section>
+    <section id="balancePanel" class="panel"><div class="section-head"><div><h2>المديونيات والتحصيلات اللاحقة</h2><p class="muted">اعرض الزيارات ذات الرصيد المتبقي وسجل دفعة جديدة دون تعديل الفاتورة الأصلية.</p></div><button id="refreshBalances" class="button button-secondary" type="button">تحديث المديونيات</button></div><div id="balancesList" class="matches"><p class="muted">اختر الفرع لعرض الأرصدة.</p></div></section>
   </section>
   <div id="notice" class="notice" role="status" aria-live="polite"></div>
 </main><script type="module" src="../assets/js/reception.js"></script>

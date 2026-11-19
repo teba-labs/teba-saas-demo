@@ -1,7 +1,7 @@
 import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
-import { getOutboxSummary, listOpenConflicts, retryFailedOperations, syncOutbox } from '../../offline/outbox.js';
+import { getOutboxSummary, listOpenConflicts, retryConflictOperation, retryFailedOperations, syncOutbox } from '../../offline/outbox.js';
 import { createSupabaseSyncHandlers } from '../../offline/supabase-adapters.js';
 import { exportLocalBackup, restoreLocalBackup } from '../../offline/backup.js';
 
@@ -43,7 +43,12 @@ async function refresh() {
   ]);
   $('pending').textContent = summary.pending; $('syncing').textContent = summary.syncing;
   $('failed').textContent = summary.failed; $('conflict').textContent = summary.conflict;
-  $('conflicts').innerHTML = conflicts.length ? conflicts.map(c => `<div class="item"><strong>${esc(c.entity_type)} · ${esc(c.reason)}</strong><small>رقم العملية: ${esc(c.operation_id)} · ${new Date(c.created_at).toLocaleString('ar-EG')}</small></div>`).join('') : '<p class="muted">لا توجد تعارضات مفتوحة.</p>';
+  $('conflicts').innerHTML = conflicts.length ? conflicts.map(c => {
+    const local = esc(JSON.stringify(c.local_payload ?? {}, null, 2));
+    const server = c.server_snapshot == null ? 'لم تُرجع الخادم لقطة مقارنة لهذه العملية.' : esc(JSON.stringify(c.server_snapshot, null, 2));
+    return `<div class="item"><strong>${esc(c.entity_type)} · ${esc(c.reason)}</strong><small>رقم العملية: ${esc(c.operation_id)} · ${new Date(c.created_at).toLocaleString('ar-EG')}</small><details><summary>مراجعة تفاصيل التعارض</summary><h4>البيانات المحلية المحفوظة</h4><pre>${local}</pre><h4>لقطة الخادم</h4><pre>${server}</pre></details><button class="btn quiet-dark" type="button" data-retry-conflict="${esc(c.conflict_id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>إعادة المحاولة بنفس رقم العملية</button></div>`;
+  }).join('') : '<p class="muted">لا توجد تعارضات مفتوحة.</p>';
+  $('conflicts').querySelectorAll('[data-retry-conflict]').forEach(button => button.addEventListener('click', () => retryConflict(button.dataset.retryConflict)));
   if (!summary.total) $('syncMessage').textContent = 'لا توجد عمليات محلية معلقة لهذا الفرع.';
   else $('syncMessage').textContent = `إجمالي العمليات المحلية: ${summary.total}. لا تُحذف أي عملية إلا بعد تأكيد الخادم.`;
 }
@@ -57,6 +62,15 @@ async function runSync() {
     notice(`انتهت المزامنة: ${report.acknowledged} تم تأكيدها، ${report.retained} أخطاء مؤقتة، ${report.blocked} تنتظر عملية مرتبطة، ${report.conflicts} تعارضات.`);
   } catch (e) { notice(e.message || 'تعذرت المزامنة.', true); }
   finally { state.syncing = false; updateConnection(); await refresh(); }
+}
+async function retryConflict(conflictId) {
+  if (!navigator.onLine) { notice('لا يوجد اتصال بالإنترنت. لم نغيّر حالة العملية.', true); return; }
+  if (state.syncing || !state.tenant || !state.branch) return;
+  try {
+    const operationId = await retryConflictOperation({ tenantId: state.tenant.id, branchId: state.branch.id, conflictId });
+    notice(`أعدنا العملية ${operationId} إلى قائمة المزامنة بنفس رقمها الآمن. إذا لم تُعالج المشكلة الأصلية فقد يظهر التعارض مرة أخرى.`);
+    await runSync();
+  } catch (e) { notice(e.message || 'تعذرت إعادة محاولة العملية.', true); }
 }
 async function exportBackup() {
   if (!state.branch) return;

@@ -2,12 +2,13 @@ import { getSupabaseClient } from '../../core/supabase-client.js';
 import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
-import { listBranchWork } from '../../modules/laboratory/repository.js';
-import { listResults, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
+import { listBranchWorkPage } from '../../modules/laboratory/repository.js';
+import { listResultsForVisitTests, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
 import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
+import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, tenant: null, branch: null, staff: [], work: [] };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0 };
 const showNotice = (message, error = false) => {
   const el = $('notice'); el.textContent = message; el.className = `notice show${error ? ' error' : ''}`;
   window.clearTimeout(showNotice.timer); showNotice.timer = window.setTimeout(() => el.className = 'notice', 5000);
@@ -19,6 +20,7 @@ async function startWorkspace() {
   const session = await getCurrentSession();
   if (!session) { $('loginPanel').hidden = false; $('workspace').hidden = true; $('signOut').hidden = true; return; }
   state.context = await loadMyTenantContext();
+  state.userId = state.context.user.id;
   $('loginPanel').hidden = true; $('workspace').hidden = false; $('signOut').hidden = false;
   const tenantSelect = $('tenantSelect');
   tenantSelect.innerHTML = state.context.tenants.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('');
@@ -47,20 +49,37 @@ async function loadBranch() {
   rememberWorkspaceSelection(state.tenant.id, state.branch.id);
   $('contextStatus').textContent = 'جارٍ تحميل بيانات الفرع…';
   const db = getSupabaseClient();
-  const { data, error } = await db.from('staff_directory')
-    .select('id, display_name, is_active').eq('tenant_id', state.tenant.id)
-    .eq('branch_id', state.branch.id).eq('is_active', true).order('display_name');
+  let staffQuery = db.from('staff_directory')
+    .select('id, display_name, auth_user_id, is_active').eq('tenant_id', state.tenant.id)
+    .eq('branch_id', state.branch.id).eq('is_active', true);
+  if (state.tenant.accountType === 'employee') staffQuery = staffQuery.eq('auth_user_id', state.userId);
+  const { data, error } = await staffQuery.order('display_name');
   if (error) throw error;
   state.staff = data ?? [];
+  if (state.tenant.accountType === 'employee') state.staff = state.staff.filter(row => row.auth_user_id === state.userId);
+  $('staffSelect').disabled = state.tenant.accountType === 'employee';
   $('staffSelect').innerHTML = state.staff.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.display_name)}</option>`).join('');
   if (!state.staff.length) { $('workList').innerHTML = '<div class="empty">لا يوجد موظف نشط مسجل لهذا الفرع. أضف الموظفين من إعدادات المعمل أولًا.</div>'; $('contextStatus').textContent = ''; return; }
+  state.workPage = 0;
   await refreshWork();
 }
 
 async function refreshWork() {
   $('contextStatus').textContent = 'جارٍ تحديث قائمة العمل…';
-  state.work = await listBranchWork({ tenantId: state.tenant.id, branchId: state.branch.id });
-  $('contextStatus').textContent = `الفرع: ${state.branch.name} · ${state.work.length} تحليل قيد المتابعة`;
+  let result = await listBranchWorkPage({ tenantId: state.tenant.id, branchId: state.branch.id, page: state.workPage, pageSize: state.workPageSize });
+  const lastPage = Math.max(0, Math.ceil(result.count / state.workPageSize) - 1);
+  if (state.workPage > lastPage) {
+    state.workPage = lastPage;
+    result = await listBranchWorkPage({ tenantId: state.tenant.id, branchId: state.branch.id, page: state.workPage, pageSize: state.workPageSize });
+  }
+  state.work = result.rows;
+  state.workCount = result.count;
+  $('contextStatus').textContent = `الفرع: ${state.branch.name} · ${state.workCount} تحليل قيد المتابعة`;
+  const pager = $('workPager');
+  pager.hidden = state.workCount <= state.workPageSize;
+  $('workPageStatus').textContent = `صفحة ${state.workPage + 1} من ${Math.max(1, Math.ceil(state.workCount / state.workPageSize))} · ${state.workCount} تحليل`;
+  $('prevWorkPage').disabled = state.workPage === 0;
+  $('nextWorkPage').disabled = (state.workPage + 1) * state.workPageSize >= state.workCount;
   await renderWork();
 }
 
@@ -80,6 +99,7 @@ async function renderWork() {
     const visitTitle = `زيارة ${group.visit?.visit_number ?? '—'} · ${group.visit?.patients?.full_name ?? 'مريض'}`;
     const isPublished = Boolean(group.visit?.is_published);
     const itemsMarkup = group.items.map(item => {
+      const locked = item.status === 'completed';
       const params = item.technical_snapshot?.parameters ?? [];
       const parameterControls = params.map(p => {
         const type = p.value_type ?? 'numeric';
@@ -88,13 +108,13 @@ async function renderWork() {
         const metadata = `data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit ?? '')}" data-value-type="${escapeHtml(type)}" data-range='${escapeHtml(JSON.stringify(p.reference_ranges ?? {}))}' data-choices='${escapeHtml(JSON.stringify(p.choices ?? []))}'`;
         let control;
         if (type === 'boolean') {
-          control = `<select ${metadata}><option value="">اختر نعم أو لا</option><option value="true">نعم</option><option value="false">لا</option></select>`;
+          control = `<select ${metadata}${locked ? ' disabled' : ''}><option value="">اختر نعم أو لا</option><option value="true">نعم</option><option value="false">لا</option></select>`;
         } else if (type === 'choice') {
           const choices = Array.isArray(p.choices) ? p.choices : [];
-          control = `<select ${metadata}><option value="">اختر النتيجة</option>${choices.map(choice => `<option value="${escapeHtml(choice)}">${escapeHtml(choice)}</option>`).join('')}</select>`;
+          control = `<select ${metadata}${locked ? ' disabled' : ''}><option value="">اختر النتيجة</option>${choices.map(choice => `<option value="${escapeHtml(choice)}">${escapeHtml(choice)}</option>`).join('')}</select>`;
         } else if (type === 'numeric') {
           const decimals = Math.max(0, Math.min(6, Number(p.decimal_places ?? 2)));
-          control = `<input type="number" step="${decimals === 0 ? '1' : String(10 ** -decimals)}" ${metadata} placeholder="أدخل النتيجة" />`;
+          control = `<input type="number" step="${decimals === 0 ? '1' : String(10 ** -decimals)}" ${metadata}${locked ? ' disabled' : ''} placeholder="أدخل النتيجة" />`;
         } else {
           control = `<input type="text" ${metadata} placeholder="أدخل النتيجة" />`;
         }
@@ -103,12 +123,14 @@ async function renderWork() {
       return `<section class="parameter" data-test-id="${escapeHtml(item.id)}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
         <div class="parameter-grid">${parameterControls}</div>
-        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">حفظ تصحيح النتيجة</button>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
+        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">حفظ تصحيح النتيجة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
       </section>`;
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
-      <div class="actions"><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${isPublished ? 'disabled' : ''}>اعتماد الزيارة</button></div>
+      <div class="actions"><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
       <div class="file-row"><label>ملف التقرير PDF<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!group.visit?.status || (!isPublished && group.visit.status !== 'approved') ? 'disabled' : ''}></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
+      <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
+      <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
       <p class="danger-note">التصحيح بعد النشر يحتاج سببًا موثقًا، ويجب إدخال التصحيح من مسار التصحيح المعتمد قبل رفع النسخة الجديدة.</p>`;
     host.append(card);
   }
@@ -117,12 +139,23 @@ async function renderWork() {
   host.querySelectorAll('.correct-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
   host.querySelectorAll('.publish-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
-  // Populate existing values after the cards exist.
+  host.querySelectorAll('.upload-attachment').forEach(btn => btn.addEventListener('click', () => uploadAttachment(btn)));
+  host.querySelectorAll('.list-attachments').forEach(btn => btn.addEventListener('click', () => loadAttachments(btn.dataset.visitId)));
+  host.querySelectorAll('.attachment-download').forEach(btn => btn.addEventListener('click', () => downloadAttachment(btn)));
+  // Populate all existing values with one scoped query instead of N+1 requests.
+  const resultRows = await listResultsForVisitTests({
+    tenantId: state.tenant.id,
+    visitTestIds: state.work.map(item => item.id),
+  });
+  const resultsByTest = new Map();
+  for (const result of resultRows) {
+    if (!resultsByTest.has(result.visit_test_id)) resultsByTest.set(result.visit_test_id, []);
+    resultsByTest.get(result.visit_test_id).push(result);
+  }
   for (const item of state.work) {
-    const rows = await listResults({ tenantId: state.tenant.id, visitTestId: item.id });
     const section = host.querySelector(`[data-test-id="${CSS.escape(item.id)}"]`);
     if (!section) continue;
-    for (const result of rows) {
+    for (const result of resultsByTest.get(item.id) ?? []) {
       const input = section.querySelector(`[data-param-code="${CSS.escape(result.parameter_code)}"]`);
       if (input) { input.value = result.value_numeric ?? result.value_text ?? ''; input.dataset.resultId = result.id; input.dataset.originalValue = input.value; }
     }
@@ -169,8 +202,42 @@ async function correctTest(button) {
   finally { setBusy(button, false); }
 }
 
+
+async function loadAttachments(visitId) {
+  const host=document.querySelector(`[data-attachment-list="${CSS.escape(visitId)}"]`);
+  if(!host) return;
+  host.textContent='جارٍ تحميل المرفقات…';
+  try {
+    const files=await listVisitAttachments({tenantId:state.tenant.id,branchId:state.branch.id,visitId});
+    host.innerHTML=files.length?files.map(file=>`<div class="attachment-item"><span>${escapeHtml(file.mime_type)} · ${Math.ceil(file.size_bytes/1024)} KB · ${escapeHtml(new Date(file.created_at).toLocaleString('ar-EG'))}</span><button class="button button-secondary attachment-download" data-file-id="${escapeHtml(file.id)}">فتح</button></div>`).join(''):'<p class="muted">لا توجد مرفقات لهذه الزيارة.</p>';
+    host.querySelectorAll('.attachment-download').forEach(btn=>btn.addEventListener('click',()=>downloadAttachment(btn)));
+  } catch(error) { host.textContent=error.message||'تعذر تحميل المرفقات.'; }
+}
+async function uploadAttachment(button) {
+  try {
+    const visitId=button.dataset.visitId;
+    const input=document.querySelector(`[data-attachment-file="${CSS.escape(visitId)}"]`);
+    const file=input?.files?.[0];
+    if(!file) throw new Error('اختر الملف المراد إرفاقه أولًا.');
+    setBusy(button,true,'جارٍ رفع المرفق…');
+    await uploadVisitAttachment({tenantId:state.tenant.id,branchId:state.branch.id,visitId,file});
+    input.value='';
+    showNotice('تم رفع المرفق وربطه بالزيارة.');
+    await loadAttachments(visitId);
+  } catch(error) { showNotice(error.message||'تعذر رفع المرفق.',true); }
+  finally { setBusy(button,false); }
+}
+async function downloadAttachment(button) {
+  try {
+    setBusy(button,true,'جارٍ تجهيز الرابط…');
+    const url=await createAttachmentDownloadUrl({tenantId:state.tenant.id,branchId:state.branch.id,fileId:button.dataset.fileId,expiresIn:90});
+    window.open(url,'_blank','noopener');
+  } catch(error) { showNotice(error.message||'تعذر فتح المرفق.',true); }
+  finally { setBusy(button,false); }
+}
+
 async function completeTest(button) {
-  try { setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, visitTestId: button.dataset.testId }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
+  try { setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, branchId: state.branch.id, visitTestId: button.dataset.testId, staffId: $('staffSelect').value }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
   catch (error) { showNotice(error.message || 'تعذر إنهاء التحليل.', true); } finally { setBusy(button, false); }
 }
 async function approve(button) {
@@ -204,3 +271,14 @@ $('signOut').addEventListener('click', async () => { try { await signOut(); awai
 $('refreshButton').addEventListener('click', async () => { try { await refreshWork(); } catch (error) { showNotice(error.message, true); } });
 
 try { await startWorkspace(); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
+
+$('prevWorkPage').addEventListener('click', async () => {
+  if (state.workPage <= 0) return;
+  state.workPage -= 1;
+  try { await refreshWork(); } catch (error) { showNotice(error.message || 'تعذر تحميل الصفحة السابقة.', true); }
+});
+$('nextWorkPage').addEventListener('click', async () => {
+  if ((state.workPage + 1) * state.workPageSize >= state.workCount) return;
+  state.workPage += 1;
+  try { await refreshWork(); } catch (error) { showNotice(error.message || 'تعذر تحميل الصفحة التالية.', true); }
+});
