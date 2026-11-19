@@ -31,6 +31,13 @@ assert.match(migration, /grant execute on function private\.can_access_branch\(u
 assert.doesNotMatch(migration, /\bdelete\s+from\b/i);
 assert.doesNotMatch(migration, /\bupdate\s+public\./i);
 assert.match(migration, /No branch, membership, patient, visit, result, or financial row is deleted or rewritten/);
+const rlsTest = read('database/tests/verify_tenant_isolation.sql');
+assert.match(rlsTest, /owner cannot read archived branch patient history/);
+assert.match(rlsTest, /employee can read archived branch patient history/);
+assert.match(rlsTest, /employee can update archived branch patient/);
+assert.match(rlsTest, /employee can delete archived branch patient/);
+assert.match(rlsTest, /employee can insert patient into archived branch/);
+assert.match(rlsTest, /branch_archive_counts_before/);
 
 
 // Offline boundary: an employee device may still use previously cached context/data
