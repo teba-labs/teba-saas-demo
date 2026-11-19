@@ -58,6 +58,11 @@ const seasonality=engine.buildHistoricalCaseSeasonality({salesWorkbook,years:['2
 assert.equal(seasonality.series[0].months[10],20);
 assert.equal(seasonality.series[0].total,20);
 assert.equal(seasonality.busiestMonths[0].month,11);
+const plan=engine.buildHistoricalMonthlyPlan({salesWorkbook});
+assert.deepEqual(plan.target,{year:'2026',month:'12'});
+assert.equal(plan.branches[0].usedFallback,true);
+assert.equal(plan.branches[0].targetRevenue,1000);
+assert.equal(plan.branches[0].weeklyTargets.length,4);
 console.log('PASS historical monthly/yearly extraction and latest-period detection');
 console.log('PASS product portfolio ranking, low-demand, loss-maker and BCG segmentation');
 const reconciliation=engine.compareHistoricalAndLiveReports({
