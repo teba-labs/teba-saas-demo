@@ -388,11 +388,12 @@ begin
   end;
 
   begin
-    insert into public.patients(id,tenant_id,branch_id,patient_number,full_name)
+    insert into public.patients(id,tenant_id,branch_id,patient_number,full_name,created_by_staff_id)
     values ('aa300000-0000-4000-8000-000000000099',
             'aa000000-0000-4000-8000-000000000001',
             'aa100000-0000-4000-8000-000000000001',
-            'RLS-A1-INSERT-BLOCK','Should be rejected by RLS');
+            'RLS-A1-INSERT-BLOCK','Should be rejected by RLS',
+            'aa200000-0000-4000-8000-000000000001');
     raise exception 'RLS FAIL: employee can insert patient into archived branch';
   exception when insufficient_privilege then
     null;
