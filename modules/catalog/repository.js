@@ -236,6 +236,8 @@ export async function addBasePriceIfMissing({ tenantId, testId, sellingPrice } =
     }
     throw error;
   }
-  await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId], scope: 'base' });
-  return { created: true, price: data };
+  let cacheUpdated = true;
+  try { await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId], scope: 'base' }); }
+  catch { cacheUpdated = false; }
+  return { created: true, price: data, cacheUpdated };
 }
