@@ -3,6 +3,18 @@ const db = () => getSupabaseClient();
 const need = (value, name) => { if (!value) throw new Error(`${name} is required.`); };
 const sum = (rows, field) => (rows ?? []).reduce((total, row) => total + Number(row[field] ?? 0), 0);
 
+/** Read every page explicitly; PostgREST's default row cap must not silently truncate owner reports. */
+async function readAllPages(buildQuery, pageSize = 500) {
+  const rows = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await buildQuery().range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+  }
+}
+
 /**
  * Owner dashboard for one tenant and a calendar month.
  * Collections/expenses come from the immutable financial ledger; invoices are
@@ -13,32 +25,32 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
   const client = db();
   const scope = (query, column = 'branch_id') => branchId ? query.eq(column, branchId) : query;
 
-  const [branchesResult, ledgerResult, visitsResult] = await Promise.all([
-    client.from('branches').select('id,name,is_active').eq('tenant_id', tenantId).order('name'),
-    scope(client.from('financial_ledger')
+  const [branches, ledger, visits] = await Promise.all([
+    readAllPages(() => client.from('branches').select('id,name,is_active')
+      .eq('tenant_id', tenantId).order('name').order('id')),
+    readAllPages(() => scope(client.from('financial_ledger')
       .select('id,branch_id,source_type,direction,amount,work_date,movement_at,description')
       .eq('tenant_id', tenantId).gte('work_date', monthStart).lt('work_date', monthEnd)
-      .order('work_date').order('movement_at')),
-    scope(client.from('visits')
+      .order('work_date').order('movement_at').order('id'))),
+    readAllPages(() => scope(client.from('visits')
       .select('id,branch_id,visit_work_date,status,patient_id')
-      .eq('tenant_id', tenantId).gte('visit_work_date', monthStart).lt('visit_work_date', monthEnd)),
+      .eq('tenant_id', tenantId).gte('visit_work_date', monthStart).lt('visit_work_date', monthEnd)
+      .neq('status', 'cancelled').order('visit_work_date').order('id'))),
   ]);
-  for (const result of [branchesResult, ledgerResult, visitsResult]) if (result.error) throw result.error;
-  const branches = branchesResult.data ?? [];
-  const ledger = ledgerResult.data ?? [];
-  const visits = visitsResult.data ?? [];
   const visitIds = visits.map(row => row.id);
 
   let billing = [], payments = [], visitTests = [];
   if (visitIds.length) {
-    const [billingResult, paymentsResult, testsResult] = await Promise.all([
-      client.from('visit_billing').select('visit_id,gross_total,discount_amount,net_total').eq('tenant_id', tenantId).in('visit_id', visitIds),
+    const [billingRows, paymentRows, testRows] = await Promise.all([
+      readAllPages(() => client.from('visit_billing').select('visit_id,gross_total,discount_amount,net_total')
+        .eq('tenant_id', tenantId).in('visit_id', visitIds).order('visit_id')),
       // All payments for the month's visits are needed to calculate their current receivables.
-      client.from('payments').select('visit_id,amount,received_at,branch_id').eq('tenant_id', tenantId).in('visit_id', visitIds),
-      client.from('visit_tests').select('id,visit_id,branch_id,test_id,test_name_snapshot,price_snapshot,status').eq('tenant_id', tenantId).in('visit_id', visitIds),
+      readAllPages(() => client.from('payments').select('visit_id,amount,received_at,branch_id')
+        .eq('tenant_id', tenantId).in('visit_id', visitIds).order('received_at').order('id')),
+      readAllPages(() => client.from('visit_tests').select('id,visit_id,branch_id,test_id,test_name_snapshot,price_snapshot,status')
+        .eq('tenant_id', tenantId).in('visit_id', visitIds).neq('status', 'cancelled').order('visit_id').order('id')),
     ]);
-    for (const result of [billingResult, paymentsResult, testsResult]) if (result.error) throw result.error;
-    billing = billingResult.data ?? []; payments = paymentsResult.data ?? []; visitTests = testsResult.data ?? [];
+    billing = billingRows; payments = paymentRows; visitTests = testRows;
   }
 
   const collectedRows = ledger.filter(row => row.direction === 'inflow');
