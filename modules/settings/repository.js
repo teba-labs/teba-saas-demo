@@ -56,6 +56,24 @@ export async function createBranch({ tenantId, name, address = null, phone = nul
   return data;
 }
 
+/** Owner-only branch profile editing; keeps the existing branch identity and history. */
+export async function updateBranch({ tenantId, branchId, name, address = null, phone = null, mapLink = null } = {}) {
+  need(tenantId, 'tenantId'); need(branchId, 'branchId');
+  const cleanName = String(name ?? '').trim();
+  if (cleanName.length < 2 || cleanName.length > 120) throw new Error('Branch name must be between 2 and 120 characters.');
+  const payload = {
+    name: cleanName,
+    address: String(address ?? '').trim() || null,
+    phone: String(phone ?? '').trim() || null,
+    map_link: String(mapLink ?? '').trim() || null,
+  };
+  const { data, error } = await db().from('branches').update(payload)
+    .eq('tenant_id', tenantId).eq('id', branchId)
+    .select('id, tenant_id, name, address, phone, map_link, is_active, updated_at').single();
+  if (error) throw error;
+  return data;
+}
+
 export async function setBranchActive({ tenantId, branchId, isActive } = {}) {
   need(tenantId, 'tenantId'); need(branchId, 'branchId');
   const { data, error } = await db().from('branches').update({ is_active: Boolean(isActive) })
