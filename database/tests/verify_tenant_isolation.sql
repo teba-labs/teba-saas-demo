@@ -81,7 +81,7 @@ insert into branch_archive_counts_before values
  ('financial_ledger',(select count(*) from public.financial_ledger));
 
 -- Archive A1 as the privileged test harness would. No related rows are changed.
-do $
+do $archive$
 begin
   update public.branches set is_active=false
    where id='aa100000-0000-4000-8000-000000000001'
@@ -89,13 +89,13 @@ begin
   if not found then
     raise exception 'RLS FAIL: could not mark synthetic branch A1 inactive';
   end if;
-end $;
+end $archive$;
 
 -- Tenant A owner retains access to archived branch metadata and historical patients.
 select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select set_config('request.jwt.claim.sub','a1000000-0000-4000-8000-000000000001',true);
 set local role authenticated;
-do $
+do $archive$
 begin
  if not private.can_access_branch('aa000000-0000-4000-8000-000000000001','aa100000-0000-4000-8000-000000000001') then
    raise exception 'RLS FAIL: owner lost archived branch access';
@@ -106,7 +106,7 @@ begin
  if not exists (select 1 from public.patients where id='aa300000-0000-4000-8000-000000000001') then
    raise exception 'RLS FAIL: owner cannot read archived branch patient history';
  end if;
-end $;
+end $archive$;
 reset role;
 
 -- The former branch employee must lose access through every policy that
@@ -114,7 +114,7 @@ reset role;
 select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select set_config('request.jwt.claim.sub','a1000000-0000-4000-8000-000000000002',true);
 set local role authenticated;
-do $
+do $archive$
 declare
   visible_rows bigint;
   policy_row record;
@@ -159,12 +159,12 @@ begin
        visible_rows, policy_row.schemaname, policy_row.tablename;
    end if;
  end loop;
-end $;
+end $archive$;
 reset role;
 
 -- Verify no synthetic branch, membership, staff, patient, visit, result or
 -- financial rows were inserted/deleted/rewritten by the access-policy change.
-do $
+do $archive$
 declare
   item record;
   current_count bigint;
@@ -182,7 +182,7 @@ begin
  if not exists (select 1 from public.patients where id='aa300000-0000-4000-8000-000000000001') then
    raise exception 'DATA INTEGRITY FAIL: patient ID changed or row missing';
  end if;
-end $;
+end $archive$;
 
 -- Tenant B employee must see only Tenant B and its one branch.
 select set_config('request.jwt.claims','{"sub":"b1000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
