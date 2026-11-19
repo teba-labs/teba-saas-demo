@@ -33,7 +33,7 @@ jobs:
       - name: Verify isolated toolchain and CLI command contracts
         run: |
           set -euo pipefail
-          test "$(git branch --show-current)" = "integration/unified-test-2026-11-19"
+          test "$GITHUB_REF_NAME" = "integration/unified-test-2026-11-19"
           git rev-parse HEAD
           node --version
           supabase --version
