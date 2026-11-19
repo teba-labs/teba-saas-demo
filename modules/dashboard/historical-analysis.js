@@ -162,3 +162,19 @@ export function buildHistoricalAnnualTrend({salesWorkbook,years}={}){
   expenseGrowth:index&&totals[index-1].exp>0?(item.exp-totals[index-1].exp)/totals[index-1].exp*100:null
  }));
 }
+
+/** Pure, read-only reconciliation. Branch names must match exactly; no fuzzy tenant/branch guessing. */
+export function compareHistoricalAndLiveReports({historicalReport,liveReport,branchName=null}={}){
+ if(!historicalReport?.totals||!liveReport?.totals)throw new Error('Both historical and live reports are required.');
+ let historicalRevenue=Number(historicalReport.totals.rev||0),historicalCases=Number(historicalReport.totals.cases||0);
+ let liveRevenue=Number(liveReport.totals.collected||0),liveCases=Number(liveReport.totals.visits||0),scope='all';
+ if(branchName!==null){
+  const historicalBranch=historicalReport.branches?.find(item=>clean(item.branch)===clean(branchName));
+  const liveBranch=liveReport.branches?.find(item=>clean(item.name)===clean(branchName));
+  if(!historicalBranch||!liveBranch)return {matched:false,reason:'Branch names do not match exactly.',scope:branchName};
+  historicalRevenue=Number(historicalBranch.rev||0);historicalCases=Number(historicalBranch.cases||0);
+  liveRevenue=Number(liveBranch.collected||0);liveCases=Number(liveBranch.visits||0);scope=branchName;
+ }
+ return {matched:true,scope,liveRevenue,historicalRevenue,revenueDifference:liveRevenue-historicalRevenue,
+  liveCases,historicalCases,casesDifference:liveCases-historicalCases};
+}
