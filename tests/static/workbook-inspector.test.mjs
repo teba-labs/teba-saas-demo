@@ -202,9 +202,10 @@ test('archive analysis adds non-destructive age/date/result review metadata',asy
 });
 
 
-test('Netlify preview serves the app entry point from an isolated root deployment',()=>{
+test('Netlify deployment serves the app entry point from an isolated dist deployment',()=>{
  const config=read('netlify.toml');
- assert.match(config,/publish\s*=\s*"\."/);
+ assert.match(config,/command\s*=\s*"bash scripts\/build-netlify\.sh"/);
+ assert.match(config,/publish\s*=\s*"dist"/);
  assert.match(config,/from\s*=\s*"\/"[\s\S]*to\s*=\s*"\/app\/index\.html"/);
  assert.match(config,/X-Content-Type-Options/);
  assert.match(config,/X-Frame-Options/);
