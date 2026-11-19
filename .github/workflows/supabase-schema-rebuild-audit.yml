@@ -127,9 +127,9 @@ jobs:
           20261118231112 021_employee_actor_pending_fields
           20261118232302 022_employee_reactivation_order
           MIGRATIONS
-          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 11
+          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 12
 
-      - name: Apply standard migrations 012-022 to the local stack only
+      - name: Reset the disposable local DB and apply the complete 001-022 chain
         run: |
           set -euo pipefail
           supabase db reset
