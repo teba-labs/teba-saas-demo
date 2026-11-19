@@ -38,3 +38,14 @@ assert.match(branchSettings,/data-branch-toggle/);
 assert.doesNotMatch(branchSettings,/data-branch-toggle=.*? disabled title=/);
 console.log('PASS: branch archive controls are enabled only after TEST migration and RLS verification.');
 
+
+
+const staffToggleHandlers=(j.match(/\$\('staffNamesList'\)\.addEventListener\('click'/g)||[]).length;
+const expenseToggleHandlers=(j.match(/\$\('expenseCategoriesList'\)\.addEventListener\('click'/g)||[]).length;
+assert.equal(staffToggleHandlers,1,'staff edit/status actions must have one delegated click handler');
+assert.equal(expenseToggleHandlers,1,'expense category edit/status actions must have one delegated click handler');
+assert.match(h,/id="refreshAuditLogs"/);
+assert.match(h,/id="auditLogsList"/);
+assert.match(j,/listOwnerAuditLogs/);
+assert.match(j,/const BRANCH_ARCHIVE_READY=true/);
+console.log('PASS: seven owner settings sections are wired once, including branch archive and audit history.');
