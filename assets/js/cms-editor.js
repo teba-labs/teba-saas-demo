@@ -26,7 +26,7 @@ function updateMediaPanel(){
  const field=state.collection==='packages'?'image_path':state.collection==='articles'?'cover_image_path':null;
  const panel=$('mediaUploadPanel');panel.hidden=!field;
  if(!field)return;
- $('mediaField').value=field;
+ $('mediaField').value=field;$('mediaField').disabled=true;
  $('mediaUpload').disabled=!state.selected?.id;
  $('mediaUploadStatus').textContent=state.selected?.[field]?'الصورة الحالية محفوظة. يمكنك رفع بديل جديد.':'احفظ العنصر أولًا، ثم ارفع صورته.';
  $('mediaPreview').innerHTML=state.selected?.[field]?'<img src="'+esc(state.selected[field])+'" alt="معاينة صورة الموقع" loading="lazy">':'';
