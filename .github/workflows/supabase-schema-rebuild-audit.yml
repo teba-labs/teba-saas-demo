@@ -135,7 +135,7 @@ jobs:
           set -euo pipefail
           supabase db reset
           supabase migration list | tee migration-list-local.txt
-          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 12
+          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 13
 
       - name: Run post-install structural and security assertions
         shell: bash
