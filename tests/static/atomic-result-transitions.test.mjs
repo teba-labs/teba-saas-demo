@@ -41,7 +41,11 @@ test('atomic result transitions validate branch access and active operational st
 
 test('results worklist hydrates existing values in one batch query', () => {
   assert.match(repository, /listResultsForVisitTests/);
-  assert.match(repository, /\.in\('visit_test_id', ids\)/);
+  assert.match(repository, /\.in\('visit_test_id', chunk\)/);
+  assert.match(repository, /\.range\(offset, offset \+ 499\)/);
+  assert.match(worklist, /listBranchWorkPage/);
+  assert.match(worklist, /workPageSize: 25/);
+  assert.match(worklist, /nextWorkPage/);
   assert.match(worklist, /listResultsForVisitTests\(/);
   assert.doesNotMatch(worklist, /for \(const item of state\.work\) \{\s*const rows = await listResults/);
 });
