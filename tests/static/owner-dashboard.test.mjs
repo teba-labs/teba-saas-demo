@@ -13,6 +13,9 @@ test('owner dashboard is Arabic RTL and includes month, tenant and branch filter
 test('dashboard is restricted in the interface to tenant owners',()=>{
   assert.match(script,/filter\(t=>t\.accountType==='owner'\)/);
   assert.match(script,/لوحة التحليل المالي متاحة لمدير المعمل فقط/);
+  assert.match(script,/state\.tenant\?\.allBranches\|\|state\.tenant\?\.branches/);
+  assert.match(script,/مؤرشف/);
+  assert.match(repo,/select\('id,name,is_active'\)/);
 });
 test('cash collections and expenses are sourced from financial ledger, not invoice totals',()=>{
   assert.match(repo,/from\('financial_ledger'\)/);
