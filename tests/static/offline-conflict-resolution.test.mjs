@@ -29,3 +29,10 @@ test('sync center displays both local and server snapshots before offering a saf
   assert.match(ui, /retryConflictOperation/);
   assert.match(ui, /same|بنفس رقمها الآمن/);
 });
+
+test('patient ID collision includes a scoped server snapshot when RLS allows the read', () => {
+  const adapters = fs.readFileSync(new URL('../../offline/supabase-adapters.js', import.meta.url), 'utf8');
+  assert.match(adapters, /serverSnapshot: existing\.data \?\? null/);
+  assert.match(adapters, /existing\.data\.tenant_id !== operation\.tenant_id/);
+  assert.match(adapters, /existing\.data\.branch_id !== operation\.branch_id/);
+});
