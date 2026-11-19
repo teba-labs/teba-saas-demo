@@ -40,6 +40,7 @@ jobs:
           docker version
           docker info
           supabase migration new --help >/dev/null
+          supabase db reset --help >/dev/null
           supabase migration up --help >/dev/null
           supabase migration list --help >/dev/null
           supabase db dump --help >/dev/null
@@ -60,20 +61,32 @@ jobs:
           supabase status -o env > "$RUNNER_TEMP/supabase-local.env"
           grep -q '^DB_URL=' "$RUNNER_TEMP/supabase-local.env"
 
-      - name: Rebuild the legacy baseline 001-011 on the clean local database
+      - name: Package legacy source 001-011 as a CLI-created baseline migration
         shell: bash
         run: |
           set -euo pipefail
-          set -a
-          source "$RUNNER_TEMP/supabase-local.env"
-          set +a
-          test -n "${DB_URL:-}"
-          for file in database/migrations/0{01..09}_*.sql database/migrations/01{0,1}_*.sql; do
-            test -f "$file"
-            echo "Applying isolated legacy source: $file"
-            psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$file" >> schema-rebuild.log 2>&1
-          done
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "select version, description from public.schema_migrations order by version;" >> schema-rebuild.log
+          mkdir -p supabase/migrations
+          supabase migration new taiba_legacy_baseline_001_011 </dev/null
+          sleep 1
+          generated="$(find supabase/migrations -maxdepth 1 -type f -name '*_taiba_legacy_baseline_001_011.sql' | head -n 1)"
+          test -n "$generated"
+          target="supabase/migrations/20261118005154_taiba_legacy_baseline_001_011.sql"
+          mv "$generated" "$target"
+          {
+            echo "-- Canonical legacy baseline assembled from the 001-011 source files."
+            echo "-- Original source upload commit timestamp: 2026-11-18T00:51:54Z."
+            echo "-- Original source files remain unchanged in database/migrations/."
+            echo "BEGIN;"
+            for file in database/migrations/0{01..09}_*.sql database/migrations/01{0,1}_*.sql; do
+              test -f "$file"
+              echo "-- >>> $file"
+              sed -E '/^[[:space:]]*(BEGIN|COMMIT);[[:space:]]*$/Id' "$file"
+              echo "-- <<< $file"
+            done
+            echo "COMMIT;"
+          } > "$target"
+          test -s "$target"
+          echo "Prepared CLI-created baseline migration: $target" | tee schema-rebuild.log
 
       - name: Materialize CLI-created standard migrations 012-022 using TEST ledger versions
         shell: bash
@@ -119,9 +132,9 @@ jobs:
       - name: Apply standard migrations 012-022 to the local stack only
         run: |
           set -euo pipefail
-          supabase migration up
+          supabase db reset
           supabase migration list | tee migration-list-local.txt
-          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 11
+          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 12
 
       - name: Run post-install structural and security assertions
         shell: bash
@@ -170,5 +183,6 @@ jobs:
             schema-object-details-local.json
             schema-fingerprint-diff.json
             schema-public-private.sql
+            supabase/migrations/*.sql
           if-no-files-found: ignore
           retention-days: 7
