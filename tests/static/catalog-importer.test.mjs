@@ -11,6 +11,7 @@ assert.match(ui,/s\.entityType==='catalog'/);
 assert.match(ui,/test_code/);
 assert.match(ui,/test_name/);
 assert.match(ui,/analysis\.duplicateRows/);
+assert.match(ui,/navigator\.onLine===false/);
 assert.match(ui,/لم يتم حفظ أي تحليل/);
 assert.match(importer,/already-exists/);
 assert.match(importer,/existingCodes/);
