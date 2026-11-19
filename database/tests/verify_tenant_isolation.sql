@@ -178,11 +178,11 @@ values ('abb00000-0000-4000-8000-000000000001',
 insert into storage.objects(id,bucket_id,name,owner,metadata)
 values
  ('abc00000-0000-4000-8000-000000000001','tenant-reports',
-  'reports/aa000000-0000-4000-8000-000000000001/aa600000-0000-4000-8000-000000000001/synthetic.pdf',
+  'aa000000-0000-4000-8000-000000000001/aa600000-0000-4000-8000-000000000001/synthetic.pdf',
   'a1000000-0000-4000-8000-000000000002',
   '{"mimetype":"application/pdf","size":1}'::jsonb),
  ('abc00000-0000-4000-8000-000000000002','tenant-attachments',
-  'attachments/aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf',
+  'aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf',
   'a1000000-0000-4000-8000-000000000002',
   '{"mimetype":"application/pdf","size":1}'::jsonb);
 
@@ -262,10 +262,10 @@ begin
  if not exists (select 1 from public.patients where id='aa300000-0000-4000-8000-000000000001') then
    raise exception 'RLS FAIL: owner cannot read archived branch patient history';
  end if;
- if not exists (select 1 from storage.objects where name='attachments/aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf') then
+ if not exists (select 1 from storage.objects where name='aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf') then
    raise exception 'RLS FAIL: owner cannot read archived branch attachment';
  end if;
- if not exists (select 1 from storage.objects where name='reports/aa000000-0000-4000-8000-000000000001/aa600000-0000-4000-8000-000000000001/synthetic.pdf') then
+ if not exists (select 1 from storage.objects where name='aa000000-0000-4000-8000-000000000001/aa600000-0000-4000-8000-000000000001/synthetic.pdf') then
    raise exception 'RLS FAIL: owner cannot read archived branch report object';
  end if;
 end $archive$;
@@ -294,10 +294,10 @@ begin
  if exists (select 1 from public.audit_logs where id='abb00000-0000-4000-8000-000000000001') then
    raise exception 'RLS FAIL: employee can read owner-only audit history';
  end if;
- if exists (select 1 from storage.objects where name='attachments/aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf') then
+ if exists (select 1 from storage.objects where name='aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf') then
    raise exception 'RLS FAIL: employee can read archived branch attachment';
  end if;
- if exists (select 1 from storage.objects where name='reports/aa000000-0000-4000-8000-000000000001/aa600000-0000-4000-8000-000000000001/synthetic.pdf') then
+ if exists (select 1 from storage.objects where name='aa000000-0000-4000-8000-000000000001/aa600000-0000-4000-8000-000000000001/synthetic.pdf') then
    raise exception 'RLS FAIL: employee can read archived branch report object';
  end if;
 
@@ -367,7 +367,7 @@ begin
 
   begin
     delete from storage.objects
-     where name='attachments/aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf';
+     where name='aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf';
     get diagnostics affected = row_count;
   exception when insufficient_privilege then
     affected := 0;
@@ -379,7 +379,7 @@ begin
   begin
     insert into storage.objects(bucket_id,name,owner,metadata)
     values ('tenant-attachments',
-            'attachments/aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/employee-upload.pdf',
+            'aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/employee-upload.pdf',
             'a1000000-0000-4000-8000-000000000002',
             '{"mimetype":"application/pdf","size":1}'::jsonb);
     raise exception 'RLS FAIL: employee can upload attachment into archived branch';
@@ -397,7 +397,7 @@ begin
   exception when insufficient_privilege then
     null;
   end;
-  if not exists (select 1 from storage.objects where name='attachments/aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf') then
+  if not exists (select 1 from storage.objects where name='aa000000-0000-4000-8000-000000000001/aa100000-0000-4000-8000-000000000001/synthetic.pdf') then
     raise exception 'DATA INTEGRITY FAIL: employee delete changed archived attachment';
   end if;
 
