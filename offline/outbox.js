@@ -90,20 +90,39 @@ export async function syncOutbox({ handlers, maxAttempts = DEFAULT_MAX_ATTEMPTS,
         const result = await handler(structuredClone(item));
         if (result?.conflict === true) {
           await offlineDb.transaction('rw', offlineDb.outbox, offlineDb.conflicts, async () => {
-            await offlineDb.conflicts.add({
+            const history = await offlineDb.conflicts.toArray();
+            const previous = history.find(row => row.operation_id === item.operation_id
+              && row.tenant_id === item.tenant_id && row.branch_id === item.branch_id);
+            const conflictPatch = {
+              entity_type: item.entity_type, local_payload: item.payload,
+              server_snapshot: result.serverSnapshot ?? null,
+              reason: result.reason ?? 'Server reported a conflict.',
+              status: 'open', last_checked_at: new Date().toISOString(),
+            };
+            if (previous) await offlineDb.conflicts.update(previous.local_id, conflictPatch);
+            else await offlineDb.conflicts.add({
               conflict_id: makeId(), tenant_id: item.tenant_id, branch_id: item.branch_id,
-              operation_id: item.operation_id, entity_type: item.entity_type,
-              local_payload: item.payload, server_snapshot: result.serverSnapshot ?? null,
-              reason: result.reason ?? 'Server reported a conflict.', status: 'open',
+              operation_id: item.operation_id, ...conflictPatch,
               created_at: new Date().toISOString(),
             });
             await offlineDb.outbox.update(item.local_id, { status: 'conflict', lease_until: null, sync_owner: null, updated_at: new Date().toISOString() });
           });
           report.conflicts++;
         } else if (result?.acknowledged === true) {
-          await offlineDb.transaction('rw', offlineDb.outbox, offlineDb.sync_meta, async () => {
-            await offlineDb.sync_meta.put({ key: `ack:${item.operation_id}`, tenant_id: item.tenant_id, branch_id: item.branch_id, acknowledged_at: new Date().toISOString(), entity_type: item.entity_type });
+          await offlineDb.transaction('rw', offlineDb.outbox, offlineDb.sync_meta, offlineDb.conflicts, async () => {
+            const acknowledgedAt = new Date().toISOString();
+            await offlineDb.sync_meta.put({ key: `ack:${item.operation_id}`, tenant_id: item.tenant_id, branch_id: item.branch_id, acknowledged_at: acknowledgedAt, entity_type: item.entity_type });
             await offlineDb.outbox.delete(item.local_id);
+            const history = await offlineDb.conflicts.toArray();
+            for (const conflict of history) {
+              if (conflict.operation_id === item.operation_id
+                  && conflict.tenant_id === item.tenant_id && conflict.branch_id === item.branch_id) {
+                await offlineDb.conflicts.update(conflict.local_id, {
+                  status: 'resolved', resolution: 'server_acknowledged',
+                  resolved_at: acknowledgedAt,
+                });
+              }
+            }
           });
           report.acknowledged++;
         } else {
@@ -151,6 +170,27 @@ export async function listOpenConflicts({ tenantId, branchId } = {}) {
   let rows = await offlineDb.conflicts.where('status').equals('open').toArray();
   rows = rows.filter(row => row.tenant_id === tenantId && row.branch_id === branchId);
   return rows.sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+/** Requeue a conflicted operation with its original idempotency key after the user has reviewed the conflict and corrected its cause. */
+export async function retryConflictOperation({ tenantId, branchId, conflictId } = {}) {
+  if (!tenantId || !branchId || !conflictId) throw new Error('Tenant, branch and conflict are required to retry a conflict.');
+  return offlineDb.transaction('rw', offlineDb.outbox, offlineDb.conflicts, async () => {
+    const conflict = await offlineDb.conflicts.where('conflict_id').equals(conflictId).first();
+    if (!conflict || conflict.tenant_id !== tenantId || conflict.branch_id !== branchId || conflict.status !== 'open') {
+      throw new Error('Conflict was not found in the selected tenant and branch, or is no longer open.');
+    }
+    const operation = await offlineDb.outbox.where('operation_id').equals(conflict.operation_id).first();
+    if (!operation || operation.tenant_id !== tenantId || operation.branch_id !== branchId || operation.status !== 'conflict') {
+      throw new Error('The original offline operation is unavailable or has already been queued.');
+    }
+    const now = new Date().toISOString();
+    await offlineDb.outbox.update(operation.local_id, {
+      status: 'pending', attempts: 0, next_attempt_at: now, last_error: null,
+      lease_until: null, sync_owner: null, updated_at: now,
+    });
+    return operation.operation_id;
+  });
 }
 
 export async function retryFailedOperations({ tenantId, branchId } = {}) {
