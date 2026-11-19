@@ -88,3 +88,32 @@ export function buildHistoricalDashboardReport({salesWorkbook,pricesWorkbook,det
  const totals=branchReports.reduce((a,b)=>({rev:a.rev+b.rev,exp:a.exp+b.exp,cases:a.cases+b.cases,profit:a.profit+b.profit}),{rev:0,exp:0,cases:0,profit:0});
  return{source:'historical-excel',period:{year:String(year),month:String(month)},branches:branchReports,totals:{...totals,margin:totals.rev>0?totals.profit/totals.rev*100:0},tests:tests.sort((a,b)=>b.count-a.count),topSellers:[...tests].sort((a,b)=>b.count-a.count).slice(0,5),topProfitable:[...tests].sort((a,b)=>b.trueTotalProfit-a.trueTotalProfit).slice(0,5),lossMakers:tests.filter(t=>t.trueProfitUnit<0).sort((a,b)=>a.trueProfitUnit-b.trueProfitUnit),unmatchedTests:[...new Set(branchReports.flatMap(b=>b.unmatchedTests))]};
 }
+
+function median(values){
+ const sorted=values.filter(Number.isFinite).sort((a,b)=>a-b);
+ if(!sorted.length)return 0;
+ const middle=Math.floor(sorted.length/2);
+ return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;
+}
+
+/** Historical product-portfolio analyses use only matched tests with a positive recorded selling price. */
+export function buildHistoricalProductPortfolio(report){
+ if(!report||!Array.isArray(report.tests))throw new Error('A historical dashboard report is required.');
+ const products=report.tests.filter(test=>Number.isFinite(Number(test.count))&&Number(test.count)>0&&Number.isFinite(Number(test.sell))&&Number(test.sell)>0);
+ const medianCount=median(products.map(test=>Number(test.count)));
+ const medianProfit=median(products.map(test=>Number(test.trueProfitUnit)));
+ const withProfit=products.map(test=>({...test,segment:
+  Number(test.count)>=medianCount&&Number(test.trueProfitUnit)>=medianProfit?'star':
+  Number(test.count)>=medianCount?'cash-cow':
+  Number(test.trueProfitUnit)>=medianProfit?'question':'dog'
+ }));
+ return {
+  thresholds:{medianCount,medianProfit},
+  topSellers:[...withProfit].sort((a,b)=>b.count-a.count||b.trueTotalProfit-a.trueTotalProfit).slice(0,20),
+  mostProfitable:[...withProfit].sort((a,b)=>b.trueTotalProfit-a.trueTotalProfit).slice(0,20),
+  leastProfitable:[...withProfit].filter(test=>test.trueProfitUnit>0).sort((a,b)=>a.trueTotalProfit-b.trueTotalProfit).slice(0,20),
+  needOffers:[...withProfit].filter(test=>test.count<5).sort((a,b)=>a.count-b.count||b.trueProfitUnit-a.trueProfitUnit).slice(0,50),
+  lossMakers:[...withProfit].filter(test=>test.trueProfitUnit<0).sort((a,b)=>a.trueProfitUnit-b.trueProfitUnit),
+  bcg:{stars:withProfit.filter(test=>test.segment==='star'),cashCows:withProfit.filter(test=>test.segment==='cash-cow'),questions:withProfit.filter(test=>test.segment==='question'),dogs:withProfit.filter(test=>test.segment==='dog')}
+ };
+}
