@@ -31,3 +31,10 @@ assert.match(sync,/historicalWorkbooksRestored/);
 assert.match(h,/ملفات Excel التاريخية المحفوظة لهذا المعمل/);
 assert.match(h,/الملفات المرفوعة إلى التخزين السحابي/);
 console.log('PASS: local backup v2 includes tenant-scoped historical workbooks and keeps v1 restore compatibility.');
+
+const branchSettings=fs.readFileSync(new URL('assets/js/settings-center.js',root),'utf8');
+assert.match(branchSettings,/const BRANCH_ARCHIVE_READY=true/);
+assert.match(branchSettings,/data-branch-toggle/);
+assert.doesNotMatch(branchSettings,/data-branch-toggle=.*? disabled title=/);
+console.log('PASS: branch archive controls are enabled only after TEST migration and RLS verification.');
+
