@@ -46,12 +46,28 @@ jobs:
         with:
           node-version: "22.16.0"
 
+      - name: Stage browser-facing files only
+        if: steps.credentials.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for dir in app assets config core dashboard modules offline portal website; do
+            test -d "$dir"
+            cp -R "$dir" dist/
+          done
+          cp service-worker.js dist/
+          test ! -e dist/database
+          test ! -e dist/docs
+          test ! -e dist/supabase
+          test ! -e dist/.github
+
       - name: Publish a non-production draft preview
         if: steps.credentials.outputs.available == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes netlify-cli@27.20.0 deploy --dir=. --no-build --alias=taiba-unified-test --json > netlify-preview.json
+          npx --yes netlify-cli@27.20.0 deploy --dir=dist --no-build --alias=taiba-unified-test --json > netlify-preview.json
           node -e "const d=require('./netlify-preview.json'); const url=d.deploy_url || d.url || d.ssl_url; if(!url || !/^https:\/\//.test(url)) process.exit(1); require('fs').writeFileSync('netlify-preview-url.txt',url+'\n'); console.log('Draft preview published: '+url)"
 
       - name: Upload preview status
