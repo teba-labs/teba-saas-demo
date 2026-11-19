@@ -12,6 +12,8 @@ assert.match(ui, /buildHistoricalProductPortfolio/);
 assert.match(ui, /report\.annual\.totals/);
 assert.match(ui, /report\.seasonality\.monthTotals/);
 assert.match(ui, /report\.annualTrend/);
+assert.match(ui, /expenseBreakdown/);
+assert.match(ui, /تفصيل المصروفات الثابتة/);
 assert.match(ui, /report\.monthlyPlan/);
 assert.match(ui, /هدف أسبوعي تقريبي/);
 assert.match(ui, /portfolio\.bcg/);
