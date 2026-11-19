@@ -65,10 +65,10 @@ test('test-branch preview deploys only a Netlify draft and requires preconfigure
 
 test('development source backup is packaged only after the exact branch passes checks', async () => {
   const workflow = await read('.github/workflows/static-contract-tests.yml');
-  assert.match(workflow, /ref: integration\\/unified-test-2026-11-19/);
-  assert.match(workflow, /node --test tests\\/static\\/\\*\\.test\\.mjs/);
-  assert.match(workflow, /node --experimental-default-type=module --check/);
-  assert.match(workflow, /git archive --format=zip/);
-  assert.match(workflow, /actions\\/upload-artifact@v4/);
-  assert.match(workflow, /retention-days: 30/);
+  assert.ok(workflow.includes('ref: integration/unified-test-2026-11-19'));
+  assert.ok(workflow.includes('node --test tests/static/*.test.mjs'));
+  assert.ok(workflow.includes('node --experimental-default-type=module --check'));
+  assert.ok(workflow.includes('git archive --format=zip'));
+  assert.ok(workflow.includes('actions/upload-artifact@v4'));
+  assert.ok(workflow.includes('retention-days: 30'));
 });
