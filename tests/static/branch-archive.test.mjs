@@ -17,7 +17,7 @@ assert.match(settings, /BRANCH_ARCHIVE_READY\s*=\s*true/);
 assert.match(settings, /data-branch-toggle/);
 assert.match(settings, /setBranchActive\(/);
 assert.match(settings, /if\(!BRANCH_ARCHIVE_READY\)/);
-assert.match(html, /الأرشفة وإعادة التفعيل/);
+assert.match(html, /إعادة تفعيل الفرع لاحقًا/);
 assert.match(html, /أرشفة الفرع توقفه عن التشغيل للموظفين/);
 
 // SQL keeps owner access to historical rows but requires an active branch for employees.
