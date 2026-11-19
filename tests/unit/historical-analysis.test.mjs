@@ -11,6 +11,7 @@ const monthly = [
 const annual = [['','','expenses','revenue','branch','year'],['', '',500,2500,'فرع ألف','2026']];
 assert.deepEqual(engine.extractHistoricalMonth(monthly,'2026','11','فرع ألف'),{rev:1000,exp:200,cases:20});
 assert.deepEqual(engine.extractHistoricalYear(annual,'2026','فرع ألف'),{rev:2500,exp:500});
+assert.deepEqual(engine.findLatestHistoricalPeriod([{name:'الشهرية',rows:monthly}]),{year:'2026',month:'11'});
 const salesWorkbook=[
  {name:'الشهرية',rows:monthly},
  {name:'السنوية',rows:annual},
@@ -37,6 +38,6 @@ assert.equal(report.branches[0].tests.find(t=>t.name==='ALT').trueProfitUnit,-1.
 assert.equal(report.tests.find(t=>t.name==='CBC').count,20);
 assert.deepEqual(report.unmatchedTests,['غير مسعر']);
 assert.equal(report.lossMakers.length,2);
-console.log('PASS historical monthly/yearly extraction');
+console.log('PASS historical monthly/yearly extraction and latest-period detection');
 console.log('PASS weighted fixed-cost allocation and true test cost/profit');
 console.log('PASS branch aggregation, loss detection, and unmatched-price reporting');
