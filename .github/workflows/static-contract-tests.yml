@@ -29,6 +29,8 @@ jobs:
         run: node --test tests/static/*.test.mjs tests/unit/*.test.mjs
       - name: Check JavaScript module syntax
         run: git ls-files -z '*.js' '*.mjs' | xargs -0 -r -n1 node --experimental-default-type=module --check
+      - name: Build and audit browser-only Netlify deployment
+        run: bash scripts/build-netlify.sh
 
       - name: Package the complete tracked development source
         if: success()
