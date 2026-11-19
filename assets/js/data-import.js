@@ -2,7 +2,8 @@ import {getCurrentSession,signInWithEmail} from '../../core/auth/session.js';
 import {loadMyTenantContext} from '../../core/tenant/context.js';
 import {inspectWorkbookFile,getEntityOptions,getEntityFields,suggestColumnMapping,analyzeArchiveSheet,analyzeArchiveRelationships} from '../../modules/migration/workbook-inspector.js';
 import {importNewCatalogTests} from '../../modules/migration/catalog-importer.js';
-import {listCatalog,saveCatalogTest} from '../../modules/catalog/repository.js';
+import {importNewBasePrices} from '../../modules/migration/price-importer.js';
+import {listCatalog,saveCatalogTest,listCurrentBasePrices,addBasePriceIfMissing} from '../../modules/catalog/repository.js';
 const $=id=>document.getElementById(id);let state={tenants:[],tenantId:null,result:null};
 function note(message,error=false){$('notice').textContent=message;$('notice').className='show'+(error?' error':'');}
 function el(tag,text=''){const n=document.createElement(tag);n.textContent=String(text??'');return n;}
@@ -66,7 +67,14 @@ function renderSheet(){
   line.append(name,choice,statusCell);mapBody.append(line);
  });
  mapTable.append(mapBody);const mapWrap=el('div');mapWrap.className='tableWrap';mapWrap.append(mapTable);root.append(mapWrap);
- if(s.entityType==='catalog'){const importButton=el('button','استيراد التحاليل الجديدة فقط');importButton.type='button';importButton.addEventListener('click',()=>importCatalogSheet(s,importButton));root.append(importButton);const importHint=el('p','الاستيراد الآمن الحالي للكتالوج فقط: ينشئ الأكواد غير الموجودة ولا يعدّل كودًا قائمًا. السعر والبارامترات لا يتم استيرادهما هنا لأن لكل منهما مسارًا مستقلًا.');root.append(importHint);}
+ if(s.entityType==='catalog'){
+  const importButton=el('button','استيراد التحاليل الجديدة فقط');importButton.type='button';importButton.addEventListener('click',()=>importCatalogSheet(s,importButton));root.append(importButton);
+  const importHint=el('p','استيراد الكتالوج ينشئ الأكواد غير الموجودة فقط ولا يعدّل كودًا قائمًا.');root.append(importHint);
+  if(s.columnMapping.filter(item=>item.fieldKey==='test_code').length===1&&s.columnMapping.filter(item=>item.fieldKey==='price').length===1){
+   const priceButton=el('button','استيراد أسعار البيع الأساسية الجديدة فقط');priceButton.type='button';priceButton.addEventListener('click',()=>importBasePricesSheet(s,priceButton));root.append(priceButton);
+   const priceHint=el('p','مسار الأسعار مستقل: يضيف السعر العام للتحليل النشط إذا لم يكن له سعر عام حالي. لا يغيّر سعرًا موجودًا ولا أي سعر خاص بفرع.');root.append(priceHint);
+  }
+ }
  const previewTitle=el('h3','عينة من الصفوف تحت العناوين');root.append(previewTitle);
  const table=el('table'),thead=el('thead'),tr=el('tr');
  (s.headers.length?s.headers:['لا توجد عناوين واضحة']).forEach(v=>tr.append(el('th',v)));thead.append(tr);table.append(thead);
@@ -91,6 +99,24 @@ async function importCatalogSheet(sheet,button){
   if(result.failed.length){const detail=el('ul');for(const item of result.failed)detail.append(el('li',item.code+': '+item.message));$('sheetDetails').append(detail);}
  }catch(error){note(error.message||'تعذر استيراد كتالوج التحاليل.',true);}
  finally{button.disabled=false;button.textContent='استيراد التحاليل الجديدة فقط';}
+}
+async function importBasePricesSheet(sheet,button){
+ if(navigator.onLine===false)throw new Error('استيراد الأسعار يحتاج اتصالًا بالإنترنت. لم يتم تغيير البيانات.');
+ if(!state.tenantId)throw new Error('تعذر تحديد المعمل الحالي.');
+ const mapping=sheet.columnMapping||[];
+ const codeColumns=mapping.filter(item=>item.fieldKey==='test_code'),priceColumns=mapping.filter(item=>item.fieldKey==='price');
+ if(codeColumns.length!==1||priceColumns.length!==1)throw new Error('اربط عمود كود التحليل وعمود السعر مرة واحدة قبل الاستيراد.');
+ const codeIndex=codeColumns[0].columnIndex,priceIndex=priceColumns[0].columnIndex;
+ const records=sheet.rawRows.slice(sheet.headerRowIndex+1).map((row,index)=>({
+  test_code:row?.[codeIndex],selling_price:row?.[priceIndex],_rowNumber:sheet.headerRowIndex+index+2
+ }));
+ button.disabled=true;button.textContent='جارٍ إضافة الأسعار العامة الجديدة…';
+ try{
+  const result=await importNewBasePrices({tenantId:state.tenantId,records,listCatalog,listExistingPrices:listCurrentBasePrices,savePrice:addBasePriceIfMissing});
+  note('تمت إضافة '+result.created.length+' سعر أساسي جديد، وتخطي '+result.skipped.length+' صف، وفشل '+result.failed.length+'. لم يتم تعديل أي سعر حالي أو سعر فرع.');
+  if(result.failed.length){const detail=el('ul');for(const item of result.failed)detail.append(el('li',item.code+': '+item.message));$('sheetDetails').append(detail);}
+ }catch(error){note(error.message||'تعذر استيراد أسعار التحاليل.',true);}
+ finally{button.disabled=false;button.textContent='استيراد أسعار البيع الأساسية الجديدة فقط';}
 }
 function renderResult(){const r=state.result;$('summary').hidden=false;$('sheetPanel').hidden=false;const root=$('summary');root.replaceChildren();const meta=el('div');meta.className='meta';
  for(const [label,value] of [['الملف',r.fileName],['الحجم',(r.fileSize/1024/1024).toFixed(2)+' MB'],['عدد الأوراق',r.sheetCount],['بصمة SHA-256',r.sha256],['وقت الفحص',new Date(r.inspectedAt).toLocaleString('ar-EG')],['حالة الخصوصية','قراءة محلية فقط']]){const box=el('div');box.append(el('small',label),el('b',value));meta.append(box);}root.append(meta);
