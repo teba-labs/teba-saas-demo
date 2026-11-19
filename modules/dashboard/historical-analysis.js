@@ -147,7 +147,7 @@ export function buildHistoricalCaseSeasonality({salesWorkbook,years,branch='all'
 export function buildHistoricalAnnualTrend({salesWorkbook,years}={}){
  if(!salesWorkbook)throw new Error('Historical sales workbook is required.');
  const annualRows=salesWorkbook.find(sheet=>sheet.name.includes('السنوية'))?.rows||[];
- const available=[...new Set(annualRows.slice(1).map(row=>clean(row?.[5])).filter(value=>/^\\d{4}$/.test(value)))].sort();
+ const available=[...new Set(annualRows.slice(1).map(row=>clean(row?.[5])).filter(value=>/^\d{4}$/.test(value)))].sort();
  const selected=(years||available).map(String).sort();
  const totals=selected.map(year=>({year,...extractHistoricalYear(annualRows,year,'all')}));
  return totals.map((item,index)=>({...item,profit:item.rev-item.exp,margin:item.rev>0?(item.rev-item.exp)/item.rev*100:0,
