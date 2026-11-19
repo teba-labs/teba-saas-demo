@@ -17,10 +17,10 @@ jobs:
   static-tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the exact development branch
+      - name: Check out the exact triggering commit
         uses: actions/checkout@v4
         with:
-          ref: integration/unified-test-2026-11-19
+          ref: ${{ github.sha }}
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
