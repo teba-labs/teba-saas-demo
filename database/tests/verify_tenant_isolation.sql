@@ -67,6 +67,115 @@ begin
 end $$;
 reset role;
 
+-- Snapshot synthetic row counts before archiving; this temp table is transaction-local.
+create temporary table branch_archive_counts_before(table_name text primary key, row_count bigint) on commit drop;
+insert into branch_archive_counts_before values
+ ('branches',(select count(*) from public.branches)),
+ ('tenant_memberships',(select count(*) from public.tenant_memberships)),
+ ('branch_memberships',(select count(*) from public.branch_memberships)),
+ ('staff_directory',(select count(*) from public.staff_directory)),
+ ('patients',(select count(*) from public.patients)),
+ ('visits',(select count(*) from public.visits)),
+ ('test_results',(select count(*) from public.test_results)),
+ ('payments',(select count(*) from public.payments)),
+ ('financial_ledger',(select count(*) from public.financial_ledger));
+
+-- Archive A1 as the privileged test harness would. No related rows are changed.
+update public.branches set is_active=false
+where id='aa100000-0000-4000-8000-000000000001'
+  and tenant_id='aa000000-0000-4000-8000-000000000001';
+if not found then
+  raise exception 'RLS FAIL: could not mark synthetic branch A1 inactive';
+end if;
+
+-- Tenant A owner retains access to archived branch metadata and historical patients.
+select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select set_config('request.jwt.claim.sub','a1000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $
+begin
+ if not private.can_access_branch('aa000000-0000-4000-8000-000000000001','aa100000-0000-4000-8000-000000000001') then
+   raise exception 'RLS FAIL: owner lost archived branch access';
+ end if;
+ if not exists (select 1 from public.branches where id='aa100000-0000-4000-8000-000000000001' and is_active=false) then
+   raise exception 'RLS FAIL: owner cannot read archived branch';
+ end if;
+ if not exists (select 1 from public.patients where id='aa300000-0000-4000-8000-000000000001') then
+   raise exception 'RLS FAIL: owner cannot read archived branch patient history';
+ end if;
+end $;
+reset role;
+
+-- The former branch employee must lose access through every policy that
+-- directly or transitively calls can_access_branch (public and Storage).
+select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+select set_config('request.jwt.claim.sub','a1000000-0000-4000-8000-000000000002',true);
+set local role authenticated;
+do $
+declare
+  visible_rows bigint;
+  policy_row record;
+begin
+ if private.can_access_branch('aa000000-0000-4000-8000-000000000001','aa100000-0000-4000-8000-000000000001') then
+   raise exception 'RLS FAIL: employee helper still grants archived branch access';
+ end if;
+ if exists (select 1 from public.branches where id='aa100000-0000-4000-8000-000000000001') then
+   raise exception 'RLS FAIL: employee can read archived branch metadata';
+ end if;
+ if exists (select 1 from public.patients where id='aa300000-0000-4000-8000-000000000001') then
+   raise exception 'RLS FAIL: employee can read archived branch patient history';
+ end if;
+
+ for policy_row in
+   with recursive helper_functions(schema_name,function_name) as (
+     select n.nspname, p.proname
+       from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname in ('public','private') and p.prosrc ilike '%can_access_branch%'
+     union
+     select n.nspname, p.proname
+       from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+       join helper_functions h on p.prosrc ilike '%' || h.function_name || '%'
+      where n.nspname in ('public','private')
+   )
+   select distinct pol.schemaname, pol.tablename
+     from pg_policies pol
+     join helper_functions h
+       on (coalesce(pol.qual,'') || ' ' || coalesce(pol.with_check,'')) ilike '%' || h.function_name || '%'
+    where pol.schemaname in ('public','storage')
+      and pol.cmd in ('SELECT','ALL')
+ loop
+   execute format('select count(*) from %I.%I',policy_row.schemaname,policy_row.tablename)
+      into visible_rows;
+   if visible_rows <> 0 then
+     raise exception 'RLS FAIL: employee sees % rows through dependent policy on %.%',
+       visible_rows, policy_row.schemaname, policy_row.tablename;
+   end if;
+ end loop;
+end $;
+reset role;
+
+-- Verify no synthetic branch, membership, staff, patient, visit, result or
+-- financial rows were inserted/deleted/rewritten by the access-policy change.
+do $
+declare
+  item record;
+  current_count bigint;
+begin
+ for item in select table_name,row_count from branch_archive_counts_before loop
+   execute format('select count(*) from public.%I',item.table_name) into current_count;
+   if current_count <> item.row_count then
+     raise exception 'DATA INTEGRITY FAIL: % count changed from % to %',
+       item.table_name,item.row_count,current_count;
+   end if;
+ end loop;
+ if not exists (select 1 from public.branches where id='aa100000-0000-4000-8000-000000000001' and is_active=false) then
+   raise exception 'DATA INTEGRITY FAIL: archived branch ID/status missing';
+ end if;
+ if not exists (select 1 from public.patients where id='aa300000-0000-4000-8000-000000000001') then
+   raise exception 'DATA INTEGRITY FAIL: patient ID changed or row missing';
+ end if;
+end $;
+
 -- Tenant B employee must see only Tenant B and its one branch.
 select set_config('request.jwt.claims','{"sub":"b1000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 select set_config('request.jwt.claim.sub','b1000000-0000-4000-8000-000000000002',true);
