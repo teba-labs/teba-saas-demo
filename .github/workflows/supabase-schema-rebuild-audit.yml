@@ -141,6 +141,10 @@ jobs:
             select 'public_rls_not_forced=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p') and (not c.relrowsecurity or not c.relforcerowsecurity);
           " | tee schema-inventory.txt
           grep -q 'public_rls_not_forced=0' schema-inventory.txt
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -At -f database/tests/schema_fingerprint.sql > schema-fingerprint-local.raw.json
+          python -c "import json; p='schema-fingerprint-local.raw.json'; d=json.load(open(p)); json.dump(d,open('schema-fingerprint-local.json','w'),sort_keys=True,separators=(',',':')); print(json.dumps(d,sort_keys=True))"
+          python -c "import json; e=json.load(open('database/tests/expected-test-schema-fingerprint.json')); a=json.load(open('schema-fingerprint-local.json')); raise SystemExit(0 if a == e else 1)"
+          echo "Full schema fingerprint matches the read-only TEST baseline." | tee schema-fingerprint-match.txt
           supabase db dump --schema public,private --file schema-public-private.sql
 
       - name: Stop disposable local stack
@@ -159,6 +163,8 @@ jobs:
             migration-list-local.txt
             post-install-verification.log
             schema-inventory.txt
+            schema-fingerprint-local.json
+            schema-fingerprint-match.txt
             schema-public-private.sql
           if-no-files-found: ignore
           retention-days: 7
