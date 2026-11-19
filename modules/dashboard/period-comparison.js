@@ -10,7 +10,7 @@ const METRICS = [
 ];
 
 export function getPreviousMonthRange(monthStart) {
-  if (!/^\\d{4}-\\d{2}-01$/.test(String(monthStart || ''))) {
+  if (!/^\d{4}-\d{2}-01$/.test(String(monthStart || ''))) {
     throw new Error('monthStart must be the first day of a valid month.');
   }
   const [year, month] = monthStart.slice(0, 7).split('-').map(Number);
