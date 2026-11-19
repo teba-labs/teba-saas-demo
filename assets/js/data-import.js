@@ -1,11 +1,13 @@
 import {getCurrentSession,signInWithEmail} from '../../core/auth/session.js';
 import {loadMyTenantContext} from '../../core/tenant/context.js';
 import {inspectWorkbookFile,getEntityOptions,getEntityFields,suggestColumnMapping,analyzeArchiveSheet,analyzeArchiveRelationships} from '../../modules/migration/workbook-inspector.js';
-const $=id=>document.getElementById(id);let state={tenants:[],result:null};
+import {importNewCatalogTests} from '../../modules/migration/catalog-importer.js';
+import {listCatalog,saveCatalogTest} from '../../modules/catalog/repository.js';
+const $=id=>document.getElementById(id);let state={tenants:[],tenantId:null,result:null};
 function note(message,error=false){$('notice').textContent=message;$('notice').className='show'+(error?' error':'');}
 function el(tag,text=''){const n=document.createElement(tag);n.textContent=String(text??'');return n;}
 function makeSelect(options,value){const s=el('select');for(const item of options){const o=el('option',item.label);o.value=item.value;s.append(o);}s.value=value??'';return s;}
-async function start(){const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;return;}const ctx=await loadMyTenantContext();state.tenants=(ctx.tenants||[]).filter(t=>t.accountType==='owner');if(!state.tenants.length)throw Error('هذه الأداة مخصصة لمالك المعمل فقط.');$('tenantName').textContent=state.tenants[0].name;$('loginPanel').hidden=true;$('workspace').hidden=false;}
+async function start(){const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;return;}const ctx=await loadMyTenantContext();state.tenants=(ctx.tenants||[]).filter(t=>t.accountType==='owner');if(!state.tenants.length)throw Error('هذه الأداة مخصصة لمالك المعمل فقط.');state.tenantId=state.tenants[0].id;$('tenantName').textContent=state.tenants[0].name;$('loginPanel').hidden=true;$('workspace').hidden=false;}
 function renderSheet(){
  if(!state.result)return;
  for(const sheet of state.result.sheets) sheet.analysis=analyzeArchiveSheet(sheet.rawRows,sheet.headerRowIndex,sheet.entityType,sheet.columnMapping);
@@ -64,12 +66,30 @@ function renderSheet(){
   line.append(name,choice,statusCell);mapBody.append(line);
  });
  mapTable.append(mapBody);const mapWrap=el('div');mapWrap.className='tableWrap';mapWrap.append(mapTable);root.append(mapWrap);
+ if(s.entityType==='catalog'){const importButton=el('button','استيراد التحاليل الجديدة فقط');importButton.type='button';importButton.addEventListener('click',()=>importCatalogSheet(s,importButton));root.append(importButton);const importHint=el('p','الاستيراد الآمن الحالي للكتالوج فقط: ينشئ الأكواد غير الموجودة ولا يعدّل كودًا قائمًا. السعر والبارامترات لا يتم استيرادهما هنا لأن لكل منهما مسارًا مستقلًا.');root.append(importHint);}
  const previewTitle=el('h3','عينة من الصفوف تحت العناوين');root.append(previewTitle);
  const table=el('table'),thead=el('thead'),tr=el('tr');
  (s.headers.length?s.headers:['لا توجد عناوين واضحة']).forEach(v=>tr.append(el('th',v)));thead.append(tr);table.append(thead);
  const body=el('tbody');for(const row of s.preview){const line=el('tr');for(let i=0;i<Math.max(s.headers.length,row.length);i++)line.append(el('td',row[i]??''));body.append(line);}
  if(!s.preview.length){const line=el('tr'),cell=el('td','لا توجد صفوف معاينة بعد صف العناوين المقترح.');cell.colSpan=Math.max(1,s.headers.length);line.append(cell);body.append(line);}
  table.append(body);const wrap=el('div');wrap.className='tableWrap';wrap.append(table);root.append(wrap);
+}
+async function importCatalogSheet(sheet,button){
+ if(!state.tenantId)throw new Error('تعذر تحديد المعمل الحالي.');
+ const mapping=sheet.columnMapping||[];
+ if(mapping.filter(item=>item.fieldKey==='test_code').length!==1)throw new Error('اربط عمود كود التحليل مرة واحدة قبل الاستيراد.');
+ if(mapping.filter(item=>item.fieldKey==='test_name').length!==1)throw new Error('اربط عمود اسم التحليل مرة واحدة قبل الاستيراد.');
+ const analysis=analyzeArchiveSheet(sheet.rawRows,sheet.headerRowIndex,'catalog',mapping);
+ if(analysis.missingRequired||analysis.duplicateRows||analysis.duplicateHeaders)throw new Error('أصلح الحقول المطلوبة والتكرارات والعناوين المكررة قبل الاستيراد. لم يتم حفظ أي تحليل.');
+ const records=analysis.records.map(row=>({test_code:row.test_code,test_name:row.test_name,_rowNumber:row._rowNumber}));
+ button.disabled=true;button.textContent='جارٍ إنشاء الأكواد الجديدة…';
+ try{
+  const result=await importNewCatalogTests({tenantId:state.tenantId,records,listExisting:listCatalog,saveTest:saveCatalogTest});
+  const message='تم إنشاء '+result.created.length+' تحليل جديد، وتخطي '+result.skipped.length+' كود موجود، وفشل '+result.failed.length+'. لم يتم تعديل الأكواد الموجودة.';
+  note(message,result.failed.length>0);
+  if(result.failed.length){const detail=el('ul');for(const item of result.failed)detail.append(el('li',item.code+': '+item.message));$('sheetDetails').append(detail);}
+ }catch(error){note(error.message||'تعذر استيراد كتالوج التحاليل.',true);}
+ finally{button.disabled=false;button.textContent='استيراد التحاليل الجديدة فقط';}
 }
 function renderResult(){const r=state.result;$('summary').hidden=false;$('sheetPanel').hidden=false;const root=$('summary');root.replaceChildren();const meta=el('div');meta.className='meta';
  for(const [label,value] of [['الملف',r.fileName],['الحجم',(r.fileSize/1024/1024).toFixed(2)+' MB'],['عدد الأوراق',r.sheetCount],['بصمة SHA-256',r.sha256],['وقت الفحص',new Date(r.inspectedAt).toLocaleString('ar-EG')],['حالة الخصوصية','قراءة محلية فقط']]){const box=el('div');box.append(el('small',label),el('b',value));meta.append(box);}root.append(meta);
