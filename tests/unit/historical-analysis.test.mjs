@@ -34,7 +34,7 @@ assert.equal(report.branches[0].allocation.fixedCost,170);
 assert.equal(report.branches[0].allocation.totalPoints,25);
 assert.equal(report.branches[0].allocation.pointValue,6.8);
 assert.equal(report.branches[0].tests.find(t=>t.name==='CBC').trueCost,18.6);
-assert.equal(report.branches[0].tests.find(t=>t.name==='ALT').trueProfitUnit,-1.8);
+assert.ok(Math.abs(report.branches[0].tests.find(t=>t.name==='ALT').trueProfitUnit-(-1.8))<1e-9);
 assert.equal(report.tests.find(t=>t.name==='CBC').count,20);
 assert.deepEqual(report.unmatchedTests,['غير مسعر']);
 assert.equal(report.lossMakers.length,2);
