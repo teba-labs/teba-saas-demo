@@ -4,6 +4,7 @@ import fs from 'node:fs';
 const root = new URL('../../', import.meta.url);
 const read = path => fs.readFileSync(new URL(path, root), 'utf8');
 const context = read('core/tenant/context.js');
+const offlineDatabase = read('offline/database.js');
 const settings = read('assets/js/settings-center.js');
 const html = read('app/settings.html');
 const migration = read('database/migrations/023_branch_archive_access.sql');
@@ -31,4 +32,12 @@ assert.doesNotMatch(migration, /\bdelete\s+from\b/i);
 assert.doesNotMatch(migration, /\bupdate\s+public\./i);
 assert.match(migration, /No branch, membership, patient, visit, result, or financial row is deleted or rewritten/);
 
-console.log('PASS: branch archive safety contract (static only; migration not applied).');
+
+// Offline boundary: an employee device may still use previously cached context/data
+// until it reconnects. Archival is server-side authorization, not remote cache erasure.
+assert.match(context, /if \\(globalThis\\.navigator\\?\\.onLine === false\\) return cachedContext\\(\\)/);
+assert.match(context, /offlineDb\\.sync_meta\\.put/);
+assert.match(offlineDatabase, /Dexie/);
+assert.doesNotMatch(migration, /Dexie|offlineDb|clear\\(/i);
+
+console.log('PASS: branch archive static contract and offline-cache boundary (no runtime RLS claim).');
