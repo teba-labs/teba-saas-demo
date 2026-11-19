@@ -112,11 +112,14 @@ export async function getOwnerTestRangeReport({tenantId,fromDate,toDateExclusive
  need(tenantId,'tenantId');need(fromDate,'fromDate');need(toDateExclusive,'toDateExclusive');
  if(!/^\d{4}-\d{2}-\d{2}$/.test(fromDate)||!/^\d{4}-\d{2}-\d{2}$/.test(toDateExclusive)||toDateExclusive<=fromDate)throw new Error('A valid half-open date range is required.');
  const client=db();
- let visitQuery=client.from('visits').select('id,branch_id').eq('tenant_id',tenantId)
-  .gte('visit_work_date',fromDate).lt('visit_work_date',toDateExclusive).neq('status','cancelled')
-  .order('visit_work_date').order('id');
- if(branchId)visitQuery=visitQuery.eq('branch_id',branchId);
- const visits=await readAllPages(()=>visitQuery);
+ const buildVisitsQuery=()=>{
+  let query=client.from('visits').select('id,branch_id').eq('tenant_id',tenantId)
+   .gte('visit_work_date',fromDate).lt('visit_work_date',toDateExclusive).neq('status','cancelled')
+   .order('visit_work_date').order('id');
+  if(branchId)query=query.eq('branch_id',branchId);
+  return query;
+ };
+ const visits=await readAllPages(buildVisitsQuery);
  const counts=new Map();
  for(let offset=0;offset<visits.length;offset+=500){
   const ids=visits.slice(offset,offset+500).map(row=>row.id);
