@@ -1,6 +1,6 @@
 [build]
-  command = ""
-  publish = "."
+  command = "bash scripts/build-netlify.sh"
+  publish = "dist"
 
 [[redirects]]
   from = "/"
