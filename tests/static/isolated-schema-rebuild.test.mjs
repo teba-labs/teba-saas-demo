@@ -56,6 +56,6 @@ test('test-branch preview deploys only a Netlify draft and requires preconfigure
   assert.match(workflow, /secrets\.NETLIFY_AUTH_TOKEN/);
   assert.match(workflow, /secrets\.NETLIFY_SITE_ID/);
   assert.match(workflow, /netlify-cli@27\.20\.0/);
-  assert.match(workflow, /--alias=taiba-unified-test/);
+  assert.match(workflow, /--dir=dist/);\n  assert.match(workflow, /test ! -e dist\\/database/);\n  assert.match(workflow, /test ! -e dist\\/supabase/);\n  assert.match(workflow, /--alias=taiba-unified-test/);
   assert.doesNotMatch(workflow, /--prod\b|prod-if-unlocked|functions deploy/i);
 });
