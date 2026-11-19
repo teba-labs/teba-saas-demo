@@ -2,6 +2,14 @@ const clean=value=>String(value??'').trim();
 const number=value=>{const n=Number(value);return Number.isFinite(n)?n:0;};
 const normalize=value=>clean(value).toLocaleLowerCase('ar');
 const sum=(rows,index)=>rows.reduce((total,row)=>total+number(row?.[index]),0);
+
+export function findLatestHistoricalPeriod(salesWorkbook){
+ const monthly=salesWorkbook?.find(s=>s.name.includes('الشهرية'))?.rows||[];
+ let latest=null;
+ for(let i=1;i<monthly.length;i++){const row=monthly[i];if(!row||clean(row[4])===''||clean(row[4])==='التقفيل')continue;const year=Number(row[7]),month=Number(row[4]);if(!Number.isInteger(year)||!Number.isInteger(month)||month<1||month>12||number(row[3])<=0)continue;if(!latest||year>latest.year||(year===latest.year&&month>latest.month))latest={year,month};}
+ return latest?{year:String(latest.year),month:String(latest.month).padStart(2,'0')}:null;
+}
+
 export function extractHistoricalMonth(monthlyRows,year,month,branch){
  let rev=0,exp=0,cases=0;
  for(let i=1;i<monthlyRows.length;i++){const row=monthlyRows[i];if(!row)continue;
