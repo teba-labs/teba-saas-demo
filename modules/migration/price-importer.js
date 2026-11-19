@@ -77,7 +77,7 @@ export async function importNewBasePrices({tenantId,records,listCatalog,listExis
   try{
    const saved=await savePrice({tenantId,testId:test.id,sellingPrice:row.sellingPrice});
    if(saved?.created===false){currentBase.add(test.id);result.skipped.push({code:row.code,reason:'current-base-price-exists'});}
-   else{currentBase.add(test.id);result.created.push({code:row.code,testId:test.id,priceId:saved?.price?.id??saved?.id??null,sellingPrice:row.sellingPrice});}
+   else{currentBase.add(test.id);result.created.push({code:row.code,testId:test.id,priceId:saved?.price?.id??saved?.id??null,sellingPrice:row.sellingPrice,cacheUpdated:saved?.cacheUpdated!==false});}
   }catch(error){result.failed.push({code:row.code,message:error?.message||'تعذر حفظ السعر'});}
  }
  return result;
