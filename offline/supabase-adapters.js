@@ -29,7 +29,11 @@ export function createSupabaseSyncHandlers() {
           || (existing.data.age_years ?? null) !== (p.age_years ?? null)
           || (existing.data.sex ?? 'unknown') !== (p.sex ?? 'unknown')
           || (existing.data.created_by_staff_id ?? null) !== (p.created_by_staff_id ?? null)) {
-        return { conflict: true, reason: 'Patient ID exists with different or inaccessible data.' };
+        return {
+          conflict: true,
+          reason: 'Patient ID exists with different or inaccessible data.',
+          serverSnapshot: existing.data ?? null,
+        };
       }
       return { acknowledged: true, resultId: p.id };
     },
