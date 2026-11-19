@@ -32,6 +32,14 @@ assert.equal(writes.length,1);
 assert.equal(writes[0].tenantId,'tenant-a');
 assert.equal(writes[0].testId,'test-tsh');
 
+// Decimal fractions remain valid despite binary floating-point representation.
+const fractional=await importer.importNewBasePrices({
+ tenantId:'tenant-a',records:[{test_code:'GLU',selling_price:0.29}],
+ listCatalog:async()=>catalog,listExistingPrices:async()=>[],
+ savePrice:async args=>({created:true,price:{id:'fractional-'+args.testId}})
+});
+assert.equal(fractional.created[0].sellingPrice,0.29);
+
 // Existing base prices are never overwritten and retries are idempotent.
 const retry=await importer.importNewBasePrices({
  tenantId:'tenant-a',records:[{test_code:'TSH',selling_price:100.5}],
