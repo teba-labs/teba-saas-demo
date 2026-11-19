@@ -27,7 +27,7 @@ jobs:
       - name: Set up Supabase CLI v3
         uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: 3.2.0
 
       - name: Verify toolchain and Docker daemon
         run: |
@@ -41,19 +41,19 @@ jobs:
       - name: Start an isolated local Supabase stack
         run: |
           set -o pipefail
-          supabase start --debug 2>&1 | tee supabase-local-start.log
+          supabase start 2>&1 | sed -E '/(Publishable|Secret|Access Key|Secret Key)/Id' | tee supabase-local-start.log
 
       - name: Verify local services
         run: |
           set -euo pipefail
-          supabase status
           docker ps --format 'table {{.Names}}\t{{.Status}}'
+          test "$(docker ps --filter 'name=supabase_db_teba-saas-demo' --filter status=running -q | wc -l)" -eq 1
 
       - name: Stop disposable local stack
         if: always()
         run: supabase stop || true
 
-      - name: Preserve diagnostic logs
+      - name: Preserve sanitized diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
