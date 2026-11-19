@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../core/supabase-client.js';
+import { buildExpenseBreakdown } from '../modules/dashboard/expense-breakdown.js';
 const db = () => getSupabaseClient();
 const need = (value, name) => { if (!value) throw new Error(`${name} is required.`); };
 const sum = (rows, field) => (rows ?? []).reduce((total, row) => total + Number(row[field] ?? 0), 0);
@@ -55,6 +56,21 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
 
   const collectedRows = ledger.filter(row => row.direction === 'inflow');
   const expenseRows = ledger.filter(row => row.direction === 'outflow');
+  const expenseSourceIds = [...new Set(expenseRows.filter(row => row.source_type === 'expense' && row.source_id).map(row => row.source_id))];
+  const linkedExpenses = [];
+  for (let offset = 0; offset < expenseSourceIds.length; offset += 500) {
+    const ids = expenseSourceIds.slice(offset, offset + 500);
+    linkedExpenses.push(...await readAllPages(() => client.from('expenses').select('id,category_id')
+      .eq('tenant_id', tenantId).in('id', ids).order('id')));
+  }
+  const categoryIds = [...new Set(linkedExpenses.map(row => row.category_id).filter(Boolean))];
+  const expenseCategories = [];
+  for (let offset = 0; offset < categoryIds.length; offset += 500) {
+    const ids = categoryIds.slice(offset, offset + 500);
+    expenseCategories.push(...await readAllPages(() => client.from('expense_categories').select('id,name')
+      .eq('tenant_id', tenantId).in('id', ids).order('name').order('id')));
+  }
+  const expenseBreakdown = buildExpenseBreakdown({ ledgerRows: expenseRows, expenseRows: linkedExpenses, categoryRows: expenseCategories, branches });
   const collected = sum(collectedRows, 'amount');
   const expenses = sum(expenseRows, 'amount');
   const grossBilled = sum(billing, 'gross_total');
@@ -115,6 +131,7 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
       receivables, paymentCount: collectedRows.length, expenseCount: expenseRows.length,
     },
     daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
+    expenseBreakdown,
     topTests: [...testMap.values()].sort((a, b) => b.count - a.count).slice(0, 12),
     ledger,
   };
