@@ -30,3 +30,16 @@ test('CMS editor assets and navigation controls are present',()=>{
  for(const id of ['tenantSelect','collectionSelect','itemsList','itemForm','publicContent','themeJson','togglePublish']) assert.match(html,new RegExp(`id="${id}"`));
  assert.ok(css.length>1000);
 });
+
+test('CMS image upload is tenant-scoped, type and size limited, and uses the public site-assets bucket',()=>{
+ const repository=fs.readFileSync(path.join(root,'website/cms-repository.js'),'utf8');
+ assert.match(repository,/uploadCmsAsset/);assert.match(repository,/tenantId}\/cms\//);
+ assert.match(repository,/tenant-site-assets/);assert.match(repository,/image\/webp/);
+ assert.match(repository,/10 \* 1024 \* 1024/);assert.match(repository,/upsert: false/);
+});
+test('CMS editor uploads only for saved package/article items and previews before publication',()=>{
+ assert.match(js,/mediaUploadPanel/);assert.match(js,/state\.selected\?\.id/);
+ assert.match(js,/uploadCmsAsset/);assert.match(js,/getPublicUrl|publicUrl/);
+ assert.match(html,/accept="image\/jpeg,image\/png,image\/webp"/);
+ assert.match(html,/صور عامة للموقع فقط/);
+});
