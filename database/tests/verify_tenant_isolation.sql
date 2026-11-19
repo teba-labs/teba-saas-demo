@@ -81,12 +81,15 @@ insert into branch_archive_counts_before values
  ('financial_ledger',(select count(*) from public.financial_ledger));
 
 -- Archive A1 as the privileged test harness would. No related rows are changed.
-update public.branches set is_active=false
-where id='aa100000-0000-4000-8000-000000000001'
-  and tenant_id='aa000000-0000-4000-8000-000000000001';
-if not found then
-  raise exception 'RLS FAIL: could not mark synthetic branch A1 inactive';
-end if;
+do $
+begin
+  update public.branches set is_active=false
+   where id='aa100000-0000-4000-8000-000000000001'
+     and tenant_id='aa000000-0000-4000-8000-000000000001';
+  if not found then
+    raise exception 'RLS FAIL: could not mark synthetic branch A1 inactive';
+  end if;
+end $;
 
 -- Tenant A owner retains access to archived branch metadata and historical patients.
 select set_config('request.jwt.claims','{"sub":"a1000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
