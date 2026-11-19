@@ -14,7 +14,7 @@ test('isolated rebuild is pinned to the integration branch and a disposable loca
   assert.doesNotMatch(workflow, /supabase link|--remote|db push|migration repair/i);
 });
 
-test('isolated rebuild applies legacy 001-011 only to the local DB URL', async () => {
+test('isolated rebuild packages legacy 001-011 into a CLI baseline and resets only local DB', async () => {
   const workflow = await read('.github/workflows/supabase-schema-rebuild-audit.yml');
   assert.match(workflow, /source "\$RUNNER_TEMP\/supabase-local\.env"/);
   assert.match(workflow, /supabase migration new taiba_legacy_baseline_001_011/);
