@@ -114,7 +114,14 @@ export function buildHistoricalProductPortfolio(report){
   leastProfitable:[...withProfit].filter(test=>test.trueProfitUnit>0).sort((a,b)=>a.trueTotalProfit-b.trueTotalProfit).slice(0,20),
   needOffers:[...withProfit].filter(test=>test.count<5).sort((a,b)=>a.count-b.count||b.trueProfitUnit-a.trueProfitUnit).slice(0,50),
   lossMakers:[...withProfit].filter(test=>test.trueProfitUnit<0).sort((a,b)=>a.trueProfitUnit-b.trueProfitUnit),
-  bcg:{stars:withProfit.filter(test=>test.segment==='star'),cashCows:withProfit.filter(test=>test.segment==='cash-cow'),questions:withProfit.filter(test=>test.segment==='question'),dogs:withProfit.filter(test=>test.segment==='dog')}
+  urgent:{losses:[...withProfit].filter(test=>test.trueProfitUnit<0).sort((a,b)=>a.trueProfitUnit-b.trueProfitUnit),
+   lowDemandOpportunities:[...withProfit].filter(test=>test.count<=1&&test.trueProfitUnit>medianProfit).sort((a,b)=>b.trueProfitUnit-a.trueProfitUnit)},
+  bcg:{
+   stars:withProfit.filter(test=>test.segment==='star').sort((a,b)=>b.trueTotalProfit-a.trueTotalProfit),
+   cashCows:withProfit.filter(test=>test.segment==='cash-cow').sort((a,b)=>b.count-a.count),
+   questions:withProfit.filter(test=>test.segment==='question').sort((a,b)=>b.trueProfitUnit-a.trueProfitUnit),
+   dogs:withProfit.filter(test=>test.segment==='dog').sort((a,b)=>a.trueTotalProfit-b.trueTotalProfit)
+  }
  };
 }
 
