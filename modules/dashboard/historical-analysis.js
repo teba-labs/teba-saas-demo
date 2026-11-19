@@ -86,7 +86,7 @@ export function buildHistoricalDashboardReport({salesWorkbook,pricesWorkbook,det
  for(const b of branchReports)for(const t of b.tests){const key=normalize(t.name);if(!combined.has(key))combined.set(key,{...t,count:0,trueTotalProfit:0});const item=combined.get(key);item.count+=t.count;item.trueTotalProfit+=t.trueTotalProfit;}
  const tests=[...combined.values()].map(t=>({...t,trueProfitUnit:t.count?t.trueTotalProfit/t.count:0,trueCost:t.sell-(t.count?t.trueTotalProfit/t.count:0)}));
  const totals=branchReports.reduce((a,b)=>({rev:a.rev+b.rev,exp:a.exp+b.exp,cases:a.cases+b.cases,profit:a.profit+b.profit}),{rev:0,exp:0,cases:0,profit:0});
- return{source:'historical-excel',period:{year:String(year),month:String(month)},branches:branchReports,totals:{...totals,margin:totals.rev>0?totals.profit/totals.rev*100:0},tests:tests.sort((a,b)=>b.count-a.count),topSellers:[...tests].sort((a,b)=>b.count-a.count).slice(0,5),topProfitable:[...tests].sort((a,b)=>b.trueTotalProfit-a.trueTotalProfit).slice(0,5),lossMakers:tests.filter(t=>t.trueProfitUnit<0).sort((a,b)=>a.trueProfitUnit-b.trueProfitUnit),unmatchedTests:[...new Set(branchReports.flatMap(b=>b.unmatchedTests))],annual:buildHistoricalAnnualReport({salesWorkbook,year}),seasonality:buildHistoricalCaseSeasonality({salesWorkbook,years:[String(year)],branch:'all'})};
+ return{source:'historical-excel',period:{year:String(year),month:String(month)},branches:branchReports,totals:{...totals,margin:totals.rev>0?totals.profit/totals.rev*100:0},tests:tests.sort((a,b)=>b.count-a.count),topSellers:[...tests].sort((a,b)=>b.count-a.count).slice(0,5),topProfitable:[...tests].sort((a,b)=>b.trueTotalProfit-a.trueTotalProfit).slice(0,5),lossMakers:tests.filter(t=>t.trueProfitUnit<0).sort((a,b)=>a.trueProfitUnit-b.trueProfitUnit),unmatchedTests:[...new Set(branchReports.flatMap(b=>b.unmatchedTests))],annual:buildHistoricalAnnualReport({salesWorkbook,year}),annualTrend:buildHistoricalAnnualTrend({salesWorkbook}),seasonality:buildHistoricalCaseSeasonality({salesWorkbook,branch:'all'})};
 }
 
 function median(values){
@@ -141,4 +141,17 @@ export function buildHistoricalCaseSeasonality({salesWorkbook,years,branch='all'
  });
  const monthTotals=Array.from({length:12},(_,index)=>series.reduce((sum,item)=>sum+item.months[index],0));
  return {branch,series,monthTotals,busiestMonths:monthTotals.map((cases,index)=>({month:index+1,cases})).filter(item=>item.cases>0).sort((a,b)=>b.cases-a.cases).slice(0,3),quietestMonths:monthTotals.map((cases,index)=>({month:index+1,cases})).filter(item=>item.cases>0).sort((a,b)=>a.cases-b.cases).slice(0,3)};
+}
+
+/** Multi-year financial trend with year-over-year growth, preserving missing baselines as null. */
+export function buildHistoricalAnnualTrend({salesWorkbook,years}={}){
+ if(!salesWorkbook)throw new Error('Historical sales workbook is required.');
+ const annualRows=salesWorkbook.find(sheet=>sheet.name.includes('السنوية'))?.rows||[];
+ const available=[...new Set(annualRows.slice(1).map(row=>clean(row?.[5])).filter(value=>/^\\d{4}$/.test(value)))].sort();
+ const selected=(years||available).map(String).sort();
+ const totals=selected.map(year=>({year,...extractHistoricalYear(annualRows,year,'all')}));
+ return totals.map((item,index)=>({...item,profit:item.rev-item.exp,margin:item.rev>0?(item.rev-item.exp)/item.rev*100:0,
+  revenueGrowth:index&&totals[index-1].rev>0?(item.rev-totals[index-1].rev)/totals[index-1].rev*100:null,
+  expenseGrowth:index&&totals[index-1].exp>0?(item.exp-totals[index-1].exp)/totals[index-1].exp*100:null
+ }));
 }
