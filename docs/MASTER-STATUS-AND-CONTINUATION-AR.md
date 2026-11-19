@@ -300,7 +300,7 @@
 - تم تحسين لوحة المالك: pagination لكل الاستعلامات الشهرية، واستبعاد الزيارات/التحاليل الملغاة من المؤشرات والفواتير والمديونيات.
 - تم تحسين قائمة تشغيل النتائج: ترقيم خادمي 25 تحليلًا في الصفحة، واستبعاد الملغى، وتحميل نتائج مجزأ ومرقّم.
 - GitHub Actions run `44481418113`: **158/158 static tests passed**، وفحص صياغة JavaScript/MJS ناجح.
-- تفاصيل الملفات والحدود في `docs/batch-26-dashboard-worklist-pagination.md`.
+- تفاصيل الملفات والحدود في `docs/batch-26-dashboard-worklist-pagination.md`. تقرير التدقيق السحابي الحي: `docs/CLOUD-AUDIT-AR-2026-11-19.md`.
 - آخر commit موثق لهذه الدفعة: `881950044fd58c1a3c05a144a7c4c96a5b0d45e5`.
 - لم يتم تغيير `main` أو تطبيق SQL أو نشر Edge Functions أو تغيير Supabase TEST أو إنشاء معاينة حية.
 - التالي: تدقيق الخصم والإلغاء والاسترداد؛ توحيد مخطط المدى المرجعي قبل أعلام H/L؛ ثم تعارضات Offline والنسخ السحابي/الاستعادة.
@@ -313,8 +313,8 @@
 **هذه الفقرة والتقرير `docs/CLOUD-AUDIT-AR-2026-11-19.md` يتقدمان على أي وصف تاريخي سابق في هذا الملف.**
 
 - الفرع المعتمد للتطوير: `integration/unified-test-2026-11-19`. لا تغيّر `main` ولا تدمج PR #3 قبل قبول المستخدم.
-- آخر HEAD وقت المراجعة: `21b26f0f0de05a0af275bec03c36b27f5e8ea3ed`. المقارنة: ahead 252 / behind 0 عن `main`.
-- GitHub Actions run `44481508519`: 158/158 static tests passed وفحص صياغة JavaScript/MJS ناجح.
+- آخر HEAD بعد حفظ تقرير التدقيق وتحديث نقطة الاستئناف: `d18df347d630537490b728a170ec6217f96c1e72`. المقارنة: ahead 254 / behind 0 عن `main`.
+- GitHub Actions run [`44482832764`](https://github.com/teba-labs/teba-saas-demo/actions/runs/44482832764) على آخر HEAD: 158/158 static tests passed وفحص صياغة JavaScript/MJS ناجح.
 - Supabase TEST هو `teba-lis-demo` / `hgqwpykeazuzceeiumjg`، وحالته ACTIVE_HEALTHY. المشروع `teba-lab` / `khjzoleiuiipyodpkieg` ليس هدف التطوير ولم يتغير.
 - TEST فيها Tenant طيبة واحد وفرعا الجعافرة وبهتيم، لكن جداول المرضى والزيارات والنتائج والمدفوعات فارغة.
 - migrations المطبقة حسب Supabase: 012–022. أما `public.schema_migrations` المخصص ففيه baseline `1.0.0` فقط. لا تشغّل 001–011 ولا `db push` قبل مطابقة التاريخ؛ المخطط يحتوي بالفعل كائنات التأسيس.
