@@ -1,0 +1,39 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const read = (name) => readFile(new URL(`../../${name}`, import.meta.url), 'utf8');
+
+test('isolated rebuild is pinned to the integration branch and a disposable local stack', async () => {
+  const workflow = await read('.github/workflows/supabase-schema-rebuild-audit.yml');
+  assert.match(workflow, /ref: integration\/unified-test-2026-11-19/);
+  assert.match(workflow, /supabase\/setup-cli@v3[\s\S]*version: 3\.2\.0/);
+  assert.match(workflow, /supabase start/);
+  assert.match(workflow, /supabase stop/);
+  assert.match(workflow, /supabase status -o env/);
+  assert.doesNotMatch(workflow, /supabase link|--remote|db push|migration repair/i);
+});
+
+test('isolated rebuild applies legacy 001-011 only to the local DB URL', async () => {
+  const workflow = await read('.github/workflows/supabase-schema-rebuild-audit.yml');
+  assert.match(workflow, /source "\$RUNNER_TEMP\/supabase-local\.env"/);
+  assert.match(workflow, /psql "\$DB_URL"[^\n]*-f "\$file"/);
+  assert.match(workflow, /database\/migrations\/0\{01\.\.09\}_\*\.sql/);
+  assert.match(workflow, /database\/migrations\/01\{0,1\}_\*\.sql/);
+});
+
+test('012-022 are generated with Supabase CLI and applied locally without remote credentials', async () => {
+  const workflow = await read('.github/workflows/supabase-schema-rebuild-audit.yml');
+  assert.match(workflow, /supabase migration new "\$name"/);
+  assert.match(workflow, /supabase migration up/);
+  assert.match(workflow, /Unexpected hosted database credential/);
+  for (const version of ['20261118225924','20261118230038','20261118230051','20261118230054','20261118230057','20261118230348','20261118230358','20261118230400','20261118230402','20261118231112','20261118232302']) {
+    assert.ok(workflow.includes(version), `missing TEST ledger version ${version}`);
+  }
+});
+
+test('private offline intake receipt is protected by RLS and has no public policies', async () => {
+  const migration = await read('database/migrations/007_offline_idempotent_visit_intake.sql');
+  assert.match(migration, /alter table private\.offline_visit_intake_receipts enable row level security/i);
+  assert.match(migration, /revoke all on table private\.offline_visit_intake_receipts from public, anon, authenticated/i);
+});
