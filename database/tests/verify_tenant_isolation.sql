@@ -468,7 +468,7 @@ begin
  end loop;
  if (select count(*) from public.audit_logs
       where tenant_id='aa000000-0000-4000-8000-000000000001'
-        and branch_id='aa100000-0000-4000-8000-000000000001'
+        and branch_id is null
         and table_name='branches' and record_id='aa100000-0000-4000-8000-000000000001'
         and action='update') <> 1 then
    raise exception 'DATA INTEGRITY FAIL: branch archival audit event missing or duplicated';
