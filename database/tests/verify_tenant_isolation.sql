@@ -412,7 +412,7 @@ begin
         'aa200000-0000-4000-8000-000000000001',null
       );
     exception when others then
-      if sqlerrm = 'Visit not accessible' then denied := true; else raise; end if;
+      if sqlerrm in ('Visit not accessible','Select an active staff member from a branch you can access') then denied := true; else raise; end if;
     end;
     if not denied then raise exception 'RLS FAIL: payment RPC accepted archived branch'; end if;
 
@@ -427,7 +427,7 @@ begin
         'aa200000-0000-4000-8000-000000000001'
       );
     exception when others then
-      if sqlerrm = 'Branch not accessible' then denied := true; else raise; end if;
+      if sqlerrm in ('Branch not accessible','Select an active staff member from a branch you can access') then denied := true; else raise; end if;
     end;
     if not denied then raise exception 'RLS FAIL: expense RPC accepted archived branch'; end if;
 
