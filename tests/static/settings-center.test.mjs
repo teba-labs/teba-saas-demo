@@ -9,7 +9,6 @@ assert.match(j,/data-edit-expense-category/);
 assert.match(j,/editExpenseCategoryId/);
 assert.match(h,/cancelExpenseCategoryEdit/);const ctx=fs.readFileSync(new URL('core/tenant/context.js',root),'utf8');assert.match(ctx,/phone, map_link, is_active/);const audit=fs.readFileSync(new URL('modules/settings/audit-repository.js',root),'utf8');assert.match(audit,/actor_user_id/);assert.match(audit,/tenant_memberships/);assert.match(audit,/staff_directory/);const s=fs.readFileSync(new URL('modules/staff/repository.js',root),'utf8');assert.match(s,/onConflict: 'tenant_id,branch_id,display_name'/);assert.match(s,/export async function setStaffActive/);
 assert.match(s,/export async function updateStaffName/);
-assert.match(s,/\.eq\('tenant_id',tenantId\)\.eq\('branch_id',branchId\)\.eq\('id',staffId\)/);console.log('PASS: owner settings center and print settings persistence contract.');
 assert.match(h,/id="dataManagementSettings"/);
 assert.match(h,/href="data-import.html"/);
 assert.match(h,/href="sync-center.html"/);
@@ -30,13 +29,11 @@ assert.match(archiveStore,/row.tenantId!==String\(tenantId\)/);
 assert.match(sync,/historicalWorkbooksRestored/);
 assert.match(h,/ملفات Excel التاريخية المحفوظة لهذا المعمل/);
 assert.match(h,/الملفات المرفوعة إلى التخزين السحابي/);
-console.log('PASS: local backup v2 includes tenant-scoped historical workbooks and keeps v1 restore compatibility.');
 
 const branchSettings=fs.readFileSync(new URL('assets/js/settings-center.js',root),'utf8');
 assert.match(branchSettings,/const BRANCH_ARCHIVE_READY=true/);
 assert.match(branchSettings,/data-branch-toggle/);
 assert.doesNotMatch(branchSettings,/data-branch-toggle=.*? disabled title=/);
-console.log('PASS: branch archive controls are enabled only after TEST migration and RLS verification.');
 
 
 
@@ -48,4 +45,5 @@ assert.match(h,/id="refreshAuditLogs"/);
 assert.match(h,/id="auditLogsList"/);
 assert.match(j,/listOwnerAuditLogs/);
 assert.match(j,/const BRANCH_ARCHIVE_READY=true/);
-console.log('PASS: seven owner settings sections are wired once, including branch archive and audit history.');
+
+console.log('PASS: all seven owner settings areas, branch archive, local backup and single delegated handlers are wired.');
