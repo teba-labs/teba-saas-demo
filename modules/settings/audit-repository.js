@@ -8,7 +8,7 @@ export async function listOwnerAuditLogs({ tenantId, limit = 50 } = {}) {
   const safeLimit = Math.min(100, Math.max(1, Number.isInteger(limit) ? limit : 50));
   const client = db();
   const { data, error } = await client.from('audit_logs')
-    .select('id, branch_id, actor_user_id, actor_staff_id, action, table_name, occurred_at')
+    .select('id, branch_id, record_id, actor_user_id, actor_staff_id, action, table_name, occurred_at')
     .eq('tenant_id', tenantId)
     .order('occurred_at', { ascending: false })
     .limit(safeLimit);
