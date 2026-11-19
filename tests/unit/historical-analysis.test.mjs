@@ -60,5 +60,18 @@ assert.equal(seasonality.series[0].total,20);
 assert.equal(seasonality.busiestMonths[0].month,11);
 console.log('PASS historical monthly/yearly extraction and latest-period detection');
 console.log('PASS product portfolio ranking, low-demand, loss-maker and BCG segmentation');
+const reconciliation=engine.compareHistoricalAndLiveReports({
+ historicalReport:{totals:{rev:1000,cases:20},branches:[{branch:'فرع ألف',rev:600,cases:12}]},
+ liveReport:{totals:{collected:900,visits:18},branches:[{name:'فرع ألف',collected:500,visits:10}]}
+});
+assert.equal(reconciliation.revenueDifference,-100);
+assert.equal(reconciliation.casesDifference,-2);
+const branchReconciliation=engine.compareHistoricalAndLiveReports({
+ historicalReport:{totals:{rev:1000,cases:20},branches:[{branch:'فرع ألف',rev:600,cases:12}]},
+ liveReport:{totals:{collected:900,visits:18},branches:[{name:'فرع ألف',collected:500,visits:10}]},
+ branchName:'فرع باء'
+});
+assert.equal(branchReconciliation.matched,false);
+
 console.log('PASS weighted fixed-cost allocation and true test cost/profit');
 console.log('PASS branch aggregation, loss detection, and unmatched-price reporting');
