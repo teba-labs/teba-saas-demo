@@ -46,3 +46,13 @@ test('local tenant isolation checks use synthetic identities and roll back all t
   assert.match(sql, /RLS FAIL: Tenant B isolation/i);
   assert.match(sql, /rollback;/i);
 });
+
+test('test-branch preview deploys only a Netlify draft and requires preconfigured credentials', async () => {
+  const workflow = await read('.github/workflows/netlify-test-preview.yml');
+  assert.match(workflow, /branches:[\s\S]*integration\/unified-test-2026-11-19/);
+  assert.match(workflow, /secrets\.NETLIFY_AUTH_TOKEN/);
+  assert.match(workflow, /secrets\.NETLIFY_SITE_ID/);
+  assert.match(workflow, /netlify-cli@27\.20\.0/);
+  assert.match(workflow, /--alias=taiba-unified-test/);
+  assert.doesNotMatch(workflow, /--prod\b|prod-if-unlocked|functions deploy/i);
+});
