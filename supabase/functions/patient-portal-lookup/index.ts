@@ -81,19 +81,24 @@ Deno.serve(async (req) => {
   const attemptId = String(rateLimit.attempt_id ?? '');
 
   const wantedName = normalizeName(patientName);
-  let visit: Record<string, unknown> | undefined;
+  const matchingVisits: Record<string, unknown>[] = [];
   for (let offset = 0; ; offset += 500) {
     const { data: visitRows, error: visitError } = await admin.from('visits')
-      .select('id, tenant_id, visit_number, is_published, patients!inner(full_name)')
+      .select('id, tenant_id, branch_id, visit_number, is_published, patients!inner(full_name)')
       .eq('tenant_id', tenant.id).eq('visit_number', visitNumber).eq('is_published', true)
-      .range(offset, offset + 499);
+      .order('id', { ascending: true }).range(offset, offset + 499);
     if (visitError) {
       console.error('Portal visit lookup failed.', visitError.message);
       return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503, origin);
     }
-    visit = (visitRows ?? []).find(row => normalizeName(String((row.patients as { full_name?: string })?.full_name ?? '')) === wantedName);
-    if (visit || (visitRows ?? []).length < 500) break;
+    matchingVisits.push(...(visitRows ?? []).filter(row =>
+      normalizeName(String((row.patients as { full_name?: string })?.full_name ?? '')) === wantedName
+    ));
+    // Visit numbers are unique per branch, not per tenant. Never choose the
+    // first matching record across branches: ambiguous matches fail closed.
+    if (matchingVisits.length > 1 || (visitRows ?? []).length < 500) break;
   }
+  const visit = matchingVisits.length === 1 ? matchingVisits[0] : undefined;
 
   let signedUrl: string | null = null;
   let reportVersion: number | null = null;
