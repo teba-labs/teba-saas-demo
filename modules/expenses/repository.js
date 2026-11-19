@@ -3,10 +3,12 @@ import { TABLES, RPC } from '../../core/data/schema-contract.js';
 const db = () => getSupabaseClient();
 const uuid = () => crypto.randomUUID();
 
-export async function listExpenseCategories({ tenantId } = {}) {
+export async function listExpenseCategories({ tenantId, includeInactive = false } = {}) {
   if (!tenantId) throw new Error('tenantId is required.');
-  const { data, error } = await db().from(TABLES.expenseCategories)
-    .select('id, name, is_active').eq('tenant_id', tenantId).eq('is_active', true).order('name');
+  let query = db().from(TABLES.expenseCategories)
+    .select('id, name, is_active').eq('tenant_id', tenantId).order('name');
+  if (!includeInactive) query = query.eq('is_active', true);
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
@@ -22,6 +24,25 @@ export async function recordExpense({ tenantId, branchId, categoryId, amount, de
     p_amount: value, p_description: description ?? null,
     p_idempotency_key: uuid(), p_staff_id: staffId,
   });
+  if (error) throw error;
+  return data;
+}
+
+/** Owner-only through expense_categories RLS. Names are unique per tenant. */
+export async function saveExpenseCategory({ tenantId, name, id } = {}) {
+  if (!tenantId) throw new Error('tenantId is required.');
+  const cleanName = String(name ?? '').trim();
+  if (cleanName.length < 2 || cleanName.length > 80) throw new Error('اسم بند المصروف يجب أن يكون بين حرفين و80 حرفًا.');
+  const payload = { tenant_id: tenantId, name: cleanName, is_active: true, ...(id ? { id } : {}) };
+  const { data, error } = await db().from(TABLES.expenseCategories).upsert(payload, { onConflict: 'tenant_id,name' }).select('id, tenant_id, name, is_active').single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setExpenseCategoryActive({ tenantId, categoryId, isActive } = {}) {
+  if (!tenantId || !categoryId) throw new Error('tenantId and categoryId are required.');
+  const { data, error } = await db().from(TABLES.expenseCategories).update({ is_active: Boolean(isActive) })
+    .eq('tenant_id', tenantId).eq('id', categoryId).select('id, tenant_id, name, is_active').single();
   if (error) throw error;
   return data;
 }

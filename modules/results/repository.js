@@ -45,42 +45,53 @@ export async function saveDraftResult({ tenantId, branchId, visitTestId, paramet
   return saveDraftResults({ tenantId, branchId, visitTestId, staffId, results: [{ parameter, value, flag }] });
 }
 
-export async function completeVisitTest({ tenantId, visitTestId } = {}) {
-  if (!tenantId || !visitTestId) throw new Error('tenantId and visitTestId are required.');
-  const { data: item, error: itemError } = await db().from(TABLES.visitTests)
-    .select('id, technical_snapshot, visits!inner(is_published)')
-    .eq('tenant_id', tenantId).eq('id', visitTestId).single();
-  if (itemError) throw itemError;
-  if (item.visits?.is_published) throw new Error('Published visit cannot be changed through the normal completion flow.');
-  const requiredCodes = (item.technical_snapshot?.parameters ?? [])
-    .filter(p => p.is_required !== false).map(p => p.code);
-  const { data: results, error: resultError } = await db().from(TABLES.results)
-    .select('parameter_code').eq('tenant_id', tenantId).eq('visit_test_id', visitTestId);
-  if (resultError) throw resultError;
-  const present = new Set((results ?? []).map(r => r.parameter_code));
-  const missing = requiredCodes.filter(code => !present.has(code));
-  if (missing.length) throw new Error(`Required results are missing: ${missing.join(', ')}`);
-  const { data, error } = await db().from(TABLES.visitTests)
-    .update({ status: 'completed' }).eq('tenant_id', tenantId).eq('id', visitTestId).select().single();
+export async function completeVisitTest({ tenantId, branchId, visitTestId, staffId } = {}) {
+  if (!tenantId || !branchId || !visitTestId || !staffId) {
+    throw new Error('tenantId, branchId, visitTestId and staffId are required.');
+  }
+  const { data, error } = await db().rpc('complete_visit_test_atomic', {
+    p_tenant_id: tenantId,
+    p_branch_id: branchId,
+    p_visit_test_id: visitTestId,
+    p_staff_id: staffId,
+  });
   if (error) throw error;
   return data;
 }
 
 export async function approveVisit({ tenantId, branchId, visitId, staffId } = {}) {
-  if (!tenantId || !branchId || !visitId || !staffId) throw new Error('tenantId, branchId, visitId and staffId are required.');
-  const { data: visit, error: visitError } = await db().from(TABLES.visits)
-    .select('id, status, is_published').eq('tenant_id', tenantId).eq('branch_id', branchId).eq('id', visitId).single();
-  if (visitError) throw visitError;
-  if (visit.is_published) throw new Error('Published visit cannot be re-approved.');
-  const { data: tests, error: testsError } = await db().from(TABLES.visitTests)
-    .select('id, status').eq('tenant_id', tenantId).eq('branch_id', branchId).eq('visit_id', visitId).neq('status', 'cancelled');
-  if (testsError) throw testsError;
-  if (!tests?.length || tests.some(test => test.status !== 'completed')) {
-    throw new Error('Every requested test must be completed before approval.');
+  if (!tenantId || !branchId || !visitId || !staffId) {
+    throw new Error('tenantId, branchId, visitId and staffId are required.');
   }
-  const { data, error } = await db().from(TABLES.visits).update({
-    status: 'approved', approved_by_staff_id: staffId, approved_at: new Date().toISOString(),
-  }).eq('tenant_id', tenantId).eq('branch_id', branchId).eq('id', visitId).select().single();
+  const { data, error } = await db().rpc('approve_visit_atomic', {
+    p_tenant_id: tenantId,
+    p_branch_id: branchId,
+    p_visit_id: visitId,
+    p_staff_id: staffId,
+  });
   if (error) throw error;
   return data;
+}
+
+/** Fetch all visible result values for the current worklist in one tenant-scoped query. */
+export async function listResultsForVisitTests({ tenantId, visitTestIds } = {}) {
+  if (!tenantId || !Array.isArray(visitTestIds)) throw new Error('tenantId and visitTestIds are required.');
+  const ids = [...new Set(visitTestIds.filter(Boolean))];
+  if (!ids.length) return [];
+  const rows = [];
+  // Chunk IDs and paginate each result set so large parameter panels never hit PostgREST's row cap.
+  for (let start = 0; start < ids.length; start += 100) {
+    const chunk = ids.slice(start, start + 100);
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await db().from(TABLES.results)
+        .select('id, visit_test_id, parameter_code, parameter_name_snapshot, value_numeric, value_text, unit_snapshot, reference_range_snapshot, flag, entered_at')
+        .eq('tenant_id', tenantId).in('visit_test_id', chunk)
+        .order('entered_at').order('id').range(offset, offset + 499);
+      if (error) throw error;
+      const page = data ?? [];
+      rows.push(...page);
+      if (page.length < 500) break;
+    }
+  }
+  return rows;
 }

@@ -128,8 +128,24 @@ export async function recordPayment({ tenantId, visitId, amount, paymentMethod =
     const visit = await db().from(TABLES.visits).select('id,tenant_id,branch_id,patient_id,visit_number,status').eq('tenant_id', tenantId).eq('id', visitId).single();
     if (visit.error) { if (/fetch|network|offline/i.test(visit.error.message || '')) { visitRow = (await getCachedRows('visits', { tenantId })).find(row => row.id === visitId); if (!visitRow) throw visit.error; } else throw visit.error; } else { visitRow = visit.data; await cacheRows('visits', [visitRow]); }
   }
+  // The employee's assigned branch is the cash-collection branch; it may differ from the visit's origin branch.
+  let collector;
+  if (globalThis.navigator?.onLine === false) {
+    collector = (await getCachedRows('staff_directory', { tenantId })).find(row => row.id === staffId && row.is_active);
+  } else {
+    const staffResult = await db().from(TABLES.staffDirectory)
+      .select('id, tenant_id, branch_id, is_active')
+      .eq('tenant_id', tenantId).eq('id', staffId).eq('is_active', true).maybeSingle();
+    if (staffResult.error) {
+      if (/fetch|network|offline/i.test(staffResult.error.message || '')) {
+        collector = (await getCachedRows('staff_directory', { tenantId })).find(row => row.id === staffId && row.is_active);
+      } else throw staffResult.error;
+    } else collector = staffResult.data;
+  }
+  if (!collector?.branch_id) throw new Error('لا يمكن تحديد فرع التحصيل من حساب الموظف. حدّث بيانات الموظفين أثناء الاتصال أولًا.');
+  const collectionBranchId = collector.branch_id;
   const payload = { visit_id: visitId, amount: value, payment_method: paymentMethod, staff_id: staffId, notes: notes ?? null };
-  const queue = async () => { await enqueueOperation({ tenantId, branchId: visitRow.branch_id, entityType: 'payment', action: 'create', operationId, payload }); return { queued: true, operationId }; };
+  const queue = async () => { await enqueueOperation({ tenantId, branchId: collectionBranchId, entityType: 'payment', action: 'create', operationId, payload }); return { queued: true, operationId }; };
   if (globalThis.navigator?.onLine === false) return queue();
   const { data, error } = await db().rpc(RPC.recordPatientPayment, {
     p_tenant_id: tenantId, p_visit_id: visitId, p_amount: value,
@@ -175,4 +191,18 @@ export async function createVisitIntake({ tenantId, branchId, patientId, visitNu
     throw error;
   }
   return data;
+}
+
+/** Returns branch visits with a remaining balance; the RPC aggregates payments securely across collection branches. */
+export async function listBranchOutstandingBalances({ tenantId, branchId, limit = 50 } = {}) {
+  need(tenantId, 'tenantId'); need(branchId, 'branchId');
+  if (globalThis.navigator?.onLine === false) {
+    throw new Error('عرض المديونيات يحتاج اتصالًا بالإنترنت؛ لم نعرض أرقامًا محلية قد تكون غير مكتملة.');
+  }
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
+  const { data, error } = await db().rpc('list_branch_outstanding_balances', {
+    p_tenant_id: tenantId, p_branch_id: branchId, p_limit: safeLimit,
+  });
+  if (error) throw error;
+  return data ?? [];
 }

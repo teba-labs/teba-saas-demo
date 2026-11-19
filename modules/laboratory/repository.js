@@ -12,6 +12,22 @@ export async function listBranchWork({ tenantId, branchId } = {}) {
   return data ?? [];
 }
 
+
+/** Server-side page for the active branch worklist; cancelled visits/tests are excluded. */
+export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSize = 25 } = {}) {
+  if (!tenantId || !branchId) throw new Error('tenantId and branchId are required.');
+  const safePage = Math.max(0, Math.floor(Number(page) || 0));
+  const safeSize = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 25)));
+  const from = safePage * safeSize;
+  const { data, error, count } = await db().from(TABLES.visitTests)
+    .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number))', { count: 'exact' })
+    .eq('tenant_id', tenantId).eq('branch_id', branchId)
+    .neq('status', 'cancelled').neq('visits.status', 'cancelled')
+    .order('created_at').order('id').range(from, from + safeSize - 1);
+  if (error) throw error;
+  return { rows: data ?? [], count: count ?? 0, page: safePage, pageSize: safeSize };
+}
+
 export async function setVisitTestStatus({ tenantId, branchId, visitTestId, status } = {}) {
   if (!tenantId || !branchId || !visitTestId) throw new Error('tenantId, branchId and visitTestId are required.');
   if (!['pending', 'in_progress', 'completed', 'cancelled'].includes(status)) throw new Error('Unsupported visit-test status.');
