@@ -32,11 +32,12 @@ export async function loadMyTenantContext() {
     .in('id', tenantIds);
   if (tenantError) throw tenantError;
 
+  // Owners need inactive branches for history and controlled reactivation.
+  // Employee visibility is filtered below and enforced again by RLS.
   const { data: branches, error: branchError } = await db
     .from('branches')
     .select('id, tenant_id, name, address, phone, map_link, is_active')
-    .in('tenant_id', tenantIds)
-    .eq('is_active', true);
+    .in('tenant_id', tenantIds);
   if (branchError) throw branchError;
 
   const { data: branchMemberships, error: branchMembershipError } = await db
@@ -51,9 +52,12 @@ export async function loadMyTenantContext() {
     const isOwner = membership?.account_type === 'owner';
     const allowedIds = new Set((branchMemberships ?? [])
       .filter(m => m.tenant_id === tenant.id).map(m => m.branch_id));
-    const visibleBranches = (branches ?? []).filter(branch =>
-      branch.tenant_id === tenant.id && (isOwner || allowedIds.has(branch.id)));
-    return { ...tenant, accountType: membership.account_type, branches: visibleBranches };
+    const tenantBranches = (branches ?? []).filter(branch => branch.tenant_id === tenant.id);
+    const visibleBranches = tenantBranches.filter(branch =>
+      branch.is_active && (isOwner || allowedIds.has(branch.id)));
+    // Keep the normal operational branch list active-only. Only owners receive
+    // the separate allBranches list for history and the settings center.
+    return { ...tenant, accountType: membership.account_type, branches: visibleBranches, allBranches: isOwner ? tenantBranches : visibleBranches };
   });
 
   await offlineDb.sync_meta.put({ key: `tenant-context:${session.user.id}`, value: tenantsWithAccess, cached_at: new Date().toISOString() });
