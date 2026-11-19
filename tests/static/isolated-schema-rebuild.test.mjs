@@ -37,3 +37,12 @@ test('private offline intake receipt is protected by RLS and has no public polic
   assert.match(migration, /alter table private\.offline_visit_intake_receipts enable row level security/i);
   assert.match(migration, /revoke all on table private\.offline_visit_intake_receipts from public, anon, authenticated/i);
 });
+
+test('local tenant isolation checks use synthetic identities and roll back all test data', async () => {
+  const sql = await read('database/tests/verify_tenant_isolation.sql');
+  assert.match(sql, /begin;/i);
+  assert.match(sql, /set local role authenticated/i);
+  assert.match(sql, /RLS FAIL: Employee A1 sees foreign patient/i);
+  assert.match(sql, /RLS FAIL: Tenant B isolation/i);
+  assert.match(sql, /rollback;/i);
+});
