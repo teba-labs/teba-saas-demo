@@ -55,7 +55,7 @@ export function buildBranchPerformanceMetrics(report){
 }
 
 export function getSameMonthPreviousYearRange(monthStart){
- if(!/^\\d{4}-\\d{2}-01$/.test(String(monthStart||'')))throw new Error('monthStart must be the first day of a valid month.');
+ if(!/^\d{4}-\d{2}-01$/.test(String(monthStart||'')))throw new Error('monthStart must be the first day of a valid month.');
  const [year,month]=monthStart.slice(0,7).split('-').map(Number);
  if(month<1||month>12)throw new Error('monthStart month must be between 01 and 12.');
  const previousYear=year-1;
