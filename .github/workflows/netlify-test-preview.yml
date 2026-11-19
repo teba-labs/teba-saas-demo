@@ -48,19 +48,7 @@ jobs:
 
       - name: Stage browser-facing files only
         if: steps.credentials.outputs.available == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          for dir in app assets config core dashboard modules offline portal website; do
-            test -d "$dir"
-            cp -R "$dir" dist/
-          done
-          cp service-worker.js dist/
-          test ! -e dist/database
-          test ! -e dist/docs
-          test ! -e dist/supabase
-          test ! -e dist/.github
+        run: bash scripts/build-netlify.sh
 
       - name: Publish a non-production draft preview
         if: steps.credentials.outputs.available == 'true'
