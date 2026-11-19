@@ -32,3 +32,25 @@ export async function refreshHistoricalDashboard(){
 }
 
 export async function mountHistoricalWorkbookPanel(tenantId){if(!tenantId)return;activeTenantId=String(tenantId);const panel=document.getElementById('historyFilesList');if(!panel)return;if(!bound){panel.addEventListener('change',e=>{const input=e.target.closest('[data-history-upload]');if(input)upload(input,input.dataset.historyUpload);});panel.addEventListener('click',async e=>{const button=e.target.closest('[data-history-delete]');if(!button)return;const tenantId=activeTenantId;if(!globalThis.confirm('حذف النسخة المحلية لهذا الملف من هذا المتصفح؟'))return;button.disabled=true;try{await deleteHistoricalWorkbook({tenantId,type:button.dataset.historyDelete});await refreshList(tenantId);status('تم حذف النسخة المحلية المحددة فقط.');}catch(err){status(err.message||'تعذر حذف الملف.',true);button.disabled=false;}});bound=true;}try{await refreshList();status('ملفات Excel التاريخية مستقلة عن بيانات التشغيل الحية. التخزين محلي على هذا المتصفح فقط.');await refreshHistoricalDashboard();if(!monthBound){document.getElementById('historyMonth')?.addEventListener('change',refreshHistoricalDashboard);monthBound=true;}}catch(e){status(e.message||'تعذر قراءة الأرشيف المحلي.',true);}}
+
+/** Read-only reconciliation between historical workbook totals and the live report for the same month. */
+export async function renderLiveHistoricalReconciliation(liveReport,tenantId,branchId=null){
+ const target=document.getElementById('historyLiveReconciliation');if(!target||!liveReport||!tenantId)return;
+ try{
+  const [sales,prices,detail25,detail26]=await Promise.all(['sales','prices','detail2025','detail2026'].map(type=>getHistoricalWorkbook({tenantId,type})));
+  if(!sales||!prices){target.textContent='ارفع ملف المتابعة وملف الأسعار في الأرشيف التاريخي لإتاحة المطابقة.';return;}
+  const [year,month]=liveReport.period.monthStart.split('-');
+  const sheets=workbookSheets(sales),priceSheets=workbookSheets(prices),detailSheets=workbookSheets(Number(year)===2025?detail25:detail26);
+  const historical=buildHistoricalDashboardReport({salesWorkbook:sheets,pricesWorkbook:priceSheets,detailWorkbook:detailSheets,movementWorkbooks:sheets,year,month});
+  let liveRevenue=liveReport.totals.collected,liveCases=liveReport.totals.visits,excelRevenue=historical.totals.rev,excelCases=historical.totals.cases,scope='كل الفروع';
+  if(branchId){
+   const liveBranch=liveReport.branches.find(item=>item.id===branchId);
+   const historicalBranch=historical.branches.find(item=>clean(item.branch)===clean(liveBranch?.name));
+   if(!liveBranch||!historicalBranch){target.textContent='تعذرت مطابقة هذا الفرع: اسم الفرع في ملف Excel يجب أن يطابق اسم الفرع المسجل في النظام حرفيًا. لم يتم تخمين الربط.';return;}
+   liveRevenue=liveBranch.collected;liveCases=liveBranch.visits;excelRevenue=historicalBranch.rev;excelCases=historicalBranch.cases;scope=liveBranch.name;
+  }
+  const revenueDiff=liveRevenue-excelRevenue,casesDiff=liveCases-excelCases;
+  target.innerHTML='<p>الفترة '+esc(year+'-'+month)+' · '+esc(scope)+'</p><div class="history-analysis-kpis"><article><span>تحصيل النظام</span><strong>'+money(liveRevenue)+'</strong></article><article><span>إيراد Excel</span><strong>'+money(excelRevenue)+'</strong></article><article><span>فرق القيمة</span><strong>'+money(revenueDiff)+'</strong></article><article><span>فرق الحالات</span><strong>'+casesDiff.toLocaleString('ar-EG')+'</strong></article></div><p class="hint">هذه مطابقة استرشادية: النظام يعرض التحصيل النقدي المسجل في دفتر الحركات، وExcel يعرض الإيراد التاريخي في ورقة الشهرية. اختلاف تعريف المؤشر أو توقيت التحصيل قد يفسر فرق الإيراد؛ لا يتم اعتماد أو تعديل أي بيانات تلقائيًا.</p>';
+ }catch(error){target.textContent=error.message||'تعذرت مطابقة بيانات Excel مع التشغيل الحي.';}
+}
+function clean(value){return String(value??'').trim();}
