@@ -32,7 +32,7 @@ assert.match(repoSource,/error\.code === '23505'/);
 assert.match(repoSource,/scope: 'base'/);
 assert.match(migration,/uq_test_prices_current_base/);
 assert.match(migration,/uq_test_prices_current_branch/);
-assert.match(sw,/taiba-smart-lab-shell-v10/);
+assert.match(sw,/taiba-smart-lab-shell-v11/);
 assert.match(sw,/modules\/migration\/price-importer\.js/);
 assert.match(html,/أسعار البيع العامة/);
 console.log('PASS: base-price importer is insert-only, owner-repository scoped, branch-override-safe and cached in shell v9.');
