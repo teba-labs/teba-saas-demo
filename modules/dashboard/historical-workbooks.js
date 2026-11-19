@@ -26,8 +26,10 @@ export async function restoreHistoricalWorkbooks(tenantId,records=[]){
  });
  const db=await openDatabase();let restored=0,skipped=0;
  try{
+  const existingRows=await requestResult(db.transaction(STORE_NAME,'readonly').objectStore(STORE_NAME).getAll());
+  const existingIds=new Set(existingRows.filter(row=>row.tenantId===String(tenantId)).map(row=>row.id));
   const tx=db.transaction(STORE_NAME,'readwrite'),store=tx.objectStore(STORE_NAME);
-  for(const row of prepared){const existing=await requestResult(store.get(row.id));if(existing){skipped++;continue;}store.put(row);restored++;}
+  for(const row of prepared){if(existingIds.has(row.id)){skipped++;continue;}store.add(row);restored++;}
   await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Historical archive restore failed.'));tx.onabort=()=>reject(tx.error||new Error('Historical archive restore was rolled back.'));});
   return {restored,skipped};
  }finally{db.close();}
