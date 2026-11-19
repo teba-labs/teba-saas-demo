@@ -38,6 +38,14 @@ assert.ok(Math.abs(report.branches[0].tests.find(t=>t.name==='ALT').trueProfitUn
 assert.equal(report.tests.find(t=>t.name==='CBC').count,20);
 assert.deepEqual(report.unmatchedTests,['غير مسعر']);
 assert.equal(report.lossMakers.length,2);
+const portfolio=engine.buildHistoricalProductPortfolio(report);
+assert.equal(portfolio.topSellers[0].name,'CBC');
+assert.equal(portfolio.lossMakers.length,2);
+assert.equal(portfolio.needOffers.length,0);
+assert.equal(portfolio.bcg.stars.length+portfolio.bcg.cashCows.length+portfolio.bcg.questions.length+portfolio.bcg.dogs.length,2);
+assert.equal(portfolio.mostProfitable[0].name,'CBC');
+assert.equal(portfolio.leastProfitable.length,0);
 console.log('PASS historical monthly/yearly extraction and latest-period detection');
+console.log('PASS product portfolio ranking, low-demand, loss-maker and BCG segmentation');
 console.log('PASS weighted fixed-cost allocation and true test cost/profit');
 console.log('PASS branch aggregation, loss detection, and unmatched-price reporting');
