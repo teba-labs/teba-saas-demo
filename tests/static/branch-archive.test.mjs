@@ -37,6 +37,11 @@ assert.match(rlsTest, /employee can read archived branch patient history/);
 assert.match(rlsTest, /employee can update archived branch patient/);
 assert.match(rlsTest, /employee can delete archived branch patient/);
 assert.match(rlsTest, /employee can insert patient into archived branch/);
+assert.match(rlsTest, /employee can read archived branch attachment/);
+assert.match(rlsTest, /employee can upload attachment into archived branch/);
+assert.match(rlsTest, /payment RPC accepted archived branch/);
+assert.match(rlsTest, /expense RPC accepted archived branch/);
+assert.match(rlsTest, /offline intake RPC accepted archived branch/);
 assert.match(rlsTest, /branch_archive_counts_before/);
 
 
