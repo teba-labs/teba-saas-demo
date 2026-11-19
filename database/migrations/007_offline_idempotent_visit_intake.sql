@@ -15,6 +15,9 @@ create table if not exists private.offline_visit_intake_receipts (
   foreign key (tenant_id, branch_id, visit_id) references public.visits(tenant_id, branch_id, id) on delete restrict
 );
 
+-- Keep the private idempotency receipt table behind RLS as in TEST.
+alter table private.offline_visit_intake_receipts enable row level security;
+
 revoke all on table private.offline_visit_intake_receipts from public, anon, authenticated;
 
 create or replace function public.create_visit_intake_idempotent(

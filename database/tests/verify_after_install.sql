@@ -100,6 +100,15 @@ begin
   if not exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='close_branch_workday') then
     missing := array_append(missing,'close_branch_workday RPC');
   end if;
+  if not exists (
+    select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    where n.nspname='private' and c.relname='offline_visit_intake_receipts'
+      and c.relrowsecurity
+  ) then missing := array_append(missing,'private offline receipt table RLS'); end if;
+  if has_table_privilege('anon','private.offline_visit_intake_receipts','SELECT')
+     or has_table_privilege('authenticated','private.offline_visit_intake_receipts','SELECT') then
+    missing := array_append(missing,'client role can directly read private offline receipts');
+  end if;
   if cardinality(missing)>0 then
     raise exception 'Post-install verification failed: %', array_to_string(missing, '; ');
   end if;
