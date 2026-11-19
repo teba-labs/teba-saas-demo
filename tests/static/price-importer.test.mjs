@@ -18,7 +18,7 @@ assert.match(ui,/importBasePricesSheet\(s,priceButton\)\.catch/);
 assert.match(ui,/const fields=getEntityFields\(s\.entityType\)/);
 assert.match(ui,/fieldKey==='price'/);
 assert.match(ui,/navigator\.onLine===false/);
-assert.match(ui,/لا يتغير سعر قائم أو سعر خاص بفرع/);
+assert.match(ui,/لا يغيّر سعرًا موجودًا ولا أي سعر خاص بفرع/);
 assert.match(importer,/current-base-price-exists/);
 assert.match(importer,/branch_id==null/);
 assert.match(importer,/أكواد أسعار لا تطابق تحاليل نشطة/);
