@@ -20,7 +20,7 @@ function renderAnalysis(report){
 }
 export async function refreshHistoricalDashboard(){
  const target=document.getElementById('historyAnalysisResults');if(!target||!activeTenantId)return;
- const periodInput=document.getElementById('historyMonth');const periodValue=periodInput?.value||'';if(!periodValue){target.textContent='اختر شهرًا لعرض التحليل التاريخي.';return;}
+ const periodInput=document.getElementById('historyMonth');const periodValue=periodInput?.value||'';
  try{
   const [sales,prices,detail25,detail26]=await Promise.all(['sales','prices','detail2025','detail2026'].map(type=>getHistoricalWorkbook({tenantId:activeTenantId,type})));
   if(!sales||!prices){target.textContent='للبدء: حمّل ملف المتابعة السنوية والشهرية وملف أسعار وتكلفة التحاليل من الأرشيف أعلاه.';return;}
