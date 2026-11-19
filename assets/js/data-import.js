@@ -75,6 +75,7 @@ function renderSheet(){
  table.append(body);const wrap=el('div');wrap.className='tableWrap';wrap.append(table);root.append(wrap);
 }
 async function importCatalogSheet(sheet,button){
+ if(navigator.onLine===false)throw new Error('استيراد كتالوج التحاليل يحتاج اتصالًا بالإنترنت. لم يتم تغيير البيانات.');
  if(!state.tenantId)throw new Error('تعذر تحديد المعمل الحالي.');
  const mapping=sheet.columnMapping||[];
  if(mapping.filter(item=>item.fieldKey==='test_code').length!==1)throw new Error('اربط عمود كود التحليل مرة واحدة قبل الاستيراد.');
