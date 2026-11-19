@@ -567,9 +567,9 @@
 - أضيف نوع ورقة Excel مستقل لأسعار التحاليل، واختبارات unit/static جديدة. لا يوجد استيراد حي على TEST لأن الكتالوج الحالي به صفر تحاليل نشطة.
 - أضيف تفصيل المصروفات الحية حسب الفرع وبند المصروف، بربط دفتر الحركة بسجل المصروف وبند المصروف، وباستعلامات tenant-scoped ومجموعات 500.
 - تمت مراجعة إعدادات النظام السبعة؛ أزيل تكرار معالجات الضغط في قوائم الموظفين وبنود المصروفات، وأضيف اختبار static يمنع تكراره. النسخ المحلية ليست Cloud backup.
-- GitHub Actions run 44622127794 على commit a314eb76254beedb71d1ff0c2d43be0c49d7539a نجح: 188/188 PASS، صفر فشل، وفحص صياغة جميع ملفات JS/MJS المتتبعة نجح. الفرق بين هذا commit وcommit الاختبارات db56 كان توثيق master status فقط، دون تغييرات كود.
+- GitHub Actions run 44622405911 على commit d7f2ff739be8dba8f84ece526567f95f6324c69a نجح: 188/188 PASS، صفر فشل، وفحص صياغة جميع ملفات JS/MJS المتتبعة نجح. الفرق بين هذا commit وcommit الاختبارات db56 كان توثيق master status فقط، دون تغييرات كود.
 - اختبارات الوحدة المركزة محليًا: 2/2 PASS، و20 مراجعة source-contract مباشرة: PASS.
-- نسخة ZIP كاملة من الملفات المتتبعة رُفعت كـGitHub Actions artifact، صالحة 30 يومًا: https://github.com/teba-labs/teba-saas-demo/actions/runs/44622127794/artifacts/14578165893
+- نسخة ZIP كاملة من الملفات المتتبعة رُفعت كـGitHub Actions artifact، صالحة 30 يومًا: https://github.com/teba-labs/teba-saas-demo/actions/runs/44622405911/artifacts/14578860284
 - Netlify preview workflow 44621837957 تخطى النشر لغياب NETLIFY_AUTH_TOKEN وNETLIFY_SITE_ID؛ لا يوجد نشر حي أو اختبار متصفح.
 - commits ممثلة:
   - تفعيل أرشفة الفروع بعد تحقق RLS على TEST: 90831d5d89d7a1f235dc1ed3e2dc18f5a90c790a
