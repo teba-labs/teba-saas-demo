@@ -8,7 +8,9 @@ const METRICS = [
   ['receivables','المديونيات','money'],
   ['visits','الزيارات','count'],
   ['patients','المرضى','count'],
-  ['tests','التحاليل','count']
+  ['tests','التحاليل','count'],
+  ['paymentCount','عدد حركات التحصيل','count'],
+  ['expenseCount','عدد حركات المصروفات','count']
 ];
 
 export function getPreviousMonthRange(monthStart) {
