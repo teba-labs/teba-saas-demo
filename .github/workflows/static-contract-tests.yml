@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          archive="taiba-smart-lab-development-${GITHUB_SHA:0:12}.zip"
+          archive="taiba-smart-lab-development-$(git rev-parse --short=12 HEAD).zip"
           git archive --format=zip --output="$archive" HEAD
           test -s "$archive"
           sha256sum "$archive" | tee "$archive.sha256"
