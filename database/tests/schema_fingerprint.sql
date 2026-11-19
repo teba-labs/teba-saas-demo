@@ -1,13 +1,39 @@
 select jsonb_build_object(
- 'columns_md5', (select md5(coalesce(string_agg(format('%I.%I.%I:%s:%s:%s', table_schema,table_name,column_name,data_type,is_nullable,coalesce(column_default,'')), E'\n' order by table_schema,table_name,ordinal_position),'')) from information_schema.columns where table_schema in ('public','private')),
- 'constraints_md5', (select md5(coalesce(string_agg(format('%I.%I:%s:%s:%s',n.nspname,c.relname,con.conname,con.contype,pg_get_constraintdef(con.oid)),E'\n' order by n.nspname,c.relname,con.conname),'')) from pg_constraint con join pg_class c on c.oid=con.conrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private')),
- 'indexes_md5', (select md5(coalesce(string_agg(format('%I.%I:%s:%s',schemaname,tablename,indexname,indexdef),E'\n' order by schemaname,tablename,indexname),'')) from pg_indexes where schemaname in ('public','private')),
- 'policies_md5', (select md5(coalesce(string_agg(format('%I.%I:%s:%s:%s:%s:%s',schemaname,tablename,policyname,roles,cmd,coalesce(qual,''),coalesce(with_check,'')),E'\n' order by schemaname,tablename,policyname),'')) from pg_policies where schemaname in ('public','storage')),
- 'triggers_md5', (select md5(coalesce(string_agg(format('%I.%I:%s:%s',n.nspname,c.relname,t.tgname,pg_get_triggerdef(t.oid)),E'\n' order by n.nspname,c.relname,t.tgname),'')) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and not t.tgisinternal),
- 'functions_md5', (select md5(coalesce(string_agg(format('%I.%s(%s):%s:%s:%s',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid),regexp_replace(replace(p.prosrc,E'\\r',''),E'[ \\t]+),E'\n' order by n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)),'')) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private')),
- 'table_rls_md5', (select md5(coalesce(string_agg(format('%I.%I:%s:%s',n.nspname,c.relname,c.relrowsecurity,c.relforcerowsecurity),E'\n' order by n.nspname,c.relname),'')) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and c.relkind in ('r','p')),
- 'storage_buckets', (select jsonb_agg(jsonb_build_object('id',id,'public',public,'file_size_limit',file_size_limit,'allowed_mime_types',allowed_mime_types) order by id) from storage.buckets)
-) as schema_fingerprint;,'','gm'),p.prosecdef,coalesce(array_to_string(p.proconfig,','),'')),E'\n' order by n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)),'')) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private')),
- 'table_rls_md5', (select md5(coalesce(string_agg(format('%I.%I:%s:%s',n.nspname,c.relname,c.relrowsecurity,c.relforcerowsecurity),E'\n' order by n.nspname,c.relname),'')) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and c.relkind in ('r','p')),
- 'storage_buckets', (select jsonb_agg(jsonb_build_object('id',id,'public',public,'file_size_limit',file_size_limit,'allowed_mime_types',allowed_mime_types) order by id) from storage.buckets)
+  'columns_md5',
+  (select md5(coalesce(string_agg(
+    format('%I.%I.%I:%s:%s:%s', table_schema, table_name, column_name, data_type, is_nullable, coalesce(column_default, '')),
+    E'\n' order by table_schema, table_name, ordinal_position
+  ), '')) from information_schema.columns where table_schema in ('public', 'private')),
+  'constraints_md5',
+  (select md5(coalesce(string_agg(
+    format('%I.%I:%s:%s:%s', n.nspname, c.relname, con.conname, con.contype, pg_get_constraintdef(con.oid)),
+    E'\n' order by n.nspname, c.relname, con.conname
+  ), '')) from pg_constraint con join pg_class c on c.oid = con.conrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname in ('public', 'private')),
+  'indexes_md5',
+  (select md5(coalesce(string_agg(
+    format('%I.%I:%s:%s', schemaname, tablename, indexname, indexdef),
+    E'\n' order by schemaname, tablename, indexname
+  ), '')) from pg_indexes where schemaname in ('public', 'private')),
+  'policies_md5',
+  (select md5(coalesce(string_agg(
+    format('%I.%I:%s:%s:%s:%s:%s', schemaname, tablename, policyname, roles, cmd, coalesce(qual, ''), coalesce(with_check, '')),
+    E'\n' order by schemaname, tablename, policyname
+  ), '')) from pg_policies where schemaname in ('public', 'storage')),
+  'triggers_md5',
+  (select md5(coalesce(string_agg(
+    format('%I.%I:%s:%s', n.nspname, c.relname, t.tgname, pg_get_triggerdef(t.oid)),
+    E'\n' order by n.nspname, c.relname, t.tgname
+  ), '')) from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname in ('public', 'private') and not t.tgisinternal),
+  'functions_md5',
+  (select md5(coalesce(string_agg(
+    format('%I.%s(%s):%s:%s:%s', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), md5(regexp_replace(replace(p.prosrc, E'\\r', ''), E'[ \\t]+', ' ', 'g')), p.prosecdef, coalesce(array_to_string(p.proconfig, ','), '')),
+    E'\n' order by n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)
+  ), '')) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public', 'private')),
+  'table_rls_md5',
+  (select md5(coalesce(string_agg(
+    format('%I.%I:%s:%s', n.nspname, c.relname, c.relrowsecurity, c.relforcerowsecurity),
+    E'\n' order by n.nspname, c.relname
+  ), '')) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname in ('public', 'private') and c.relkind in ('r', 'p')),
+  'storage_buckets',
+  (select coalesce(jsonb_agg(jsonb_build_object('id', id, 'public', public, 'file_size_limit', file_size_limit, 'allowed_mime_types', allowed_mime_types) order by id), '[]'::jsonb) from storage.buckets)
 ) as schema_fingerprint;
