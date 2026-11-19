@@ -78,10 +78,20 @@ export async function listResultsForVisitTests({ tenantId, visitTestIds } = {}) 
   if (!tenantId || !Array.isArray(visitTestIds)) throw new Error('tenantId and visitTestIds are required.');
   const ids = [...new Set(visitTestIds.filter(Boolean))];
   if (!ids.length) return [];
-  if (ids.length > 500) throw new Error('Worklist is too large; load a smaller page before reading results.');
-  const { data, error } = await db().from(TABLES.results)
-    .select('id, visit_test_id, parameter_code, parameter_name_snapshot, value_numeric, value_text, unit_snapshot, reference_range_snapshot, flag, entered_at')
-    .eq('tenant_id', tenantId).in('visit_test_id', ids).order('entered_at');
-  if (error) throw error;
-  return data ?? [];
+  const rows = [];
+  // Chunk IDs and paginate each result set so large parameter panels never hit PostgREST's row cap.
+  for (let start = 0; start < ids.length; start += 100) {
+    const chunk = ids.slice(start, start + 100);
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await db().from(TABLES.results)
+        .select('id, visit_test_id, parameter_code, parameter_name_snapshot, value_numeric, value_text, unit_snapshot, reference_range_snapshot, flag, entered_at')
+        .eq('tenant_id', tenantId).in('visit_test_id', chunk)
+        .order('entered_at').order('id').range(offset, offset + 499);
+      if (error) throw error;
+      const page = data ?? [];
+      rows.push(...page);
+      if (page.length < 500) break;
+    }
+  }
+  return rows;
 }
