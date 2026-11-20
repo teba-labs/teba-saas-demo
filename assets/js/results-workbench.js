@@ -255,7 +255,8 @@ async function printVisitReport(visitId, win) {
   if (visit.status !== 'approved' && !visit.is_published) throw new Error('اعتمد الزيارة أولًا قبل طباعة التقرير.');
   const patient = visit.patients || {};
   const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
-  if (!rows.length) throw new Error('لا توجد نتائج محفوظة لهذه الزيارة حتى الآن.');
+  const cultureRows = await listCultureResults({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:visitItems.filter(item=>['CULTURE_URINE','CULTURE_STOOL'].includes(item.test_code_snapshot)).map(item=>item.id)});
+  if (!rows.length && !cultureRows.isolates.length) throw new Error('لا توجد نتائج محفوظة لهذه الزيارة حتى الآن.');
   const selectedHistoricalIds=state.historicalSelections.get(visitId)||new Set();
   let selectedHistoricalRows=[];
   if(selectedHistoricalIds.size){
@@ -304,7 +305,8 @@ async function printVisitReport(visitId, win) {
       const flag = result.flag ? ' · ' + result.flag : '';
       return '<tr><td>' + escapeHtml(parameterName) + '</td><td>' + escapeHtml(value) + '</td><td>' + escapeHtml(unit) + '</td><td>' + escapeHtml(reference) + '</td><td>' + escapeHtml(flag) + '</td></tr>';
     }).filter(Boolean).join('');
-    return '<section class="test"><h2>' + escapeHtml(item.test_name_snapshot || 'تحليل') + '</h2><table><thead><tr><th>الفحص</th><th>النتيجة</th><th>الوحدة</th><th>القيمة المرجعية</th><th>ملاحظة</th></tr></thead><tbody>' + (lines || '<tr><td colspan="5">لا توجد نتائج لهذا التحليل</td></tr>') + '</tbody></table></section>';
+    const cultureHtml = cultureRows.isolates.filter(isolate=>isolate.visit_test_id===item.id).map(isolate=>{const ast=cultureRows.susceptibilities.filter(row=>row.isolate_id===isolate.id);const astLines=ast.map(row=>'<tr><td>'+escapeHtml(row.antimicrobial_agent)+'</td><td>'+escapeHtml(row.test_method)+'</td><td>'+escapeHtml(row.measured_value??'—')+' '+escapeHtml(row.measured_unit??'')+'</td><td>'+escapeHtml(row.interpretation)+'</td><td>'+escapeHtml(row.breakpoint_standard)+' '+escapeHtml(row.breakpoint_edition)+'</td><td>'+escapeHtml(row.qc_status)+'</td></tr>').join('');return '<h3>العزلة '+isolate.isolate_number+': '+escapeHtml(isolate.organism_name)+'</h3><p>النمو: '+escapeHtml(isolate.growth_description||'—')+' · العد: '+escapeHtml(isolate.colony_count??'—')+' '+escapeHtml(isolate.colony_count_unit)+' · التعريف: '+escapeHtml(isolate.identification_method||'—')+'</p><table><thead><tr><th>المضاد الحيوي</th><th>الطريقة</th><th>القيمة</th><th>التفسير</th><th>معيار/إصدار القطع</th><th>ضبط الجودة</th></tr></thead><tbody>'+(astLines||'<tr><td colspan="6">لا توجد نتائج حساسية مسجلة</td></tr>')+'</tbody></table>'+(isolate.notes?'<p>'+escapeHtml(isolate.notes)+'</p>':'');}).join('');
+    return '<section class="test"><h2>' + escapeHtml(item.test_name_snapshot || 'تحليل') + '</h2><table><thead><tr><th>الفحص</th><th>النتيجة</th><th>الوحدة</th><th>القيمة المرجعية</th><th>ملاحظة</th></tr></thead><tbody>' + (lines || '<tr><td colspan="5">لا توجد نتائج لهذا التحليل</td></tr>') + '</tbody></table>' + cultureHtml + '</section>';
   }).join('');
   const historicalSections=selectedHistoricalRows.map(row=>{
     const payload=row.result_data||{},parameters=payload.parameters&&typeof payload.parameters==='object'?Object.entries(payload.parameters):[];
