@@ -19,7 +19,7 @@ Complete redesign of the authenticated launcher / homepage only. Reception and r
 
 ## Important boundaries / known limitations
 - No new database migration or RLS change was needed for the homepage.
-- A dedicated patient-portal settings screen does not exist in the current main tree; do not create a fake shortcut. Existing patient portal is a public-facing route under `portal/index.html`; settings work should be handled when the settings/portal configuration scope is implemented.
+- A dedicated patient-portal settings screen does not exist in the current main tree. The owner area now links to the real public-facing patient results portal at `../portal/index.html`, explicitly labelled as a preview, not as settings. Do not claim this link configures portal settings; that work belongs to a later settings/portal configuration scope.
 - Workday opening/closing stays inside `workday.html`, because it requires employee identity and explicit confirmation; homepage only reports status and links to the operational screen.
 - Do not merge to main until the owner reviews the preview and explicitly approves.
 - Do not redesign reception or results as part of this homepage branch unless separately authorized.
