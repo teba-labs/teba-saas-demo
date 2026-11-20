@@ -219,3 +219,17 @@ No production database was modified.
 ## 12. Handoff instruction
 
 A receiving chat/developer must start from this branch and PR #24, read this document, inspect the current implementation and successful CI run, and continue from the latest commit. Do not ask the owner to repeat the three-column layout, individual/profile grouping, print design, range/history rules, archive behavior, or agreed print-settings options.
+
+
+---
+
+## 13. Main preview integration — 2026-11-21
+
+- PR #24 (results workbench rebuild) was merged to `main` using a squash merge for the owner's requested preview. Merge commit: `90508602bb1d8eb80815bf39bd5f22526231eca2`.
+- PR #26 (owner dashboard 18 screens) was then merged onto that main baseline. Merge commit: `727cd43df1604b56c170e02c9fdc4aaed101d1cc`.
+- The original feature branches and recovery branches were retained; no branch was deleted and no tracked file was deleted by these integrations.
+- The Service Worker keeps both `results-workbench-layout.js` and `modules/dashboard/live-status.js` in APP_SHELL under cache v27.
+- PR #24's migrations 056–068 remain repository source and were applied only to TEST. They were **not** run against production as part of this preview merge. Database-dependent new results-workbench operations must not be considered operational against a database missing those migrations.
+- PR #26 CI run 44835297244 passed JavaScript syntax checks, browser-only build, packaging, and **250/250 static/unit tests**.
+- The GitHub Pages URL was not independently verified by the assistant after merge. Owner visual review in the live browser remains required; no browser end-to-end acceptance is claimed.
+- This main merge is for preview and owner review, not final clinical/production acceptance.
