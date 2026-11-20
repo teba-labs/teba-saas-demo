@@ -106,7 +106,7 @@ function renderSheet(){
  if(!s.preview.length){const line=el('tr'),cell=el('td','لا توجد صفوف معاينة بعد صف العناوين المقترح.');cell.colSpan=Math.max(1,s.headers.length);line.append(cell);body.append(line);}
  table.append(body);const wrap=el('div');wrap.className='tableWrap';wrap.append(table);root.append(wrap);
 }
-function historicalRecordKey(fileSha,sheetName,rowNumber,testCode){return crypto.subtle.digest('SHA-256',new TextEncoder().encode([fileSha,sheetName,rowNumber,testCode].join('|'))).then(bytes=>[...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,'0')).join(''));}
+function historicalRecordKey(patientKey,resultDate,resultAt,testCode,resultData){const normalized=[patientKey,resultDate,resultAt||'',testCode,JSON.stringify(resultData||{})].join('|');return crypto.subtle.digest('SHA-256',new TextEncoder().encode(normalized)).then(bytes=>[...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,'0')).join(''));}
 async function prepareHistoricalSheet(sheet,button){
  if(navigator.onLine===false)throw new Error('اعتماد النتائج التاريخية يحتاج اتصالًا بالإنترنت.');
  if(!state.branchId||!state.userId||!state.file)throw new Error('اختر فرعًا وسجّل الدخول ثم افحص الملف من جديد.');
@@ -128,9 +128,8 @@ async function prepareHistoricalSheet(sheet,button){
   sheet.headers.forEach((header,index)=>{if(String(originalCells[index]??'').trim()!=='')originalRow[String(header||('Column '+(index+1)))]=String(originalCells[index]);});
   const resultData={format:'legacy-historical-v1',value:row.result_value||null,parameters,unit:row.unit||null,reference_range:row.reference_range||null,raw_original:row.raw_payload||null,raw_result_at:row.result_at||null,raw_age:row.age||null,raw_age_unit:row.age_type||null};
   const duplicateSignature=JSON.stringify([patientName,date.isoDate,testCode,resultData]);if(seenContent.has(duplicateSignature)){rejected.push({row:row._rowNumber,reason:'صف مكرر بنفس المريض والتاريخ والتحليل والنتيجة'});continue;}seenContent.add(duplicateSignature);
-  const sourceRecordKey=await historicalRecordKey(state.result.sha256,sheet.name,row._rowNumber,testCode);
   let resultAt=null;if(row.result_at){let candidate=new Date(row.result_at);if(Number.isNaN(candidate.getTime()))candidate=new Date(date.isoDate+'T'+row.result_at);if(!Number.isNaN(candidate.getTime()))resultAt=candidate.toISOString();}
-  prepared.push({patient_name_snapshot:patientName,test_code:testCode,test_name_snapshot:testName,result_date:date.isoDate,result_at:resultAt,result_data:resultData,patient_age_raw:row.age||null,patient_age_unit:row.age_type||null,source_sheet_name:sheet.name,source_row_number:row._rowNumber,source_record_key:sourceRecordKey,original_row:originalRow});
+  prepared.push({patient_name_snapshot:patientName,test_code:testCode,test_name_snapshot:testName,result_date:date.isoDate,result_at:resultAt,result_data:resultData,patient_age_raw:row.age||null,patient_age_unit:row.age_type||null,source_sheet_name:sheet.name,source_row_number:row._rowNumber,source_record_key:null,original_row:originalRow});
  }
  if(!prepared.length)throw new Error('لا توجد صفوف صالحة. الصفوف المرفوضة: '+rejected.length);
  const root=$('sheetDetails'),panel=el('section');panel.className='validationPanel';panel.append(el('h3','مراجعة واعتماد النتائج التاريخية'));
@@ -156,7 +155,7 @@ async function prepareHistoricalSheet(sheet,button){
   if(!globalThis.confirm('سيتم حفظ النتائج كبيانات تاريخية منفصلة، مع الاحتفاظ بملف Excel الأصلي. لن تُنشأ زيارات أو فواتير أو حركات مالية، ولن تُستبدل نتائج تشغيلية. هل تعتمد الرفع؟'))return;
   approve.disabled=true;approve.textContent='جارٍ حفظ الملف والنتائج…';
   try{
-   const records=prepared.map(row=>({...row,patient_id:state.patientLinks[row.patient_name_snapshot]||null}));
+   const records=await Promise.all(prepared.map(async row=>{const patient_id=state.patientLinks[row.patient_name_snapshot]||null;const identity=patient_id||String(row.patient_name_snapshot).normalize('NFKC').toLocaleLowerCase('ar').replace(/\\s+/g,' ').trim()+'|'+String(row.patient_age_raw||'').trim();const source_record_key=await historicalRecordKey(identity,row.result_date,row.result_at,row.test_code,row.result_data);return {...row,patient_id,source_record_key};}));
    const sheetSummary=[{sheet_name:sheet.name,rows_total:analysis.nonEmptyRows,rows_accepted:prepared.length,rows_rejected:rejected.length}];
    const result=await importHistoricalResults({tenantId:state.tenantId,branchId:state.branchId,userId:state.userId,file:state.file,fileSha256:state.result.sha256,sheetName:sheet.name,mappingSnapshot:{sheet_name:sheet.name,column_mapping:mapping},sheetSummary,records});
    const signature=await sheetHeaderSignature(sheet.headers);await saveHistoricalImportTemplate({tenantId:state.tenantId,branchId:state.branchId,userId:state.userId,sheetName:sheet.name,headerSignature:signature,headers:sheet.headers,entityType:'historical_results',columnMapping:mapping});
