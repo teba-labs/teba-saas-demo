@@ -72,6 +72,12 @@ assert.deepEqual(plan.target,{year:'2026',month:'12'});
 assert.equal(plan.branches[0].usedFallback,true);
 assert.equal(plan.branches[0].targetRevenue,1000);
 assert.equal(plan.branches[0].weeklyTargets.length,4);
+assert.equal(plan.outlook.length,3);
+assert.deepEqual(plan.outlook.map(item=>item.target),[{year:'2026',month:'12'},{year:'2027',month:'01'},{year:'2027',month:'02'}]);
+assert.equal(plan.outlook[0].branches.length,2);
+const branchPlan=engine.buildHistoricalMonthlyPlan({salesWorkbook,branch:'فرع ألف'});
+assert.equal(branchPlan.outlook.length,3);
+assert.equal(branchPlan.outlook[0].branches.length,1);
 console.log('PASS historical monthly/yearly extraction and latest-period detection');
 console.log('PASS product portfolio ranking, low-demand, loss-maker and BCG segmentation');
 const reconciliation=engine.compareHistoricalAndLiveReports({
