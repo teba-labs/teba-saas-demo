@@ -12,7 +12,7 @@ test('reception intake captures age value and unit and generates patient and vis
   const js = read('assets/js/reception.js');
   const repository = read('modules/reception/repository.js');
   const migration = read('database/migrations/024_patient_age_units.sql');
-  assert.match(html, /id="patientAgeUnit"/);
+  assert.match(html, /id="patientAgeUnit"/);\n  assert.match(html, /id="patientSex" required/);
   assert.match(html, /id="patientNumberPreview" readonly/);
   assert.match(html, /id="visitNumber" readonly/);
   assert.match(html, /id="visitDate" readonly/);
@@ -31,7 +31,7 @@ test('reception provides complete post-save actions and direct visit-scoped resu
   assert.match(html, /id="postSaveActions"/);
   assert.match(html, /id="goToResults"/);
   assert.match(html, /id="newPatientAfterSave"/);
-  assert.match(js, /function goToResults/);
+  assert.match(js, /function goToResults/);\n  assert.match(js, /newPatientAfterSave.*focusNewPatient/s);
   assert.match(js, /searchParams\.set\('visit_id',visitId\)/);
   assert.match(lab, /requestedVisitId/);
   assert.match(lab, /query = query\.eq\('visit_id', requestedVisitId\)/);
