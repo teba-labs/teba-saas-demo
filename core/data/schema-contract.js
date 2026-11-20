@@ -4,6 +4,7 @@ export const TABLES = Object.freeze({
   branchMemberships: 'branch_memberships', staffDirectory: 'staff_directory',
   workdays: 'branch_workdays', patients: 'patients', visits: 'visits',
   catalog: 'tests_catalog', prices: 'test_prices', parameters: 'test_parameters',
+  cultureIsolates: 'visit_test_culture_isolates', cultureSusceptibility: 'visit_test_culture_susceptibility',
   masterCatalogReleases: 'master_catalog_releases', masterCatalogTests: 'master_catalog_tests',
   masterCatalogParameters: 'master_catalog_parameters', tenantCatalogMasterLinks: 'tenant_catalog_master_links',
   visitTests: 'visit_tests', results: 'test_results', reportVersions: 'report_versions',
