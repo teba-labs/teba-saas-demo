@@ -31,7 +31,7 @@ test('visit uses database price snapshots and creates billing from actual select
 });
 test('intake validates patient, unique visit number input, test selection and payment bounds',()=>{
   assert.match(script,/if\(!state\.patient\)/);
-  assert.match(script,/if\(!visitNumber\)/);
+  assert.match(script,/visitNumber=\$\('visitNumber'\)\.value\|\|makeCode\('V'\)/);
   assert.match(script,/if\(!state\.selected\.size\)/);
   assert.match(script,/paid>gross-discount/);
 });
