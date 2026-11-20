@@ -6,7 +6,7 @@ export async function getLabSettings({ tenantId } = {}) {
   need(tenantId, 'tenantId');
   const { data, error } = await db().from('lab_settings')
     .select('tenant_id, laboratory_name, doctor_name, logo_path, phone, whatsapp, address, report_footer, whatsapp_template, settings_json, updated_at')
-    .eq('tenant_id', tenantId).single();
+    .eq('tenant_id', tenantId).maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -18,7 +18,7 @@ export async function updateLabSettings({ tenantId, patch } = {}) {
   const payload = Object.fromEntries(Object.entries(patch).filter(([key]) => allowed.includes(key)));
   if (!Object.keys(payload).length) throw new Error('No supported settings were supplied.');
   const { data, error } = await db().from('lab_settings')
-    .update(payload).eq('tenant_id', tenantId).select().single();
+    .upsert({ tenant_id: tenantId, ...payload }, { onConflict: 'tenant_id' }).select().single();
   if (error) throw error;
   return data;
 }
@@ -29,7 +29,10 @@ export async function getPrintSettings({ tenantId, branchId = null } = {}) {
   query = branchId ? query.eq('branch_id', branchId) : query.is('branch_id', null);
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
-  return data;
+  if (data || !branchId) return data;
+  const { data: defaults, error: defaultsError } = await db().from('print_settings').select('id, tenant_id, branch_id, settings_json, updated_at').eq('tenant_id', tenantId).is('branch_id', null).maybeSingle();
+  if (defaultsError) throw defaultsError;
+  return defaults ? { ...defaults, branch_id: branchId, inherited: true } : null;
 }
 
 /** Owner-only through database RLS. A null branch_id means tenant-wide defaults. */

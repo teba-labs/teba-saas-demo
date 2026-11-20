@@ -47,3 +47,10 @@ assert.match(j,/listOwnerAuditLogs/);
 assert.match(j,/const BRANCH_ARCHIVE_READY=true/);
 
 console.log('PASS: all seven owner settings areas, branch archive, local backup and single delegated handlers are wired.');
+
+const h2=fs.readFileSync(new URL('app/settings.html',root),'utf8'),j2=fs.readFileSync(new URL('assets/js/settings-center.js',root),'utf8');
+const ar=fs.readFileSync(new URL('modules/settings/assets-repository.js',root),'utf8'),br=fs.readFileSync(new URL('modules/settings/cloud-backup-repository.js',root),'utf8');
+assert.match(h2,/id="labLogoFile"/);assert.match(h2,/id="printPaperSize"/);assert.doesNotMatch(h2,/printSettingsJson|بيانات الطباعة بصيغة JSON/);
+assert.match(h2,/id="backupBranch"/);assert.match(h2,/id="restoreCloudBackup"/);assert.match(j2,/uploadLabAsset/);assert.match(j2,/createCloudBackup/);assert.match(j2,/downloadCloudBackup/);
+assert.match(ar,/tenant-site-assets/);assert.match(br,/tenant-backups/);assert.match(br,/checksum_sha256/);assert.match(br,/browser-local-cache/);assert.match(r,/inherited: true/);
+console.log('PASS: structured print controls, tenant-scoped assets, and private cloud copies of local snapshots are wired.');
