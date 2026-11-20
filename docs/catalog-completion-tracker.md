@@ -157,3 +157,13 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - Pre-merge recovery branch: `backup/pre-app-wide-keyboard-2026-11-20`, pinned to `d9be861b77a31778832853dd43b6020883be4f59`.
 - CI run #738 on PR #20 passed: syntax checks including the shared keyboard module and all static/unit contract tests. An earlier run #737 failed only because the new test used an invalid regex for the service-worker asset path; replaced it with a direct string assertion and the final run passed.
 - Manual browser testing of focus order on all 11 screens remains pending; automated tests prove wiring and syntax, not real-user keyboard interaction in a browser.
+
+## Final verified snapshot for 2026-11-20
+
+- Main after both promotions and tracker update: `cf3b118591656708f068b7020218a5445e6efe51`.
+- TEST counts: 527 master test records (32 verified, 495 legacy needs-review), 300 parameter definitions, 101 numeric parameters, 10 calculated parameters.
+- Source-suggested ranges: 47/101 numeric parameters; all 47 explicitly `local_verification_required`; 0 locally verified. The new 25-parameter batch is recorded in migration 054.
+- Result workbench displays matching external-source intervals with the explicit label "مقترح من المصدر — غير معتمد محليًا" and only auto-classifies numeric values when the interval status is `verified_local`.
+- Cloud import remains limited to verified test definitions and their verified parameter profiles. The 495 legacy names cannot be imported as complete tests.
+- PR #19 and PR #20 are merged; CI passed on PR and main. Main run #740 completed successfully after the final tracker update.
+- The medical catalog is **not yet clinically closed**: 495 legacy test names still need structured normalization; 54 numeric parameters still have no source interval; no interval has been locally validated for a tenant analyzer/reagent/population; and not all potential derived calculations have been clinically implemented or end-to-end verified.
