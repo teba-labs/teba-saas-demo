@@ -60,7 +60,8 @@ test('employee operational screens bind staff identity to the authenticated user
 });
 
 test('catalog and global financial administration are owner-only', () => {
-  assert.match(appHome, /id:'catalog',[^\n]*roles:\['owner','staff'\]/);\n  assert.match(catalog, /\$\('priceForm'\)\.hidden=state\.role!=='owner'/);
+  assert.match(appHome, /id:'catalog',[^\n]*roles:\['owner','staff'\]/);
+  assert.match(catalog, /\$\('priceForm'\)\.hidden=state\.role!=='owner'/);
   assert.match(appHome, /id:'dashboard',[^\n]*roles:\['owner'\]/);
   assert.match(catalog, /accountType==='owner'/);
   assert.match(catalog, /إدارة كتالوج التحاليل والأسعار متاحة لمالك المعمل فقط/);
