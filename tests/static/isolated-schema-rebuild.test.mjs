@@ -72,7 +72,7 @@ test('results-screen test additions recalculate visit billing without duplicatin
   assert.ok(migration.includes('discount_amount,created_by'));
   assert.ok(migration.includes('pg_advisory_xact_lock'));
   assert.ok(migration.includes('return v_existing'));
-  assert.ok(migration.includes('Finalized visits cannot receive billing recalculation'));
+  assert.ok(read('database/migrations/068_guard_billing_recalculation_status.sql').includes('Finalized visits cannot receive billing recalculation'));
 });
 
 test('completed unpublished result correction is audited and cannot alter an approved or published visit',()=>{
