@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v7';
+const CACHE_NAME = 'taiba-smart-lab-shell-v11';
 const APP_SHELL = [
   './app/index.html', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/sync-center.html',
   './app/dashboard.html', './app/cms-editor.html', './app/platform-admin.html', './app/settings.html', './app/data-import.html',
@@ -8,7 +8,7 @@ const APP_SHELL = [
   './assets/js/dashboard.js', './assets/js/cms-editor.js', './assets/js/platform-admin.js', './assets/js/settings-center.js', './assets/js/data-import.js',
   './core/supabase-client.js', './core/auth/session.js', './core/tenant/context.js', './core/tenant/workspace-selection.js', './core/data/schema-contract.js', './config/environment.js',
   './offline/database.js', './offline/outbox.js', './offline/cache.js', './offline/backup.js', './offline/supabase-adapters.js', './offline/background-sync.js',
-  './modules/catalog/repository.js', './modules/migration/workbook-inspector.js', './modules/files/repository.js', './modules/reception/repository.js', './modules/expenses/repository.js', './modules/laboratory/repository.js',
+  './modules/catalog/repository.js', './modules/migration/workbook-inspector.js', './modules/migration/catalog-importer.js', './modules/migration/price-importer.js', './modules/dashboard/expense-breakdown.js', './modules/files/repository.js', './modules/reception/repository.js', './modules/expenses/repository.js', './modules/laboratory/repository.js',
   './modules/results/repository.js', './modules/reports/repository.js', './modules/settings/repository.js', './modules/settings/audit-repository.js', './modules/staff/repository.js',
   './modules/workday/repository.js', './dashboard/repository.js', './website/cms-repository.js', './website/public-site.js'
 ];
