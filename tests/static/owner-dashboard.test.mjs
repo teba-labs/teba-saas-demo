@@ -99,3 +99,10 @@ test('security screen does not misrepresent local Excel archive as cloud backup'
   assert.match(script,/غير مثبت كميزة استعادة كاملة/);
   assert.match(script,/sync-center\.html/);
 });
+
+test('owner report screens expose CSV export and the case screen includes historical seasonality',()=>{
+  assert.match(script,/data-owner-export=/);
+  assert.match(script,/function exportOwnerReport/);
+  assert.match(script,/text\/csv;charset=utf-8/);
+  assert.match(script,/cases:'موسمية الحالات حسب الشهر'/);
+});
