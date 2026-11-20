@@ -60,7 +60,7 @@ function movementForBranch(movementSheets,branch,month){
  }
  return out;
 }
-export function buildHistoricalDashboardReport({salesWorkbook,pricesWorkbook,detailWorkbook,movementWorkbooks=[],year,month}={}){
+export function buildHistoricalDashboardReport({salesWorkbook,pricesWorkbook,detailWorkbook,movementWorkbooks=[],year,month,branch='all'}={}){
  if(!salesWorkbook||!pricesWorkbook)throw new Error('يلزم تحميل ملف المتابعة وملف الأسعار التاريخيين أولاً.');
  const salesSheets=salesWorkbook,priceSheet=pricesWorkbook.find(s=>s.name.includes('التحاليل'))||pricesWorkbook[0];
  const monthly=salesSheets.find(s=>s.name.includes('الشهرية'))?.rows||[];
@@ -68,7 +68,7 @@ export function buildHistoricalDashboardReport({salesWorkbook,pricesWorkbook,det
  if(!monthly.length||!annual.length)throw new Error('ملف المتابعة لا يحتوي أوراق الشهرية والسنوية المطلوبة.');
  const prices=new Map();
  for(let i=1;i<(priceSheet?.rows||[]).length;i++){const r=priceSheet.rows[i];if(!r||!r[0])continue;const sell=number(r[4]);if(sell>0)prices.set(normalize(r[0]),{type:clean(r[1])||'خارجي',baseCost:number(r[2]),weight:number(r[3])||1,sell});}
- const branches=[...new Set(monthly.slice(1).map(r=>clean(r?.[6])).filter(Boolean))];
+ const branches=[...new Set(monthly.slice(1).map(r=>clean(r?.[6])).filter(Boolean))].filter(name=>branch==='all'||clean(name)===clean(branch));
  const branchReports=branches.map(branch=>{
   const totals=extractHistoricalMonth(monthly,year,month,branch);
   const movement=movementForBranch(movementWorkbooks,branch,month);
@@ -86,7 +86,7 @@ export function buildHistoricalDashboardReport({salesWorkbook,pricesWorkbook,det
  for(const b of branchReports)for(const t of b.tests){const key=normalize(t.name);if(!combined.has(key))combined.set(key,{...t,count:0,trueTotalProfit:0});const item=combined.get(key);item.count+=t.count;item.trueTotalProfit+=t.trueTotalProfit;}
  const tests=[...combined.values()].map(t=>({...t,trueProfitUnit:t.count?t.trueTotalProfit/t.count:0,trueCost:t.sell-(t.count?t.trueTotalProfit/t.count:0)}));
  const totals=branchReports.reduce((a,b)=>({rev:a.rev+b.rev,exp:a.exp+b.exp,cases:a.cases+b.cases,profit:a.profit+b.profit}),{rev:0,exp:0,cases:0,profit:0});
- return{source:'historical-excel',period:{year:String(year),month:String(month)},branches:branchReports,totals:{...totals,margin:totals.rev>0?totals.profit/totals.rev*100:0},tests:tests.sort((a,b)=>b.count-a.count),topSellers:[...tests].sort((a,b)=>b.count-a.count).slice(0,5),topProfitable:[...tests].sort((a,b)=>b.trueTotalProfit-a.trueTotalProfit).slice(0,5),lossMakers:tests.filter(t=>t.trueProfitUnit<0).sort((a,b)=>a.trueProfitUnit-b.trueProfitUnit),unmatchedTests:[...new Set(branchReports.flatMap(b=>b.unmatchedTests))],annual:buildHistoricalAnnualReport({salesWorkbook,year}),annualTrend:buildHistoricalAnnualTrend({salesWorkbook}),seasonality:buildHistoricalCaseSeasonality({salesWorkbook,branch:'all'}),monthlyPlan:buildHistoricalMonthlyPlan({salesWorkbook})};
+ return{source:'historical-excel',period:{year:String(year),month:String(month)},branches:branchReports,totals:{...totals,margin:totals.rev>0?totals.profit/totals.rev*100:0},tests:tests.sort((a,b)=>b.count-a.count),topSellers:[...tests].sort((a,b)=>b.count-a.count).slice(0,5),topProfitable:[...tests].sort((a,b)=>b.trueTotalProfit-a.trueTotalProfit).slice(0,5),lossMakers:tests.filter(t=>t.trueProfitUnit<0).sort((a,b)=>a.trueProfitUnit-b.trueProfitUnit),unmatchedTests:[...new Set(branchReports.flatMap(b=>b.unmatchedTests))],annual:buildHistoricalAnnualReport({salesWorkbook,year,branch}),annualTrend:buildHistoricalAnnualTrend({salesWorkbook,branch}),seasonality:buildHistoricalCaseSeasonality({salesWorkbook,branch}),monthlyPlan:buildHistoricalMonthlyPlan({salesWorkbook,branch})};
 }
 
 function median(values){
@@ -126,11 +126,11 @@ export function buildHistoricalProductPortfolio(report){
 }
 
 /** Annual revenue/expense comparison from the historical annual worksheet. */
-export function buildHistoricalAnnualReport({salesWorkbook,year}={}){
+export function buildHistoricalAnnualReport({salesWorkbook,year,branch='all'}={}){
  if(!salesWorkbook||!year)throw new Error('Historical sales workbook and year are required.');
  const rows=salesWorkbook.find(sheet=>sheet.name.includes('السنوية'))?.rows||[];
  if(!rows.length)throw new Error('The annual worksheet is missing.');
- const branches=[...new Set(rows.slice(1).filter(row=>clean(row?.[5])===String(year)).map(row=>clean(row?.[4])).filter(Boolean))];
+ const branches=[...new Set(rows.slice(1).filter(row=>clean(row?.[5])===String(year)).map(row=>clean(row?.[4])).filter(Boolean))].filter(name=>branch==='all'||clean(name)===clean(branch));
  const byBranch=branches.map(branch=>({branch,...extractHistoricalYear(rows,year,branch)})).map(item=>({...item,profit:item.rev-item.exp,margin:item.rev>0?(item.rev-item.exp)/item.rev*100:0}));
  const totals=byBranch.reduce((acc,item)=>({rev:acc.rev+item.rev,exp:acc.exp+item.exp,profit:acc.profit+item.profit}),{rev:0,exp:0,profit:0});
  return {year:String(year),branches:byBranch,totals:{...totals,margin:totals.rev>0?totals.profit/totals.rev*100:0}};
@@ -151,12 +151,12 @@ export function buildHistoricalCaseSeasonality({salesWorkbook,years,branch='all'
 }
 
 /** Multi-year financial trend with year-over-year growth, preserving missing baselines as null. */
-export function buildHistoricalAnnualTrend({salesWorkbook,years}={}){
+export function buildHistoricalAnnualTrend({salesWorkbook,years,branch='all'}={}){
  if(!salesWorkbook)throw new Error('Historical sales workbook is required.');
  const annualRows=salesWorkbook.find(sheet=>sheet.name.includes('السنوية'))?.rows||[];
  const available=[...new Set(annualRows.slice(1).map(row=>clean(row?.[5])).filter(value=>/^\d{4}$/.test(value)))].sort();
  const selected=(years||available).map(String).sort();
- const totals=selected.map(year=>({year,...extractHistoricalYear(annualRows,year,'all')}));
+ const totals=selected.map(year=>({year,...extractHistoricalYear(annualRows,year,branch)}));
  return totals.map((item,index)=>({...item,profit:item.rev-item.exp,margin:item.rev>0?(item.rev-item.exp)/item.rev*100:0,
   revenueGrowth:index&&totals[index-1].rev>0?(item.rev-totals[index-1].rev)/totals[index-1].rev*100:null,
   expenseGrowth:index&&totals[index-1].exp>0?(item.exp-totals[index-1].exp)/totals[index-1].exp*100:null
@@ -180,14 +180,14 @@ export function compareHistoricalAndLiveReports({historicalReport,liveReport,bra
 }
 
 /** Seasonal next-month plan. Targets are historical averages, not guarantees or AI forecasts. */
-export function buildHistoricalMonthlyPlan({salesWorkbook,latestPeriod=findLatestHistoricalPeriod(salesWorkbook)}={}){
+export function buildHistoricalMonthlyPlan({salesWorkbook,latestPeriod=findLatestHistoricalPeriod(salesWorkbook),branch='all'}={}){
  if(!salesWorkbook||!latestPeriod)throw new Error('A historical sales workbook and latest revenue month are required.');
  const monthly=salesWorkbook.find(sheet=>sheet.name.includes('الشهرية'))?.rows||[];
  const latestYear=Number(latestPeriod.year),latestMonth=Number(latestPeriod.month);
  const targetDate=new Date(Date.UTC(latestYear,latestMonth,1));
  const targetYear=targetDate.getUTCFullYear(),targetMonth=targetDate.getUTCMonth()+1;
  const monthRows=monthly.slice(1).filter(row=>clean(row?.[6])&&clean(row?.[4])!=='التقفيل');
- const branches=[...new Set(monthRows.map(row=>clean(row[6])))];
+ const branches=[...new Set(monthRows.map(row=>clean(row[6])))].filter(name=>branch==='all'||clean(name)===clean(branch));
  const plans=branches.map(branch=>{
   let history=[];
   for(const year of [...new Set(monthRows.map(row=>Number(row[7])).filter(y=>y<targetYear))].sort((a,b)=>b-a)){
