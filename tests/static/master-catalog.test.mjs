@@ -33,7 +33,7 @@ test('catalog repository persists the advanced metadata and imports published ma
 
 test('catalog UI exposes the master library and structured medical metadata editors',()=>{
  const html=read('app/catalog.html');
- for(const id of ['masterCatalogPanel','masterCatalogSearch','masterCatalogList','testPreparation','testCollection','testStability','testCriticalPolicy','testSources','parameterCriticalRanges','parameterApplicability','parameterSources']) assert.ok(html.includes(id),'missing '+id);
+ for(const id of ['masterCatalogPanel','masterCatalogSearch','masterCatalogList','testPreparation','testCollection','testStability','testCriticalPolicy','testSources','parameterCriticalRanges','parameterApplicability','parameterSources','parameterClinicalMetadata']) assert.ok(html.includes(id),'missing '+id);
  const js=read('assets/js/catalog.js');
  assert.match(js,/data-import-master/);
  assert.match(js,/clinicalReviewStatus/);
