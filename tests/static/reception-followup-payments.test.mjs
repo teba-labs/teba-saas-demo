@@ -12,7 +12,7 @@ test('reception displays branch outstanding balances and allows later collection
   for(const id of ['balancePanel','refreshBalances','balancesList']) assert.match(html,new RegExp('id="'+id+'"'));
   assert.match(script,/listBranchOutstandingBalances/);
   assert.match(script,/recordPayment\(\{tenantId:state\.tenant\.id,branchId:state\.branch\.id/);
-  assert.match(script,/paymentMethod:card\.querySelector\('\.balance-method'\)\.value/);
+  assert.match(script,/const method=card\.querySelector\('\.balance-method'\)\.value/);\n  assert.match(script,/paymentMethod:method/);
   assert.match(script,/amount>remaining/);
   assert.match(script,/if\(!state\.workday\)/);
   assert.match(html,/id="paymentReceipt"/);
