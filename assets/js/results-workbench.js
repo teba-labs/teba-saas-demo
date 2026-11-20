@@ -12,6 +12,7 @@ import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } fro
 
 const $ = (id) => document.getElementById(id);
 const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map() };
+window.addEventListener('taiba:results-work-refresh',()=>refreshWork().catch(error=>showNotice(error.message||'تعذر تحديث قائمة النتائج.',true)));
 const showNotice = (message, error = false) => {
   const el = $('notice'); el.textContent = message; el.className = `notice show${error ? ' error' : ''}`;
   window.clearTimeout(showNotice.timer); showNotice.timer = window.setTimeout(() => el.className = 'notice', 5000);
@@ -98,7 +99,7 @@ async function renderWork() {
   }
   host.innerHTML = '';
   for (const [visitId, group] of byVisit) {
-    const card = document.createElement('article'); card.className = 'work-card';
+    const card = document.createElement('article'); card.className = 'work-card'; card.dataset.visitId = visitId;
     const visitTitle = `زيارة ${group.visit?.visit_number ?? '—'} · ${group.visit?.patients?.full_name ?? 'مريض'}`;
     const isPublished = Boolean(group.visit?.is_published);
     const itemsMarkup = group.items.map(item => {
@@ -130,7 +131,7 @@ async function renderWork() {
       }).join('')}</fieldset>`).join('');
       const isCulture = String(item.test_code_snapshot || '').startsWith('CULTURE_');
       const cultureEditor = isCulture ? `<section class="culture-workflow" data-culture-workflow="${escapeHtml(item.id)}"><h3>العزلات والاختبار الحساسي (Antibiogram)</h3><p class="muted">أضف كل عزلة منفصلة. أدخل تفسير الحساسية وفق إصدار CLSI/EUCAST والطريقة المعتمدة في المعمل؛ النظام لا يخمّن نقاط القطع.</p><div class="culture-isolates" data-culture-isolates="${escapeHtml(item.id)}"><p class="muted">جارٍ تحميل العزلات…</p></div>${!locked && !isPublished ? `<form class="culture-isolate-form" data-visit-test-id="${escapeHtml(item.id)}"><label>رقم العزلة<input name="isolateNumber" type="number" min="1" max="20" value="1" required></label><label>اسم الكائن الممرض / العزلة<input name="organismName" maxlength="200" required placeholder="مثال: Escherichia coli"></label><label>وصف النمو<input name="growthDescription" placeholder="Pure growth / mixed growth"></label><label>عدد المستعمرات<input name="colonyCount" type="number" min="0" step="any"></label><label>وحدة العد<input name="colonyCountUnit" value="CFU/mL"></label><label>طريقة التعريف<input name="identificationMethod" placeholder="Biochemical / MALDI-TOF / Automated"></label><label class="wide">ملاحظات<textarea name="notes" rows="2"></textarea></label><button class="button" type="submit">حفظ العزلة</button></form>` : ''}</section>` : '';
-      return `<section class="parameter" data-test-id="${escapeHtml(item.id)}">
+      return `<section class="parameter" data-test-id="${escapeHtml(item.id)}" data-test-code="${escapeHtml(item.test_code_snapshot || '')}" data-test-kind="${escapeHtml(item.technical_snapshot?.test_kind || 'individual')}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
         <div class="parameter-grid">${parameterControls}</div>${cultureEditor}
         <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">حفظ تصحيح النتيجة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
@@ -250,7 +251,7 @@ async function loadHistoricalReportPicker(button){
   }
  }catch(error){picker.textContent=error.message||'تعذر تحميل النتائج التاريخية.';}
 }
-async function printVisitReport(visitId, win) {
+async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const visitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
   if (!visitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
   const visit = visitItems[0].visits || {};
@@ -326,7 +327,7 @@ async function printVisitReport(visitId, win) {
     testSections + historicalSections + (signature ? '<p style="text-align:left"><img class="signature" src="' + escapeHtml(signature) + '" alt="التوقيع"></p>' : '') +
     (footer ? '<footer>' + escapeHtml(footer) + '</footer>' : '') + '</body></html>';
   win.document.open(); win.document.write(html); win.document.close();
-  const printWhenReady = () => { try { win.focus(); win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
+  const printWhenReady = () => { try { win.focus(); if (autoPrint) win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
   const images = [...win.document.images];
   if (!images.length) setTimeout(printWhenReady, 250);
   else Promise.all(images.map(image => image.decode?.().catch(() => null))).then(() => setTimeout(printWhenReady, 150));
@@ -508,7 +509,8 @@ $('loginForm').addEventListener('submit', async (event) => {
 $('signOut').addEventListener('click', async () => { try { await signOut(); await startWorkspace(); } catch (error) { showNotice(error.message, true); } });
 $('refreshButton').addEventListener('click', async () => { try { await refreshWork(); } catch (error) { showNotice(error.message, true); } });
 
-try { await startWorkspace(); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
+try { await startWorkspace(); window.dispatchEvent(new CustomEvent('taiba:results-context',{detail:{tenantId:state.tenant?.id,branchId:state.branch?.id}})); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
+window.taibaPreviewVisitReport = async visitId => { const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
 
 $('prevWorkPage').addEventListener('click', async () => {
   if (state.workPage <= 0) return;
