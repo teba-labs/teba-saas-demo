@@ -372,7 +372,9 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
       const value = result.value_numeric ?? result.value_text ?? '—';
       const unit = result.unit_snapshot || parameter.unit || '';
       const reference = resolveReferenceRange(result.reference_range_snapshot ?? parameter.reference_ranges, patient, parameter.reference_interval_status);
-      const flag = result.flag ? ' · ' + result.flag : '';
+      const calculatedFlag=computeReferenceFlag(result.value_numeric,result.reference_range_snapshot ?? parameter.reference_ranges,patient.age_years,patient.sex,parameter.reference_interval_status,'numeric');
+      const displayFlag=calculatedFlag || result.flag;
+      const flag = displayFlag ? ' · ' + displayFlag : '';
       return '<tr><td>' + escapeHtml(parameterName) + '</td><td>' + escapeHtml(value) + '</td><td>' + escapeHtml(unit) + '</td><td>' + escapeHtml(reference) + '</td><td>' + escapeHtml(flag) + '</td></tr>';
     }).filter(Boolean).join('');
     const cultureHtml = cultureRows.isolates.filter(isolate=>isolate.visit_test_id===item.id).map(isolate=>{const ast=cultureRows.susceptibilities.filter(row=>row.isolate_id===isolate.id);const astLines=ast.map(row=>'<tr><td>'+escapeHtml(row.antimicrobial_agent)+'</td><td>'+escapeHtml(row.test_method)+'</td><td>'+escapeHtml(row.measured_value??'—')+' '+escapeHtml(row.measured_unit??'')+'</td><td>'+escapeHtml(row.interpretation)+'</td><td>'+escapeHtml(row.breakpoint_standard)+' '+escapeHtml(row.breakpoint_edition)+'</td><td>'+escapeHtml(row.qc_status)+'</td></tr>').join('');return '<h3>العزلة '+isolate.isolate_number+': '+escapeHtml(isolate.organism_name)+'</h3><p>النمو: '+escapeHtml(isolate.growth_description||'—')+' · العد: '+escapeHtml(isolate.colony_count??'—')+' '+escapeHtml(isolate.colony_count_unit)+' · التعريف: '+escapeHtml(isolate.identification_method||'—')+'</p><table><thead><tr><th>المضاد الحيوي</th><th>الطريقة</th><th>القيمة</th><th>التفسير</th><th>معيار/إصدار القطع</th><th>ضبط الجودة</th></tr></thead><tbody>'+(astLines||'<tr><td colspan="6">لا توجد نتائج حساسية مسجلة</td></tr>')+'</tbody></table>'+(isolate.notes?'<p>'+escapeHtml(isolate.notes)+'</p>':'');}).join('');
@@ -430,23 +432,27 @@ function bindCultureForms(host) {
 }
 
 
-function classifyResultFlag(input) {
- if(input.dataset.valueType!=='numeric'||input.dataset.referenceIntervalStatus!=='verified_local')return null;
- const value=Number(input.value);if(!Number.isFinite(value))return null;
- const ranges=JSON.parse(input.dataset.range||'[]');const age=Number(input.dataset.patientAge);const sex=String(input.dataset.patientSex||'').toLowerCase();
- const rows=Array.isArray(ranges)?ranges:(ranges&&typeof ranges==='object'?[ranges]:[]);
- const matches=rows.filter(r=>{
-  if(r.pregnancy)return false;
-  if(r.sex&&String(r.sex).toLowerCase()!==sex)return false;
-  if(r.age){if(!Number.isFinite(age))return false;if(r.age.min!=null&&age<Number(r.age.min))return false;if(r.age.max!=null&&age>Number(r.age.max))return false;}
+function computeReferenceFlag(value,rangesInput,ageValue,sexValue,status,valueType='numeric') {
+ if(valueType!=='numeric'||status!=='verified_local')return null;
+ const numericValue=Number(value);if(!Number.isFinite(numericValue))return null;
+ const ranges=Array.isArray(rangesInput)?rangesInput:(rangesInput&&typeof rangesInput==='object'?[rangesInput]:[]);
+ const age=ageValue==null||ageValue===''?NaN:Number(ageValue),sex=String(sexValue||'').toLowerCase();
+ const matches=ranges.filter(range=>{
+  if(range.pregnancy)return false;
+  if(range.sex&&String(range.sex).toLowerCase()!==sex)return false;
+  if(range.age){if(!Number.isFinite(age))return false;if(range.age.min!=null&&age<Number(range.age.min))return false;if(range.age.max!=null&&age>Number(range.age.max))return false;}
   return true;
  });
  if(matches.length!==1)return null;
  const range=matches[0],low=range.lower??range.low??range.min,high=range.upper??range.high??range.max;
  if(low==null&&high==null)return null;
- if(low!=null&&value<Number(low))return 'low';
- if(high!=null&&value>Number(high))return 'high';
+ if(low!=null&&numericValue<Number(low))return 'low';
+ if(high!=null&&numericValue>Number(high))return 'high';
  return 'normal';
+}
+function classifyResultFlag(input) {
+ let ranges=[];try{ranges=JSON.parse(input.dataset.range||'[]');}catch{}
+ return computeReferenceFlag(input.value,ranges,input.dataset.patientAge,input.dataset.patientSex,input.dataset.referenceIntervalStatus,input.dataset.valueType);
 }
 
 async function saveTest(button) {
