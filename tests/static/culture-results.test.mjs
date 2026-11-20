@@ -44,6 +44,8 @@ test('CBC, urine, stool and culture profiles are present with source references 
  assert.match(formulas,/Matthews-HOMA-Paper/);
  assert.match(read('database/migrations/043_culture_completion_guard.sql'),/positive culture/);
  assert.match(read('database/migrations/044_core_profile_optional_fields.sql'),/UA_RENAL_EPITHELIAL/);
+ assert.match(read('database/migrations/046_legacy_source_name_index.sql'),/Legacy Taiba data\.js source-name index/);
+ assert.match(read('database/migrations/048_mayo_cbc_suggested_intervals.sql'),/MAYO-CBC-9109/);
 });
 
 test('catalog editor separates verified local intervals from clinical definition review',()=>{
