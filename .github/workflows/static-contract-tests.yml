@@ -2,9 +2,9 @@ name: Static contract tests
 
 on:
   pull_request:
-    branches: [main, integration/reconciled-release-2026-11-20]
+    branches: [main, integration/reconciled-release-2026-11-20, integration/unified-test-2026-11-19]
   push:
-    branches: [main, feature/reception-complete-workflow-2026-11-20, integration/reconciled-release-2026-11-20]
+    branches: [main, feature/reception-complete-workflow-2026-11-20, integration/reconciled-release-2026-11-20, integration/unified-test-2026-11-19]
 
 permissions:
   contents: read
