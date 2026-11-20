@@ -73,6 +73,6 @@ test('live expense details reconcile ledger outflows to tenant-scoped expense ca
 
 test('owner dashboard shell refresh includes the archived-branch selector update',()=>{
   const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
-  assert.match(sw,/taiba-smart-lab-shell-v11/);
+  assert.match(sw,/taiba-smart-lab-shell-v12/);
   assert.match(sw,/\.\/assets\/js\/dashboard\.js/);
 });
