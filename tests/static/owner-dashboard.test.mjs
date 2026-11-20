@@ -140,3 +140,19 @@ test('overview includes grounded operational insights and expense breakdown visu
   assert.match(script,/expenseBreakdownChart/);
   assert.match(script,/expense-bar-track/);
 });
+
+test('owner report screens support browser print-to-PDF and use standard BCG labels',()=>{
+  assert.match(script,/data-owner-print/);
+  assert.match(script,/window\.print\(\)/);
+  const history=fs.readFileSync(path.join(root,'assets/js/dashboard-history.js'),'utf8');
+  assert.match(history,/أبقار حلوب/);
+  assert.match(history,/كلاب/);
+  assert.match(fs.readFileSync(path.join(root,'assets/css/dashboard.css'),'utf8'),/@media print/);
+});
+test('monthly plan UI renders a three-month outlook from the historical engine',()=>{
+  const history=fs.readFileSync(path.join(root,'assets/js/dashboard-history.js'),'utf8');
+  const engine=fs.readFileSync(path.join(root,'modules/dashboard/historical-analysis.js'),'utf8');
+  assert.match(engine,/const outlook=\[1,2,3\]\.map\(buildMonthPlan\)/);
+  assert.match(history,/خطة الأشهر الثلاثة التالية/);
+  assert.match(history,/report\.monthlyPlan\.outlook\.flatMap/);
+});
