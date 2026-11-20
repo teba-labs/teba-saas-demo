@@ -9,12 +9,12 @@ test('culture workflow stores multiple isolates and isolate-specific AST with br
  const sql=read('database/migrations/041_culture_isolates_and_ast.sql');
  for(const table of ['visit_test_culture_isolates','visit_test_culture_susceptibility']) assert.ok(sql.includes('create table if not exists public.'+table));
  assert.match(sql,/enable row level security/);
- assert.match(sql,/private\\.can_access_branch/);
+ assert.ok(sql.includes('private.can_access_branch'));
  assert.match(sql,/breakpoint_edition/);
  assert.match(sql,/CLSI/);
  assert.match(sql,/EUCAST/);
- assert.match(read('database/migrations/042_culture_rls_policy_scope_fix.sql'),/visit_test_culture_isolates\\.tenant_id/);
- assert.match(read('database/migrations/042_culture_rls_policy_scope_fix.sql'),/visit_test_culture_susceptibility\\.tenant_id/);
+ assert.ok(read('database/migrations/042_culture_rls_policy_scope_fix.sql').includes('visit_test_culture_isolates.tenant_id'));
+ assert.ok(read('database/migrations/042_culture_rls_policy_scope_fix.sql').includes('visit_test_culture_susceptibility.tenant_id'));
 });
 
 test('culture results are editable from the workbench and printed with isolate-level AST',()=>{
@@ -23,7 +23,7 @@ test('culture results are editable from the workbench and printed with isolate-l
  assert.match(js,/saveCultureIsolate/);
  assert.match(js,/saveCultureSusceptibility/);
  assert.match(js,/culture-ast-form/);
- assert.match(js,/cultureRows\\.susceptibilities/);
+ assert.ok(js.includes('cultureRows.susceptibilities'));
  assert.match(js,/resolveReferenceRange/);
  const repo=read('modules/results/culture-repository.js');
  assert.match(repo,/onConflict:'visit_test_id,isolate_number'/);
@@ -57,6 +57,6 @@ test('catalog editor separates verified local intervals from clinical definition
  const html=read('app/catalog.html');
  assert.match(html,/parameterReferenceStatus/);
  const repo=read('modules/catalog/repository.js');
- assert.match(repo,/reference_interval_status: valid\\.referenceIntervalStatus/);
+ assert.ok(repo.includes('reference_interval_status: valid.referenceIntervalStatus'));
  assert.match(repo,/verified_local/);
 });
