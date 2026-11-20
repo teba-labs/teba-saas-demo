@@ -137,7 +137,7 @@ jobs:
           20261118231112 021_employee_actor_pending_fields
           20261118232302 022_employee_reactivation_order
           20261119160000 023_branch_archive_access
-20261120124000 024_print_settings_audit
+          20261120124000 024_print_settings_audit
           MIGRATIONS
           test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 14
 
