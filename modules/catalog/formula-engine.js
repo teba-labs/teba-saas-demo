@@ -60,10 +60,10 @@ export function parseFormulaExpression(source, parameters = [], currentCode = ''
   if (!references.length) throw new Error('المعادلة يجب أن تعتمد على بارامتر واحد على الأقل.');
   const active = new Map(parameters.filter(parameter => parameter.is_active).map(parameter => [parameter.parameter_code, parameter]));
   for (const code of references) {
+    if (code === String(currentCode).trim()) throw new Error('لا يمكن أن يعتمد البارامتر على نفسه.');
     const parameter = active.get(code);
     if (!parameter) throw new Error('البارامتر ' + code + ' غير موجود أو موقوف في نفس التحليل.');
     if (parameter.value_type !== 'numeric') throw new Error('البارامتر ' + code + ' ليس رقميًا.');
-    if (code === String(currentCode).trim()) throw new Error('لا يمكن أن يعتمد البارامتر على نفسه.');
   }
   return formula;
 }
