@@ -3,6 +3,9 @@ begin;
 -- Preserve the age exactly as entered at reception (days / months / years).
 -- age_years remains the normalized compatibility value used by reference-range logic.
 alter table public.patients
+  alter column age_years type numeric(8,4) using age_years::numeric(8,4);
+
+alter table public.patients
   add column if not exists age_value numeric(8,2),
   add column if not exists age_unit text not null default 'years';
 
