@@ -106,7 +106,8 @@ function renderSheet(){
  if(!s.preview.length){const line=el('tr'),cell=el('td','لا توجد صفوف معاينة بعد صف العناوين المقترح.');cell.colSpan=Math.max(1,s.headers.length);line.append(cell);body.append(line);}
  table.append(body);const wrap=el('div');wrap.className='tableWrap';wrap.append(table);root.append(wrap);
 }
-function historicalRecordKey(patientKey,resultDate,resultAt,testCode,resultData){const normalized=[patientKey,resultDate,resultAt||'',testCode,JSON.stringify(resultData||{})].join('|');return crypto.subtle.digest('SHA-256',new TextEncoder().encode(normalized)).then(bytes=>[...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,'0')).join(''));}
+function stableHistoricalJson(value){if(Array.isArray(value))return value.map(stableHistoricalJson);if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(key=>[key,stableHistoricalJson(value[key])]));return value;}
+function historicalRecordKey(patientKey,resultDate,resultAt,testCode,resultData){const normalized=[patientKey,resultDate,resultAt||'',testCode,JSON.stringify(stableHistoricalJson(resultData||{}))].join('|');return crypto.subtle.digest('SHA-256',new TextEncoder().encode(normalized)).then(bytes=>[...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,'0')).join(''));}
 async function prepareHistoricalSheet(sheet,button){
  if(navigator.onLine===false)throw new Error('اعتماد النتائج التاريخية يحتاج اتصالًا بالإنترنت.');
  if(!state.branchId||!state.userId||!state.file)throw new Error('اختر فرعًا وسجّل الدخول ثم افحص الملف من جديد.');
