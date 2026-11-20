@@ -6,7 +6,7 @@ const read = (name) => readFile(new URL(`../../${name}`, import.meta.url), 'utf8
 
 test('isolated rebuild checks out the exact triggering commit and a disposable local stack', async () => {
   const workflow = await read('.github/workflows/supabase-schema-rebuild-audit.yml');
-  assert.match(workflow, /ref: \\$\\{\\{ github.sha \\}\\}/);
+  assert.match(workflow, /ref: \$\{\{ github.sha \}\}/);
   assert.match(workflow, /supabase\/setup-cli@v3[\s\S]*version: 3\.2\.0/);
   assert.match(workflow, /supabase start/);
   assert.match(workflow, /supabase stop/);
