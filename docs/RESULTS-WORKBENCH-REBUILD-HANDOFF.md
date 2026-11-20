@@ -1,0 +1,165 @@
+# Results Workbench Rebuild — Handoff & Acceptance Specification
+
+**Repository:** `teba-labs/teba-saas-demo`  
+**Working branch:** `integration/unified-test-2026-11-19`  
+**Scope:** Rebuild the results workbench as a complete, operational workflow. This document is the durable source of truth for the agreed requirements. A future chat/developer must read this file and inspect the branch before asking the owner to repeat decisions.
+
+## Owner's non-negotiable product direction
+
+- Build for small, cost-conscious Egyptian independent laboratories. Do not imitate large hospital/LIS interfaces or introduce unnecessary enterprise complexity.
+- Prioritize a clear, readable, practical interface. Fonts must be legible; colors must be coordinated with the rest of Taiba Smart Lab. Do not merely recolor the old cluttered screen.
+- Preserve existing working functions and historical data. Do not claim completion based only on a visual mockup or buttons without real behavior.
+- Keep work on the development branch; protect `main` until the owner has reviewed the live preview and approved the result.
+
+## 1. Main screen layout
+
+- The results workbench has **three side-by-side work columns**:
+  1. Visits/patients.
+  2. Individual tests.
+  3. Profiles/grouped tests.
+- Above all three columns, add one horizontal action bar for the selected visit:
+  - Publish results to the patient portal.
+  - Send results through WhatsApp only when a phone number exists and the report is eligible.
+  - Hide/archive the case from the ordinary work list; allow restoration.
+  - Any destructive-looking action must be a safe logical deletion/archive, not silent permanent destruction of the medical record.
+- Selecting a visit loads its individual tests and profiles into columns 2 and 3.
+- Keep the three-column navigation available. When a result-entry workspace opens, use a focused work area/modal/panel with a clear return-to-list action; do not make users lose their selected visit.
+- Responsive behavior is required for the owner's phone and desktop. On narrow screens, columns may stack or become switchable tabs, but must remain understandable and usable.
+
+## 2. Individual tests and profiles
+
+### Individual tests
+- Show every individual test registered at reception for the selected visit.
+- One action opens **one combined result-entry/report workspace** containing all individual tests for that visit, regardless of count or parameter complexity.
+- One combined individual report/print section covers all individual tests.
+
+### Profiles / grouped tests
+- Show the profiles registered at reception.
+- Each profile opens its own separate result-entry workspace and separate report/print section.
+- Example acceptance case: 5 individual tests + 8 profiles = 1 combined individual workspace/report + 8 separate profile workspaces/reports (9 report sections total).
+
+### Add missing tests from results screen
+- Each of columns 2 and 3 has its own matching catalog: individual catalog in column 2; profile catalog in column 3.
+- Staff can add a forgotten test/profile without leaving the results workbench and returning to reception.
+- Addition attaches to the currently selected visit and is reflected in reception/visit data as an added-after-registration item, with who added it and when.
+- Prevent duplicates and handle concurrent/repeated clicks safely.
+- Preserve the original reception registration; do not rewrite history as if the item was registered at the original reception time.
+
+## 3. Result entry, reference ranges, history and audit
+
+- Staff can save drafts, complete tests, approve visits, correct results when permitted, and see clear statuses (not started / in progress / saved / completed / approved / published as supported by the existing data model).
+- Allow editing a reference range for an individual parameter directly while entering results; do not force the operator to leave the workbench and open test management.
+- Separate three levels of data:
+  1. Test catalog's current technical definition/range: applies to **new visits only**.
+  2. Visit-specific snapshot: the range/technical metadata used for that visit is frozen for that visit.
+  3. A correction made while entering or correcting a result: applies only to the selected visit and parameter/result, never to other visits or other parameters.
+- Editing catalog values later must not mutate old visit snapshots.
+- A patient may have multiple visits on different dates; each visit retains its own ranges and result values.
+- Preserve before/after values, actor, timestamp, and correction reason where applicable.
+- If a report was already issued, preserve the previously issued version and create a clearly identified corrected version; never silently overwrite the historical report.
+- Parameter-level edits must not unintentionally change sibling parameters.
+
+## 4. Report design and print settings
+
+Design and approve the report template before connecting final preview/print/publish actions. Keep the template builder modular and shared across individual tests, profiles, and culture reports.
+
+### Language and visual identity
+- Test names, parameter names, results, units, reference intervals and scientific data are in English.
+- Patient/lab/branch identity and explanatory administrative labels may be Arabic.
+- Keep the visual identity simple and appropriate for an Egyptian neighborhood laboratory: clean white paper, coordinated Taiba colors, readable Arabic/English fonts, no expensive or multinational-corporate styling.
+- Retain existing paper size/orientation/margins settings where available.
+
+### Header: three zones (right / center / left)
+- Right and left zones are configurable and can be swapped from Print Settings.
+- One side contains the lab name and the general doctor/name shared across branches.
+- The other side contains the corresponding configurable identity/text content.
+- The center logo is stable in the center; allow selecting the general lab logo or the current branch logo from settings.
+- Do not hardcode a single ordering; owner chooses which content appears right and left.
+
+### Footer: three zones (right / center / left)
+- Right zone: all branch addresses, each branch on its own line; support multiple branches (including five or more) without clipping.
+- Left zone: selected phone numbers, WhatsApp contact(s), essential patient links, support link, and website link.
+- Center zone is optional/configurable: QR code to the lab website is the preferred use; may instead contain a short message or be hidden/empty. Avoid redundant QR codes if one already appears elsewhere.
+- If website/QR/contact data is absent, omit it cleanly; no empty placeholders.
+
+### Branch identification
+- Clearly print which branch performed the visit/tests. Pull the branch from the selected visit, not a default branch setting.
+- Place a compact line in an appropriate report area (header or footer), e.g. Arabic equivalent of “Tests performed at: [branch name]”.
+
+### Watermark
+- Reserve and implement watermark support even though the current print settings may not yet expose it.
+- Configurable choice: lab logo or lab name; opacity, size, and position should be adjustable.
+- Watermark must remain subtle and behind report content, preserving readability.
+
+### Footer and signatures
+- Keep signature/stamp/reviewer area configurable and proportionate; do not waste paper with oversized empty sections.
+- Support existing signature assets and lab/branch identity settings.
+
+### Report grouping
+- All individual tests: one combined report section/page flow.
+- Each profile: its own separate report section.
+- Culture reports retain culture-specific details, isolates, antimicrobial susceptibility, methods/standards, and notes.
+- Do not lose any existing historical result selection behavior unless explicitly redesigned and preserved.
+
+## 5. Visit preview, print, portal and WhatsApp
+
+- Add a **Preview Visit Results** action before printing or publishing.
+- Preview shows all report sections in order: combined individual report, then each profile separately, and culture sections as appropriate.
+- Clearly identify incomplete/unapproved sections. Block final publishing of incomplete/unapproved results; do not silently publish partial work.
+- Allow navigation between report pages/sections and review patient name, visit number/date, branch, ranges, units, flags, signature, watermark, header/footer.
+- Print the reviewed output using the approved report builder.
+- Portal publishing uses the existing report version/publishing workflow where possible; do not treat choosing/uploading an unrelated PDF as a substitute for the report preview/build process.
+- WhatsApp action is available only when a valid phone number exists and only sends the eligible approved report/link. Use existing integration if present; if not, clearly document the integration dependency rather than showing a fake success button.
+- Preserve every published version and correction history.
+
+## 6. Case hide/archive and safe deletion
+
+- Provide hide/archive from the normal work list, with restore.
+- If a logical-delete option is implemented, require confirmation and reason where appropriate, retain records/results/audit trail, and enforce permissions.
+- No permanent hard delete of patient history/results through an ordinary workbench button.
+
+## 7. Existing capabilities to preserve and integrate
+
+Inspect and retain working behavior for:
+- Login, tenant/branch/staff selection and branch isolation.
+- Paginated work list and refresh.
+- Draft result saving, calculated parameters, test completion and visit approval.
+- Published report versions and corrected results.
+- Attachments and secure download links.
+- Culture isolates and antimicrobial susceptibility records.
+- Historical-result lookup (must remain clearly separate from current operational results).
+- Lab branding assets, signatures, and print configuration.
+- Existing keyboard navigation and responsive styles.
+
+## 8. Required engineering and acceptance checks
+
+Do not call the work complete until all applicable checks pass:
+- Existing automated tests and build/static checks.
+- Tests for individual combined entry/report and separate profile workspaces.
+- Add-from-results behavior reflected in the correct visit/reception records, with audit trail and duplicate prevention.
+- Catalog range changes affect new visits only; visit-specific range edits affect only that visit/parameter.
+- Historical report version remains retrievable after correction.
+- Preview accurately matches printed/published output.
+- Publishing blocks incomplete/unapproved sections.
+- WhatsApp action is genuinely integrated or clearly unavailable (never fake success).
+- Hide/restore and logical-delete permission/audit behavior.
+- Tenant/branch RLS and employee scoping remain intact.
+- No regression in cultures, isolates, susceptibility, attachments, historical lookup, branding, or print settings.
+- Verify mobile layout and readable font sizes.
+- Run the repository CI workflow and record exact results.
+
+## 9. Delivery and handoff rules
+
+- Work on `integration/unified-test-2026-11-19` (or a clearly named feature branch based on it); do not push unreviewed work to `main`.
+- Create/retain a backup reference before major changes.
+- Update this document with implementation status, changed files, commits, tests, known limitations, and the exact live preview URL.
+- Do not ask the owner to repeat any decision recorded here. Ask only if a genuinely new product decision is required.
+- Owner's final acceptance happens through live preview. After acceptance, only live-preview observations/bug fixes should remain; do not reopen settled design decisions.
+
+## 10. Current baseline inspected
+
+At the time this handoff was written:
+- `app/results-workbench.html` contains login/workspace shell, tenant/branch/staff selectors, one work-list container, historical lookup and pager.
+- `assets/css/results-workbench.css` contains a compact single-column work-card/parameter UI and responsive rules.
+- `assets/js/results-workbench.js` contains current work-list grouping and result controls, draft saving, completion/approval, PDF upload-based report publishing, historical lookup, attachments, and culture isolate/susceptibility handling. The current print function builds HTML inside JavaScript rather than using a separate report template file.
+- The agreed three-column experience, combined individual workspace, separate profile workspaces, report preview builder, configurable three-zone header/footer, watermark settings, and safe hide/archive flow must be implemented and tested rather than assumed to exist.
