@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 const root=new URL('../../',import.meta.url);
 const module=await readFile(new URL('modules/ui/keyboard-navigation.js',root),'utf8');
+const sw=await readFile(new URL('service-worker.js',root),'utf8');
 const pages=['catalog','cms-editor','dashboard','data-import','index','platform-admin','reception','results-workbench','settings','sync-center','workday'];
 
 test('shared keyboard navigation is loaded on every application screen',async()=>{
@@ -16,4 +17,6 @@ test('shared keyboard navigation is loaded on every application screen',async()=
   assert.match(module,/Home/);
   assert.match(module,/End/);
   assert.match(module,/data-keyboard-native/);
+  assert.match(sw,/modules\\/ui\\/keyboard-navigation\\.js/);
+  assert.match(sw,/taiba-smart-lab-shell-v24/);
 });
