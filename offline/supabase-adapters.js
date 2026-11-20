@@ -16,17 +16,20 @@ export function createSupabaseSyncHandlers() {
         id: p.id, tenant_id: operation.tenant_id, branch_id: operation.branch_id,
         patient_number: p.patient_number ?? null, full_name: p.full_name,
         phone: p.phone ?? null, age_years: p.age_years ?? null,
+        age_value: p.age_value ?? null, age_unit: p.age_unit ?? 'years',
         sex: p.sex ?? 'unknown', created_by_staff_id: p.created_by_staff_id ?? null,
       }, { onConflict: 'id', ignoreDuplicates: true }).select('id,tenant_id,branch_id').maybeSingle();
       if (error) throw error;
       if (data && data.tenant_id === operation.tenant_id && data.branch_id === operation.branch_id) return { acknowledged: true, resultId: data.id };
-      const existing = await db().from('patients').select('id,tenant_id,branch_id,full_name,patient_number,phone,age_years,sex,created_by_staff_id').eq('id', p.id).maybeSingle();
+      const existing = await db().from('patients').select('id,tenant_id,branch_id,full_name,patient_number,phone,age_years,age_value,age_unit,sex,created_by_staff_id').eq('id', p.id).maybeSingle();
       if (existing.error) throw existing.error;
       if (!existing.data || existing.data.tenant_id !== operation.tenant_id || existing.data.branch_id !== operation.branch_id
           || existing.data.full_name !== p.full_name
           || (existing.data.patient_number ?? null) !== (p.patient_number ?? null)
           || (existing.data.phone ?? null) !== (p.phone ?? null)
           || (existing.data.age_years ?? null) !== (p.age_years ?? null)
+          || (existing.data.age_value ?? null) !== (p.age_value ?? null)
+          || (existing.data.age_unit ?? 'years') !== (p.age_unit ?? 'years')
           || (existing.data.sex ?? 'unknown') !== (p.sex ?? 'unknown')
           || (existing.data.created_by_staff_id ?? null) !== (p.created_by_staff_id ?? null)) {
         return {
