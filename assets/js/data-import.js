@@ -100,7 +100,7 @@ async function prepareHistoricalSheet(sheet,button){
  const patientCol=mapping.filter(x=>x.fieldKey==='patient_name'),dateCol=mapping.filter(x=>x.fieldKey==='result_date');
  if(patientCol.length!==1||dateCol.length!==1)throw new Error('اربط اسم المريض وتاريخ النتيجة مرة واحدة لكل ورقة.');
  const analysis=analyzeArchiveSheet(sheet.rawRows,sheet.headerRowIndex,'historical_results',mapping);
- const prepared=[],rejected=[];
+ const prepared=[],rejected=[],seenContent=new Set();
  for(const row of analysis.records){
   const date=inspectLegacyDate(row.result_date),patientName=String(row.patient_name||'').trim();
   const testName=String(row.test_name||sheet.name||'').trim(),parameters=row.parameter_columns||{};
@@ -112,6 +112,7 @@ async function prepareHistoricalSheet(sheet,button){
   const originalCells=sheet.rawRows[row._rowNumber-1]||[],originalRow={};
   sheet.headers.forEach((header,index)=>{if(String(originalCells[index]??'').trim()!=='')originalRow[String(header||('Column '+(index+1)))]=String(originalCells[index]);});
   const resultData={format:'legacy-historical-v1',value:row.result_value||null,parameters,unit:row.unit||null,reference_range:row.reference_range||null,raw_original:row.results_data||null,raw_result_at:row.result_at||null,raw_age:row.age||null,raw_age_unit:row.age_type||null};
+  const duplicateSignature=JSON.stringify([patientName,date.isoDate,testCode,resultData]);if(seenContent.has(duplicateSignature)){rejected.push({row:row._rowNumber,reason:'صف مكرر بنفس المريض والتاريخ والتحليل والنتيجة'});continue;}seenContent.add(duplicateSignature);
   const sourceRecordKey=await historicalRecordKey(state.result.sha256,sheet.name,row._rowNumber,testCode);
   let resultAt=null;if(row.result_at){const candidate=new Date(row.result_at);if(!Number.isNaN(candidate.getTime()))resultAt=candidate.toISOString();}
   prepared.push({patient_name_snapshot:patientName,test_code:testCode,test_name_snapshot:testName,result_date:date.isoDate,result_at:resultAt,result_data:resultData,patient_age_raw:row.age||null,patient_age_unit:row.age_type||null,source_sheet_name:sheet.name,source_row_number:row._rowNumber,source_record_key:sourceRecordKey,original_row:originalRow});
