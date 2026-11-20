@@ -339,9 +339,10 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
   const branchPhones = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + escapeHtml(row.phone) + '</div>');
   const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(digits) + '</a>' : escapeHtml(value); };
+  const whatsappLink = value => { let digits=String(value||'').replace(/\\D/g,'').replace(/^00/,''); if(digits.startsWith('0'))digits='20'+digits.slice(1); if(/^20\\d{9,11}$/.test(digits))return '<a href="https://wa.me/'+digits+'" target="_blank" rel="noopener">'+escapeHtml(value)+'</a>'; return escapeHtml(value); };
   const branchPhoneLinks = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + phoneLink(row.phone) + '</div>');
   const footerContacts = (branchPhoneLinks.length ? branchPhoneLinks.join('') : (phoneContact ? '<div>هاتف: ' + phoneLink(phoneContact) + '</div>' : '')) +
-    (whatsappContact ? '<div>واتساب: ' + phoneLink(whatsappContact) + '</div>' : '') +
+    (whatsappContact ? '<div>واتساب: ' + whatsappLink(whatsappContact) + '</div>' : '') +
     (websiteUrl ? '<div>الموقع: <a href="' + escapeHtml(websiteUrl) + '" target="_blank" rel="noopener">' + escapeHtml(websiteUrl) + '</a></div>' : '') +
     (supportUrl ? '<div>الدعم / بوابة المريض: <a href="' + escapeHtml(supportUrl) + '" target="_blank" rel="noopener">' + escapeHtml(supportUrl) + '</a></div>' : '');
   const footerAddresses = branchAddressList.map(row => '<div><strong>' + escapeHtml(row.name) + ':</strong> ' + escapeHtml(row.address) + '</div>').join('');
