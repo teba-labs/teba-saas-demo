@@ -219,6 +219,15 @@ async function printVisitReport(visitId, win) {
   const patient = visit.patients || {};
   const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
   if (!rows.length) throw new Error('لا توجد نتائج محفوظة لهذه الزيارة حتى الآن.');
+  const selectedHistoricalIds=state.historicalSelections.get(visitId)||new Set();
+  let selectedHistoricalRows=[];
+  if(selectedHistoricalIds.size){
+    const [linked,unlinked]=await Promise.all([
+      patient.id?listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,patientId:patient.id,limit:200}):Promise.resolve([]),
+      listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,search:patient.full_name||'',limit:200})
+    ]);
+    selectedHistoricalRows=[...new Map([...linked,...unlinked.filter(row=>!row.patient_id)].map(row=>[row.id,row])).values()].filter(row=>selectedHistoricalIds.has(row.id));
+  }
 
   const brand = globalThis.__taibaTenantBrand || {};
   const lab = brand.settings || {};
@@ -260,15 +269,20 @@ async function printVisitReport(visitId, win) {
     }).filter(Boolean).join('');
     return '<section class="test"><h2>' + escapeHtml(item.test_name_snapshot || 'تحليل') + '</h2><table><thead><tr><th>الفحص</th><th>النتيجة</th><th>الوحدة</th><th>القيمة المرجعية</th><th>ملاحظة</th></tr></thead><tbody>' + (lines || '<tr><td colspan="5">لا توجد نتائج لهذا التحليل</td></tr>') + '</tbody></table></section>';
   }).join('');
+  const historicalSections=selectedHistoricalRows.map(row=>{
+    const payload=row.result_data||{},parameters=payload.parameters&&typeof payload.parameters==='object'?Object.entries(payload.parameters):[];
+    const resultLines=parameters.length?parameters.map(([name,value])=>'<tr><td>'+escapeHtml(name)+'</td><td>'+escapeHtml(value)+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>').join(''):'<tr><td>'+escapeHtml(row.test_name_snapshot)+'</td><td>'+escapeHtml(payload.value??payload.raw_original??JSON.stringify(payload))+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>';
+    return '<section class="test historical-test"><h2>نتيجة تاريخية — '+escapeHtml(row.test_name_snapshot)+' · '+escapeHtml(row.result_date)+'</h2><table><thead><tr><th>الفحص / البارامتر</th><th>النتيجة القديمة</th><th>الوحدة وقتها</th><th>المدى المرجعي وقتها</th></tr></thead><tbody>'+resultLines+'</tbody></table><small>مصدر تاريخي: '+escapeHtml(row.source_file_name||'')+' · '+escapeHtml(row.source_sheet_name||'')+' · صف '+escapeHtml(row.source_row_number||'—')+'</small></section>';
+  }).join('');
   const contact = [branchName ? 'الفرع: ' + branchName : '', phone, address].filter(Boolean).join(' · ');
   const html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' +
     '@page{size:' + paper + ' ' + orientation + ';margin:' + margin + 'mm}' +
-    'body{font-family:Arial,Tahoma,sans-serif;color:#182b36;font-size:12px;line-height:1.6}header{text-align:center;border-bottom:2px solid #244b5d;padding-bottom:12px;margin-bottom:16px}header img{max-width:140px;max-height:70px;object-fit:contain}h1{font-size:20px;margin:6px 0}h2{font-size:15px;margin:14px 0 6px}.meta{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px}.meta span{padding:5px 8px;background:#f1f5f7;border-radius:5px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid #cbd5dc;padding:6px;text-align:right}th{background:#edf2f5}.test{break-inside:avoid}footer{border-top:1px solid #cbd5dc;margin-top:24px;padding-top:10px;text-align:center}.signature{max-width:140px;max-height:70px;object-fit:contain}@media print{button{display:none}}' +
+    'body{font-family:Arial,Tahoma,sans-serif;color:#182b36;font-size:12px;line-height:1.6}header{text-align:center;border-bottom:2px solid #244b5d;padding-bottom:12px;margin-bottom:16px}header img{max-width:140px;max-height:70px;object-fit:contain}h1{font-size:20px;margin:6px 0}h2{font-size:15px;margin:14px 0 6px}.meta{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px}.meta span{padding:5px 8px;background:#f1f5f7;border-radius:5px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid #cbd5dc;padding:6px;text-align:right}th{background:#edf2f5}.test{break-inside:avoid}.historical-test{border:2px dashed #8a6d3b;padding:8px;margin-top:18px}.historical-test h2{color:#765a27}footer{border-top:1px solid #cbd5dc;margin-top:24px;padding-top:10px;text-align:center}.signature{max-width:140px;max-height:70px;object-fit:contain}@media print{button{display:none}}' +
     '</style></head><body><header>' + (logo ? '<img src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '') +
     '<h1>' + escapeHtml(labName) + '</h1><strong>' + escapeHtml(title) + '</strong>' +
     (doctor ? '<p>' + escapeHtml(doctor) + '</p>' : '') + (contact ? '<p>' + escapeHtml(contact) + '</p>' : '') +
     '</header><div class="meta"><span>المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>التاريخ: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div>' +
-    testSections + (signature ? '<p style="text-align:left"><img class="signature" src="' + escapeHtml(signature) + '" alt="التوقيع"></p>' : '') +
+    testSections + historicalSections + (signature ? '<p style="text-align:left"><img class="signature" src="' + escapeHtml(signature) + '" alt="التوقيع"></p>' : '') +
     (footer ? '<footer>' + escapeHtml(footer) + '</footer>' : '') + '</body></html>';
   win.document.open(); win.document.write(html); win.document.close();
   const printWhenReady = () => { try { win.focus(); win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
