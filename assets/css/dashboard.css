@@ -30,3 +30,7 @@
 .historical-report-card h4{margin-top:10px}
 @media(max-width:850px){.owner-report-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.owner-report-grid{grid-template-columns:1fr}.owner-report-card{min-height:120px}.owner-screen-head{align-items:flex-start}.security-status-grid{grid-template-columns:1fr}}
+
+.history-period-global{border-inline-start:4px solid #568493;margin-top:14px}
+.history-period-global h3{margin:0 0 5px;font-size:15px}
+.history-period-global label{max-width:260px}
