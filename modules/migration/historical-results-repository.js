@@ -44,31 +44,35 @@ export async function importHistoricalResults({
   if (records.length > 50000) throw new Error('الملف يتجاوز 50 ألف نتيجة في الدفعة الواحدة؛ قسّمه إلى ملفات أصغر.');
   const client = db();
   const { data: existing, error: lookupError } = await client.from('historical_import_batches')
-    .select('id,status,rows_inserted,rows_total,created_at')
+    .select('id,status,rows_inserted,rows_total,storage_path,created_at')
     .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('source_file_sha256', fileSha256).eq('source_sheet_name', sheetName).maybeSingle();
   if (lookupError) throw lookupError;
-  if (existing) throw new Error('هذا الملف سبق استيراده لهذا الفرع. رقم الدفعة: ' + existing.id + ' — الحالة: ' + existing.status + '. لن نكرر النتائج.');
+  if (existing?.status === 'completed') throw new Error('هذا الملف وهذه الورقة سبق استيرادهما بنجاح لهذا الفرع. رقم الدفعة: ' + existing.id + '. لن نكرر النتائج.');
 
   const sheetKey = safeFileName(sheetName).replace(/\\.xlsx?$/i,'').slice(0,60) || 'sheet';
   const path = tenantId + '/' + branchId + '/historical-imports/' + fileSha256 + '-' + sheetKey + '-' + safeFileName(file.name);
-  const { error: uploadError } = await client.storage.from('tenant-backups').upload(path, file, {
-    contentType: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    cacheControl: '3600', upsert: false
-  });
-  if (uploadError) throw uploadError;
-
-  let batch;
-  try {
-    const { data, error } = await client.from('historical_import_batches').insert({
-      tenant_id: tenantId, branch_id: branchId, source_file_name: file.name, source_sheet_name: sheetName,
-      source_file_sha256: fileSha256, storage_path: path, mapping_snapshot: mappingSnapshot,
-      sheet_summary: sheetSummary, status: 'processing', rows_total: records.length, created_by: userId
-    }).select('id').single();
+  let batch=existing;
+  if (!batch) {
+    const { error: uploadError } = await client.storage.from('tenant-backups').upload(path, file, {
+      contentType: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      cacheControl: '3600', upsert: false
+    });
+    if (uploadError) throw uploadError;
+    try {
+      const { data, error } = await client.from('historical_import_batches').insert({
+        tenant_id: tenantId, branch_id: branchId, source_file_name: file.name, source_sheet_name: sheetName,
+        source_file_sha256: fileSha256, storage_path: path, mapping_snapshot: mappingSnapshot,
+        sheet_summary: sheetSummary, status: 'processing', rows_total: records.length, created_by: userId
+      }).select('id').single();
+      if (error) throw error;
+      batch = data;
+    } catch (error) {
+      await client.storage.from('tenant-backups').remove([path]);
+      throw error;
+    }
+  } else {
+    const { error } = await client.from('historical_import_batches').update({ status: 'processing', rows_total: records.length, mapping_snapshot: mappingSnapshot, sheet_summary: sheetSummary }).eq('tenant_id', tenantId).eq('id', batch.id);
     if (error) throw error;
-    batch = data;
-  } catch (error) {
-    await client.storage.from('tenant-backups').remove([path]);
-    throw error;
   }
 
   let inserted = 0, skipped = 0, failed = 0;
@@ -99,13 +103,17 @@ export async function importHistoricalResults({
     }
   }
 
-  const status = failed ? (inserted ? 'partial' : 'failed') : 'completed';
+  const { count: storedCount, error: countError } = await client.from('historical_results').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('branch_id', branchId).eq('import_batch_id', batch.id);
+  if (countError) throw countError;
+  const totalInserted = Number(storedCount || 0);
+  const status = failed ? (totalInserted ? 'partial' : 'failed') : 'completed';
+  const totalSkipped = Math.max(0, records.length - totalInserted - failed);
   const { error: updateError } = await client.from('historical_import_batches').update({
-    status, rows_inserted: inserted, rows_skipped: skipped, rows_failed: failed,
+    status, rows_inserted: totalInserted, rows_skipped: totalSkipped, rows_failed: failed,
     completed_at: new Date().toISOString()
   }).eq('tenant_id', tenantId).eq('id', batch.id);
   if (updateError) throw updateError;
-  return { batchId: batch.id, status, inserted, skipped, failed, failures, sourcePath: path };
+  return { batchId: batch.id, status, inserted: totalInserted, skipped: totalSkipped, failed, failures, sourcePath: batch.storage_path || path };
 }
 
 /** Historical results are never joined to visits or billing. */
