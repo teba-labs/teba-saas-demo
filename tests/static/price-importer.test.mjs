@@ -34,5 +34,5 @@ assert.match(migration,/uq_test_prices_current_base/);
 assert.match(migration,/uq_test_prices_current_branch/);
 assert.match(sw,/taiba-smart-lab-shell-v26/);
 assert.match(sw,/modules\/migration\/price-importer\.js/);
-assert.match(html,/أسعار البيع العامة/);
+assert.match(html,/الأسعار الجديدة/);
 console.log('PASS: base-price importer is insert-only, owner-repository scoped, branch-override-safe and cached in shell v9.');
