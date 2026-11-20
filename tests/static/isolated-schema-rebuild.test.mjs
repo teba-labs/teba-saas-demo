@@ -13,6 +13,10 @@ test('migration filenames follow the current main sequence without reusing 024',
   assert.ok(files.includes('054_source_suggested_core_intervals.sql'));
   assert.ok(files.includes('055_patient_age_units.sql'));
   assert.ok(files.includes('056_visit_workbench_archive.sql'));
+  assert.ok(files.includes('057_workbench_archive_invoker_and_indexes.sql'));
+  assert.ok(files.includes('058_atomic_add_test_to_visit.sql'));
+  assert.ok(files.includes('059_visit_parameter_range_overrides.sql'));
+  assert.ok(files.includes('060_visit_range_override_fk_indexes.sql'));
   assert.ok(!files.includes('024_patient_age_units.sql'));
 });
 
@@ -25,6 +29,29 @@ test('workbench archive is non-destructive and records actor, branch and reason'
   assert.match(migration, /auth.uid\\(\\)/);
   assert.match(migration, /revoke all on function public\\.set_visit_workbench_hidden/);
   assert.doesNotMatch(migration, /delete from public\\.visits/i);
+});
+
+test('test addition to an existing visit is atomic, idempotent, branch-scoped and uses invoker RLS',()=>{
+  const migration = read('database/migrations/058_atomic_add_test_to_visit.sql');
+  assert.match(migration, /security invoker/i);
+  assert.match(migration, /private.can_access_branch/);
+  assert.match(migration, /pg_advisory_xact_lock/);
+  assert.match(migration, /status<>'cancelled'/);
+  assert.match(migration, /created_by_staff_id/);
+  assert.match(migration, /revoke all on function public\\.add_test_to_visit_atomic/);
+});
+
+test('visit range overrides are separate from the frozen catalog snapshot and keep before/after history',()=>{
+  const migration=read('database/migrations/059_visit_parameter_range_overrides.sql');
+  assert.match(migration,/visit_test_parameter_range_overrides/);
+  assert.match(migration,/visit_test_parameter_range_events/);
+  assert.match(migration,/security invoker/);
+  assert.match(migration,/new\\.reference_range_snapshot := coalesce\\(v_override/);
+  assert.match(migration,/Approved or published visits cannot have their reference ranges changed/);
+  assert.match(migration,/old_reference_ranges/);
+  assert.match(migration,/new_reference_ranges/);
+  assert.doesNotMatch(migration,/update public\\.tests_catalog/i);
+  assert.match(read('database/migrations/060_visit_range_override_fk_indexes.sql'),/idx_visit_range_overrides_updated_by/);
 });
 
 test('patient age migration preserves the entered unit and normalized compatibility value', () => {
