@@ -35,8 +35,11 @@ Complete the master test catalog sourced from the user's historical test-name li
 - [x] Add initial protein/A:G, lipid/non-HDL, and HOMA1 calculated profiles with traceable sources.
 - [x] Add kidney, liver, thyroid, iron, and coagulation profiles; transferrin saturation is calculated from same-unit iron/TIBC.
 - [x] Index 495 legacy Taiba test names/categories as review-pending source records; no old prices were copied and none can be imported before clinical completion.
-- [x] Add Mayo adult CBC source intervals for RBC, HGB, HCT, MCV, RDW, WBC, platelets and absolute differential as clearly labelled suggestions, not locally activated ranges.
-- [ ] Normalize and seed the remaining source-name inventory and the other common clinical chemistry, endocrine, serology, coagulation, body-fluid, and microbiology profiles.
+- [x] Add Mayo adult and pediatric age/sex-specific CBC source intervals for RBC, HGB, HCT, MCV, RDW, WBC and platelets as clearly labelled suggestions, not locally activated ranges.
+- [x] Expand CBC morphology into individual graded RBC/WBC/platelet findings (ICSH terminology), and add granular urine/stool microscopy fields.
+- [x] Add tenant-local reference interval validation: verified numeric ranges require structured bounds and scientific source citations; result flags are calculated only after local verification.
+- [x] Normalize and seed the legacy source-name index and common kidney, liver, thyroid, iron, coagulation, protein, lipid and HOMA profiles.
+- [ ] Complete the remaining individual tests, serology panels, hormones, body-fluid examinations, semen analysis, specialty microbiology and method-specific reference intervals.
 - [ ] Verify end-to-end result entry, computed fields, report layout, and tenant import.
 - [ ] Run security/performance advisors and full CI.
 - [ ] Merge all approved changes into main, preserve development/backup branches, verify Pages deployment.
