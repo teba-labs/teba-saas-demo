@@ -128,7 +128,7 @@ async function prepareHistoricalSheet(sheet,button){
   const candidates=await Promise.all(group.map(name=>findHistoricalPatientCandidates({tenantId:state.tenantId,branchId:state.branchId,name,limit:8}).catch(()=>[])));
   group.forEach((name,index)=>{
    const line=el('label');line.className='historyMatch';const select=el('select');
-   const options=[{value:'',label:'بدون ربط بمريض — احتفظ بالاسم فقط'},...candidates[index].map(p=>({value:p.id,label:p.full_name+' · '+(p.age_years??'عمر غير مسجل')+' · '+new Date(p.created_at).toLocaleDateString('ar-EG')}))];
+   const options=[{value:'',label:'بدون ربط بمريض — احتفظ بالاسم فقط'},...candidates[index].map(p=>({value:p.id,label:p.full_name+' · العمر '+(p.age_years??'غير مسجل')+' · آخر زيارات: '+((p.recent_visit_dates||[]).join('، ')||'لا توجد')}))];
    select.append(...options.map(x=>{const o=el('option',x.label);o.value=x.value;return o;}));
    select.addEventListener('change',()=>{state.patientLinks[name]=select.value||null;});
    line.append(el('span',name),select);panel.append(line);
