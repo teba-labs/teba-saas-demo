@@ -26,7 +26,7 @@ with t as (
  and release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1')
 ), p as (
  select * from (values
- ('ABSTINENCE_DAYS','Abstinence duration','days','numeric',1,'Pre-analytical',10,'[]'::jsonb,true,'manual',null::jsonb,null::jsonb),
+ ('ABSTINENCE_DAYS','Abstinence duration','days','numeric',1,'Pre-analytical',10,'[]'::jsonb,true,'manual',null::jsonb,'[]'::jsonb),
  ('SEMEN_VOLUME','Semen volume','mL','numeric',2,'Macroscopic',20,'[]'::jsonb,true,'manual',null::jsonb,'[{"population":"WHO 2021 fertile reference distribution","lower":1.4,"source":"WHO 6th edition / AUA-ASRM 2024","source_url":"https://www.auanet.org/documents/Guidelines/PDF/2024%20Guidelines/Male%20Infertility%20Unabridged%20Final.pdf"}]'::jsonb),
  ('SEMEN_APPEARANCE','Appearance','', 'text',0,'Macroscopic',30,'[]'::jsonb,false,'manual',null::jsonb,'[]'::jsonb),
  ('SEMEN_LIQUEFACTION','Liquefaction time','minutes','numeric',0,'Macroscopic',40,'[]'::jsonb,false,'manual',null::jsonb,'[]'::jsonb),
@@ -41,7 +41,7 @@ with t as (
  ('SPERM_VITALITY','Vitality (live spermatozoa)','%','numeric',1,'Vitality',300,'[]'::jsonb,false,'manual',null::jsonb,'[{"population":"WHO 2021 fertile reference distribution","lower":54,"source":"WHO 6th edition / AUA-ASRM 2024"}]'::jsonb),
  ('NORMAL_MORPHOLOGY','Normal forms (strict morphology)','%','numeric',1,'Morphology',310,'[]'::jsonb,false,'manual',null::jsonb,'[{"population":"WHO 2021 fertile reference distribution","lower":4,"source":"WHO 6th edition / AUA-ASRM 2024"}]'::jsonb),
  ('ROUND_CELLS','Round cells','million/mL','numeric',2,'Additional findings',400,'[]'::jsonb,false,'manual',null::jsonb,'[]'::jsonb),
- ('PER0XIDASE_LEUKOCYTES','Peroxidase-positive leukocytes','million/mL','numeric',2,'Additional findings',410,'[]'::jsonb,false,'manual',null::jsonb,'[]'::jsonb),
+ ('PEROXIDASE_LEUKOCYTES','Peroxidase-positive leukocytes','million/mL','numeric',2,'Additional findings',410,'[]'::jsonb,false,'manual',null::jsonb,'[]'::jsonb),
  ('SPERM_AGGLUTINATION','Agglutination','', 'choice',0,'Additional findings',420,'["Not seen","Seen"]'::jsonb,false,'manual',null::jsonb,'[]'::jsonb),
  ('SEMEN_MORPHOLOGY_COMMENT','Morphology / microscopy comment','', 'text',0,'Additional findings',430,'[]'::jsonb,false,'manual',null::jsonb,'[]'::jsonb),
  ('SEMEN_REPORT_COMMENT','Final report comment','', 'text',0,'Additional findings',440,'[]'::jsonb,false,'manual',null::jsonb,'[]'::jsonb)
