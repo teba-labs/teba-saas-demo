@@ -132,3 +132,10 @@ test('historical period selector remains available on archive report screens and
   assert.match(script,/historyPeriod\.hidden=!historicalScreens\.includes\(id\)/);
   assert.match(script,/\$\('historyPeriodPanel'\)\.hidden=true/);
 });
+
+test('overview includes grounded operational insights and expense breakdown visualization',()=>{
+  assert.match(script,/ownerOverviewInsights/);
+  assert.match(script,/توجد مديونيات قائمة بقيمة/);
+  assert.match(script,/expenseBreakdownChart/);
+  assert.match(script,/expense-bar-track/);
+});
