@@ -176,3 +176,8 @@ test('live dashboard counts pending, in-progress, completed tests and published 
   assert.match(script,/liveTodayPendingTests/);
   assert.match(script,/liveTodayPublishedVisits/);
 });
+
+test('live status module is included in the offline application shell',()=>{
+  const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
+  assert.match(sw,/modules\/dashboard\/live-status\.js/);
+});
