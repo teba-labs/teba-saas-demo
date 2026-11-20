@@ -77,15 +77,25 @@ from public.master_catalog_releases r cross join (values
 ) as v(code,name,aliases,kind,category,service_type,definition)
 where r.version='taiba-core-2026.11.20-r1' on conflict(release_id,master_code) do nothing;
 
-insert into public.master_catalog_parameters(master_test_id,parameter_code,parameter_name,value_type,unit,decimal_places,reference_ranges,choices,display_order,is_required,result_source,formula,clinical_metadata,source_references,clinical_review_status,reference_interval_status)
-select t.id,'CULTURE_GROWTH','Culture growth status','choice',10,'["No growth","Growth","Mixed growth / possible contamination","Pending","Not performed"]'::jsonb,true from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='panel'
-union all
-select t.id,'CULTURE_SPECIMEN_QUALITY','Specimen quality','choice',20,'["Acceptable","Suboptimal - interpret with caution","Rejected"]'::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='panel'
-union all
-select t.id,'CULTURE_IDENTIFICATION','Organism identification summary','text',30,'[]'::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='panel'
-union all
-select t.id,'CULTURE_GRAM_STAIN','Direct microscopy / Gram stain','text',40,'[]'::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='panel'
-union all
-select t.id,'CULTURE_AST_COMMENT','Antimicrobial susceptibility comment','text',50,'[]'::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='panel'
-union all
-select t.id,'CULTURE_REPORT_COMMENT','Final culture report comment','text',60,'[]'::jsonb,true from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and left(t.master_code,8)='CULTURE_';
+with culture_tests as (
+ select id from public.master_catalog_tests
+ where release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1')
+  and left(master_code,8)='CULTURE_'
+), params(parameter_code,parameter_name,value_type,display_order,choices,is_required) as (
+ values
+ ('CULTURE_GROWTH','Culture growth status','choice',10,'["No growth","Growth","Mixed growth / possible contamination","Pending","Not performed"]'::jsonb,true),
+ ('CULTURE_SPECIMEN_QUALITY','Specimen quality','choice',20,'["Acceptable","Suboptimal - interpret with caution","Rejected"]'::jsonb,false),
+ ('CULTURE_IDENTIFICATION','Organism identification summary','text',30,'[]'::jsonb,false),
+ ('CULTURE_GRAM_STAIN','Direct microscopy / Gram stain','text',40,'[]'::jsonb,false),
+ ('CULTURE_AST_COMMENT','Antimicrobial susceptibility comment','text',50,'[]'::jsonb,false),
+ ('CULTURE_REPORT_COMMENT','Final culture report comment','text',60,'[]'::jsonb,true)
+)
+insert into public.master_catalog_parameters(
+ master_test_id,parameter_code,parameter_name,value_type,unit,decimal_places,reference_ranges,choices,
+ display_order,is_required,result_source,formula,clinical_metadata,source_references,clinical_review_status,reference_interval_status
+)
+select t.id,p.parameter_code,p.parameter_name,p.value_type,null,0,'[]'::jsonb,p.choices,
+ p.display_order,p.is_required,'manual',null,jsonb_build_object('section','Culture result','group','Culture result'),
+ jsonb_build_array(jsonb_build_object('id','IDSA-ASM-2024','title','Guide to Utilization of the Microbiology Laboratory for Diagnosis of Infectious Diseases: 2024 Update','doi','10.1093/cid/ciae104','url','https://academic.oup.com/cid/advance-article/doi/10.1093/cid/ciae104/7619499')),
+ 'verified','not_applicable'
+from culture_tests t cross join params p;
