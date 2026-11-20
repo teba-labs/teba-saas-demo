@@ -49,7 +49,7 @@ export async function importHistoricalResults({
   if (lookupError) throw lookupError;
   if (existing?.status === 'completed') throw new Error('هذا الملف وهذه الورقة سبق استيرادهما بنجاح لهذا الفرع. رقم الدفعة: ' + existing.id + '. لن نكرر النتائج.');
 
-  const sheetKey = safeFileName(sheetName).replace(/\\.xlsx?$/i,'').slice(0,60) || 'sheet';
+  const sheetKey = safeFileName(sheetName).replace(/\.xlsx?$/i,'').slice(0,60) || 'sheet';
   const path = tenantId + '/' + branchId + '/historical-imports/' + fileSha256 + '-' + sheetKey + '-' + safeFileName(file.name);
   let batch=existing;
   if (!batch) {
