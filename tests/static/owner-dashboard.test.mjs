@@ -156,3 +156,10 @@ test('monthly plan UI renders a three-month outlook from the historical engine',
   assert.match(history,/خطة الأشهر الثلاثة التالية/);
   assert.match(history,/report\.monthlyPlan\.outlook\.flatMap/);
 });
+
+test('owner daily movement ledger resolves expense category names through tenant-scoped source ids',()=>{
+  const repository=fs.readFileSync(path.join(root,'dashboard/repository.js'),'utf8');
+  assert.match(repository,/categoryNameByExpenseId/);
+  assert.match(repository,/ledgerWithCategories/);
+  assert.match(script,/row\.category_name\|\|row\.description/);
+});
