@@ -110,7 +110,7 @@ async function renderWork() {
         const type = p.value_type ?? 'numeric';
         const code = escapeHtml(p.code);
         const name = escapeHtml(p.name ?? p.parameter_name ?? p.code);
-        const metadata = `data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit ?? '')}" data-value-type="${escapeHtml(type)}" data-range='${escapeHtml(JSON.stringify(p.reference_ranges ?? {}))}' data-choices='${escapeHtml(JSON.stringify(p.choices ?? []))}'`;
+        const metadata = `data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit ?? '')}" data-value-type="${escapeHtml(type)}" data-range='${escapeHtml(JSON.stringify(p.reference_ranges ?? {}))}' data-choices='${escapeHtml(JSON.stringify(p.choices ?? []))}' data-reference-interval-status='${escapeHtml(p.reference_interval_status ?? 'local_verification_required')}' data-patient-age='${escapeHtml(item.visits?.patients?.age_years ?? '')}' data-patient-sex='${escapeHtml(item.visits?.patients?.sex ?? '')}' data-critical-range='${escapeHtml(JSON.stringify(p.critical_ranges ?? []))}'`;
         let control;
         if (p.result_source === 'calculated') {
           control = `<input type="number" step="any" ${metadata} data-result-source="calculated" disabled placeholder="تُحسب تلقائيًا بعد إدخال المدخلات" />`;
@@ -358,6 +358,26 @@ function bindCultureForms(host) {
  }));
 }
 
+
+function classifyResultFlag(input) {
+ if(input.dataset.valueType!=='numeric'||input.dataset.referenceIntervalStatus!=='verified_local')return null;
+ const value=Number(input.value);if(!Number.isFinite(value))return null;
+ const ranges=JSON.parse(input.dataset.range||'[]');const age=Number(input.dataset.patientAge);const sex=String(input.dataset.patientSex||'').toLowerCase();
+ const rows=Array.isArray(ranges)?ranges:(ranges&&typeof ranges==='object'?[ranges]:[]);
+ const matches=rows.filter(r=>{
+  if(r.pregnancy)return false;
+  if(r.sex&&String(r.sex).toLowerCase()!==sex)return false;
+  if(r.age){if(!Number.isFinite(age))return false;if(r.age.min!=null&&age<Number(r.age.min))return false;if(r.age.max!=null&&age>Number(r.age.max))return false;}
+  return true;
+ });
+ if(matches.length!==1)return null;
+ const range=matches[0],low=range.lower??range.low??range.min,high=range.upper??range.high??range.max;
+ if(low==null&&high==null)return null;
+ if(low!=null&&value<Number(low))return 'low';
+ if(high!=null&&value>Number(high))return 'high';
+ return 'normal';
+}
+
 async function saveTest(button) {
   try {
     setBusy(button, true, 'جارٍ الحفظ…');
@@ -368,7 +388,7 @@ async function saveTest(button) {
       parameter: { code: input.dataset.paramCode, name: input.dataset.paramName, unit: input.dataset.unit,
         valueType: input.dataset.valueType, referenceRange: JSON.parse(input.dataset.range || '{}'),
         choices: JSON.parse(input.dataset.choices || '[]') },
-      value: input.value,
+      value: input.value, flag: classifyResultFlag(input),
     }));
     if (!results.length) throw new Error('أدخل نتيجة واحدة على الأقل قبل الحفظ.');
     const savedRows = await saveDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id,
