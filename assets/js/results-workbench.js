@@ -7,6 +7,7 @@ import { listResultsForVisitTests, saveDraftResults, completeVisitTest, approveV
 import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
+import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
 
 const $ = (id) => document.getElementById(id);
 const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0 };
@@ -348,6 +349,27 @@ async function publish(button) {
   finally { setBusy(button, false); }
 }
 
+async function searchHistorical(){
+ const term=$('historicalSearch').value.trim(),host=$('historicalResultsList');
+ if(term.length<2){host.textContent='اكتب حرفين على الأقل من اسم المريض.';return;}
+ host.textContent='جارٍ البحث في النتائج التاريخية…';
+ try{
+  const rows=await listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,search:term,limit:200});
+  host.replaceChildren();
+  if(!rows.length){host.textContent='لا توجد نتائج تاريخية مطابقة في هذا الفرع.';return;}
+  for(const row of rows){
+   const card=document.createElement('article');card.className='historical-result-card';
+   const heading=document.createElement('strong');heading.textContent=row.patient_name_snapshot+' · '+row.test_name_snapshot;card.append(heading);
+   const meta=document.createElement('small');meta.textContent='نتيجة تاريخية · '+row.result_date+(row.patient_age_raw?' · العمر وقت النتيجة: '+row.patient_age_raw+' '+(row.patient_age_unit||''):'');card.append(meta);
+   const data=document.createElement('pre');data.textContent=JSON.stringify(row.result_data,null,2);card.append(data);
+   const source=document.createElement('small');source.textContent='المصدر: '+(row.source_file_name||'سجل قديم')+' · '+(row.source_sheet_name||'')+' · صف '+(row.source_row_number||'—');card.append(source);
+   host.append(card);
+  }
+ }catch(error){host.textContent=error.message||'تعذر تحميل النتائج التاريخية.';}
+}
+$('showHistoricalToggle').addEventListener('change',()=>{$('historicalLookupPanel').hidden=!$('showHistoricalToggle').checked;if(!$('showHistoricalToggle').checked)$('historicalResultsList').replaceChildren();});
+$('searchHistoricalResults').addEventListener('click',()=>searchHistorical());
+$('historicalSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchHistorical();}});
 $('loginForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const button = event.currentTarget.querySelector('button[type="submit"]');
   try { setBusy(button, true, 'جارٍ الدخول…'); await signInWithEmail($('email').value, $('password').value); await startWorkspace(); }
