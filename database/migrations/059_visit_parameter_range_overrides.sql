@@ -201,9 +201,8 @@ begin
   select v.* into v_visit from public.visits v
    where v.tenant_id=p_tenant_id and v.branch_id=p_branch_id and v.id=v_test.visit_id
    for update;
-  if not found or v_visit.status in ('approved','published','cancelled') or v_visit.is_published then
-    raise exception 'Approved or published visits cannot have their reference ranges changed';
-  end if;
+  if not found or v_visit.status='cancelled' then raise exception 'Cancelled visits cannot have their reference ranges changed'; end if;
+  if v_visit.status='approved' and not v_visit.is_published then raise exception 'An approved but unpublished visit must be reopened through the approval workflow before changing its reference ranges'; end if;
 
   select p into v_parameter from jsonb_array_elements(coalesce(v_test.technical_snapshot->'parameters','[]'::jsonb)) p
    where p->>'code'=p_parameter_code limit 1;
@@ -225,8 +224,15 @@ begin
     (tenant_id,branch_id,visit_test_id,parameter_code,old_reference_ranges,new_reference_ranges,reason,actor_user_id,actor_staff_id)
   values(p_tenant_id,p_branch_id,p_visit_test_id,p_parameter_code,v_old,p_reference_ranges,v_reason,auth.uid(),p_staff_id);
 
-  update public.test_results set updated_at=now()
-   where tenant_id=p_tenant_id and visit_test_id=p_visit_test_id and parameter_code=p_parameter_code;
+  if v_visit.is_published then
+    perform set_config('app.result_correction','on',true);
+    update public.test_results set
+      correction_reason=v_reason, entered_by=auth.uid(), entered_by_staff_id=p_staff_id, updated_at=now()
+     where tenant_id=p_tenant_id and visit_test_id=p_visit_test_id and parameter_code=p_parameter_code;
+  else
+    update public.test_results set updated_at=now()
+     where tenant_id=p_tenant_id and visit_test_id=p_visit_test_id and parameter_code=p_parameter_code;
+  end if;
   return v_result;
 end;
 $function$;
