@@ -43,7 +43,7 @@ function mountOwnerDashboardNavigation(){
  const anchor=$('status').closest('.panel');
  anchor.after(home,screens);
  home.addEventListener('click',event=>{const button=event.target.closest('[data-owner-report]');if(button)showOwnerReport(button.dataset.ownerReport);});
- screens.addEventListener('click',event=>{const exportButton=event.target.closest('[data-owner-export]');if(exportButton){exportOwnerReport(exportButton.dataset.ownerExport);return;}if(event.target.closest('[data-owner-back]')){screens.hidden=true;home.hidden=false;window.scrollTo({top:home.offsetTop-12,behavior:'smooth'});}});
+ screens.addEventListener('click',event=>{const exportButton=event.target.closest('[data-owner-export]');if(exportButton){exportOwnerReport(exportButton.dataset.ownerExport);return;}if(event.target.closest('[data-owner-back]')){screens.hidden=true;home.hidden=false;if($('historyPeriodPanel'))$('historyPeriodPanel').hidden=true;window.scrollTo({top:home.offsetTop-12,behavior:'smooth'});}});
  const content=id=>$('ownerContent-'+id);
  const move=(id,node)=>{if(node)content(id).append(node);};
  move('live',$('workspace').querySelector('.kpis'));
