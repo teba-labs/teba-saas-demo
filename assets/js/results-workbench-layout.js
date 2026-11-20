@@ -14,7 +14,7 @@ function buildShell(host,cards){
   const tests=[...card.querySelectorAll(':scope > .parameter')];
   const actions=[...card.children].filter(node=>node!==header&&!tests.includes(node));
   card.classList.add('work-source-card');
-  return {card,visitId,title:header?.querySelector('h2')?.textContent||'زيارة',status:header?.querySelector('.pill')?.textContent||'',tests,actions,phone:card.dataset.patientPhone||'',visitNumber:card.dataset.visitNumber||'',published:card.dataset.published==='true'};
+  return {card,visitId,title:header?.querySelector('h2')?.textContent||'زيارة',status:header?.querySelector('.pill')?.textContent||'',visitStatus:card.dataset.visitStatus||'open',tests,actions,phone:card.dataset.patientPhone||'',visitNumber:card.dataset.visitNumber||'',published:card.dataset.published==='true'};
  }).filter(x=>x.visitId);
  host.replaceChildren();
  const shell=document.createElement('div');shell.className='results-workbench-shell';
@@ -62,6 +62,7 @@ function selectRecord(record,records,shell){
  whatsapp.title=shareReady?'إرسال رابط بوابة المريض عبر واتساب':'يتطلب رقم هاتف صالحًا وتقريرًا منشورًا ورمز معمل';
  whatsapp.addEventListener('click',()=>{if(!shareReady)return;const portal=new URL('../portal/index.html',location.href).href;const message='نتائج تحاليلك جاهزة من معامل '+(window.taibaResultsContext?.tenantSlug||'')+'. لعرض التقرير افتح بوابة النتائج: '+portal+' ثم أدخل رمز المعمل ورقم الزيارة '+record.visitNumber+' واسم المريض كما هو مسجل.';window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent(message),'_blank','noopener');});
  actions.prepend(whatsapp);actions.prepend(hide);actions.prepend(preview);shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
+ const canAdd=record.visitStatus!=='approved'&&!record.published;shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>{b.disabled=!canAdd;b.title=canAdd?'إضافة تحليل لهذه الزيارة':'لا يمكن إضافة تحاليل بعد اعتماد الزيارة أو نشرها';});
 }
 async function loadHiddenVisits(column){
  const host=column.querySelector('.hidden-visits-list');if(!host.hidden){host.hidden=true;return;}host.hidden=false;host.textContent='جارٍ تحميل الحالات المخفية…';
