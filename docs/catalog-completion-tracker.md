@@ -22,7 +22,7 @@ Complete the master test catalog sourced from the user's historical test-name li
 - [x] Added alternate units (039).
 - [x] Added master library UI and structured clinical metadata editor.
 - [x] Added static master catalog contract tests.
-- [x] Applied migrations 035–039 to isolated Supabase TEST project `hgqwpykeazuzceeiumjg`.
+- [x] Applied migrations 035–052 to isolated Supabase TEST project `hgqwpykeazuzceeiumjg`.
 - [x] Smoke-tested owner import of a verified panel with a dependent calculated parameter inside a rollback transaction.
 - [x] Negative test confirmed unverified test definitions cannot be imported.
 - [x] Fix schema-contract literal newline defect and add JavaScript syntax check.
@@ -30,6 +30,7 @@ Complete the master test catalog sourced from the user's historical test-name li
 - [x] Add physical, chemical-strip, and microscopic sediment urinalysis sections.
 - [x] Add macroscopic and microscopic stool/parasitology fields.
 - [x] Add urine culture isolate and isolate-specific antimicrobial susceptibility workflow.
+- [x] Extend the same isolate/AST result-entry and reporting workflow to 18 additional bacterial culture profiles (blood, CSF, pus, respiratory, body fluids, genital and swab cultures).
 - [x] Add stool culture isolate and isolate-specific susceptibility workflow.
 - [ ] Normalize and classify every source name from the user's list; identify duplicates, synonyms, panels, procedures, and send-outs.
 - [x] Add initial protein/A:G, lipid/non-HDL, and HOMA1 calculated profiles with traceable sources.
