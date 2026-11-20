@@ -12,7 +12,86 @@ test('migration filenames follow the current main sequence without reusing 024',
   assert.ok(files.includes('024_print_settings_audit.sql'));
   assert.ok(files.includes('054_source_suggested_core_intervals.sql'));
   assert.ok(files.includes('055_patient_age_units.sql'));
+  assert.ok(files.includes('056_visit_workbench_archive.sql'));
+  assert.ok(files.includes('057_workbench_archive_invoker_and_indexes.sql'));
+  assert.ok(files.includes('058_atomic_add_test_to_visit.sql'));
+  assert.ok(files.includes('059_visit_parameter_range_overrides.sql'));
+  assert.ok(files.includes('060_visit_range_override_fk_indexes.sql'));
+  assert.ok(files.includes('061_allow_published_range_corrections.sql'));
+  assert.ok(files.includes('062_correct_completed_visit_result.sql'));
+  assert.ok(files.includes('063_sync_billing_for_results_test_additions.sql'));
+  assert.ok(files.includes('064_sync_visit_billing_net_total.sql'));
+  assert.ok(files.includes('065_fix_billing_generated_net_total.sql'));
+  assert.ok(files.includes('066_correct_visit_result_with_flag.sql'));
+  assert.ok(files.includes('067_clear_stale_flags_on_range_override.sql'));
+  assert.ok(files.includes('068_guard_billing_recalculation_status.sql'));
   assert.ok(!files.includes('024_patient_age_units.sql'));
+});
+
+test('workbench archive is non-destructive and records actor, branch and reason',()=>{
+  const migration = read('database/migrations/056_visit_workbench_archive.sql');
+  assert.match(migration, /workbench_hidden_at/);
+  assert.match(migration, /visit_workbench_archive_events/);
+  assert.ok(migration.includes("action in ('hidden','restored')"));
+  assert.match(migration, /private.can_access_branch/);
+  assert.ok(migration.includes('auth.uid()'));
+  assert.ok(migration.includes('revoke all on function public.set_visit_workbench_hidden'));
+  assert.doesNotMatch(migration, /delete from public.visits/i);
+});
+
+test('test addition to an existing visit is atomic, idempotent, branch-scoped and uses invoker RLS',()=>{
+  const migration = read('database/migrations/058_atomic_add_test_to_visit.sql');
+  assert.match(migration, /security invoker/i);
+  assert.match(migration, /private.can_access_branch/);
+  assert.match(migration, /pg_advisory_xact_lock/);
+  assert.match(migration, /status<>'cancelled'/);
+  assert.match(migration, /created_by_staff_id/);
+  assert.ok(migration.includes('revoke all on function public.add_test_to_visit_atomic'));
+});
+
+test('visit range overrides are separate from the frozen catalog snapshot and keep before/after history',()=>{
+  const migration=read('database/migrations/059_visit_parameter_range_overrides.sql');
+  assert.match(migration,/visit_test_parameter_range_overrides/);
+  assert.match(migration,/visit_test_parameter_range_events/);
+  assert.match(migration,/security invoker/);
+  assert.ok(migration.includes('new.reference_range_snapshot := coalesce(v_override'));
+  assert.match(migration,/An approved but unpublished visit must be reopened/);
+  assert.match(migration,/app.result_correction/);
+  assert.match(migration,/old_reference_ranges/);
+  assert.match(migration,/new_reference_ranges/);
+  assert.doesNotMatch(migration,/update public.tests_catalog/i);
+  assert.match(read('database/migrations/060_visit_range_override_fk_indexes.sql'),/idx_visit_range_overrides_updated_by/);
+});
+
+test('results-screen test additions recalculate visit billing without duplicating tests',()=>{
+  const migration=read('database/migrations/063_sync_billing_for_results_test_additions.sql');
+  assert.ok(migration.includes('private.sync_visit_billing_for_added_test'));
+  assert.ok(migration.includes('sum(vt.price_snapshot)'));
+  assert.ok(migration.includes('update public.visit_billing set gross_total=v_gross'));
+  assert.ok(!migration.includes('set gross_total=v_gross,net_total='));
+  assert.ok(migration.includes('discount_amount,created_by'));
+  assert.ok(migration.includes('pg_advisory_xact_lock'));
+  assert.ok(migration.includes('return v_existing'));
+  assert.ok(read('database/migrations/068_guard_billing_recalculation_status.sql').includes('Finalized visits cannot receive billing recalculation'));
+});
+
+test('completed unpublished result correction is audited and cannot alter an approved or published visit',()=>{
+  const migration=read('database/migrations/062_correct_completed_visit_result.sql');
+  assert.ok(migration.includes('security invoker'));
+  assert.ok(migration.includes('v_test.status'));
+  assert.ok(migration.includes('correction_reason'));
+  assert.ok(migration.includes('entered_by_staff_id'));
+  assert.ok(migration.includes('revoke all on function public.correct_completed_visit_result'));
+  assert.ok(migration.includes("v_visit.is_published"));
+});
+
+test('unified visit result correction recalculates the flag and preserves published report history',()=>{
+  const migration=read('database/migrations/066_correct_visit_result_with_flag.sql');
+  assert.ok(migration.includes('security invoker'));
+  assert.ok(migration.includes('p_flag text'));
+  assert.ok(migration.includes('flag=p_flag'));
+  assert.ok(migration.includes('app.result_correction'));
+  assert.ok(migration.includes('revoke all on function public.correct_visit_result_with_flag'));
 });
 
 test('patient age migration preserves the entered unit and normalized compatibility value', () => {

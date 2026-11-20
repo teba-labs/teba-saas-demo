@@ -24,6 +24,20 @@
 <label>اتجاه الصفحة<select id="printOrientation"><option value="portrait">رأسي</option><option value="landscape">أفقي</option></select></label><label>عنوان التقرير<input id="printTitle" maxlength="120"></label>
 <label>هامش الصفحة (مم)<input id="printMargin" type="number" min="5" max="30" value="12"></label><label class="wide">تذييل التقرير<textarea id="printFooterText" rows="2" maxlength="500"></textarea></label>
 <div class="wide"><b>العناصر الظاهرة في التقرير</b><div class="fields"><label><input id="printShowLogo" type="checkbox" checked> إظهار الشعار</label><label><input id="printShowDoctor" type="checkbox" checked> اسم الطبيب / المدير</label><label><input id="printShowBranch" type="checkbox" checked> اسم الفرع</label><label><input id="printShowPhone" type="checkbox" checked> الهاتف وواتساب</label><label><input id="printShowAddress" type="checkbox" checked> العنوان</label><label><input id="printShowSignature" type="checkbox"> إظهار التوقيع</label></div></div>
+<div class="wide print-layout-options"><b>تقسيم التقرير والعلامة المائية</b><div class="fields">
+<label>موضع بيانات المعمل والطبيب<select id="printIdentitySide"><option value="right">يمين التقرير</option><option value="left">شمال التقرير</option></select></label>
+<label>اللوجو في المنتصف<select id="printLogoSource"><option value="general">شعار المعمل العام</option><option value="branch">شعار الفرع المحدد</option></select></label>
+<label>عناوين الفروع في الفوتر<select id="printShowBranchAddresses"><option value="true">إظهار كل الفروع</option><option value="false">إخفاء</option></select></label>
+<label>التواصل في الفوتر<select id="printShowContacts"><option value="true">إظهار الهاتف وواتساب والروابط</option><option value="false">إخفاء</option></select></label>
+<label>رابط الموقع الإلكتروني<input id="printWebsiteUrl" type="url" maxlength="1000" placeholder="https://"></label>
+<label>رابط الدعم أو بوابة المريض<input id="printSupportUrl" type="url" maxlength="1000" placeholder="https://"></label>
+<label>منتصف الفوتر<select id="printFooterCenterMode"><option value="none">بدون</option><option value="qr">رمز QR للموقع</option><option value="message">عبارة قصيرة</option></select></label>
+<label>العبارة القصيرة<input id="printFooterCenterMessage" maxlength="180" placeholder="نتمنى لكم دوام الصحة والعافية"></label>
+<label>العلامة المائية<select id="printWatermarkMode"><option value="none">بدون</option><option value="logo">شعار المعمل</option><option value="name">اسم المعمل</option></select></label>
+<label>شفافية العلامة المائية<input id="printWatermarkOpacity" type="number" min="0.02" max="0.18" step="0.01" value="0.07"></label>
+<label>حجم العلامة المائية<select id="printWatermarkSize"><option value="small">صغير</option><option value="medium">متوسط</option><option value="large">كبير</option></select></label>
+<label>موضع العلامة المائية<select id="printWatermarkPosition"><option value="center">منتصف الصفحة</option><option value="diagonal">مائل</option></select></label>
+</div><small>إعدادات مستقلة لكل معمل أو فرع. بيانات الفروع والتواصل تُقرأ من سجل المعمل والفروع، ولا يلزم إدخالها يدويًا لكل تقرير.</small></div>
 <label class="wide">شعار خاص بهذا الفرع (اختياري)<input id="printLogoFile" type="file" accept="image/png,image/jpeg,image/webp"><small>إذا لم ترفع شعارًا خاصًا، سيُستخدم شعار المعمل العام</small><img id="printLogoPreview" alt="شعار الفرع" hidden style="max-width:180px;max-height:90px;object-fit:contain"></label>
 <label class="wide">صورة التوقيع<input id="printSignatureFile" type="file" accept="image/png,image/jpeg,image/webp"><small>PNG أو JPG أو WebP — حتى 5 ميجابايت</small><img id="printSignaturePreview" alt="التوقيع الحالي" hidden style="max-width:180px;max-height:90px;object-fit:contain"></label>
 <div class="wide"><b>معاينة إعدادات التقرير</b><div id="printPreview" class="print-preview"></div></div></div>

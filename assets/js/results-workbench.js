@@ -3,15 +3,18 @@ import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/ses
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/laboratory/repository.js';
-import { listResultsForVisitTests, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
-import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
+import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
+import { publishReportVersion, correctVisitResultWithFlag } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
 import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
 import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } from '../../modules/results/culture-repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map() };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set() };
+window.taibaGetResultsContext=()=>({tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug});
+window.taibaGetDirtyResultInputs=()=>[...document.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultSource!=='calculated'&&input.value.trim()!==(input.dataset.originalValue??'').trim());
+window.addEventListener('taiba:results-work-refresh',()=>refreshWork().catch(error=>showNotice(error.message||'تعذر تحديث قائمة النتائج.',true)));
 const showNotice = (message, error = false) => {
   const el = $('notice'); el.textContent = message; el.className = `notice show${error ? ' error' : ''}`;
   window.clearTimeout(showNotice.timer); showNotice.timer = window.setTimeout(() => el.className = 'notice', 5000);
@@ -64,10 +67,13 @@ async function loadBranch() {
   $('staffSelect').innerHTML = state.staff.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.display_name)}</option>`).join('');
   if (!state.staff.length) { $('workList').innerHTML = '<div class="empty">لا يوجد موظف نشط مسجل لهذا الفرع. أضف الموظفين من إعدادات المعمل أولًا.</div>'; $('contextStatus').textContent = ''; return; }
   state.workPage = 0;
+  window.dispatchEvent(new CustomEvent('taiba:results-context',{detail:{tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug}}));
   await refreshWork();
 }
 
 async function refreshWork() {
+  if(window.taibaGetDirtyResultInputs?.().length){showNotice('هناك نتائج غير محفوظة. احفظها أولًا قبل تحديث القائمة أو تغيير الفرع أو الحالة.',true);return;}
+  state.previewedVisits.clear();
   $('contextStatus').textContent = 'جارٍ تحديث قائمة العمل…';
   let result = await listBranchWorkPage({ tenantId: state.tenant.id, branchId: state.branch.id, page: state.workPage, pageSize: state.workPageSize });
   const lastPage = Math.max(0, Math.ceil(result.count / state.workPageSize) - 1);
@@ -89,6 +95,8 @@ async function refreshWork() {
 async function renderWork() {
   const host = $('workList');
   if (!state.work.length) { host.innerHTML = '<div class="empty">لا توجد تحاليل قيد العمل في هذا الفرع حاليًا.</div>'; return; }
+  const rangeOverrides = await listVisitParameterRangeOverrides({tenantId:state.tenant.id,visitTestIds:state.work.map(item=>item.id)});
+  const rangeOverridesByKey = new Map(rangeOverrides.map(row=>[row.visit_test_id+'|'+row.parameter_code,row]));
   const byVisit = new Map();
   for (const item of state.work) {
     const visit = item.visits;
@@ -98,7 +106,7 @@ async function renderWork() {
   }
   host.innerHTML = '';
   for (const [visitId, group] of byVisit) {
-    const card = document.createElement('article'); card.className = 'work-card';
+    const card = document.createElement('article'); card.className = 'work-card'; card.dataset.visitId = visitId; card.dataset.patientPhone = group.visit?.patients?.phone || ''; card.dataset.visitNumber = group.visit?.visit_number || ''; card.dataset.published = String(Boolean(group.visit?.is_published)); card.dataset.visitStatus = group.visit?.status || 'open';
     const visitTitle = `زيارة ${group.visit?.visit_number ?? '—'} · ${group.visit?.patients?.full_name ?? 'مريض'}`;
     const isPublished = Boolean(group.visit?.is_published);
     const itemsMarkup = group.items.map(item => {
@@ -110,7 +118,8 @@ async function renderWork() {
         const type = p.value_type ?? 'numeric';
         const code = escapeHtml(p.code);
         const name = escapeHtml(p.name ?? p.parameter_name ?? p.code);
-        const metadata = `data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit ?? '')}" data-value-type="${escapeHtml(type)}" data-range='${escapeHtml(JSON.stringify(p.reference_ranges ?? {}))}' data-choices='${escapeHtml(JSON.stringify(p.choices ?? []))}' data-reference-interval-status='${escapeHtml(p.reference_interval_status ?? 'local_verification_required')}' data-patient-age='${escapeHtml(item.visits?.patients?.age_years ?? '')}' data-patient-sex='${escapeHtml(item.visits?.patients?.sex ?? '')}' data-critical-range='${escapeHtml(JSON.stringify(p.critical_ranges ?? []))}'`;
+        const parameterRange = rangeOverridesByKey.get(item.id+'|'+p.code)?.reference_ranges ?? p.reference_ranges ?? {};
+        const metadata = `data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit ?? '')}" data-value-type="${escapeHtml(type)}" data-range='${escapeHtml(JSON.stringify(parameterRange))}' data-choices='${escapeHtml(JSON.stringify(p.choices ?? []))}' data-reference-interval-status='${escapeHtml(p.reference_interval_status ?? 'local_verification_required')}' data-patient-age='${escapeHtml(item.visits?.patients?.age_years ?? '')}' data-patient-sex='${escapeHtml(item.visits?.patients?.sex ?? '')}' data-critical-range='${escapeHtml(JSON.stringify(p.critical_ranges ?? []))}'`;
         let control;
         if (p.result_source === 'calculated') {
           control = `<input type="number" step="any" ${metadata} data-result-source="calculated" disabled placeholder="تُحسب تلقائيًا بعد إدخال المدخلات" />`;
@@ -123,17 +132,19 @@ async function renderWork() {
           const decimals = Math.max(0, Math.min(6, Number(p.decimal_places ?? 2)));
           control = `<input type="number" step="${decimals === 0 ? '1' : String(10 ** -decimals)}" ${metadata}${locked ? ' disabled' : ''} placeholder="أدخل النتيجة" />`;
         } else {
-          control = `<input type="text" ${metadata} placeholder="أدخل النتيجة" />`;
+          control = `<input type="text" ${metadata}${locked ? " disabled" : ""} placeholder="أدخل النتيجة" />`;
         }
-        const rangeText = resolveReferenceRange(p.reference_ranges, item.visits?.patients || {}, p.reference_interval_status);
-        return `<label>${name}${p.is_required === false ? ' (اختياري)' : ''}<small>${escapeHtml(p.unit ?? '')} ${escapeHtml(rangeText)}</small>${control}</label>`;
+        const rangeText = resolveReferenceRange(parameterRange, item.visits?.patients || {}, p.reference_interval_status);
+        const rangeEditButton = (isPublished || (group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled'))
+          ? '<button type="button" class="edit-reference-range" data-visit-test-id="' + escapeHtml(item.id) + '" data-param-code="' + code + '" data-range="' + escapeHtml(JSON.stringify(parameterRange)) + '" data-published="' + String(isPublished) + '">' + (isPublished ? 'تصحيح رينج التقرير المنشور' : 'تعديل الرينج لهذه الزيارة') + '</button>' : '';
+        return '<label>' + name + (p.is_required === false ? ' (اختياري)' : '') + '<small>' + escapeHtml(p.unit ?? '') + ' ' + escapeHtml(rangeText) + '</small>' + control + rangeEditButton + '</label>';
       }).join('')}</fieldset>`).join('');
       const isCulture = String(item.test_code_snapshot || '').startsWith('CULTURE_');
       const cultureEditor = isCulture ? `<section class="culture-workflow" data-culture-workflow="${escapeHtml(item.id)}"><h3>العزلات والاختبار الحساسي (Antibiogram)</h3><p class="muted">أضف كل عزلة منفصلة. أدخل تفسير الحساسية وفق إصدار CLSI/EUCAST والطريقة المعتمدة في المعمل؛ النظام لا يخمّن نقاط القطع.</p><div class="culture-isolates" data-culture-isolates="${escapeHtml(item.id)}"><p class="muted">جارٍ تحميل العزلات…</p></div>${!locked && !isPublished ? `<form class="culture-isolate-form" data-visit-test-id="${escapeHtml(item.id)}"><label>رقم العزلة<input name="isolateNumber" type="number" min="1" max="20" value="1" required></label><label>اسم الكائن الممرض / العزلة<input name="organismName" maxlength="200" required placeholder="مثال: Escherichia coli"></label><label>وصف النمو<input name="growthDescription" placeholder="Pure growth / mixed growth"></label><label>عدد المستعمرات<input name="colonyCount" type="number" min="0" step="any"></label><label>وحدة العد<input name="colonyCountUnit" value="CFU/mL"></label><label>طريقة التعريف<input name="identificationMethod" placeholder="Biochemical / MALDI-TOF / Automated"></label><label class="wide">ملاحظات<textarea name="notes" rows="2"></textarea></label><button class="button" type="submit">حفظ العزلة</button></form>` : ''}</section>` : '';
-      return `<section class="parameter" data-test-id="${escapeHtml(item.id)}">
+      return `<section class="parameter" data-test-id="${escapeHtml(item.id)}" data-visit-id="${escapeHtml(visitId)}" data-test-status="${escapeHtml(item.status)}" data-published="${String(isPublished)}" data-test-code="${escapeHtml(item.test_code_snapshot || '')}" data-test-kind="${escapeHtml(item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind || 'individual')}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
         <div class="parameter-grid">${parameterControls}</div>${cultureEditor}
-        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">حفظ تصحيح النتيجة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
+        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة منشورة</button>' : locked && group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled' ? '<button class="button button-secondary correct-unpublished-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة محفوظة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
       </section>`;
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
@@ -146,9 +157,10 @@ async function renderWork() {
       <p class="danger-note">التصحيح بعد النشر يحتاج سببًا موثقًا، ويجب إدخال التصحيح من مسار التصحيح المعتمد قبل رفع النسخة الجديدة.</p>`;
     host.append(card);
   }
+  host.querySelectorAll('.edit-reference-range').forEach(btn => btn.addEventListener('click', () => editReferenceRange(btn)));
   host.querySelectorAll('.save-test').forEach(btn => btn.addEventListener('click', () => saveTest(btn)));
   host.querySelectorAll('.complete-test').forEach(btn => btn.addEventListener('click', () => completeTest(btn)));
-  host.querySelectorAll('.correct-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
+  host.querySelectorAll('.correct-test, .correct-unpublished-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
   host.querySelectorAll('.publish-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
   host.querySelectorAll('.upload-attachment').forEach(btn => btn.addEventListener('click', () => uploadAttachment(btn)));
@@ -166,11 +178,7 @@ async function renderWork() {
     bindCultureForms(host);
   }
   host.querySelectorAll('.select-historical-report').forEach(btn => btn.addEventListener('click', () => loadHistoricalReportPicker(btn)));
-  host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => {
-    const win = window.open('', '_blank');
-    if (!win) { showNotice('اسمح بفتح نافذة التقرير من إعدادات المتصفح ثم أعد المحاولة.', true); return; }
-    printVisitReport(btn.dataset.visitId, win).catch(error => { win.close(); showNotice(error.message || 'تعذر تجهيز التقرير.', true); });
-  }));
+  host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => window.taibaPreviewVisitReport(btn.dataset.visitId)));
   const resultsByTest = new Map();
   for (const result of resultRows) {
     if (!resultsByTest.has(result.visit_test_id)) resultsByTest.set(result.visit_test_id, []);
@@ -186,6 +194,37 @@ async function renderWork() {
   }
 }
 
+
+async function editReferenceRange(button) {
+  if(window.taibaGetDirtyResultInputs?.().length){showNotice('احفظ النتائج التي أدخلتها قبل تعديل المدى المرجعي.',true);return;}
+  const visitTestId=button.dataset.visitTestId,parameterCode=button.dataset.paramCode;
+  const item=state.work.find(row=>row.id===visitTestId);
+  const parameter=item?.technical_snapshot?.parameters?.find(row=>row.code===parameterCode);
+  if(!item||!parameter)return;
+  let current={};try{current=JSON.parse(button.dataset.range||'{}');}catch{}
+  const currentText=formatReferenceRange(current);
+  const value=window.prompt('اكتب المدى المرجعي الجديد لهذا المريض وهذه الزيارة فقط. مثال: 0.7 - 1.3 أو Negative',currentText==='—'?'':currentText);
+  if(value===null)return;
+  const clean=value.trim();if(!clean){showNotice('لم يتم تغيير المدى المرجعي لأن القيمة فارغة.',true);return;}
+  const normalized=clean.replace(/[–—]/g,'-');
+  const numericMatch=normalized.match(/^(-?\\d+(?:\\.\\d+)?)\\s*-\\s*(-?\\d+(?:\\.\\d+)?)$/);
+  let referenceRanges;
+  if(numericMatch){
+    const lower=Number(numericMatch[1]),upper=Number(numericMatch[2]);
+    if(lower>upper){showNotice('الحد الأدنى لا يمكن أن يتجاوز الحد الأعلى.',true);return;}
+    referenceRanges=[{lower,upper}];
+  }else referenceRanges=[{text:clean}];
+  if(button.dataset.published==='true'&&!window.confirm('هذه الزيارة منشورة بالفعل. سيظل التقرير السابق محفوظًا، وسيحتاج التعديل إلى معاينة ونشر نسخة مصححة. هل تريد المتابعة؟'))return;
+  const reason=window.prompt('سبب تعديل المدى (سيُحفظ في سجل التعديلات):','تعديل محلي للمدى المرجعي أثناء تسجيل النتيجة');
+  if(reason===null)return;
+  const saveReason=reason.trim()||'تعديل محلي للمدى المرجعي أثناء تسجيل النتيجة';
+  button.disabled=true;
+  try{
+    await saveVisitParameterRangeOverride({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId,parameterCode,referenceRanges,staffId:$('staffSelect').value,reason:saveReason});
+    showNotice(button.dataset.published==='true'?'تم حفظ تصحيح المدى. التقرير المنشور السابق محفوظ، ويجب معاينة ونشر النسخة المصححة.':'تم حفظ المدى المرجعي لهذه الزيارة والبارامتر فقط. لم يتغير كتالوج التحاليل أو أي زيارة أخرى.');
+    window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));
+  }catch(error){button.disabled=false;showNotice(error.message||'تعذر حفظ المدى المرجعي.',true);}
+}
 
 function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
   const localPending = status === 'local_verification_required';
@@ -250,15 +289,15 @@ async function loadHistoricalReportPicker(button){
   }
  }catch(error){picker.textContent=error.message||'تعذر تحميل النتائج التاريخية.';}
 }
-async function printVisitReport(visitId, win) {
+async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const visitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
   if (!visitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
   const visit = visitItems[0].visits || {};
-  if (visit.status !== 'approved' && !visit.is_published) throw new Error('اعتمد الزيارة أولًا قبل طباعة التقرير.');
+  const canPrint = visit.status === 'approved' || Boolean(visit.is_published);
   const patient = visit.patients || {};
   const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
   const cultureRows = await listCultureResults({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:visitItems.filter(item=>String(item.test_code_snapshot || '').startsWith('CULTURE_')).map(item=>item.id)});
-  if (!rows.length && !cultureRows.isolates.length) throw new Error('لا توجد نتائج محفوظة لهذه الزيارة حتى الآن.');
+  // Preview may be opened before approval so incomplete work can be spotted; printing remains gated.
   const selectedHistoricalIds=state.historicalSelections.get(visitId)||new Set();
   let selectedHistoricalRows=[];
   if(selectedHistoricalIds.size){
@@ -273,7 +312,9 @@ async function printVisitReport(visitId, win) {
   const lab = brand.settings || {};
   const print = brand.printSettings || {};
   const branch = state.branch || brand.branch || {};
-  const logoPath = print.showLogo === false ? '' : (print.logoPath || lab.logo_path || '');
+  const { data: reportBranches = [] } = await getSupabaseClient().from('branches')
+    .select('id,name,address,phone').eq('tenant_id', state.tenant.id).eq('is_active', true).order('name');
+  const logoPath = print.showLogo === false ? '' : (print.logoSource === 'branch' ? (print.logoPath || lab.logo_path || '') : (lab.logo_path || print.logoPath || ''));
   const signaturePath = print.showSignature ? print.signaturePath || '' : '';
   const logo = logoPath ? getLabAssetPublicUrl(logoPath) : '';
   const signature = signaturePath ? getLabAssetPublicUrl(signaturePath) : '';
@@ -283,6 +324,33 @@ async function printVisitReport(visitId, win) {
   const phone = print.showPhone === false ? '' : (branch.phone || lab.phone || lab.whatsapp || '');
   const address = print.showAddress === false ? '' : (branch.address || lab.address || '');
   const footer = print.footerText || lab.report_footer || '';
+  const branchAddressList = print.showBranchAddresses === false ? [] : (reportBranches.length ? reportBranches : [branch]).filter(row => row.address).map(row => ({name:row.name,address:row.address}));
+  const safeHttpUrl = value => { try { const url=new URL(String(value||'')); return ['http:','https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
+  const websiteUrl = safeHttpUrl(print.websiteUrl || lab.settings_json?.website_url || '');
+  const supportUrl = safeHttpUrl(print.supportUrl || lab.settings_json?.support_url || '');
+  const phoneContact = print.showContacts === false || print.showPhone === false ? '' : (branch.phone || lab.phone || '');
+  const whatsappContact = print.showContacts === false ? '' : (lab.whatsapp || '');
+  const watermarkMode = print.watermarkMode || 'none';
+  const watermarkOpacity = Math.min(.18,Math.max(.02,Number(print.watermarkOpacity)||.07));
+  const watermarkText = watermarkMode === 'name' ? labName : '';
+  const watermarkImage = watermarkMode === 'logo' ? (logo || (lab.logo_path ? getLabAssetPublicUrl(lab.logo_path) : '')) : '';
+  const identityHtml = '<div class="identity-zone"><strong>' + escapeHtml(labName) + '</strong>' + (doctor ? '<span>' + escapeHtml(doctor) + '</span>' : '') + '</div>';
+  const headerRight = print.identitySide === 'left' ? '' : identityHtml;
+  const headerLeft = print.identitySide === 'left' ? identityHtml : '';
+  const centerLogo = logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '';
+  const qrHtml = print.footerCenterMode === 'qr' && websiteUrl ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="QR للموقع"><small>امسح لزيارة موقع المعمل</small></a>' : '';
+  const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
+  const branchPhones = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + escapeHtml(row.phone) + '</div>');
+  const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(digits) + '</a>' : escapeHtml(value); };
+  const whatsappLink = value => { let digits=String(value||'').replace(/\\D/g,'').replace(/^00/,''); if(digits.startsWith('0'))digits='20'+digits.slice(1); if(/^20\\d{9,11}$/.test(digits))return '<a href="https://wa.me/'+digits+'" target="_blank" rel="noopener">'+escapeHtml(value)+'</a>'; return escapeHtml(value); };
+  const branchPhoneLinks = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + phoneLink(row.phone) + '</div>');
+  const footerContacts = (branchPhoneLinks.length ? branchPhoneLinks.join('') : (phoneContact ? '<div>هاتف: ' + phoneLink(phoneContact) + '</div>' : '')) +
+    (whatsappContact ? '<div>واتساب: ' + whatsappLink(whatsappContact) + '</div>' : '') +
+    (websiteUrl ? '<div>الموقع: <a href="' + escapeHtml(websiteUrl) + '" target="_blank" rel="noopener">' + escapeHtml(websiteUrl) + '</a></div>' : '') +
+    (supportUrl ? '<div>الدعم / بوابة المريض: <a href="' + escapeHtml(supportUrl) + '" target="_blank" rel="noopener">' + escapeHtml(supportUrl) + '</a></div>' : '');
+  const footerAddresses = branchAddressList.map(row => '<div><strong>' + escapeHtml(row.name) + ':</strong> ' + escapeHtml(row.address) + '</div>').join('');
+  const footerGridColumns = centerFooter ? '1fr 120px 1fr' : '1fr 1fr';
+  const footerCenterMarkup = centerFooter ? '<div class="footer-center">' + centerFooter + '</div>' : '';
   const title = print.title || 'نتيجة الفحوصات الطبية';
   const paper = print.paperSize === 'A5' ? 'A5' : 'A4';
   const orientation = print.orientation === 'landscape' ? 'landscape' : 'portrait';
@@ -304,29 +372,34 @@ async function printVisitReport(visitId, win) {
       const value = result.value_numeric ?? result.value_text ?? '—';
       const unit = result.unit_snapshot || parameter.unit || '';
       const reference = resolveReferenceRange(result.reference_range_snapshot ?? parameter.reference_ranges, patient, parameter.reference_interval_status);
-      const flag = result.flag ? ' · ' + result.flag : '';
+      const calculatedFlag=computeReferenceFlag(result.value_numeric,result.reference_range_snapshot ?? parameter.reference_ranges,patient.age_years,patient.sex,parameter.reference_interval_status,'numeric');
+      const displayFlag=calculatedFlag || result.flag;
+      const flag = displayFlag ? ' · ' + displayFlag : '';
       return '<tr><td>' + escapeHtml(parameterName) + '</td><td>' + escapeHtml(value) + '</td><td>' + escapeHtml(unit) + '</td><td>' + escapeHtml(reference) + '</td><td>' + escapeHtml(flag) + '</td></tr>';
     }).filter(Boolean).join('');
     const cultureHtml = cultureRows.isolates.filter(isolate=>isolate.visit_test_id===item.id).map(isolate=>{const ast=cultureRows.susceptibilities.filter(row=>row.isolate_id===isolate.id);const astLines=ast.map(row=>'<tr><td>'+escapeHtml(row.antimicrobial_agent)+'</td><td>'+escapeHtml(row.test_method)+'</td><td>'+escapeHtml(row.measured_value??'—')+' '+escapeHtml(row.measured_unit??'')+'</td><td>'+escapeHtml(row.interpretation)+'</td><td>'+escapeHtml(row.breakpoint_standard)+' '+escapeHtml(row.breakpoint_edition)+'</td><td>'+escapeHtml(row.qc_status)+'</td></tr>').join('');return '<h3>العزلة '+isolate.isolate_number+': '+escapeHtml(isolate.organism_name)+'</h3><p>النمو: '+escapeHtml(isolate.growth_description||'—')+' · العد: '+escapeHtml(isolate.colony_count??'—')+' '+escapeHtml(isolate.colony_count_unit)+' · التعريف: '+escapeHtml(isolate.identification_method||'—')+'</p><table><thead><tr><th>المضاد الحيوي</th><th>الطريقة</th><th>القيمة</th><th>التفسير</th><th>معيار/إصدار القطع</th><th>ضبط الجودة</th></tr></thead><tbody>'+(astLines||'<tr><td colspan="6">لا توجد نتائج حساسية مسجلة</td></tr>')+'</tbody></table>'+(isolate.notes?'<p>'+escapeHtml(isolate.notes)+'</p>':'');}).join('');
-    return '<section class="test"><h2>' + escapeHtml(item.test_name_snapshot || 'تحليل') + '</h2><table><thead><tr><th>الفحص</th><th>النتيجة</th><th>الوحدة</th><th>القيمة المرجعية</th><th>ملاحظة</th></tr></thead><tbody>' + (lines || '<tr><td colspan="5">لا توجد نتائج لهذا التحليل</td></tr>') + '</tbody></table>' + cultureHtml + '</section>';
-  }).join('');
+    return { kind: item.technical_snapshot?.test_kind || 'individual', html: '<section class="test ' + ((item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind) === 'panel' ? 'profile-report' : 'individual-test') + '"><h2>' + escapeHtml(item.test_name_snapshot || 'Test') + ' <small class="section-status">' + (item.status === 'completed' ? 'مكتمل' : 'غير مكتمل') + '</small></h2><table><thead><tr><th>Test / Parameter</th><th>Result</th><th>Unit</th><th>Reference Interval</th><th>Flag</th></tr></thead><tbody>' + (lines || '<tr><td colspan="5">No results recorded</td></tr>') + '</tbody></table>' + cultureHtml + '</section>' };
+  });
+  const individualHtml = testSections.filter(section => section.kind !== 'panel').map(section => section.html).join('');
+  const profileHtml = testSections.filter(section => section.kind === 'panel').map(section => section.html).join('');
+  const groupedTestSections = (individualHtml ? '<section class="report-group individual-report"><h2>INDIVIDUAL TESTS</h2>' + individualHtml + '</section>' : '') + profileHtml;
   const historicalSections=selectedHistoricalRows.map(row=>{
     const payload=row.result_data||{},parameters=payload.parameters&&typeof payload.parameters==='object'?Object.entries(payload.parameters):[];
     const resultLines=parameters.length?parameters.map(([name,value])=>'<tr><td>'+escapeHtml(name)+'</td><td>'+escapeHtml(value)+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>').join(''):'<tr><td>'+escapeHtml(row.test_name_snapshot)+'</td><td>'+escapeHtml(payload.value??payload.raw_original??JSON.stringify(payload))+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>';
     return '<section class="test historical-test"><h2>نتيجة تاريخية — '+escapeHtml(row.test_name_snapshot)+' · '+escapeHtml(row.result_date)+'</h2><table><thead><tr><th>الفحص / البارامتر</th><th>النتيجة القديمة</th><th>الوحدة وقتها</th><th>المدى المرجعي وقتها</th></tr></thead><tbody>'+resultLines+'</tbody></table><small>مصدر تاريخي: '+escapeHtml(row.source_file_name||'')+' · '+escapeHtml(row.source_sheet_name||'')+' · صف '+escapeHtml(row.source_row_number||'—')+'</small></section>';
   }).join('');
-  const contact = [branchName ? 'الفرع: ' + branchName : '', phone, address].filter(Boolean).join(' · ');
+  const performedAt = 'تم إجراء التحاليل بفرع: ' + (branch.name || '—');
   const html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' +
-    '@page{size:' + paper + ' ' + orientation + ';margin:' + margin + 'mm}' +
-    'body{font-family:Arial,Tahoma,sans-serif;color:#182b36;font-size:12px;line-height:1.6}header{text-align:center;border-bottom:2px solid #244b5d;padding-bottom:12px;margin-bottom:16px}header img{max-width:140px;max-height:70px;object-fit:contain}h1{font-size:20px;margin:6px 0}h2{font-size:15px;margin:14px 0 6px}.meta{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px}.meta span{padding:5px 8px;background:#f1f5f7;border-radius:5px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid #cbd5dc;padding:6px;text-align:right}th{background:#edf2f5}.test{break-inside:avoid}.historical-test{border:2px dashed #8a6d3b;padding:8px;margin-top:18px}.historical-test h2{color:#765a27}footer{border-top:1px solid #cbd5dc;margin-top:24px;padding-top:10px;text-align:center}.signature{max-width:140px;max-height:70px;object-fit:contain}@media print{button{display:none}}' +
-    '</style></head><body><header>' + (logo ? '<img src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '') +
-    '<h1>' + escapeHtml(labName) + '</h1><strong>' + escapeHtml(title) + '</strong>' +
-    (doctor ? '<p>' + escapeHtml(doctor) + '</p>' : '') + (contact ? '<p>' + escapeHtml(contact) + '</p>' : '') +
-    '</header><div class="meta"><span>المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>التاريخ: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div>' +
-    testSections + historicalSections + (signature ? '<p style="text-align:left"><img class="signature" src="' + escapeHtml(signature) + '" alt="التوقيع"></p>' : '') +
-    (footer ? '<footer>' + escapeHtml(footer) + '</footer>' : '') + '</body></html>';
+    '@page{size:' + paper + ' ' + orientation + ';margin:54mm ' + margin + 'mm 42mm ' + margin + 'mm}' +
+    'body{position:relative;font-family:Tahoma,Arial,sans-serif;color:#1d2e3a;font-size:12px;line-height:1.65;background:#fff}body>*:not(.watermark-image):not(.watermark-text){position:relative;z-index:1}.watermark-image{position:fixed;top:28%;left:0;right:0;z-index:0;text-align:center;pointer-events:none;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + '}.watermark-image img{width:' + (print.watermarkSize==='large'?'62%':print.watermarkSize==='small'?'28%':'42%') + ';max-height:48vh;object-fit:contain}.watermark-text{position:fixed;top:42%;left:8%;right:8%;z-index:0;text-align:center;font-size:' + (print.watermarkSize==='large'?'76px':print.watermarkSize==='small'?'38px':'56px') + ';font-weight:800;color:#173f58;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + ';pointer-events:none}header.report-header{border-bottom:2px solid #168f9a;padding:0 0 8px;margin-bottom:14px;background:#fff}.header-grid{display:grid;grid-template-columns:1fr 120px 1fr;align-items:center;gap:10px}.identity-zone{display:grid;gap:3px;font-size:13px}.identity-zone strong{font-size:17px;color:#173f58}.identity-zone span{color:#435864}.header-right{text-align:right}.header-left{text-align:left}.logo-zone{text-align:center}.lab-logo{max-width:110px;max-height:72px;object-fit:contain}.logo-placeholder{font-weight:800;color:#173f58;font-size:12px}h1{font-size:19px;margin:10px 0 4px;text-align:center;color:#173f58}h2{font-size:15px;margin:12px 0 6px;color:#173f58}.report-title{text-align:center;font-weight:700;color:#16818b;font-size:13px}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;margin:10px 0 18px}.meta span{padding:6px 8px;background:#f3f7f8;border-radius:5px}.report-group{margin-top:8px}.profile-report{break-before:page}.test{break-inside:avoid;margin:0 0 10px}.individual-report>.test{break-inside:avoid}.historical-test{border:2px dashed #8a6d3b;padding:8px;margin-top:18px}.historical-test h2{color:#765a27}table{width:100%;border-collapse:collapse;margin-bottom:12px;direction:ltr}th,td{border:1px solid #cbd5dc;padding:6px;text-align:left}th{background:#eaf2f4;color:#173f58}td{background:#fff}.branch-performed{font-weight:700;color:#315c66;margin-top:7px;padding:5px 0;border-top:1px solid #dce5e8;font-size:11px}.report-footer{display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;border-top:1px solid #168f9a;margin-top:20px;padding-top:10px;align-items:start;font-size:10px;line-height:1.35}.footer-right,.footer-left{display:grid;gap:4px}.footer-center{text-align:center}.footer-qr{display:grid;justify-items:center;gap:3px;color:#173f58;text-decoration:none}.footer-qr img{width:76px;height:76px;object-fit:contain}.footer-center-message{font-size:11px;font-weight:700}.signature{max-width:130px;max-height:65px;object-fit:contain}.preview-controls{display:flex;gap:8px;justify-content:center;padding:10px;margin-bottom:12px}.preview-controls button{border:0;border-radius:7px;padding:8px 14px;background:#173f58;color:#fff;font:inherit;cursor:pointer}.preview-controls button+button{background:#e7f1f2;color:#173f58}.report-pages{display:block}.report-extra-footer{grid-column:1/-1;text-align:center;border-top:1px solid #e1e8eb;padding-top:4px;margin-top:4px;font-size:9px}@media print{.preview-controls{display:none}header.report-header{position:fixed;top:-50mm;left:0;right:0;z-index:2;background:#fff}.report-footer{position:fixed;bottom:-38mm;left:0;right:0;z-index:2;background:#fff}.profile-report{break-before:page}.report-pages>.profile-report:first-child{break-before:auto}.report-footer{break-inside:avoid}}' +
+    '</style></head><body>' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
+    '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">طباعة التقرير</button>' : '<button disabled>اعتمد الزيارة أولًا للطباعة</button>') + '<button onclick="window.close()">إغلاق المعاينة</button></div>' +
+    '<header class="report-header"><div class="header-grid"><div class="header-right">' + headerRight + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-left">' + headerLeft + '</div></div><h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="meta"><span>اسم المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>تاريخ الزيارة: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></header>' +
+    '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
+    (signature ? '<p style="text-align:left"><img class="signature" src="' + escapeHtml(signature) + '" alt="التوقيع"></p>' : '') +
+    '<footer class="report-footer" style="grid-template-columns:' + footerGridColumns + '"><div class="footer-right">' + footerAddresses + '</div>' + footerCenterMarkup + '<div class="footer-left">' + footerContacts + '</div>' + (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</footer>' + '</body></html>';
   win.document.open(); win.document.write(html); win.document.close();
-  const printWhenReady = () => { try { win.focus(); win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
+  const printWhenReady = () => { try { win.focus(); if (autoPrint) win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
   const images = [...win.document.images];
   if (!images.length) setTimeout(printWhenReady, 250);
   else Promise.all(images.map(image => image.decode?.().catch(() => null))).then(() => setTimeout(printWhenReady, 150));
@@ -359,23 +432,27 @@ function bindCultureForms(host) {
 }
 
 
-function classifyResultFlag(input) {
- if(input.dataset.valueType!=='numeric'||input.dataset.referenceIntervalStatus!=='verified_local')return null;
- const value=Number(input.value);if(!Number.isFinite(value))return null;
- const ranges=JSON.parse(input.dataset.range||'[]');const age=Number(input.dataset.patientAge);const sex=String(input.dataset.patientSex||'').toLowerCase();
- const rows=Array.isArray(ranges)?ranges:(ranges&&typeof ranges==='object'?[ranges]:[]);
- const matches=rows.filter(r=>{
-  if(r.pregnancy)return false;
-  if(r.sex&&String(r.sex).toLowerCase()!==sex)return false;
-  if(r.age){if(!Number.isFinite(age))return false;if(r.age.min!=null&&age<Number(r.age.min))return false;if(r.age.max!=null&&age>Number(r.age.max))return false;}
+function computeReferenceFlag(value,rangesInput,ageValue,sexValue,status,valueType='numeric') {
+ if(valueType!=='numeric'||status!=='verified_local')return null;
+ const numericValue=Number(value);if(!Number.isFinite(numericValue))return null;
+ const ranges=Array.isArray(rangesInput)?rangesInput:(rangesInput&&typeof rangesInput==='object'?[rangesInput]:[]);
+ const age=ageValue==null||ageValue===''?NaN:Number(ageValue),sex=String(sexValue||'').toLowerCase();
+ const matches=ranges.filter(range=>{
+  if(range.pregnancy)return false;
+  if(range.sex&&String(range.sex).toLowerCase()!==sex)return false;
+  if(range.age){if(!Number.isFinite(age))return false;if(range.age.min!=null&&age<Number(range.age.min))return false;if(range.age.max!=null&&age>Number(range.age.max))return false;}
   return true;
  });
  if(matches.length!==1)return null;
  const range=matches[0],low=range.lower??range.low??range.min,high=range.upper??range.high??range.max;
  if(low==null&&high==null)return null;
- if(low!=null&&value<Number(low))return 'low';
- if(high!=null&&value>Number(high))return 'high';
+ if(low!=null&&numericValue<Number(low))return 'low';
+ if(high!=null&&numericValue>Number(high))return 'high';
  return 'normal';
+}
+function classifyResultFlag(input) {
+ let ranges=[];try{ranges=JSON.parse(input.dataset.range||'[]');}catch{}
+ return computeReferenceFlag(input.value,ranges,input.dataset.patientAge,input.dataset.patientSex,input.dataset.referenceIntervalStatus,input.dataset.valueType);
 }
 
 async function saveTest(button) {
@@ -394,31 +471,42 @@ async function saveTest(button) {
     const savedRows = await saveDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id,
       visitTestId: testId, results, staffId: $('staffSelect').value });
     for (const row of savedRows) { const input=section.querySelector(`[data-param-code="${CSS.escape(row.parameter_code)}"]`); if(input){input.value=row.value_numeric??row.value_text??'';input.dataset.resultId=row.id;input.dataset.originalValue=input.value;} }
+    const affectedVisit=state.work.find(row=>row.id===testId)?.visit_id;if(affectedVisit)state.previewedVisits.delete(affectedVisit);
     showNotice('تم حفظ النتائج اليدوية وحساب البارامترات المشتقة تلقائيًا على السحابة.');
   } catch (error) { showNotice(error.message || 'تعذر حفظ النتائج.', true); }
   finally { setBusy(button, false); }
 }
 async function correctTest(button) {
+  const section=button.closest('[data-test-id]');
+  const isPublished=section?.dataset.published==='true';
+  if(!section)return;
+  if(button.dataset.correctionMode!=='true'){
+    button.dataset.correctionMode='true';button.textContent='حفظ التصحيح';
+    section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=false;});
+    showNotice('وضع التصحيح مفعل. غيّر نتيجة واحدة فقط ثم اضغط حفظ التصحيح.');
+    return;
+  }
   try {
-    const section = button.closest('[data-test-id]');
-    const changed = [...section.querySelectorAll('[data-param-code]')].filter(input => input.dataset.resultId && input.value.trim() !== '' && input.value.trim() !== (input.dataset.originalValue ?? '').trim());
-    if (!changed.length) throw new Error('لا توجد نتيجة محفوظة تغيرت قيمتها للتصحيح.');
-    if (changed.length > 1) throw new Error('صحح نتيجة واحدة في كل مرة لتجنب حفظ بعض التصحيحات دون غيرها.');
-    const reason = window.prompt('اكتب سبب تصحيح النتيجة المنشورة:')?.trim() ?? '';
-    if (!reason) throw new Error('سبب التصحيح إلزامي.');
-    setBusy(button, true, 'جارٍ حفظ التصحيح…');
-    for (const input of changed) {
-      const raw = input.value.trim();
-      const numeric = input.dataset.valueType === 'numeric' ? raw : null;
-      const text = input.dataset.valueType === 'numeric' ? null : raw;
-      await correctPublishedResult({ tenantId: state.tenant.id, branchId: state.branch.id, visitId: section.closest('.work-card').querySelector('.publish-report').dataset.visitId, resultId: input.dataset.resultId, valueNumeric: numeric, valueText: text, reason, staffId: $('staffSelect').value });
+    const changed=[...section.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultId&&input.value.trim()!==''&&input.value.trim()!==(input.dataset.originalValue??'').trim());
+    if(!changed.length)throw new Error('لا توجد نتيجة محفوظة تغيرت قيمتها للتصحيح.');
+    if(changed.length>1)throw new Error('صحح نتيجة واحدة في كل مرة لتجنب حفظ بعض التصحيحات دون غيرها.');
+    const visitId=state.work.find(row=>row.id===section.dataset.testId)?.visit_id;
+    if(!visitId)throw new Error('تعذر تحديد الزيارة المرتبطة بالنتيجة.');
+    const reason=window.prompt(isPublished?'سبب تصحيح النتيجة المنشورة:':'سبب تصحيح النتيجة المحفوظة:')?.trim()??'';
+    if(!reason)throw new Error('سبب التصحيح إلزامي.');
+    setBusy(button,true,'جارٍ حفظ التصحيح…');
+    for(const input of changed){
+      const raw=input.value.trim(),numeric=input.dataset.valueType==='numeric'?raw:null,text=input.dataset.valueType==='numeric'?null:raw;
+      await correctVisitResultWithFlag({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,flag:classifyResultFlag(input),reason,staffId:$('staffSelect').value});
+      input.dataset.originalValue=input.value;
     }
-    showNotice('تم تسجيل التصحيح. ارفع نسخة PDF جديدة بسبب التصحيح لتحديث تقرير المريض.');
-    for (const input of changed) input.dataset.originalValue = input.value;
-  } catch (error) { showNotice(error.message || 'تعذر تصحيح النتيجة.', true); }
-  finally { setBusy(button, false); }
+    state.previewedVisits.delete(visitId);
+    section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=true;});
+    button.dataset.correctionMode='false';button.textContent=isPublished?'تصحيح نتيجة منشورة':'تصحيح نتيجة محفوظة';button.dataset.oldLabel=button.textContent;
+    showNotice(isPublished?'تم تسجيل التصحيح. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع نسخة مصححة.':'تم تصحيح النتيجة قبل اعتماد الزيارة، وحُفظ سبب التصحيح وسجل التعديل.');
+  } catch(error){showNotice(error.message||'تعذر تصحيح النتيجة.',true);}
+  finally{setBusy(button,false);}
 }
-
 
 async function loadAttachments(visitId) {
   const host=document.querySelector(`[data-attachment-list="${CSS.escape(visitId)}"]`);
@@ -454,16 +542,20 @@ async function downloadAttachment(button) {
 }
 
 async function completeTest(button) {
-  try { setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, branchId: state.branch.id, visitTestId: button.dataset.testId, staffId: $('staffSelect').value }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
+  try { const visitId=state.work.find(row=>row.id===button.dataset.testId)?.visit_id;if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها أولًا قبل إنهاء التحليل.'); setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, branchId: state.branch.id, visitTestId: button.dataset.testId, staffId: $('staffSelect').value }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
   catch (error) { showNotice(error.message || 'تعذر إنهاء التحليل.', true); } finally { setBusy(button, false); }
 }
 async function approve(button) {
-  try { setBusy(button, true, 'جارٍ الاعتماد…'); await approveVisit({ tenantId: state.tenant.id, branchId: state.branch.id, visitId: button.dataset.visitId, staffId: $('staffSelect').value }); showNotice('تم اعتماد الزيارة. يمكنك الآن رفع ملف PDF.'); await refreshWork(); }
+  try { if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ كل النتائج التي أدخلتها قبل اعتماد الزيارة.'); setBusy(button, true, 'جارٍ الاعتماد…'); await approveVisit({ tenantId: state.tenant.id, branchId: state.branch.id, visitId: button.dataset.visitId, staffId: $('staffSelect').value }); showNotice('تم اعتماد الزيارة. يمكنك الآن رفع ملف PDF.'); await refreshWork(); }
   catch (error) { showNotice(error.message || 'تعذر اعتماد الزيارة.', true); } finally { setBusy(button, false); }
 }
 async function publish(button) {
   try {
+    if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها قبل نشر التقرير.');
     const visitId = button.dataset.visitId;
+    const visitState = state.work.find(item=>item.visit_id===visitId)?.visits;
+    if (!visitState || (visitState.status!=='approved' && !visitState.is_published)) throw new Error('اعتمد الزيارة بالكامل قبل نشر التقرير.');
+    if (!state.previewedVisits.has(visitId)) throw new Error('افتح معاينة نتائج الزيارة وراجع التقرير قبل النشر.');
     const fileInput = document.querySelector(`[data-report-file="${CSS.escape(visitId)}"]`);
     const file = fileInput?.files?.[0];
     if (!file) throw new Error('اختر ملف التقرير PDF أولًا.');
@@ -473,7 +565,7 @@ async function publish(button) {
     setBusy(button, true, 'جارٍ النشر…');
     await publishReportVersion({ tenantId: state.tenant.id, branchId: state.branch.id, visitId,
       staffId: $('staffSelect').value, file, changeReason: reason });
-    showNotice('تم إرسال التقرير لمسار النشر.'); await refreshWork();
+    state.previewedVisits.delete(visitId); showNotice('تم إرسال التقرير لمسار النشر.'); await refreshWork();
   } catch (error) { showNotice(error.message || 'تعذر نشر التقرير.', true); }
   finally { setBusy(button, false); }
 }
@@ -508,7 +600,8 @@ $('loginForm').addEventListener('submit', async (event) => {
 $('signOut').addEventListener('click', async () => { try { await signOut(); await startWorkspace(); } catch (error) { showNotice(error.message, true); } });
 $('refreshButton').addEventListener('click', async () => { try { await refreshWork(); } catch (error) { showNotice(error.message, true); } });
 
-try { await startWorkspace(); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
+try { await startWorkspace(); window.dispatchEvent(new CustomEvent('taiba:results-context',{detail:{tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug}})); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
+window.taibaPreviewVisitReport = async visitId => { const dirty=window.taibaGetDirtyResultInputs?.()||[];if(dirty.length){showNotice('هناك نتائج تم تغييرها ولم تُحفظ بعد. احفظها أولًا ثم أعد المعاينة.',true);return;} const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});state.previewedVisits.add(visitId);window.dispatchEvent(new CustomEvent('taiba:visit-report-previewed',{detail:{visitId}}));showNotice('تم تجهيز معاينة التقرير. راجعها قبل الطباعة أو النشر.');}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
 
 $('prevWorkPage').addEventListener('click', async () => {
   if (state.workPage <= 0) return;
