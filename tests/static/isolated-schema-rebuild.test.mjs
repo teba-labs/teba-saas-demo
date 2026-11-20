@@ -17,6 +17,7 @@ test('migration filenames follow the current main sequence without reusing 024',
   assert.ok(files.includes('058_atomic_add_test_to_visit.sql'));
   assert.ok(files.includes('059_visit_parameter_range_overrides.sql'));
   assert.ok(files.includes('060_visit_range_override_fk_indexes.sql'));
+  assert.ok(files.includes('061_allow_published_range_corrections.sql'));
   assert.ok(!files.includes('024_patient_age_units.sql'));
 });
 
@@ -47,7 +48,8 @@ test('visit range overrides are separate from the frozen catalog snapshot and ke
   assert.match(migration,/visit_test_parameter_range_events/);
   assert.match(migration,/security invoker/);
   assert.ok(migration.includes('new.reference_range_snapshot := coalesce(v_override'));
-  assert.match(migration,/Approved or published visits cannot have their reference ranges changed/);
+  assert.match(migration,/An approved but unpublished visit must be reopened/);
+  assert.match(migration,/app.result_correction/);
   assert.match(migration,/old_reference_ranges/);
   assert.match(migration,/new_reference_ranges/);
   assert.doesNotMatch(migration,/update public.tests_catalog/i);
