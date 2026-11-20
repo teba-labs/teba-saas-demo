@@ -24,6 +24,7 @@ test('migration filenames follow the current main sequence without reusing 024',
   assert.ok(files.includes('065_fix_billing_generated_net_total.sql'));
   assert.ok(files.includes('066_correct_visit_result_with_flag.sql'));
   assert.ok(files.includes('067_clear_stale_flags_on_range_override.sql'));
+  assert.ok(files.includes('068_guard_billing_recalculation_status.sql'));
   assert.ok(!files.includes('024_patient_age_units.sql'));
 });
 
@@ -71,6 +72,7 @@ test('results-screen test additions recalculate visit billing without duplicatin
   assert.ok(migration.includes('discount_amount,created_by'));
   assert.ok(migration.includes('pg_advisory_xact_lock'));
   assert.ok(migration.includes('return v_existing'));
+  assert.ok(migration.includes('Finalized visits cannot receive billing recalculation'));
 });
 
 test('completed unpublished result correction is audited and cannot alter an approved or published visit',()=>{
