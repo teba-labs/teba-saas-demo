@@ -337,6 +337,8 @@ function renderCultureResults(host,item,data) {
  const target=host.querySelector('[data-culture-isolates="'+CSS.escape(item.id)+'"]');
  if(!target)return;
  const isolates=data.isolates.filter(row=>row.visit_test_id===item.id);
+ const isolateForm=host.querySelector('.culture-isolate-form[data-visit-test-id="'+CSS.escape(item.id)+'"]');
+ if(isolateForm){const nextNumber=Math.max(0,...isolates.map(row=>Number(row.isolate_number)||0))+1;isolateForm.elements.isolateNumber.value=String(nextNumber);}
  const locked=item.status==='completed'||item.visits?.is_published;
  if(!isolates.length){target.innerHTML='<p class="muted">لم تُسجل عزلات حتى الآن.</p>';return;}
  target.innerHTML=isolates.map(isolate=>{
