@@ -163,3 +163,16 @@ test('owner daily movement ledger resolves expense category names through tenant
   assert.match(repository,/ledgerWithCategories/);
   assert.match(script,/row\.category_name\|\|row\.description/);
 });
+
+test('live dashboard counts pending, in-progress, completed tests and published visits from scoped records',()=>{
+  const repository=fs.readFileSync(path.join(root,'dashboard/repository.js'),'utf8');
+  const status=fs.readFileSync(path.join(root,'modules/dashboard/live-status.js'),'utf8');
+  assert.match(repository,/is_published/);
+  assert.match(repository,/summarizeVisitTestStatus/);
+  assert.match(status,/pendingTests/);
+  assert.match(status,/inProgressTests/);
+  assert.match(status,/completedTests/);
+  assert.match(status,/publishedVisits/);
+  assert.match(script,/liveTodayPendingTests/);
+  assert.match(script,/liveTodayPublishedVisits/);
+});
