@@ -47,19 +47,26 @@ test('owner dashboard paginates every source query and excludes cancelled visits
   assert.match(repo,/visit_tests/);
 });
 
-test('daily dashboard trend combines live visits, tests and ledger movements by work date',()=>{
-  assert.match(repo,/dailyItem\(visit\.visit_work_date\)\.visits \+= 1/);
-  assert.match(repo,/dailyItem\(date\)\.tests \+= 1/);
-  assert.match(script,/d\.visits\|\|0/);
-  assert.match(script,/d\.tests\|\|0/);
+test('daily dashboard trend combines live visits, tests, statuses and ledger movements by work date',()=>{
+  const liveStatus=fs.readFileSync(path.join(root,'modules/dashboard/live-status.js'),'utf8');
+  assert.match(repo,/summarizeVisitTestStatus/);
+  assert.match(liveStatus,/day\.visits\+=1/);
+  assert.match(liveStatus,/day\.tests\+=1/);
+  assert.match(script,/today\.visits/);
+  assert.match(script,/today\.tests/);
   assert.match(page,/الزيارات/);
   assert.match(page,/التحاليل/);
+  assert.match(page,/معلقة/);
+  assert.match(page,/قيد التنفيذ/);
+  assert.match(page,/تقارير منشورة/);
+  assert.match(page,/colspan="11"/);
 });
 
 test('live expense details reconcile ledger outflows to tenant-scoped expense categories',()=>{
   const breakdown=fs.readFileSync(path.join(root,'modules/dashboard/expense-breakdown.js'),'utf8');
   assert.match(repo,/buildExpenseBreakdown/);
   assert.match(repo,/source_type === 'expense'/);
+  assert.match(repo,/source_type,source_id,direction/); // ledger source_id is required to resolve expense categories
   assert.match(repo,/from\('expenses'\)/);
   assert.match(repo,/from\('expense_categories'\)/);
   assert.match(repo,/\.eq\('tenant_id', tenantId\)/);
@@ -75,4 +82,108 @@ test('owner dashboard shell refresh includes the archived-branch selector update
   const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
   assert.match(sw,/taiba-smart-lab-shell-v27/);
   assert.match(sw,/\.\/assets\/js\/dashboard\.js/);
+});
+
+test('owner dashboard presents exactly 18 independent report entries and separate screens',()=>{
+  const reportList=script.match(/const OWNER_REPORTS=\[([\s\S]*?)\n\];/)?.[1]||'';
+  const entries=reportList.match(/^\s*\['[A-Za-z]+','[^']+','[^']+'\]/gm)||[];
+  assert.equal(entries.length,18);
+  for(const id of ['dailyFinance','reconciliation','live','overview','financial','annual','cases','expenseBreakdown','bcg','testReport','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers','upload','security']){
+    assert.match(script,new RegExp("'"+id+"'"));
+  }
+  assert.match(script,/data-owner-report=/);
+  assert.match(script,/data-owner-screen=/);
+  assert.match(script,/data-owner-back/);
+  assert.match(script,/showOwnerReport\('home'\)/);
+});
+test('daily financial movement is read-only and links to Workday for new entries',()=>{
+  assert.match(script,/report\.ledger\.length/);
+  assert.match(script,/workday\.html/);
+  assert.match(script,/تسجيل التحصيل والمصروفات يظل من شاشة يوم العمل/);
+});
+test('security screen does not misrepresent local Excel archive as cloud backup',()=>{
+  assert.match(script,/ليس نسخة سحابية/);
+  assert.match(script,/ليس قاعدة بيانات الخادم كاملة/);
+  assert.match(script,/settings\.html/);
+  assert.match(script,/sync-center\.html/);
+});
+
+test('owner report screens expose CSV export and the case screen includes historical seasonality',()=>{
+  assert.match(script,/data-owner-export=/);
+  assert.match(script,/function exportOwnerReport/);
+  assert.match(script,/text\/csv;charset=utf-8/);
+  assert.match(script,/cases:'موسمية الحالات حسب الشهر'/);
+});
+
+test('historical dashboard follows the selected branch by exact workbook branch name',()=>{
+  assert.match(script,/data-branch-name=/);
+  assert.match(script,/refresh\(\)\.then\(\(\)=>refreshHistoricalDashboard\(\)\)/);
+  assert.match(fs.readFileSync(path.join(root,'assets/js/dashboard-history.js'),'utf8'),/dataset\?\.branchName/);
+  const history=fs.readFileSync(path.join(root,'modules/dashboard/historical-analysis.js'),'utf8');
+  assert.match(history,/branch='all'/);
+  assert.match(history,/اسم الفرع المختار غير موجود/);
+});
+
+test('live and monthly screens render their own current-day and selected-period KPI summaries',()=>{
+  for(const id of ['liveTodayVisits','liveTodayTests','liveTodayCollected','liveTodayExpenses','liveTodayNet','monthGross','monthDiscounts','monthNetBilled','monthCollected','monthExpenses','monthNetCash','monthReceivables','monthVisitsPatients']) assert.match(script,new RegExp(id));
+});
+
+test('CSV export includes live KPI cards and historical reconciliation KPI cards',()=>{
+  assert.match(script,/\.kpi,\.history-analysis-kpis article/);
+  assert.match(script,/const csv='\\uFEFF'/);
+});
+
+test('historical period selector remains available on archive report screens and hides on menu return',()=>{
+  assert.match(script,/id='historyPeriodPanel'/);
+  assert.match(script,/historicalScreens=\['annual','cases','bcg','monthlyPlan'/);
+  assert.match(script,/historyPeriod\.hidden=!historicalScreens\.includes\(id\)/);
+  assert.match(script,/\$\('historyPeriodPanel'\)\.hidden=true/);
+});
+
+test('overview includes grounded operational insights and expense breakdown visualization',()=>{
+  assert.match(script,/ownerOverviewInsights/);
+  assert.match(script,/توجد مديونيات قائمة بقيمة/);
+  assert.match(script,/expenseBreakdownChart/);
+  assert.match(script,/expense-bar-track/);
+});
+
+test('owner report screens support browser print-to-PDF and use standard BCG labels',()=>{
+  assert.match(script,/data-owner-print/);
+  assert.match(script,/window\.print\(\)/);
+  const history=fs.readFileSync(path.join(root,'assets/js/dashboard-history.js'),'utf8');
+  assert.match(history,/أبقار حلوب/);
+  assert.match(history,/كلاب/);
+  assert.match(fs.readFileSync(path.join(root,'assets/css/dashboard.css'),'utf8'),/@media print/);
+});
+test('monthly plan UI renders a three-month outlook from the historical engine',()=>{
+  const history=fs.readFileSync(path.join(root,'assets/js/dashboard-history.js'),'utf8');
+  const engine=fs.readFileSync(path.join(root,'modules/dashboard/historical-analysis.js'),'utf8');
+  assert.match(engine,/const outlook=\[1,2,3\]\.map\(buildMonthPlan\)/);
+  assert.match(history,/خطة الأشهر الثلاثة التالية/);
+  assert.match(history,/report\.monthlyPlan\.outlook\.flatMap/);
+});
+
+test('owner daily movement ledger resolves expense category names through tenant-scoped source ids',()=>{
+  const repository=fs.readFileSync(path.join(root,'dashboard/repository.js'),'utf8');
+  assert.match(repository,/categoryNameByExpenseId/);
+  assert.match(repository,/ledgerWithCategories/);
+  assert.match(script,/row\.category_name\|\|row\.description/);
+});
+
+test('live dashboard counts pending, in-progress, completed tests and published visits from scoped records',()=>{
+  const repository=fs.readFileSync(path.join(root,'dashboard/repository.js'),'utf8');
+  const status=fs.readFileSync(path.join(root,'modules/dashboard/live-status.js'),'utf8');
+  assert.match(repository,/is_published/);
+  assert.match(repository,/summarizeVisitTestStatus/);
+  assert.match(status,/pendingTests/);
+  assert.match(status,/inProgressTests/);
+  assert.match(status,/completedTests/);
+  assert.match(status,/publishedVisits/);
+  assert.match(script,/liveTodayPendingTests/);
+  assert.match(script,/liveTodayPublishedVisits/);
+});
+
+test('live status module is included in the offline application shell',()=>{
+  const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
+  assert.match(sw,/modules\/dashboard\/live-status\.js/);
 });

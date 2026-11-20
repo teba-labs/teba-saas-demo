@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '../core/supabase-client.js';
 import { buildExpenseBreakdown } from '../modules/dashboard/expense-breakdown.js';
+import { summarizeVisitTestStatus } from '../modules/dashboard/live-status.js';
 const db = () => getSupabaseClient();
 const need = (value, name) => { if (!value) throw new Error(`${name} is required.`); };
 const sum = (rows, field) => (rows ?? []).reduce((total, row) => total + Number(row[field] ?? 0), 0);
@@ -30,14 +31,15 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
     readAllPages(() => client.from('branches').select('id,name,is_active')
       .eq('tenant_id', tenantId).order('name').order('id')),
     readAllPages(() => scope(client.from('financial_ledger')
-      .select('id,branch_id,source_type,direction,amount,work_date,movement_at,description')
+      .select('id,branch_id,source_type,source_id,direction,amount,work_date,movement_at,description')
       .eq('tenant_id', tenantId).gte('work_date', monthStart).lt('work_date', monthEnd)
       .order('work_date').order('movement_at').order('id'))),
     readAllPages(() => scope(client.from('visits')
-      .select('id,branch_id,visit_work_date,status,patient_id')
+      .select('id,branch_id,visit_work_date,status,is_published,patient_id')
       .eq('tenant_id', tenantId).gte('visit_work_date', monthStart).lt('visit_work_date', monthEnd)
       .neq('status', 'cancelled').order('visit_work_date').order('id'))),
   ]);
+  let liveStatus = summarizeVisitTestStatus({ visits, visitTests: [] });
   const visitIds = visits.map(row => row.id);
 
   let billing = [], payments = [], visitTests = [];
@@ -52,6 +54,7 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
         .eq('tenant_id', tenantId).in('visit_id', visitIds).neq('status', 'cancelled').order('visit_id').order('id')),
     ]);
     billing = billingRows; payments = paymentRows; visitTests = testRows;
+    liveStatus = summarizeVisitTestStatus({ visits, visitTests });
   }
 
   const collectedRows = ledger.filter(row => row.direction === 'inflow');
@@ -94,12 +97,13 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
       grossBilled: sum(branchBilling, 'gross_total'), discounts: sum(branchBilling, 'discount_amount'),
       netBilled: billed, collected: cashIn, expenses: cashOut, netCash: cashIn - cashOut,
       receivables: Math.max(0, billed - sum(branchPayments, 'amount')),
+      ...(liveStatus.branches.find(item => item.branchId === branch.id) || {pendingTests:0,inProgressTests:0,completedTests:0,publishedVisits:0,unpublishedVisits:0}),
     };
   });
 
-  const dailyMap = new Map();
+  const dailyMap = new Map(liveStatus.daily.map(item => [item.date, {...item, collected:0, expenses:0}]));
   const dailyItem = date => {
-    const item = dailyMap.get(date) ?? { date, collected: 0, expenses: 0, visits: 0, tests: 0 };
+    const item = dailyMap.get(date) ?? { date, collected: 0, expenses: 0, visits: 0, tests: 0, pendingTests:0, inProgressTests:0, completedTests:0, publishedVisits:0, unpublishedVisits:0 };
     dailyMap.set(date, item);
     return item;
   };
@@ -108,32 +112,27 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
     if (row.direction === 'inflow') item.collected += Number(row.amount);
     if (row.direction === 'outflow') item.expenses += Number(row.amount);
   }
-  const visitDateById = new Map();
-  for (const visit of visits) {
-    visitDateById.set(visit.id, visit.visit_work_date);
-    dailyItem(visit.visit_work_date).visits += 1;
-  }
-  for (const test of visitTests) {
-    const date = visitDateById.get(test.visit_id);
-    if (date) dailyItem(date).tests += 1;
-  }
   const testMap = new Map();
   for (const row of visitTests) {
     const item = testMap.get(row.test_id) ?? { testId: row.test_id, name: row.test_name_snapshot, count: 0, billed: 0 };
     item.count += 1; item.billed += Number(row.price_snapshot ?? 0); testMap.set(row.test_id, item);
   }
   const uniquePatients = new Set(visits.map(row => row.patient_id));
+  const categoryNameById = new Map(expenseCategories.map(row => [row.id, row.name]));
+  const categoryNameByExpenseId = new Map(linkedExpenses.map(row => [row.id, row.category_id ? (categoryNameById.get(row.category_id) || 'بند غير معروف') : 'مصروف غير مصنف']));
+  const ledgerWithCategories = ledger.map(row => ({...row, category_name: row.source_type === 'expense' ? (categoryNameByExpenseId.get(row.source_id) || 'مصروف غير مرتبط ببند') : row.direction === 'outflow' ? 'حركة خارجة أخرى' : null}));
   return {
     period: { monthStart, monthEnd }, branches: byBranch,
     totals: {
       visits: visits.length, patients: uniquePatients.size, tests: visitTests.length,
       grossBilled, discounts, netBilled, collected, expenses, netCash: collected - expenses,
       receivables, paymentCount: collectedRows.length, expenseCount: expenseRows.length,
+      ...liveStatus.totals,
     },
     daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
     expenseBreakdown,
     topTests: [...testMap.values()].sort((a, b) => b.count - a.count).slice(0, 12),
-    ledger,
+    ledger: ledgerWithCategories,
   };
 }
 
