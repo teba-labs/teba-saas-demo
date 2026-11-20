@@ -21,20 +21,21 @@ export async function findHistoricalPatientCandidates({ tenantId, branchId, name
 
 /** Import batches and source files are owner-only; the original workbook is retained in private storage. */
 export async function importHistoricalResults({
-  tenantId, branchId, userId, file, fileSha256, mappingSnapshot = {}, sheetSummary = [], records = []
+  tenantId, branchId, userId, file, fileSha256, sheetName, mappingSnapshot = {}, sheetSummary = [], records = []
 } = {}) {
   need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(userId, 'userId');
-  need(file, 'file'); need(fileSha256, 'fileSha256');
+  need(file, 'file'); need(fileSha256, 'fileSha256'); need(sheetName, 'sheetName');
   if (!Array.isArray(records) || !records.length) throw new Error('لا توجد نتائج تاريخية صالحة للاعتماد.');
   if (records.length > 50000) throw new Error('الملف يتجاوز 50 ألف نتيجة في الدفعة الواحدة؛ قسّمه إلى ملفات أصغر.');
   const client = db();
   const { data: existing, error: lookupError } = await client.from('historical_import_batches')
     .select('id,status,rows_inserted,rows_total,created_at')
-    .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('source_file_sha256', fileSha256).maybeSingle();
+    .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('source_file_sha256', fileSha256).eq('source_sheet_name', sheetName).maybeSingle();
   if (lookupError) throw lookupError;
   if (existing) throw new Error('هذا الملف سبق استيراده لهذا الفرع. رقم الدفعة: ' + existing.id + ' — الحالة: ' + existing.status + '. لن نكرر النتائج.');
 
-  const path = tenantId + '/' + branchId + '/historical-imports/' + fileSha256 + '-' + safeFileName(file.name);
+  const sheetKey = safeFileName(sheetName).replace(/\\.xlsx?$/i,'').slice(0,60) || 'sheet';
+  const path = tenantId + '/' + branchId + '/historical-imports/' + fileSha256 + '-' + sheetKey + '-' + safeFileName(file.name);
   const { error: uploadError } = await client.storage.from('tenant-backups').upload(path, file, {
     contentType: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     cacheControl: '3600', upsert: false
@@ -44,7 +45,7 @@ export async function importHistoricalResults({
   let batch;
   try {
     const { data, error } = await client.from('historical_import_batches').insert({
-      tenant_id: tenantId, branch_id: branchId, source_file_name: file.name,
+      tenant_id: tenantId, branch_id: branchId, source_file_name: file.name, source_sheet_name: sheetName,
       source_file_sha256: fileSha256, storage_path: path, mapping_snapshot: mappingSnapshot,
       sheet_summary: sheetSummary, status: 'processing', rows_total: records.length, created_by: userId
     }).select('id').single();
