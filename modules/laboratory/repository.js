@@ -22,7 +22,7 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
   let query = db().from(TABLES.visitTests)
     .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number, age_years, sex))', { count: 'exact' })
     .eq('tenant_id', tenantId).eq('branch_id', branchId)
-    .neq('status', 'cancelled').neq('visits.status', 'cancelled');
+    .neq('status', 'cancelled').neq('visits.status', 'cancelled').is('visits.workbench_hidden_at', null);
   const requestedVisitId = new URLSearchParams(globalThis.location?.search || '').get('visit_id');
   if (requestedVisitId) query = query.eq('visit_id', requestedVisitId);
   const { data, error, count } = await query.order('created_at').order('id').range(from, from + safeSize - 1);
@@ -49,6 +49,31 @@ export async function setVisitTestStatus({ tenantId, branchId, visitTestId, stat
   const { data, error } = await db().from(TABLES.visitTests)
     .update({ status }).eq('tenant_id', tenantId).eq('branch_id', branchId).eq('id', visitTestId)
     .select().single();
+  if (error) throw error;
+  return data;
+}
+
+/** Hidden visits remain in the database and can be restored by an authorized branch member. */
+export async function listHiddenWorkbenchVisits({ tenantId, branchId, limit = 100 } = {}) {
+  if (!tenantId || !branchId) throw new Error('tenantId and branchId are required.');
+  const { data, error } = await db().from(TABLES.visits)
+    .select('id, visit_number, visit_work_date, status, workbench_hidden_at, workbench_hidden_reason, patients!inner(full_name,patient_number)')
+    .eq('tenant_id', tenantId).eq('branch_id', branchId)
+    .not('workbench_hidden_at', 'is', null)
+    .order('workbench_hidden_at', { ascending: false }).limit(Math.min(200, Math.max(1, Number(limit) || 100)));
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function setVisitWorkbenchHidden({ tenantId, branchId, visitId, staffId, hidden, reason = '' } = {}) {
+  if (!tenantId || !branchId || !visitId || !staffId || typeof hidden !== 'boolean') {
+    throw new Error('tenantId, branchId, visitId, staffId and hidden are required.');
+  }
+  if (globalThis.navigator?.onLine === false) throw new Error('إخفاء الحالة أو استعادتها يحتاج اتصالًا بالإنترنت.');
+  const { data, error } = await db().rpc('set_visit_workbench_hidden', {
+    p_tenant_id: tenantId, p_branch_id: branchId, p_visit_id: visitId,
+    p_staff_id: staffId, p_hidden: hidden, p_reason: String(reason || '').trim() || null,
+  });
   if (error) throw error;
   return data;
 }
