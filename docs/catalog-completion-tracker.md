@@ -25,14 +25,15 @@ Complete the master test catalog sourced from the user's historical test-name li
 - [x] Applied migrations 035–039 to isolated Supabase TEST project `hgqwpykeazuzceeiumjg`.
 - [x] Smoke-tested owner import of a verified panel with a dependent calculated parameter inside a rollback transaction.
 - [x] Negative test confirmed unverified test definitions cannot be imported.
-- [ ] Fix schema-contract literal newline defect and add JavaScript syntax check (current task).
-- [ ] Add full CBC profile and morphology sub-profile.
-- [ ] Add complete urinalysis profile with macroscopic, chemical strip, and microscopic sediment sections.
-- [ ] Add stool analysis profile with macroscopic, chemical, and microscopic parasitology fields.
-- [ ] Add urine culture and antimicrobial susceptibility workflow.
-- [ ] Add stool culture and pathogen-specific culture/susceptibility workflow.
+- [x] Fix schema-contract literal newline defect and add JavaScript syntax check.
+- [x] Add initial CBC analyzer profile and peripheral-smear fields; analyzer-specific numeric intervals remain local-verification required.
+- [x] Add physical, chemical-strip, and microscopic sediment urinalysis sections.
+- [x] Add macroscopic and microscopic stool/parasitology fields.
+- [x] Add urine culture isolate and isolate-specific antimicrobial susceptibility workflow.
+- [x] Add stool culture isolate and isolate-specific susceptibility workflow.
 - [ ] Normalize and classify every source name from the user's list; identify duplicates, synonyms, panels, procedures, and send-outs.
-- [ ] Add remaining catalog profiles and verified formula definitions with traceable sources.
+- [x] Add initial protein/A:G, lipid/non-HDL, and HOMA1 calculated profiles with traceable sources.
+- [ ] Normalize and seed the remaining source-name inventory and the other common clinical chemistry, endocrine, serology, coagulation, body-fluid, and microbiology profiles.
 - [ ] Verify end-to-end result entry, computed fields, report layout, and tenant import.
 - [ ] Run security/performance advisors and full CI.
 - [ ] Merge all approved changes into main, preserve development/backup branches, verify Pages deployment.
