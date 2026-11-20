@@ -1,15 +1,27 @@
 import {getCurrentSession,signInWithEmail} from '../../core/auth/session.js';
 import {loadMyTenantContext} from '../../core/tenant/context.js';
 import {inspectWorkbookFile,getEntityOptions,getEntityFields,suggestColumnMapping,analyzeArchiveSheet,analyzeArchiveRelationships,inspectLegacyDate} from '../../modules/migration/workbook-inspector.js';
-import {findHistoricalPatientCandidates,importHistoricalResults} from '../../modules/migration/historical-results-repository.js';
+import {findHistoricalPatientCandidates,importHistoricalResults,listHistoricalImportTemplates,saveHistoricalImportTemplate} from '../../modules/migration/historical-results-repository.js';
 import {importNewCatalogTests} from '../../modules/migration/catalog-importer.js';
 import {importNewBasePrices} from '../../modules/migration/price-importer.js';
 import {listCatalog,saveCatalogTest,listCurrentBasePrices,addBasePriceIfMissing} from '../../modules/catalog/repository.js';
-const $=id=>document.getElementById(id);let state={tenants:[],tenantId:null,branchId:null,userId:null,result:null,file:null,patientLinks:{}};
+const $=id=>document.getElementById(id);let state={tenants:[],tenantId:null,branchId:null,userId:null,result:null,file:null,patientLinks:{},templateStatus:{}};
 function note(message,error=false){$('notice').textContent=message;$('notice').className='show'+(error?' error':'');}
 function el(tag,text=''){const n=document.createElement(tag);n.textContent=String(text??'');return n;}
 function makeSelect(options,value){const s=el('select');for(const item of options){const o=el('option',item.label);o.value=item.value;s.append(o);}s.value=value??'';return s;}
 async function start(){const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;return;}state.userId=session.user?.id||session.data?.user?.id||null;const ctx=await loadMyTenantContext();state.tenants=(ctx.tenants||[]).filter(t=>t.accountType==='owner');if(!state.tenants.length)throw Error('هذه الأداة مخصصة لمالك المعمل فقط.');state.tenantId=state.tenants[0].id;const tenant=state.tenants[0];$('tenantName').textContent=tenant.name;$('historicalBranch').replaceChildren(...(tenant.branches||[]).filter(b=>b.is_active!==false).map(b=>{const o=el('option',b.name);o.value=b.id;return o;}));state.branchId=$('historicalBranch').value||tenant.branches?.[0]?.id||null;$('historicalBranch').addEventListener('change',()=>{state.branchId=$('historicalBranch').value;});$('loginPanel').hidden=true;$('workspace').hidden=false;}
+async function sheetHeaderSignature(headers){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify((headers||[]).map(x=>String(x||'').trim()))));return [...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,'0')).join('');}
+async function applySavedSheetTemplates(){
+ state.templateStatus={};
+ for(const sheet of state.result.sheets){
+  if(sheet.entityType!=='historical_results')continue;
+  const signature=await sheetHeaderSignature(sheet.headers);
+  const templates=await listHistoricalImportTemplates({tenantId:state.tenantId,branchId:state.branchId,sheetName:sheet.name}).catch(()=>[]);
+  const exact=templates.find(t=>t.header_signature===signature);
+  if(exact){sheet.entityType=exact.entity_type;sheet.columnMapping=exact.column_mapping||sheet.columnMapping;state.templateStatus[sheet.name]='تم تحميل قالب المطابقة المحفوظ لهذه البنية.';}
+  else if(templates.length){state.templateStatus[sheet.name]='تنبيه: بنية هذه الورقة تغيرت عن قالب محفوظ سابقًا. راجع العناوين والمطابقة يدويًا قبل الاعتماد.';}
+ }
+}
 function renderSheet(){
  if(!state.result)return;
  for(const sheet of state.result.sheets) sheet.analysis=analyzeArchiveSheet(sheet.rawRows,sheet.headerRowIndex,sheet.entityType,sheet.columnMapping);
@@ -17,6 +29,7 @@ function renderSheet(){
  const root=$('sheetDetails');root.replaceChildren();
  const summary=el('div');summary.className='meta';
  for(const [label,value] of [['اسم الورقة',s.name],['عدد الصفوف غير الفارغة',s.rowCount],['صف العناوين',s.headerRowIndex+1]]){const box=el('div');box.append(el('small',label),el('b',value));summary.append(box);}root.append(summary);
+ if(state.templateStatus[s.name]){const templateNote=el('p',state.templateStatus[s.name]);templateNote.className='template-note';root.append(templateNote);}
  const head=el('div');head.className='mappingHead';head.append(el('h3','تحديد نوع البيانات في الورقة'));
  const entity=makeSelect(getEntityOptions(),s.entityType);entity.addEventListener('change',()=>{s.entityType=entity.value;s.columnMapping=suggestColumnMapping(s.headers,s.entityType);renderSheet();});head.append(entity);root.append(head);
  const cand=el('div');cand.append(el('h3','اختيار صف العناوين بعد المعاينة'));
@@ -143,6 +156,7 @@ async function prepareHistoricalSheet(sheet,button){
    const records=prepared.map(row=>({...row,patient_id:state.patientLinks[row.patient_name_snapshot]||null}));
    const sheetSummary=[{sheet_name:sheet.name,rows_total:analysis.nonEmptyRows,rows_accepted:prepared.length,rows_rejected:rejected.length}];
    const result=await importHistoricalResults({tenantId:state.tenantId,branchId:state.branchId,userId:state.userId,file:state.file,fileSha256:state.result.sha256,sheetName:sheet.name,mappingSnapshot:{sheet_name:sheet.name,column_mapping:mapping},sheetSummary,records});
+   const signature=await sheetHeaderSignature(sheet.headers);await saveHistoricalImportTemplate({tenantId:state.tenantId,branchId:state.branchId,userId:state.userId,sheetName:sheet.name,headerSignature:signature,headers:sheet.headers,entityType:'historical_results',columnMapping:mapping});
    note('تم حفظ الدفعة '+result.batchId+' — أضيف '+result.inserted+'، تكرر وتُخطّي '+result.skipped+'، فشل '+result.failed+'. الحالة: '+result.status,result.failed>0);
    approve.textContent='تم الاعتماد';
   }catch(error){note(error.message||'تعذر اعتماد النتائج التاريخية.',true);approve.disabled=false;approve.textContent='إعادة محاولة الاعتماد';}
@@ -190,5 +204,5 @@ function renderResult(){const r=state.result;$('summary').hidden=false;$('sheetP
  $('sheetSelect').replaceChildren(...r.sheets.map((s,i)=>{const o=el('option',s.name+' ('+s.rowCount+' صف)');o.value=i;return o;}));$('sheetSelect').value='0';renderSheet();}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;try{await signInWithEmail($('email').value,$('password').value);await start();}catch(x){note(x.message||'تعذر تسجيل الدخول.',true);}finally{b.disabled=false;}});
 $('sheetSelect').addEventListener('change',renderSheet);
-$('inspectButton').addEventListener('click',async()=>{const file=$('archiveFile').files?.[0];const b=$('inspectButton');b.disabled=true;b.textContent='جارٍ الفحص داخل المتصفح…';$('summary').hidden=true;$('sheetPanel').hidden=true;try{state.file=file;state.result=await inspectWorkbookFile(file);renderResult();note('انتهى الفحص واقتراح مطابقة الأعمدة. لم يتم رفع الملف أو حفظ نتائج حتى الآن.');}catch(x){note(x.message||'تعذر فحص الملف.',true);}finally{b.disabled=false;b.textContent='فحص الملف محليًا';}});
+$('inspectButton').addEventListener('click',async()=>{const file=$('archiveFile').files?.[0];const b=$('inspectButton');b.disabled=true;b.textContent='جارٍ الفحص داخل المتصفح…';$('summary').hidden=true;$('sheetPanel').hidden=true;try{state.file=file;state.result=await inspectWorkbookFile(file);await applySavedSheetTemplates();renderResult();note('انتهى الفحص واقتراح مطابقة الأعمدة. لم يتم رفع الملف أو حفظ نتائج حتى الآن.');}catch(x){note(x.message||'تعذر فحص الملف.',true);}finally{b.disabled=false;b.textContent='فحص الملف محليًا';}});
 try{await start();}catch(e){note(e.message||'تعذر فتح أداة الفحص.',true);}
