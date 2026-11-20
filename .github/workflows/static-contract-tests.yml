@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, feature/reception-complete-workflow-2026-11-20]
 
 permissions:
   contents: read
