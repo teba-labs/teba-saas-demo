@@ -8,6 +8,7 @@ import { publishReportVersion, correctPublishedResult } from '../../modules/repo
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
 import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
+import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } from '../../modules/results/culture-repository.js';
 
 const $ = (id) => document.getElementById(id);
 const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map() };
@@ -103,7 +104,9 @@ async function renderWork() {
     const itemsMarkup = group.items.map(item => {
       const locked = item.status === 'completed';
       const params = item.technical_snapshot?.parameters ?? [];
-      const parameterControls = params.map(p => {
+      const groupedParams = new Map();
+      for (const p of params) { const sectionName = p.clinical_metadata?.section || 'النتائج'; if (!groupedParams.has(sectionName)) groupedParams.set(sectionName, []); groupedParams.get(sectionName).push(p); }
+      const parameterControls = [...groupedParams.entries()].map(([sectionName, groupParams]) => `<fieldset class="parameter-group"><legend>${escapeHtml(sectionName)}</legend>${groupParams.map(p => {
         const type = p.value_type ?? 'numeric';
         const code = escapeHtml(p.code);
         const name = escapeHtml(p.name ?? p.parameter_name ?? p.code);
@@ -123,10 +126,12 @@ async function renderWork() {
           control = `<input type="text" ${metadata} placeholder="أدخل النتيجة" />`;
         }
         return `<label>${name}${p.is_required === false ? ' (اختياري)' : ''}<small>${escapeHtml(p.unit ?? '')} ${escapeHtml(p.reference_ranges?.text ?? '')}</small>${control}</label>`;
-      }).join('');
+      }).join('')}</fieldset>`).join('');
+      const isCulture = ['CULTURE_URINE','CULTURE_STOOL'].includes(item.test_code_snapshot);
+      const cultureEditor = isCulture ? `<section class="culture-workflow" data-culture-workflow="${escapeHtml(item.id)}"><h3>العزلات والاختبار الحساسي (Antibiogram)</h3><p class="muted">أضف كل عزلة منفصلة. أدخل تفسير الحساسية وفق إصدار CLSI/EUCAST والطريقة المعتمدة في المعمل؛ النظام لا يخمّن نقاط القطع.</p><div class="culture-isolates" data-culture-isolates="${escapeHtml(item.id)}"><p class="muted">جارٍ تحميل العزلات…</p></div>${!locked && !isPublished ? `<form class="culture-isolate-form" data-visit-test-id="${escapeHtml(item.id)}"><label>رقم العزلة<input name="isolateNumber" type="number" min="1" max="20" value="1" required></label><label>اسم الكائن الممرض / العزلة<input name="organismName" maxlength="200" required placeholder="مثال: Escherichia coli"></label><label>وصف النمو<input name="growthDescription" placeholder="Pure growth / mixed growth"></label><label>عدد المستعمرات<input name="colonyCount" type="number" min="0" step="any"></label><label>وحدة العد<input name="colonyCountUnit" value="CFU/mL"></label><label>طريقة التعريف<input name="identificationMethod" placeholder="Biochemical / MALDI-TOF / Automated"></label><label class="wide">ملاحظات<textarea name="notes" rows="2"></textarea></label><button class="button" type="submit">حفظ العزلة</button></form>` : ''}</section>` : '';
       return `<section class="parameter" data-test-id="${escapeHtml(item.id)}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
-        <div class="parameter-grid">${parameterControls}</div>
+        <div class="parameter-grid">${parameterControls}</div>${cultureEditor}
         <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">حفظ تصحيح النتيجة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
       </section>`;
     }).join('');
@@ -153,6 +158,12 @@ async function renderWork() {
     tenantId: state.tenant.id,
     visitTestIds: state.work.map(item => item.id),
   });
+  const cultureWork = state.work.filter(item => ['CULTURE_URINE','CULTURE_STOOL'].includes(item.test_code_snapshot));
+  if (cultureWork.length) {
+    const cultureRows = await listCultureResults({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:cultureWork.map(item=>item.id)});
+    for (const item of cultureWork) renderCultureResults(host,item,cultureRows);
+    bindCultureForms(host);
+  }
   host.querySelectorAll('.select-historical-report').forEach(btn => btn.addEventListener('click', () => loadHistoricalReportPicker(btn)));
   host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => {
     const win = window.open('', '_blank');
@@ -291,6 +302,30 @@ async function printVisitReport(visitId, win) {
   const images = [...win.document.images];
   if (!images.length) setTimeout(printWhenReady, 250);
   else Promise.all(images.map(image => image.decode?.().catch(() => null))).then(() => setTimeout(printWhenReady, 150));
+}
+
+
+function renderCultureResults(host,item,data) {
+ const target=host.querySelector('[data-culture-isolates="'+CSS.escape(item.id)+'"]');
+ if(!target)return;
+ const isolates=data.isolates.filter(row=>row.visit_test_id===item.id);
+ const locked=item.status==='completed'||item.visits?.is_published;
+ if(!isolates.length){target.innerHTML='<p class="muted">لم تُسجل عزلات حتى الآن.</p>';return;}
+ target.innerHTML=isolates.map(isolate=>{
+  const ast=data.susceptibilities.filter(row=>row.isolate_id===isolate.id);
+  const astRows=ast.map(row=>'<div class="ast-row"><strong>'+escapeHtml(row.antimicrobial_agent)+'</strong><span>'+escapeHtml(row.test_method)+' · '+escapeHtml(row.measured_value??'—')+' '+escapeHtml(row.measured_unit??'')+' · '+escapeHtml(row.interpretation)+'</span><small>'+escapeHtml(row.breakpoint_standard)+' '+escapeHtml(row.breakpoint_edition)+' · QC: '+escapeHtml(row.qc_status)+'</small></div>').join('');
+  return '<article class="culture-isolate" data-isolate-id="'+escapeHtml(isolate.id)+'"><div class="card-head"><strong>العزلة '+isolate.isolate_number+': '+escapeHtml(isolate.organism_name)+'</strong><span class="pill">'+escapeHtml(isolate.growth_description||'Growth')+'</span></div><p class="muted">العد: '+escapeHtml(isolate.colony_count??'—')+' '+escapeHtml(isolate.colony_count_unit)+' · طريقة التعريف: '+escapeHtml(isolate.identification_method||'—')+'</p>'+(isolate.notes?'<p>'+escapeHtml(isolate.notes)+'</p>':'')+'<div class="ast-list">'+(astRows||'<p class="muted">لم تُسجل نتائج حساسية لهذه العزلة.</p>')+'</div>'+(!locked?'<form class="culture-ast-form" data-isolate-id="'+escapeHtml(isolate.id)+'"><h4>إضافة / تحديث مضاد حيوي</h4><label>المضاد<input name="antimicrobialAgent" required maxlength="120"></label><label>الطريقة<select name="testMethod"><option value="disk_diffusion">Disk diffusion</option><option value="mic">MIC</option><option value="automated">Automated</option><option value="gradient_diffusion">Gradient diffusion</option><option value="other">Other</option></select></label><label>القيمة المقاسة<input name="measuredValue" type="number" min="0" step="any"></label><label>الوحدة<input name="measuredUnit" placeholder="mm / mg/L"></label><label>التفسير<select name="interpretation"><option value="S">S — Susceptible</option><option value="I">I — Intermediate / susceptible increased exposure</option><option value="R">R — Resistant</option><option value="SDD">SDD</option><option value="IE">IE</option><option value="NA">Not applicable</option><option value="not_interpreted">Not interpreted</option></select></label><label>المعيار<select name="breakpointStandard"><option value="CLSI">CLSI</option><option value="EUCAST">EUCAST</option><option value="other">Other validated standard</option></select></label><label>الإصدار<input name="breakpointEdition" value="M100 Ed36 (2026)" required></label><label>جدول / ملاحظة المرجع<input name="breakpointTable"></label><label>رابط المرجع<input name="breakpointSourceUrl" type="url"></label><label>ضبط الجودة<select name="qcStatus"><option value="not_documented">Not documented</option><option value="passed">Passed</option><option value="failed">Failed</option></select></label><label class="wide">ملاحظات<textarea name="notes" rows="1"></textarea></label><button class="button button-secondary" type="submit">حفظ نتيجة الحساسية</button></form>':'')+'</article>';
+ }).join('');
+}
+function bindCultureForms(host) {
+ host.querySelectorAll('.culture-isolate-form').forEach(form=>form.addEventListener('submit',async event=>{
+  event.preventDefault();const fd=new FormData(form);const button=form.querySelector('button[type="submit"]');
+  try{setBusy(button,true,'جارٍ حفظ العزلة…');await saveCultureIsolate({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:form.dataset.visitTestId,isolateNumber:fd.get('isolateNumber'),organismName:fd.get('organismName'),growthDescription:fd.get('growthDescription'),colonyCount:fd.get('colonyCount'),colonyCountUnit:fd.get('colonyCountUnit'),identificationMethod:fd.get('identificationMethod'),notes:fd.get('notes'),staffId:$('staffSelect').value,userId:state.userId});showNotice('تم حفظ العزلة.');await refreshWork();}catch(error){showNotice(error.message||'تعذر حفظ العزلة.',true);}finally{setBusy(button,false);}
+ }));
+ host.querySelectorAll('.culture-ast-form').forEach(form=>form.addEventListener('submit',async event=>{
+  event.preventDefault();const fd=new FormData(form);const button=form.querySelector('button[type="submit"]');
+  try{setBusy(button,true,'جارٍ حفظ الحساسية…');await saveCultureSusceptibility({tenantId:state.tenant.id,branchId:state.branch.id,isolateId:form.dataset.isolateId,antimicrobialAgent:fd.get('antimicrobialAgent'),testMethod:fd.get('testMethod'),measuredValue:fd.get('measuredValue'),measuredUnit:fd.get('measuredUnit'),interpretation:fd.get('interpretation'),breakpointStandard:fd.get('breakpointStandard'),breakpointEdition:fd.get('breakpointEdition'),breakpointTable:fd.get('breakpointTable'),breakpointSourceUrl:fd.get('breakpointSourceUrl'),qcStatus:fd.get('qcStatus'),notes:fd.get('notes'),staffId:$('staffSelect').value,userId:state.userId});showNotice('تم حفظ نتيجة الحساسية وربطها بالعزلة.');await refreshWork();}catch(error){showNotice(error.message||'تعذر حفظ نتيجة الحساسية.',true);}finally{setBusy(button,false);}
+ }));
 }
 
 async function saveTest(button) {
