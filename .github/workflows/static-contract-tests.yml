@@ -25,7 +25,9 @@ jobs:
           node --experimental-default-type=module --check assets/js/tenant-branding.js
           node --experimental-default-type=module --check assets/js/reception.js
           node --experimental-default-type=module --check assets/js/results-workbench.js
-          node --experimental-default-type=module --check modules/laboratory/repository.js\n          node --experimental-default-type=module --check modules/reception/repository.js\n          node --experimental-default-type=module --check offline/supabase-adapters.js
+          node --experimental-default-type=module --check modules/laboratory/repository.js
+          node --experimental-default-type=module --check modules/reception/repository.js
+          node --experimental-default-type=module --check offline/supabase-adapters.js
           node --experimental-default-type=module --check assets/js/settings-center.js
           node --experimental-default-type=module --check assets/js/data-import.js
           node --experimental-default-type=module --check assets/js/catalog.js
