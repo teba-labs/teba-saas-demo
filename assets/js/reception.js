@@ -155,6 +155,7 @@ async function searchPatients(){
 }
 async function addNewPatient(button){
   const fullName=$('patientName').value.trim();if(!fullName){notice('اكتب اسم المريض أولًا.',true);$('patientName').focus();return;}
+  const sex=$('patientSex').value;if(!sex){notice('حدد النوع: ذكر أو أنثى.',true);$('patientSex').focus();return;}
   const ageRaw=$('patientAge').value,age=ageRaw===''?null:Number(ageRaw),unit=$('patientAgeUnit').value;
   const max=unit==='days'?43800:unit==='months'?1440:120;
   if(age!==null&&(!Number.isFinite(age)||age<0||age>max)){notice('راجع العمر ووحدة القياس المدخلة.',true);$('patientAge').focus();return;}
