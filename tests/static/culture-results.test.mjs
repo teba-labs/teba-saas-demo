@@ -49,6 +49,8 @@ test('CBC, urine, stool and culture profiles are present with source references 
  assert.match(read('database/migrations/049_granular_microscopy_fields.sql'),/RBC_SCHISTOCYTES/);
  assert.match(read('database/migrations/049_granular_microscopy_fields.sql'),/UA_WBC_CLUMPS/);
  assert.match(read('database/migrations/049_granular_microscopy_fields.sql'),/ST_PARASITE_METHOD/);
+ assert.match(read('database/migrations/050_mayo_pediatric_cbc_intervals.sql'),/pediatric/);
+ assert.match(read('database/migrations/051_culture_fk_indexes_and_rls_perf.sql'),/idx_culture_ast_tenant_branch_staff/);
 });
 
 test('catalog editor separates verified local intervals from clinical definition review',()=>{
