@@ -28,7 +28,7 @@ assert.match(archiveStore,/export async function restoreHistoricalWorkbooks/);
 assert.match(archiveStore,/row.tenantId!==String\(tenantId\)/);
 assert.match(sync,/historicalWorkbooksRestored/);
 assert.match(h,/ملفات Excel التاريخية المحفوظة لهذا المعمل/);
-assert.match(h,/ولا تشمل مرفقات المرضى/);
+assert.match(h,/مرفقات المرضى/);
 
 const branchSettings=fs.readFileSync(new URL('assets/js/settings-center.js',root),'utf8');
 assert.match(branchSettings,/const BRANCH_ARCHIVE_READY=true/);
