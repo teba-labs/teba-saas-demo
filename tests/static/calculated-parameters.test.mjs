@@ -34,7 +34,7 @@ test('catalog editor saves calculated numeric formulas and results UI is read-on
   assert.match(html,/id="parameterFormula"/);
   const sw=read('service-worker.js');
   assert.match(sw,/modules\/catalog\/formula-engine\.js/);
-  assert.match(sw,/taiba-smart-lab-shell-v20/);
+  assert.match(sw,/taiba-smart-lab-shell-v21/);
   assert.match(catalog,/parseFormulaExpression\(/);
   assert.match(repository,/result_source: valid\.resultSource, formula: valid\.formula/);
   assert.match(results,/data-result-source="calculated"/);

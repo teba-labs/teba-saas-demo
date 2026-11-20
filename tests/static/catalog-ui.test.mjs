@@ -7,7 +7,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('catalog screen is Arabic RTL and exposes test, parameter and price management controls', () => {
   const html = read('app/catalog.html');
-  for (const token of ['lang="ar"', 'dir="rtl"', 'testForm', 'parameterForm', 'priceForm', 'tenantSelect', 'showInactive']) assert.ok(html.includes(token), `missing ${token}`);
+  for (const token of ['lang="ar"', 'dir="rtl"', 'testForm', 'parameterForm', 'priceForm', 'tenantSelect', 'showInactive', 'masterCatalogPanel', 'masterCatalogSearch', 'testPreparation', 'parameterApplicability']) assert.ok(html.includes(token), `missing ${token}`);
   assert.ok(fs.existsSync(path.join(root, 'assets/css/catalog.css')));
   assert.ok(fs.existsSync(path.join(root, 'assets/js/catalog.js')));
 });
@@ -32,12 +32,14 @@ test('catalog UI uses tenant-scoped repository methods and deactivation instead 
 test('catalog screen and assets are included in the offline application shell', () => {
   const sw = read('service-worker.js');
   for (const asset of ['./app/catalog.html','./assets/css/catalog.css','./assets/js/catalog.js']) assert.ok(sw.includes(asset), `missing ${asset}`);
-  assert.match(sw, /taiba-smart-lab-shell-v20/);
+  assert.match(sw, /taiba-smart-lab-shell-v21/);
   assert.match(sw, /modules\/migration\/price-importer\.js/);
 });
 
 test('parameter repository supports inactive rows only when management explicitly requests them', () => {
   const repo = read('modules/catalog/repository.js');
+  assert.match(repo, /listMasterCatalogTests/);
+  assert.match(repo, /importMasterCatalogTest/);
   assert.match(repo, /listTestParameters\(\{ tenantId, testId, includeInactive = false \}/);
   assert.match(repo, /return \(data \?\? \[\]\)\.filter\(row => includeInactive \|\| row\.is_active\)/);
 });

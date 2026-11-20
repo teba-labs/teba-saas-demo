@@ -8,7 +8,7 @@ const required = (value, name) => { if (!value) throw new Error(`${name} is requ
 export async function listCatalog({ tenantId, includeInactive = false } = {}) {
   required(tenantId, 'tenantId');
   let query = db().from(TABLES.catalog)
-    .select('id, tenant_id, code, name, test_kind, category, specimen, method, turnaround_minutes, instructions, is_active, updated_at')
+    .select('id, tenant_id, code, name, test_kind, category, specimen, method, turnaround_minutes, instructions, is_active, updated_at, short_name, synonyms, loinc_code, clinical_category, clinical_purpose, service_type, patient_preparation, collection_requirements, specimen_requirements, transport_requirements, stability_requirements, rejection_criteria, biosafety_notes, critical_result_policy, reporting_notes, source_references, clinical_review_status, catalog_version')
     .eq('tenant_id', tenantId).order('name');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('catalog', { tenantId })).filter(row => includeInactive || row.is_active);
   const { data, error } = await query;
@@ -53,7 +53,7 @@ export async function listTestParameters({ tenantId, testId, includeInactive = f
   required(tenantId, 'tenantId'); required(testId, 'testId');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order);
   let query = db().from(TABLES.parameters)
-    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula')
+    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status')
     .eq('tenant_id', tenantId).eq('test_id', testId)
     .order('display_order');
   const { data, error } = await query;
@@ -80,6 +80,14 @@ export async function saveCatalogTest({ tenantId, test, id } = {}) {
     category: test.category?.trim() || null, specimen: test.specimen?.trim() || null,
     method: test.method?.trim() || null, turnaround_minutes: turnaround,
     instructions: test.instructions?.trim() || null, is_active: test.isActive !== false,
+    short_name: test.shortName?.trim() || null, synonyms: test.synonyms ?? [], loinc_code: test.loincCode?.trim() || null,
+    clinical_category: test.clinicalCategory?.trim() || null, clinical_purpose: test.clinicalPurpose?.trim() || null,
+    service_type: test.serviceType || 'laboratory_test', patient_preparation: test.patientPreparation ?? {},
+    collection_requirements: test.collectionRequirements ?? {}, specimen_requirements: test.specimenRequirements ?? {},
+    transport_requirements: test.transportRequirements ?? {}, stability_requirements: test.stabilityRequirements ?? {},
+    rejection_criteria: test.rejectionCriteria ?? [], biosafety_notes: test.biosafetyNotes?.trim() || null,
+    critical_result_policy: test.criticalResultPolicy ?? {}, reporting_notes: test.reportingNotes?.trim() || null,
+    source_references: test.sourceReferences ?? [], clinical_review_status: test.clinicalReviewStatus || 'needs_review',
   };
   const { data, error } = await db().from(TABLES.catalog).upsert(payload).select().single();
   if (error) throw error;
@@ -115,12 +123,28 @@ const validateParameter = parameter => {
   if (resultSource === 'calculated' && (valueType !== 'numeric' || !formula || typeof formula !== 'object' || Array.isArray(formula))) throw new Error('Calculated parameters require a numeric formula.');
   if (resultSource === 'manual' && formula !== null) throw new Error('Manual parameters cannot have a formula.');
   const ranges = parameter.referenceRanges ?? [];
+  const referenceIntervalStatus = parameter.referenceIntervalStatus || (valueType === 'numeric' ? 'local_verification_required' : 'not_applicable');
+  if (!['not_applicable','local_verification_required','verified_local'].includes(referenceIntervalStatus)) throw new Error('Unsupported reference interval status.');
+  const sourceReferences = parameter.sourceReferences ?? [];
+  if (!Array.isArray(sourceReferences)) throw new Error('المراجع العلمية يجب أن تكون قائمة JSON.');
+  if (referenceIntervalStatus === 'verified_local' && valueType === 'numeric' && (!Array.isArray(ranges) || !ranges.length)) throw new Error('لا يمكن اعتماد المدى محليًا دون إدخال مدى موثق واحد على الأقل.');
+  if (referenceIntervalStatus === 'verified_local' && valueType === 'numeric' && !sourceReferences.length) throw new Error('اعتماد المدى محليًا يتطلب مرجعًا علميًا موثقًا.');
+  const rangeRows = Array.isArray(ranges) ? ranges : (ranges && typeof ranges === 'object' ? [ranges] : []);
+  for (const range of rangeRows) {
+    if (!range || typeof range !== 'object' || Array.isArray(range)) throw new Error('كل مدى مرجعي يجب أن يكون كائن JSON.');
+    const low = range.lower ?? range.low ?? range.min;
+    const high = range.upper ?? range.high ?? range.max;
+    if (low != null && !Number.isFinite(Number(low))) throw new Error('الحد الأدنى للمدى المرجعي يجب أن يكون رقمًا.');
+    if (high != null && !Number.isFinite(Number(high))) throw new Error('الحد الأعلى للمدى المرجعي يجب أن يكون رقمًا.');
+    if (low != null && high != null && Number(low) > Number(high)) throw new Error('الحد الأدنى لا يمكن أن يتجاوز الحد الأعلى.');
+    if (range.age && range.age.min != null && range.age.max != null && Number(range.age.min) > Number(range.age.max)) throw new Error('نطاق العمر المرجعي غير صحيح.');
+  }
   const choices = parameter.choices ?? [];
   const validRanges = Array.isArray(ranges) || (ranges !== null && typeof ranges === 'object');
   if (!validRanges || !Array.isArray(choices)) throw new Error('referenceRanges must be an object or array, and choices must be an array.');
   if (valueType === 'choice' && (choices.length === 0 || choices.some(choice => typeof choice !== 'string' || !choice.trim()))) throw new Error('Choice parameters require at least one choice, and each choice must be non-empty text.');
   if (valueType === 'choice' && new Set(choices.map(choice => choice.trim())).size !== choices.length) throw new Error('Choice parameters cannot contain duplicate choices.');
-  return { code, name, valueType, decimalPlaces, displayOrder, ranges, choices, resultSource, formula };
+  return { code, name, valueType, decimalPlaces, displayOrder, ranges, choices, resultSource, formula, referenceIntervalStatus, sourceReferences };
 };
 
 /** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
@@ -134,6 +158,10 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     decimal_places: valid.decimalPlaces, reference_ranges: valid.ranges,
     choices: valid.choices, display_order: valid.displayOrder,
     result_source: valid.resultSource, formula: valid.formula,
+    unit_ucum: parameter.unitUcum?.trim() || null, alternate_units: parameter.alternateUnits ?? [],
+    critical_ranges: parameter.criticalRanges ?? {}, interpretation_rules: parameter.interpretationRules ?? [],
+    applicability: parameter.applicability ?? {}, method_notes: parameter.methodNotes?.trim() || null, clinical_metadata: parameter.clinicalMetadata ?? {},
+    source_references: valid.sourceReferences, reference_interval_status: valid.referenceIntervalStatus, clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
   const { data, error } = await db().from(TABLES.parameters).upsert(payload).select().single();
@@ -248,4 +276,27 @@ export async function addBasePriceIfMissing({ tenantId, testId, sellingPrice } =
   try { await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId], scope: 'base' }); }
   catch { cacheUpdated = false; }
   return { created: true, price: data, cacheUpdated };
+}
+
+/** Published global master catalog; definitions are read-only and imported as tenant-owned copies. */
+export async function listMasterCatalogTests() {
+  const { data: releases, error: releaseError } = await db().from('master_catalog_releases')
+    .select('id, version, title, published_at').eq('status','published').order('published_at',{ascending:false});
+  if (releaseError) throw releaseError;
+  if (!releases?.length) return [];
+  const { data, error } = await db().from('master_catalog_tests')
+    .select('id, release_id, master_code, canonical_name, alternate_names, test_kind, category, service_type, clinical_review_status, source_name')
+    .in('release_id', releases.map(row=>row.id)).order('canonical_name');
+  if (error) throw error;
+  const byRelease = new Map(releases.map(row=>[row.id,row]));
+  return (data ?? []).map(row=>({...row, release:byRelease.get(row.release_id)}));
+}
+
+export async function importMasterCatalogTest({ tenantId, masterTestId } = {}) {
+  required(tenantId,'tenantId'); required(masterTestId,'masterTestId');
+  const { data, error } = await db().rpc('import_master_catalog_test', {
+    p_tenant_id:tenantId, p_master_test_id:masterTestId,
+  });
+  if (error) throw error;
+  return data;
 }

@@ -12,6 +12,11 @@
   <section id="loginPanel" class="panel login-panel"><h1>تسجيل دخول المعمل</h1><p class="muted">استخدم حساب المعمل على مشروع الاختبار.</p><form id="loginForm" class="stack"><label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label><label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label><button class="button" type="submit">دخول</button></form></section>
   <section id="workspace" hidden>
     <section class="panel context"><div><span class="eyebrow">إدارة بيانات المعمل</span><h1>كتالوج التحاليل</h1><p id="userLine" class="muted"></p></div><label>المعمل<select id="tenantSelect"></select></label><div id="roleNotice" class="role-notice"></div></section>
+    <section id="masterCatalogPanel" class="panel master-panel">
+      <div class="section-head"><div><h2>المكتبة الطبية الرئيسية</h2><p class="muted">استورد تعريفًا طبيًا إلى نسخة المعمل القابلة للتعديل. لا تُستورد الأسعار تلقائيًا.</p></div><span id="masterCatalogCount" class="status">تحميل المكتبة…</span></div>
+      <label>بحث في المكتبة<input id="masterCatalogSearch" type="search" placeholder="اسم التحليل أو الكود"></label>
+      <div id="masterCatalogList" class="master-catalog-list"><p class="empty">جارٍ تحميل الإصدارات المنشورة…</p></div>
+    </section>
     <div class="layout">
       <section class="panel list-panel"><div class="section-head"><div><h2>قائمة التحاليل</h2><p class="muted">اختر تحليلًا لإدارة بياناته وبارامتراته.</p></div><button id="newTest" class="button" type="button">＋ تحليل جديد</button></div>
         <label>بحث بالاسم أو الكود<input id="search" type="search" placeholder="مثال: CBC أو صورة دم"></label>
@@ -29,6 +34,27 @@
           <label>الطريقة<input id="testMethod" maxlength="120"></label>
           <label>زمن ظهور النتيجة بالدقائق<input id="testTurnaround" type="number" min="0" max="10080" step="1"></label>
           <label class="wide">تعليمات أو ملاحظات<textarea id="testInstructions" rows="2" maxlength="2000"></textarea></label>
+          <details class="advanced-fields wide"><summary>البيانات المعملية والطبية المتقدمة</summary>
+            <div class="form-grid">
+              <label>الاسم المختصر<input id="testShortName" maxlength="100"></label>
+              <label>أسماء بديلة (افصل بفاصلة)<input id="testSynonyms"></label>
+              <label>كود LOINC<input id="testLoinc" maxlength="30"></label>
+              <label>التصنيف الطبي<input id="testClinicalCategory" maxlength="120"></label>
+              <label>الغرض أو الدلالة الإكلينيكية<input id="testClinicalPurpose" maxlength="500"></label>
+              <label>نوع الخدمة<select id="testServiceType"><option value="laboratory_test">تحليل معملي</option><option value="panel">مجموعة تحاليل</option><option value="procedure">إجراء معملي</option><option value="service">خدمة</option></select></label>
+              <label class="wide">تحضير المريض — JSON<textarea id="testPreparation" rows="2" placeholder='{"fasting_required":true,"fasting_hours":8}'></textarea></label>
+              <label class="wide">متطلبات سحب العينة — JSON<textarea id="testCollection" rows="2" placeholder='{"tube":"...","volume_ml":...}'></textarea></label>
+              <label class="wide">مواصفات العينة والوعاء — JSON<textarea id="testSpecimenRequirements" rows="2"></textarea></label>
+              <label class="wide">النقل ودرجة الحرارة — JSON<textarea id="testTransport" rows="2"></textarea></label>
+              <label class="wide">الثبات بعد السحب — JSON<textarea id="testStability" rows="2"></textarea></label>
+              <label class="wide">أسباب رفض العينة<textarea id="testRejection" rows="2"></textarea></label>
+              <label class="wide">سياسة النتائج الحرجة — JSON<textarea id="testCriticalPolicy" rows="2"></textarea></label>
+              <label class="wide">ملاحظات السلامة الحيوية<textarea id="testBiosafety" rows="2"></textarea></label>
+              <label class="wide">ملاحظات التقرير<textarea id="testReportingNotes" rows="2"></textarea></label>
+              <label class="wide">المراجع العلمية — JSON<textarea id="testSources" rows="2" placeholder='[{"title":"...","organization":"...","url":"...","version":"..."}]'></textarea></label>
+              <label>حالة المراجعة الطبية<select id="testReviewStatus"><option value="needs_review">تحتاج مراجعة</option><option value="draft">مسودة</option><option value="verified">معتمدة داخليًا بعد التحقق</option><option value="deprecated">متقادمة</option></select></label>
+            </div>
+          </details>
           <label class="check-line wide"><input id="testActive" type="checkbox" checked> التحليل نشط ومتاح للاستقبال</label>
           <div class="wide actions"><button class="button" type="submit">حفظ بيانات التحليل</button><button id="resetTest" class="button button-light" type="button">تفريغ النموذج</button></div>
         </form>
@@ -45,8 +71,20 @@
               <label id="formulaField" class="wide" hidden>المعادلة الحسابية<textarea id="parameterFormula" rows="2" placeholder="مثال: (HGB + HCT) / 2"></textarea><small>اكتب أكواد البارامترات الرقمية مع العمليات الحسابية (+ − × ÷ والأقواس). الحساب يتم على السحابة عند حفظ النتائج.</small></label>
               <label>نوع القيمة<select id="parameterType"><option value="numeric">رقمية</option><option value="text">نص</option><option value="boolean">نعم / لا</option><option value="choice">اختيار من قائمة</option></select></label>
               <label>الخانات العشرية<input id="parameterDecimals" type="number" min="0" max="6" value="2"></label><label>ترتيب العرض<input id="parameterOrder" type="number" min="0" max="10000" value="0"></label>
-              <label class="wide">المدى المرجعي<textarea id="parameterRanges" rows="2" placeholder="مثال: 0.5 - 1.2"></textarea><small>اكتب المدى بالطريقة المعتادة. وللحالات الخاصة يمكن إدخال JSON متقدم لتحديد أكثر من مدى حسب السن أو النوع.</small></label>
+              <label class="wide">المدى المرجعي<textarea id="parameterRanges" rows="2" placeholder='[{"population":"adult","sex":"female","age":{"min":18,"max":120,"unit":"years"},"lower":null,"upper":null,"unit":"..."}]'></textarea><small>أدخل JSON منظمًا لكل فئة عمرية/نوع/حمل. لا تعتمد أرقامًا قبل مطابقتها مع الجهاز والمنهجية والمصدر المحلي.</small></label>
               <label class="wide">الاختيارات<textarea id="parameterChoices" rows="2" placeholder="Positive, Negative"></textarea><small>اكتب الاختيارات مفصولة بفاصلة، ومطلوبة فقط لنوع «اختيار من قائمة».</small></label>
+              <details class="advanced-fields wide"><summary>تفاصيل المدى المرجعي والتفسير والجودة</summary>
+                <div class="form-grid">
+                  <label>وحدة UCUM<input id="parameterUnitUcum" maxlength="50" placeholder="mg/dL"></label>
+                  <label class="wide">وحدات بديلة وتحويلاتها — JSON<textarea id="parameterAlternateUnits" rows="2" placeholder='[{"unit":"mmol/L","factor":0.0555}]'></textarea></label>
+                  <label class="wide">القيم الحرجة — JSON<textarea id="parameterCriticalRanges" rows="2" placeholder='{"low":...,"high":...,"unit":"..."}'></textarea></label>
+                  <label class="wide">قواعد التفسير — JSON<textarea id="parameterInterpretation" rows="2"></textarea></label>
+                  <label class="wide">الانطباق حسب العمر والنوع والحمل — JSON<textarea id="parameterApplicability" rows="2" placeholder='{"age":{"min":18,"max":120,"unit":"years"},"sex":["female"]}'></textarea></label>
+                  <label class="wide">ملاحظات المنهجية<textarea id="parameterMethodNotes" rows="2"></textarea></label><label class="wide">بيانات الجهاز والجودة والتداخلات والقيود — JSON<textarea id="parameterClinicalMetadata" rows="2"></textarea></label>
+                  <label class="wide">المراجع العلمية — JSON<textarea id="parameterSources" rows="2"></textarea></label>
+                  <label>حالة المدى المرجعي<select id="parameterReferenceStatus"><option value="local_verification_required">يحتاج اعتمادًا محليًا حسب الجهاز والطريقة</option><option value="verified_local">تم التحقق محليًا</option><option value="not_applicable">لا ينطبق</option></select></label><label>حالة المراجعة الطبية<select id="parameterReviewStatus"><option value="needs_review">تحتاج مراجعة</option><option value="draft">مسودة</option><option value="verified">معتمدة داخليًا بعد التحقق</option><option value="deprecated">متقادمة</option></select></label>
+                </div>
+              </details>
               <label class="check-line"><input id="parameterRequired" type="checkbox" checked> نتيجة إلزامية</label><label class="check-line"><input id="parameterActive" type="checkbox" checked> بارامتر نشط</label>
             </div>
             <div class="actions"><button class="button" type="submit">حفظ البارامتر</button><button id="cancelParameter" class="button button-light" type="button">إلغاء</button></div>
