@@ -1,19 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-
 const root=new URL('../../',import.meta.url);
-const catalog=await readFile(new URL('assets/js/catalog.js',root),'utf8');
-const html=await readFile(new URL('app/catalog.html',root),'utf8');
+const module=await readFile(new URL('modules/ui/keyboard-navigation.js',root),'utf8');
+const pages=['catalog','cms-editor','dashboard','data-import','index','platform-admin','reception','results-workbench','settings','sync-center','workday'];
 
-test('catalog forms support keyboard-first Enter and arrow navigation',()=>{
-  assert.match(catalog,/installCatalogKeyboardNavigation/);
-  assert.match(catalog,/event\.key==='Enter'/);
-  assert.match(catalog,/event\.key==='ArrowDown'\|\|event\.key==='ArrowUp'/);
-  assert.match(catalog,/bindList\('testList'/);
-  assert.match(catalog,/bindList\('masterCatalogList'/);
-  assert.match(catalog,/bindList\('parameterList'/);
-  assert.match(html,/id="masterCatalogSearch"/);
-  assert.match(html,/id="testForm"/);
-  assert.match(html,/id="parameterForm"/);
+test('shared keyboard navigation is loaded on every application screen',async()=>{
+  for(const page of pages){
+    const html=await readFile(new URL('app/'+page+'.html',root),'utf8');
+    assert.match(html,/modules\/ui\/keyboard-navigation\.js/,page);
+  }
+  assert.match(module,/event\.key === 'Enter'/);
+  assert.match(module,/ArrowDown/);
+  assert.match(module,/ArrowUp/);
+  assert.match(module,/Home/);
+  assert.match(module,/End/);
+  assert.match(module,/data-keyboard-native/);
 });
