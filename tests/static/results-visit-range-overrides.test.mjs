@@ -21,6 +21,9 @@ test('range editing is available before approval, including a previously complet
  assert.ok(ui.includes('تصحيح رينج التقرير المنشور'));
  assert.ok(ui.includes('التقرير السابق محفوظ'));
  assert.ok(migration.includes('app.result_correction'));
+ const flagMigration=read('database/migrations/067_clear_stale_flags_on_range_override.sql');
+ assert.ok(flagMigration.includes('flag=null'));
+ assert.ok(flagMigration.includes('reference_range_snapshot'));
  assert.ok(migration.includes("v_test.status='cancelled'"));
  assert.ok(migration.includes('An approved but unpublished visit must be reopened'));
  assert.ok(migration.includes('app.result_correction'));
