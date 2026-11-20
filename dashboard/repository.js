@@ -123,6 +123,9 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
     item.count += 1; item.billed += Number(row.price_snapshot ?? 0); testMap.set(row.test_id, item);
   }
   const uniquePatients = new Set(visits.map(row => row.patient_id));
+  const categoryNameById = new Map(expenseCategories.map(row => [row.id, row.name]));
+  const categoryNameByExpenseId = new Map(linkedExpenses.map(row => [row.id, row.category_id ? (categoryNameById.get(row.category_id) || 'بند غير معروف') : 'مصروف غير مصنف']));
+  const ledgerWithCategories = ledger.map(row => ({...row, category_name: row.source_type === 'expense' ? (categoryNameByExpenseId.get(row.source_id) || 'مصروف غير مرتبط ببند') : row.direction === 'outflow' ? 'حركة خارجة أخرى' : null}));
   return {
     period: { monthStart, monthEnd }, branches: byBranch,
     totals: {
@@ -133,7 +136,7 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
     daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
     expenseBreakdown,
     topTests: [...testMap.values()].sort((a, b) => b.count - a.count).slice(0, 12),
-    ledger,
+    ledger: ledgerWithCategories,
   };
 }
 
