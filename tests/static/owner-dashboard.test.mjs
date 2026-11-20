@@ -107,3 +107,12 @@ test('owner report screens expose CSV export and the case screen includes histor
   assert.match(script,/text\/csv;charset=utf-8/);
   assert.match(script,/cases:'موسمية الحالات حسب الشهر'/);
 });
+
+test('historical dashboard follows the selected branch by exact workbook branch name',()=>{
+  assert.match(script,/data-branch-name=/);
+  assert.match(script,/refresh\(\)\.then\(\(\)=>refreshHistoricalDashboard\(\)\)/);
+  assert.match(fs.readFileSync(path.join(root,'assets/js/dashboard-history.js'),'utf8'),/dataset\?\.branchName/);
+  const history=fs.readFileSync(path.join(root,'modules/dashboard/historical-analysis.js'),'utf8');
+  assert.match(history,/branch='all'/);
+  assert.match(history,/اسم الفرع المختار غير موجود/);
+});
