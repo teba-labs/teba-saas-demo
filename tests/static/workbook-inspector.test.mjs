@@ -74,7 +74,7 @@ test('mapping review stays in-memory until explicit historical, catalog or price
 
 test('file guards and workbook sheet limit remain enforced',()=>{
  const inspector=read('modules/migration/workbook-inspector.js');
- assert.match(inspector,/MAX_FILE_BYTES = 20 \* 1024 \* 1024/);
+ assert.match(inspector,/MAX_FILE_BYTES = 50 \* 1024 \* 1024/);
  assert.match(inspector,/MAX_SHEETS = 200/);
  assert.match(inspector,/fileSize > MAX_FILE_BYTES/);
  assert.match(inspector,/count > MAX_SHEETS/);
