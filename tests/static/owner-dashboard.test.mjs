@@ -120,3 +120,8 @@ test('historical dashboard follows the selected branch by exact workbook branch 
 test('live and monthly screens render their own current-day and selected-period KPI summaries',()=>{
   for(const id of ['liveTodayVisits','liveTodayTests','liveTodayCollected','liveTodayExpenses','liveTodayNet','monthGross','monthDiscounts','monthNetBilled','monthCollected','monthExpenses','monthNetCash','monthReceivables','monthVisitsPatients']) assert.match(script,new RegExp(id));
 });
+
+test('CSV export includes live KPI cards and historical reconciliation KPI cards',()=>{
+  assert.match(script,/\.kpi,\.history-analysis-kpis article/);
+  assert.match(script,/const csv='\\uFEFF'/);
+});
