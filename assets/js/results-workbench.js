@@ -495,7 +495,7 @@ async function correctTest(button) {
     }
     state.previewedVisits.delete(visitId);
     section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=true;});
-    button.dataset.correctionMode='false';button.textContent=isPublished?'تصحيح نتيجة منشورة':'تصحيح نتيجة محفوظة';
+    button.dataset.correctionMode='false';button.textContent=isPublished?'تصحيح نتيجة منشورة':'تصحيح نتيجة محفوظة';button.dataset.oldLabel=button.textContent;
     showNotice(isPublished?'تم تسجيل التصحيح. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع نسخة مصححة.':'تم تصحيح النتيجة قبل اعتماد الزيارة، وحُفظ سبب التصحيح وسجل التعديل.');
   } catch(error){showNotice(error.message||'تعذر تصحيح النتيجة.',true);}
   finally{setBusy(button,false);}
