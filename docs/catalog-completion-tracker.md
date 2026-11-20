@@ -94,3 +94,15 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - 2026-11-20: Inspected live TEST database trigger definitions to confirm snapshot creation, effective branch/base price selection, immutable visit snapshots, and result metadata validation.
 - 2026-11-20: CI surfaced one missing test-local fixture (`js is not defined`) in the culture contract suite; corrected it, reran the workflow, and confirmed 51/51 passing in run #724.
 - 2026-11-20: Final active PR head at this checkpoint: `26b3e74ff35435a7f5cca5a84d4cdfc85c1cc9ec`; 21 commits ahead of `main`, 0 behind. PR #18 remains open and `main` is unchanged.
+
+
+## 2026-11-20 — Finalization authorization and recovery checkpoint
+
+- Owner authorized completion of the remaining historical catalog and, only after clinical/software verification, promotion of the complete development state to `main`, preserving a downloadable backup.
+- Recovery branch created before further work: `backup/pre-catalog-finalization-2026-11-20`, pinned to commit `2c3b2fdec0f11bda262409a1fcf1879b83af5bdb`.
+- Current development branch comparison: 24 commits ahead of `main`, 0 behind; `main` remains unchanged.
+- Fresh TEST categorization confirms the 495 review-pending records span oncology (10), urinalysis/stool (47), specialized tests (128), hematology (20), lipids (6), glucose (12), coagulation/cardiac (26), thyroid (14), vitamins (24), virology (74), liver (19), renal (8), immunology (62), and hormones (45). These are legacy source-name entries, not yet clinically verified profiles.
+- Scientific governance reaffirmed: no numeric interval, unit, formula, method, specimen stability, or interpretive cutoff is to be copied across assay platforms without a traceable, assay-appropriate source and local verification where required. CLSI EP28 guidance governs transfer/verification of quantitative reference intervals; method-specific manufacturer/performance documentation is required for individual assays.
+- Additional authoritative reference reviewed: Mayo Clinic Laboratories ACTH catalog (test 8411), which specifies EDTA plasma, chilled collection, time-sensitive processing/freezing, ECLIA on Roche Cobas e801, and a.m.-specific reference values. This illustrates why a generic ACTH record cannot safely be populated without method and timing metadata.
+- Supabase security advisor snapshot on TEST returned existing findings: RLS-enabled tables without policies (3 informational findings), SECURITY DEFINER RPC execution warnings (20 warnings across anon/authenticated scopes), and leaked-password protection disabled (1 warning). These require separate function-by-function authorization review; no broad permission changes were applied as part of catalog work.
+- Current PR #18 remains open. The 51/51 static test result does not substitute for authenticated browser E2E or clinical review of the 495 entries. Do not merge or deploy until these gates are resolved.
