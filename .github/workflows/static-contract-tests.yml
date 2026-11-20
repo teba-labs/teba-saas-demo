@@ -23,7 +23,8 @@ jobs:
         run: |
           node --experimental-default-type=module --check assets/js/tenant-branding.js
           node --experimental-default-type=module --check assets/js/reception.js
+          node --experimental-default-type=module --check assets/js/results-workbench.js
           node --experimental-default-type=module --check assets/js/settings-center.js
       - name: Run identity and workspace contract tests
         run: |
-          node --test tests/static/app-integration.test.mjs tests/static/workspace-selection.test.mjs tests/static/tenant-branding.test.mjs
+          node --test tests/static/app-integration.test.mjs tests/static/workspace-selection.test.mjs tests/static/tenant-branding.test.mjs tests/static/report-print-settings.test.mjs
