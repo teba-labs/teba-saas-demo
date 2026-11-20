@@ -53,10 +53,11 @@ function selectRecord(record,records,shell){
    const status=node.querySelector('.pill')?.textContent||'';
    const open=button(name+' · '+status,'profile-open-button');
    open.addEventListener('click',()=>{
+    profileList.hidden=true;
     const back=button('رجوع لقائمة البروفايلات','button button-secondary');
     const panel=document.createElement('div');panel.className='profile-entry-view';
-    back.addEventListener('click',()=>ph.replaceChildren(profileList));
-    panel.append(back,node);ph.replaceChildren(panel);
+    panel.append(back,node);ph.append(panel);
+    back.addEventListener('click',()=>{panel.hidden=true;profileList.hidden=false;});
    });
    profileList.append(open);
   });
