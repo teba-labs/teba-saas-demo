@@ -60,7 +60,7 @@ test('visit range overrides are separate from the frozen catalog snapshot and ke
 test('completed unpublished result correction is audited and cannot alter an approved or published visit',()=>{
   const migration=read('database/migrations/062_correct_completed_visit_result.sql');
   assert.ok(migration.includes('security invoker'));
-  assert.ok(migration.includes('visit_test.status'));
+  assert.ok(migration.includes('v_test.status'));
   assert.ok(migration.includes('correction_reason'));
   assert.ok(migration.includes('entered_by_staff_id'));
   assert.ok(migration.includes('revoke all on function public.correct_completed_visit_result'));
