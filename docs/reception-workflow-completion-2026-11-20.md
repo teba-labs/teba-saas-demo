@@ -29,10 +29,10 @@ This branch completes the reception page as a small-lab operational workspace, r
 - Mouse actions remain available for every control.
 
 ## Data and safety
-- Migration `024_patient_age_units.sql` adds `age_value` and `age_unit` and expands `age_years` precision to four decimals.
+- Migration `055_patient_age_units.sql` adds `age_value` and `age_unit` and expands `age_years` precision to four decimals.
 - Offline patient replay now verifies age value and unit as part of the idempotent identity snapshot.
 - Branch scoping and RLS continue to be enforced by the existing repositories and database RPCs.
-- Supabase TEST project `teba-lis-demo` has applied migration `patient_age_units`; `main` has not been changed or merged.
+- Supabase TEST project `teba-lis-demo` has applied migration `patient_age_units` (recorded after migration 054); `main` has not been changed or merged.
 - Backup branch: `backup/pre-reception-complete-2026-11-20`.
 - Working branch: `feature/reception-complete-workflow-2026-11-20`.
 - Draft PR: https://github.com/teba-labs/teba-saas-demo/pull/22
