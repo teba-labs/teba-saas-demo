@@ -28,6 +28,19 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
   return { rows: data ?? [], count: count ?? 0, page: safePage, pageSize: safeSize };
 }
 
+
+/** Complete, branch-scoped test list for a single approved visit report. */
+export async function listVisitWorkForReport({ tenantId, branchId, visitId } = {}) {
+  if (!tenantId || !branchId || !visitId) throw new Error('tenantId, branchId and visitId are required.');
+  const { data, error } = await db().from(TABLES.visitTests)
+    .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number))')
+    .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('visit_id', visitId)
+    .neq('status', 'cancelled').neq('visits.status', 'cancelled')
+    .order('created_at').order('id');
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function setVisitTestStatus({ tenantId, branchId, visitTestId, status } = {}) {
   if (!tenantId || !branchId || !visitTestId) throw new Error('tenantId, branchId and visitTestId are required.');
   if (!['pending', 'in_progress', 'completed', 'cancelled'].includes(status)) throw new Error('Unsupported visit-test status.');
