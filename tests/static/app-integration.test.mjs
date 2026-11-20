@@ -35,7 +35,7 @@ test('all tenant and platform screens link back to the launcher', () => {
 
 test('service worker pre-caches all application screens and local assets', () => {
   const sw = read('service-worker.js');
-  assert.match(sw, /taiba-smart-lab-shell-v14/);
+  assert.match(sw, /taiba-smart-lab-shell-v15/);
   const shell = sw.match(/const APP_SHELL = \[([\s\S]*?)\];/)[1];
   const assets = [...shell.matchAll(/'\.\/([^']+)'/g)].map(m => m[1]);
   assert.ok(assets.includes('app/index.html'));
