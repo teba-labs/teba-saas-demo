@@ -48,14 +48,14 @@ begin
   if jsonb_typeof(p_expr)='number' then return true; end if;
   if jsonb_typeof(p_expr)<>'object' then return false; end if;
   if p_expr ? 'param' then
-    return jsonb_object_length(p_expr)=1 and jsonb_typeof(p_expr->'param')='string'
+    return (p_expr - 'param')='{}'::jsonb and jsonb_typeof(p_expr->'param')='string'
       and length(btrim(p_expr->>'param'))>0;
   end if;
   if p_expr ? 'const' then
-    return jsonb_object_length(p_expr)=1 and jsonb_typeof(p_expr->'const')='number';
+    return (p_expr - 'const')='{}'::jsonb and jsonb_typeof(p_expr->'const')='number';
   end if;
   v_op:=p_expr->>'op'; v_args:=p_expr->'args';
-  if jsonb_object_length(p_expr)<>2 or jsonb_typeof(v_args)<>'array' then return false; end if;
+  if not (p_expr ? 'op' and p_expr ? 'args') or (p_expr - 'op' - 'args')<>'{}'::jsonb or jsonb_typeof(v_args)<>'array' then return false; end if;
   v_count:=jsonb_array_length(v_args);
   if v_op in ('add','multiply','min','max') then
     if v_count<2 then return false; end if;
