@@ -155,3 +155,13 @@ export async function saveHistoricalImportTemplate({ tenantId, branchId, userId,
   if (error) throw error;
   return data;
 }
+
+export async function listHistoricalImportTemplatesForBranch({ tenantId, branchId } = {}) {
+  need(tenantId, 'tenantId'); need(branchId, 'branchId');
+  const { data, error } = await db().from('historical_import_templates')
+    .select('id,sheet_name,header_signature,headers_json,entity_type,column_mapping,updated_at')
+    .eq('tenant_id', tenantId).eq('branch_id', branchId)
+    .order('updated_at', { ascending: false }).limit(500);
+  if (error) throw error;
+  return data || [];
+}
