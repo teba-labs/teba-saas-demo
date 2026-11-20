@@ -18,7 +18,7 @@ test('reception displays branch outstanding balances and allows later collection
   assert.match(html,/id="paymentReceipt"/);
   assert.match(script,/showPaymentReceipt/);
   assert.match(script,/window\.print\(\)/);
-  assert.match(script,/لا تطبع إيصالًا نهائيًا قبل التأكيد/);
+  assert.match(script,/لا تطبع إيصالًا نهائيًا قبل تأكيد الخادم/);
 });
 
 test('outstanding balances are calculated server-side across all payments for branch visits',()=>{
