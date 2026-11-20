@@ -1,7 +1,7 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId } from '../../core/tenant/workspace-selection.js';
-import { getLabSettings } from '../../modules/settings/repository.js';
+import { getLabSettings, getPrintSettings } from '../../modules/settings/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 
 const state = { tenantId: null, branchId: null, settings: null, originalTitle: null };
@@ -19,6 +19,12 @@ function renderHeader(settings) {
   const title = root.querySelector('strong');
   if (title && state.originalTitle === null) state.originalTitle = title.textContent;
   if (title) title.textContent = name || state.originalTitle || 'Taiba Smart Lab';
+  let branchBadge = root.querySelector('[data-tenant-branch-label]');
+  const branchName = state.branchName || '';
+  if (branchName) {
+    if (!branchBadge) { branchBadge = document.createElement('small'); branchBadge.dataset.tenantBranchLabel = 'true'; branchBadge.style.cssText = 'display:inline-block;margin-inline:8px;padding:3px 8px;border-radius:999px;background:#ffffff22;font-size:11px;'; root.append(branchBadge); }
+    branchBadge.textContent = branchName;
+  } else branchBadge?.remove();
 
   let mark = root.querySelector('.brand-mark, .mark');
   let image = root.querySelector('[data-tenant-brand-logo]');
@@ -63,15 +69,19 @@ async function refreshTenantBranding() {
     renderHeader(state.settings);
     return;
   }
-  const settings = await getLabSettings({ tenantId: tenant.id });
+  const [settings, printRow] = await Promise.all([
+    getLabSettings({ tenantId: tenant.id }),
+    getPrintSettings({ tenantId: tenant.id, branchId }).catch(() => null),
+  ]);
   state.tenantId = tenant.id;
   state.branchId = branchId;
+  state.branchName = branches.find(item => item.id === branchId)?.name || '';
   state.settings = settings || {};
+  state.printSettings = printRow?.settings_json || {};
   renderHeader(state.settings);
+  globalThis.__taibaTenantBrand = { tenantId: tenant.id, branchId, branchName: state.branchName, settings: state.settings, printSettings: state.printSettings };
   document.documentElement.dataset.tenantBrandReady = 'true';
-  document.dispatchEvent(new CustomEvent('taiba:tenant-branding-ready', { detail: {
-    tenantId: tenant.id, branchId, settings: state.settings
-  }}));
+  document.dispatchEvent(new CustomEvent('taiba:tenant-branding-ready', { detail: globalThis.__taibaTenantBrand }));
 }
 
 function safelyRefresh() {
@@ -86,7 +96,7 @@ client.auth.onAuthStateChange((event) => {
     queueMicrotask(safelyRefresh);
   }
   if (event === 'SIGNED_OUT') {
-    state.tenantId = null; state.branchId = null; state.settings = null;
+    state.tenantId = null; state.branchId = null; state.settings = null; state.branchName = ''; state.printSettings = {}; globalThis.__taibaTenantBrand = null;
     renderHeader({});
   }
 });
