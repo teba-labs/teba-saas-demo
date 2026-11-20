@@ -39,6 +39,7 @@ function buildShell(host,cards){
  rebuilding=false;
 }
 function selectRecord(record,records,shell){
+ if(selectedVisitId&&selectedVisitId!==record.visitId&&window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ نتائج الزيارة الحالية قبل الانتقال إلى زيارة أخرى.');return;}
  selectedVisitId=record.visitId;window.taibaLastSelectedVisitId=selectedVisitId;window.taibaResultsContext=window.taibaGetResultsContext?.()||window.taibaResultsContext||{};
  shell.querySelectorAll('.visit-select-button').forEach(b=>b.classList.toggle('active',b.dataset.visitId===selectedVisitId));
  shell.querySelector('[data-selected-visit-label]').textContent=record.title;
@@ -66,7 +67,7 @@ function selectRecord(record,records,shell){
  const preview=button('معاينة نتائج الزيارة','button button-preview');
  preview.addEventListener('click',()=>{if(typeof window.taibaPreviewVisitReport!=='function'){window.alert('تعذر تحميل أداة معاينة التقرير.');return;}window.taibaPreviewVisitReport(record.visitId);});
  const hide=button('إخفاء الحالة من قائمة العمل','button button-secondary');
- hide.addEventListener('click',async()=>{const reason=window.prompt('سبب إخفاء الحالة (اختياري):')||'';if(!window.confirm('سيتم إخفاء الحالة من قائمة العمل فقط، مع الاحتفاظ بكل نتائجها وسجلها. متابعة؟'))return;hide.disabled=true;try{await setVisitWorkbenchHidden({tenantId:window.taibaResultsContext.tenantId,branchId:window.taibaResultsContext.branchId,visitId:record.visitId,staffId:$('staffSelect')?.value,hidden:true,reason});window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));}catch(error){hide.disabled=false;window.alert(error.message||'تعذر إخفاء الحالة.');}});
+ hide.addEventListener('click',async()=>{if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ النتائج قبل إخفاء الحالة.');return;}const reason=window.prompt('سبب إخفاء الحالة (اختياري):')||'';if(!window.confirm('سيتم إخفاء الحالة من قائمة العمل فقط، مع الاحتفاظ بكل نتائجها وسجلها. متابعة؟'))return;hide.disabled=true;try{await setVisitWorkbenchHidden({tenantId:window.taibaResultsContext.tenantId,branchId:window.taibaResultsContext.branchId,visitId:record.visitId,staffId:$('staffSelect')?.value,hidden:true,reason});window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));}catch(error){hide.disabled=false;window.alert(error.message||'تعذر إخفاء الحالة.');}});
  const whatsapp=button('إرسال واتساب للنتائج','button button-secondary');
  const rawPhone=String(record.phone||'').replace(/[^0-9+]/g,'');
  let waPhone=rawPhone.replace(/^00/,'');
@@ -96,7 +97,7 @@ async function toggleCatalog(button,column,records){
   const search=column.querySelector('[data-catalog-search]');
   const draw=()=>{const term=search.value.trim().toLowerCase();const filtered=rows.filter(row=>(row.name+' '+row.code).toLowerCase().includes(term));
    host.innerHTML=filtered.length?filtered.map(row=>'<div class="catalog-result-row"><span><strong>'+esc(row.name)+'</strong><small>'+esc(row.code)+'</small></span><button type="button" class="button button-secondary" data-add-test="'+esc(row.id)+'" '+(currentCodes.has(row.code)?'disabled':'')+'>'+(currentCodes.has(row.code)?'مضاف':'إضافة')+'</button></div>').join(''):'<p class="muted">لا توجد نتائج مطابقة.</p>';
-   host.querySelectorAll('[data-add-test]').forEach(add=>add.addEventListener('click',async()=>{add.disabled=true;add.textContent='جارٍ الإضافة…';try{await addTestToVisit({tenantId:window.taibaResultsContext.tenantId,branchId:window.taibaResultsContext.branchId,visitId:selectedVisitId,testId:add.dataset.addTest,staffId:$('staffSelect')?.value});window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));}catch(error){add.disabled=false;add.textContent='إضافة';window.alert(error.message||'تعذرت إضافة التحليل.');}}));
+   host.querySelectorAll('[data-add-test]').forEach(add=>add.addEventListener('click',async()=>{if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ النتائج الحالية قبل إضافة تحليل جديد.');return;}add.disabled=true;add.textContent='جارٍ الإضافة…';try{await addTestToVisit({tenantId:window.taibaResultsContext.tenantId,branchId:window.taibaResultsContext.branchId,visitId:selectedVisitId,testId:add.dataset.addTest,staffId:$('staffSelect')?.value});window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));}catch(error){add.disabled=false;add.textContent='إضافة';window.alert(error.message||'تعذرت إضافة التحليل.');}}));
   };search.oninput=draw;draw();
  }catch(error){host.textContent=error.message||'تعذر تحميل كتالوج التحاليل.';}
 }
