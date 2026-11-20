@@ -1,14 +1,15 @@
 import {getCurrentSession,signInWithEmail} from '../../core/auth/session.js';
 import {loadMyTenantContext} from '../../core/tenant/context.js';
-import {inspectWorkbookFile,getEntityOptions,getEntityFields,suggestColumnMapping,analyzeArchiveSheet,analyzeArchiveRelationships} from '../../modules/migration/workbook-inspector.js';
+import {inspectWorkbookFile,getEntityOptions,getEntityFields,suggestColumnMapping,analyzeArchiveSheet,analyzeArchiveRelationships,inspectLegacyDate} from '../../modules/migration/workbook-inspector.js';
+import {findHistoricalPatientCandidates,importHistoricalResults} from '../../modules/migration/historical-results-repository.js';
 import {importNewCatalogTests} from '../../modules/migration/catalog-importer.js';
 import {importNewBasePrices} from '../../modules/migration/price-importer.js';
 import {listCatalog,saveCatalogTest,listCurrentBasePrices,addBasePriceIfMissing} from '../../modules/catalog/repository.js';
-const $=id=>document.getElementById(id);let state={tenants:[],tenantId:null,result:null};
+const $=id=>document.getElementById(id);let state={tenants:[],tenantId:null,branchId:null,userId:null,result:null,file:null,patientLinks:{}};
 function note(message,error=false){$('notice').textContent=message;$('notice').className='show'+(error?' error':'');}
 function el(tag,text=''){const n=document.createElement(tag);n.textContent=String(text??'');return n;}
 function makeSelect(options,value){const s=el('select');for(const item of options){const o=el('option',item.label);o.value=item.value;s.append(o);}s.value=value??'';return s;}
-async function start(){const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;return;}const ctx=await loadMyTenantContext();state.tenants=(ctx.tenants||[]).filter(t=>t.accountType==='owner');if(!state.tenants.length)throw Error('هذه الأداة مخصصة لمالك المعمل فقط.');state.tenantId=state.tenants[0].id;$('tenantName').textContent=state.tenants[0].name;$('loginPanel').hidden=true;$('workspace').hidden=false;}
+async function start(){const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;return;}state.userId=session.user?.id||session.data?.user?.id||null;const ctx=await loadMyTenantContext();state.tenants=(ctx.tenants||[]).filter(t=>t.accountType==='owner');if(!state.tenants.length)throw Error('هذه الأداة مخصصة لمالك المعمل فقط.');state.tenantId=state.tenants[0].id;const tenant=state.tenants[0];$('tenantName').textContent=tenant.name;$('historicalBranch').replaceChildren(...(tenant.branches||[]).filter(b=>b.is_active!==false).map(b=>{const o=el('option',b.name);o.value=b.id;return o;}));state.branchId=$('historicalBranch').value||tenant.branches?.[0]?.id||null;$('historicalBranch').addEventListener('change',()=>{state.branchId=$('historicalBranch').value;});$('loginPanel').hidden=true;$('workspace').hidden=false;}
 function renderSheet(){
  if(!state.result)return;
  for(const sheet of state.result.sheets) sheet.analysis=analyzeArchiveSheet(sheet.rawRows,sheet.headerRowIndex,sheet.entityType,sheet.columnMapping);
@@ -27,7 +28,7 @@ function renderSheet(){
  const fields=getEntityFields(s.entityType);
  s.analysis=analyzeArchiveSheet(s.rawRows,s.headerRowIndex,s.entityType,s.columnMapping);
  const mapped=s.columnMapping.filter(x=>x.fieldKey);
- const duplicates=mapped.filter((m,i)=>mapped.findIndex(x=>x.fieldKey===m.fieldKey)!==i);
+ const duplicates=mapped.filter((m,i)=>m.fieldKey!=='parameter_columns'&&mapped.findIndex(x=>x.fieldKey===m.fieldKey)!==i);
  const required=fields.filter(f=>f.required),missing=required.filter(f=>!mapped.some(m=>m.fieldKey===f.key));
  const status=el('div');status.className='mappingStatus';
  status.textContent=s.entityType==='unknown'?'حدد نوع البيانات أولًا.':`تم ربط ${mapped.length} عمودًا · أعمدة مطلوبة غير مربوطة: ${missing.length} · تعيينات مكررة: ${duplicates.length}`;
@@ -43,7 +44,8 @@ function renderSheet(){
   report.append(el('h3','مراجعة الحفاظ على البيانات القديمة'));report.append(legacyStats);
   if(s.entityType==='patients')report.append(el('p','العمر الأصلي ووحدته محفوظان كما وردا في الملف؛ لا نحولهما إلى سنوات تلقائيًا.'));
   if(s.entityType==='visits')report.append(el('p','المدفوع التراكمي لا يتحول إلى دفعة جديدة. يجب مطابقته مع دفتر الحركة قبل أي استيراد.'));
-  if(s.entityType==='test_results')report.append(el('p','تُفحص بنية النتائج فقط، ويظل JSON الأصلي محفوظًا دون تفكيك أو إعادة كتابة.'));
+  if(s.entityType==='test_results')report.append(el('p','هذه نتائج تشغيلية قديمة مرتبطة بمعرّفات زيارات؛ لا تُرحّل تلقائيًا ضمن مسار النتائج التاريخية.'));
+  if(s.entityType==='historical_results')report.append(el('p','النتائج التاريخية تُحفظ منفصلة عن الزيارات والفواتير. أعمدة البارامترات المتعددة يمكن ربطها جميعًا بالحقل «بارامتر نتيجة»، ويُحتفظ بالصف الأصلي كاملًا. مطابقة المريض اختيار يدوي فقط.'));
   report.append(el('h3','ملاحظات فحص الصفوف'));
   if(!s.analysis.issues.length)report.append(el('p','لم تظهر أخطاء من القواعد الحالية في هذه الورقة. هذا لا يعني اعتماد البيانات أو صلاحيتها للاستيراد.'));
   else {const list=el('ul');for(const issue of s.analysis.issues)list.append(el('li',`صف ${issue.rowNumber}: ${issue.message}`));report.append(list);if(s.analysis.issueCount>s.analysis.issues.length)report.append(el('small','تم إظهار أول '+s.analysis.issues.length+' ملاحظة فقط من أصل '+s.analysis.issueCount+'.'));}
@@ -68,6 +70,12 @@ function renderSheet(){
   line.append(name,choice,statusCell);mapBody.append(line);
  });
  mapTable.append(mapBody);const mapWrap=el('div');mapWrap.className='tableWrap';mapWrap.append(mapTable);root.append(mapWrap);
+ if(s.entityType==='historical_results'){
+  const historyButton=el('button','مراجعة النتائج التاريخية ومطابقة المرضى');historyButton.type='button';
+  historyButton.addEventListener('click',()=>prepareHistoricalSheet(s,historyButton).catch(error=>note(error.message||'تعذرت معاينة النتائج التاريخية.',true)));
+  root.append(historyButton);
+  root.append(el('p','لا يحدث أي رفع عند الفحص. بعد المعاينة يمكنك اختيار ربط كل اسم بمريض موجود يدويًا أو تركه غير مربوط، ثم اعتماد الرفع السحابي.'));
+ }
  if(s.entityType==='catalog'){
   const importButton=el('button','استيراد التحاليل الجديدة فقط');importButton.type='button';importButton.addEventListener('click',()=>importCatalogSheet(s,importButton).catch(error=>note(error.message||'تعذر استيراد كتالوج التحاليل.',true)));root.append(importButton);
   const importHint=el('p','استيراد الكتالوج ينشئ الأكواد غير الموجودة فقط ولا يعدّل كودًا قائمًا.');root.append(importHint);
@@ -82,6 +90,62 @@ function renderSheet(){
  const body=el('tbody');for(const row of s.preview){const line=el('tr');for(let i=0;i<Math.max(s.headers.length,row.length);i++)line.append(el('td',row[i]??''));body.append(line);}
  if(!s.preview.length){const line=el('tr'),cell=el('td','لا توجد صفوف معاينة بعد صف العناوين المقترح.');cell.colSpan=Math.max(1,s.headers.length);line.append(cell);body.append(line);}
  table.append(body);const wrap=el('div');wrap.className='tableWrap';wrap.append(table);root.append(wrap);
+}
+function historicalRecordKey(fileSha,sheetName,rowNumber,testCode){return crypto.subtle.digest('SHA-256',new TextEncoder().encode([fileSha,sheetName,rowNumber,testCode].join('|'))).then(bytes=>[...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,'0')).join(''));}
+async function prepareHistoricalSheet(sheet,button){
+ if(navigator.onLine===false)throw new Error('اعتماد النتائج التاريخية يحتاج اتصالًا بالإنترنت.');
+ if(!state.branchId||!state.userId||!state.file)throw new Error('اختر فرعًا وسجّل الدخول ثم افحص الملف من جديد.');
+ const mapping=sheet.columnMapping||[];
+ const patientCol=mapping.filter(x=>x.fieldKey==='patient_name'),dateCol=mapping.filter(x=>x.fieldKey==='result_date');
+ if(patientCol.length!==1||dateCol.length!==1)throw new Error('اربط اسم المريض وتاريخ النتيجة مرة واحدة لكل ورقة.');
+ const analysis=analyzeArchiveSheet(sheet.rawRows,sheet.headerRowIndex,'historical_results',mapping);
+ const prepared=[],rejected=[];
+ for(const row of analysis.records){
+  const date=inspectLegacyDate(row.result_date),patientName=String(row.patient_name||'').trim();
+  const testName=String(row.test_name||sheet.name||'').trim(),parameters=row.parameter_columns||{};
+  if(!patientName){rejected.push({row:row._rowNumber,reason:'اسم المريض فارغ'});continue;}
+  if(date.status!=='valid'||!date.isoDate){rejected.push({row:row._rowNumber,reason:date.status==='ambiguous'?'تاريخ ملتبس يحتاج تصحيحًا':'تاريخ غير صالح أو فارغ'});continue;}
+  if(!testName){rejected.push({row:row._rowNumber,reason:'اسم التحليل غير موجود'});continue;}
+  if(!String(row.result_value||'').trim()&&!Object.keys(parameters).length){rejected.push({row:row._rowNumber,reason:'لا توجد نتيجة أو بارامترات مربوطة'});continue;}
+  const testCode=String(row.test_code||('LEGACY-'+testName.toLocaleUpperCase('en').replace(/[^A-Z0-9]+/g,'-').slice(0,48))).trim();
+  const originalCells=sheet.rawRows[row._rowNumber-1]||[],originalRow={};
+  sheet.headers.forEach((header,index)=>{if(String(originalCells[index]??'').trim()!=='')originalRow[String(header||('Column '+(index+1)))]=String(originalCells[index]);});
+  const resultData={format:'legacy-historical-v1',value:row.result_value||null,parameters,unit:row.unit||null,reference_range:row.reference_range||null,raw_original:row.results_data||null,raw_result_at:row.result_at||null,raw_age:row.age||null,raw_age_unit:row.age_type||null};
+  const sourceRecordKey=await historicalRecordKey(state.result.sha256,sheet.name,row._rowNumber,testCode);
+  let resultAt=null;if(row.result_at){const candidate=new Date(row.result_at);if(!Number.isNaN(candidate.getTime()))resultAt=candidate.toISOString();}
+  prepared.push({patient_name_snapshot:patientName,test_code:testCode,test_name_snapshot:testName,result_date:date.isoDate,result_at:resultAt,result_data:resultData,patient_age_raw:row.age||null,patient_age_unit:row.age_type||null,source_sheet_name:sheet.name,source_row_number:row._rowNumber,source_record_key:sourceRecordKey,original_row:originalRow});
+ }
+ if(!prepared.length)throw new Error('لا توجد صفوف صالحة. الصفوف المرفوضة: '+rejected.length);
+ const root=$('sheetDetails'),panel=el('section');panel.className='validationPanel';panel.append(el('h3','مراجعة واعتماد النتائج التاريخية'));
+ const stats=el('div');stats.className='validationStats';
+ for(const [label,value] of [['صفوف مقبولة',prepared.length],['صفوف مرفوضة',rejected.length],['أسماء مرضى مختلفة',new Set(prepared.map(x=>x.patient_name_snapshot)).size]]){const item=el('div');item.append(el('small',label),el('b',value));stats.append(item);}panel.append(stats);
+ if(rejected.length){const list=el('ul');rejected.slice(0,30).forEach(x=>list.append(el('li','صف '+x.row+': '+x.reason)));panel.append(list);}
+ const names=[...new Set(prepared.map(x=>x.patient_name_snapshot))].slice(0,100);state.patientLinks={};
+ panel.append(el('p','مطابقة المرضى لا تتم تلقائيًا. راجع المرشحين حسب الاسم والعمر وتاريخ التسجيل، واختر المريض الصحيح أو اترك الاسم محفوظًا كنص تاريخي دون ربط.'));
+ for(let i=0;i<names.length;i+=10){
+  const group=names.slice(i,i+10);
+  const candidates=await Promise.all(group.map(name=>findHistoricalPatientCandidates({tenantId:state.tenantId,branchId:state.branchId,name,limit:8}).catch(()=>[])));
+  group.forEach((name,index)=>{
+   const line=el('label');line.className='historyMatch';const select=el('select');
+   const options=[{value:'',label:'بدون ربط بمريض — احتفظ بالاسم فقط'},...candidates[index].map(p=>({value:p.id,label:p.full_name+' · '+(p.age_years??'عمر غير مسجل')+' · '+new Date(p.created_at).toLocaleDateString('ar-EG')}))];
+   select.append(...options.map(x=>{const o=el('option',x.label);o.value=x.value;return o;}));
+   select.addEventListener('change',()=>{state.patientLinks[name]=select.value||null;});
+   line.append(el('span',name),select);panel.append(line);
+  });
+ }
+ const approve=el('button','اعتماد ورفع '+prepared.length+' نتيجة تاريخية للسحابة');approve.type='button';
+ approve.addEventListener('click',async()=>{
+  if(!globalThis.confirm('سيتم حفظ النتائج كبيانات تاريخية منفصلة، مع الاحتفاظ بملف Excel الأصلي. لن تُنشأ زيارات أو فواتير أو حركات مالية، ولن تُستبدل نتائج تشغيلية. هل تعتمد الرفع؟'))return;
+  approve.disabled=true;approve.textContent='جارٍ حفظ الملف والنتائج…';
+  try{
+   const records=prepared.map(row=>({...row,patient_id:state.patientLinks[row.patient_name_snapshot]||null}));
+   const sheetSummary=[{sheet_name:sheet.name,rows_total:analysis.nonEmptyRows,rows_accepted:prepared.length,rows_rejected:rejected.length}];
+   const result=await importHistoricalResults({tenantId:state.tenantId,branchId:state.branchId,userId:state.userId,file:state.file,fileSha256:state.result.sha256,mappingSnapshot:{sheet_name:sheet.name,column_mapping:mapping},sheetSummary,records});
+   note('تم حفظ الدفعة '+result.batchId+' — أضيف '+result.inserted+'، تكرر وتُخطّي '+result.skipped+'، فشل '+result.failed+'. الحالة: '+result.status,result.failed>0);
+   approve.textContent='تم الاعتماد';
+  }catch(error){note(error.message||'تعذر اعتماد النتائج التاريخية.',true);approve.disabled=false;approve.textContent='إعادة محاولة الاعتماد';}
+ });
+ panel.append(approve);root.append(panel);panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function importCatalogSheet(sheet,button){
  if(navigator.onLine===false)throw new Error('استيراد كتالوج التحاليل يحتاج اتصالًا بالإنترنت. لم يتم تغيير البيانات.');
@@ -124,5 +188,5 @@ function renderResult(){const r=state.result;$('summary').hidden=false;$('sheetP
  $('sheetSelect').replaceChildren(...r.sheets.map((s,i)=>{const o=el('option',s.name+' ('+s.rowCount+' صف)');o.value=i;return o;}));$('sheetSelect').value='0';renderSheet();}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;try{await signInWithEmail($('email').value,$('password').value);await start();}catch(x){note(x.message||'تعذر تسجيل الدخول.',true);}finally{b.disabled=false;}});
 $('sheetSelect').addEventListener('change',renderSheet);
-$('inspectButton').addEventListener('click',async()=>{const file=$('archiveFile').files?.[0];const b=$('inspectButton');b.disabled=true;b.textContent='جارٍ الفحص داخل المتصفح…';$('summary').hidden=true;$('sheetPanel').hidden=true;try{state.result=await inspectWorkbookFile(file);renderResult();note('انتهى الفحص واقتراح مطابقة الأعمدة. التغييرات مؤقتة داخل الصفحة فقط؛ لم يتم رفع أو استيراد أو حفظ أي بيانات.');}catch(x){note(x.message||'تعذر فحص الملف.',true);}finally{b.disabled=false;b.textContent='فحص الملف محليًا';}});
+$('inspectButton').addEventListener('click',async()=>{const file=$('archiveFile').files?.[0];const b=$('inspectButton');b.disabled=true;b.textContent='جارٍ الفحص داخل المتصفح…';$('summary').hidden=true;$('sheetPanel').hidden=true;try{state.file=file;state.result=await inspectWorkbookFile(file);renderResult();note('انتهى الفحص واقتراح مطابقة الأعمدة. لم يتم رفع الملف أو حفظ نتائج حتى الآن.');}catch(x){note(x.message||'تعذر فحص الملف.',true);}finally{b.disabled=false;b.textContent='فحص الملف محليًا';}});
 try{await start();}catch(e){note(e.message||'تعذر فتح أداة الفحص.',true);}
