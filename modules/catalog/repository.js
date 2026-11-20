@@ -8,7 +8,7 @@ const required = (value, name) => { if (!value) throw new Error(`${name} is requ
 export async function listCatalog({ tenantId, includeInactive = false } = {}) {
   required(tenantId, 'tenantId');
   let query = db().from(TABLES.catalog)
-    .select('id, tenant_id, code, name, test_kind, category, specimen, method, turnaround_minutes, instructions, is_active, updated_at')
+    .select('id, tenant_id, code, name, test_kind, category, specimen, method, turnaround_minutes, instructions, is_active, updated_at, short_name, synonyms, loinc_code, clinical_category, clinical_purpose, service_type, patient_preparation, collection_requirements, specimen_requirements, transport_requirements, stability_requirements, rejection_criteria, biosafety_notes, critical_result_policy, reporting_notes, source_references, clinical_review_status, catalog_version')
     .eq('tenant_id', tenantId).order('name');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('catalog', { tenantId })).filter(row => includeInactive || row.is_active);
   const { data, error } = await query;
@@ -53,7 +53,7 @@ export async function listTestParameters({ tenantId, testId, includeInactive = f
   required(tenantId, 'tenantId'); required(testId, 'testId');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order);
   let query = db().from(TABLES.parameters)
-    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula')
+    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, source_references, clinical_review_status')
     .eq('tenant_id', tenantId).eq('test_id', testId)
     .order('display_order');
   const { data, error } = await query;
@@ -80,6 +80,14 @@ export async function saveCatalogTest({ tenantId, test, id } = {}) {
     category: test.category?.trim() || null, specimen: test.specimen?.trim() || null,
     method: test.method?.trim() || null, turnaround_minutes: turnaround,
     instructions: test.instructions?.trim() || null, is_active: test.isActive !== false,
+    short_name: test.shortName?.trim() || null, synonyms: test.synonyms ?? [], loinc_code: test.loincCode?.trim() || null,
+    clinical_category: test.clinicalCategory?.trim() || null, clinical_purpose: test.clinicalPurpose?.trim() || null,
+    service_type: test.serviceType || 'laboratory_test', patient_preparation: test.patientPreparation ?? {},
+    collection_requirements: test.collectionRequirements ?? {}, specimen_requirements: test.specimenRequirements ?? {},
+    transport_requirements: test.transportRequirements ?? {}, stability_requirements: test.stabilityRequirements ?? {},
+    rejection_criteria: test.rejectionCriteria ?? [], biosafety_notes: test.biosafetyNotes?.trim() || null,
+    critical_result_policy: test.criticalResultPolicy ?? {}, reporting_notes: test.reportingNotes?.trim() || null,
+    source_references: test.sourceReferences ?? [], clinical_review_status: test.clinicalReviewStatus || 'needs_review',
   };
   const { data, error } = await db().from(TABLES.catalog).upsert(payload).select().single();
   if (error) throw error;
@@ -134,6 +142,10 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     decimal_places: valid.decimalPlaces, reference_ranges: valid.ranges,
     choices: valid.choices, display_order: valid.displayOrder,
     result_source: valid.resultSource, formula: valid.formula,
+    unit_ucum: parameter.unitUcum?.trim() || null, alternate_units: parameter.alternateUnits ?? [],
+    critical_ranges: parameter.criticalRanges ?? {}, interpretation_rules: parameter.interpretationRules ?? [],
+    applicability: parameter.applicability ?? {}, method_notes: parameter.methodNotes?.trim() || null,
+    source_references: parameter.sourceReferences ?? [], clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
   const { data, error } = await db().from(TABLES.parameters).upsert(payload).select().single();
@@ -248,4 +260,27 @@ export async function addBasePriceIfMissing({ tenantId, testId, sellingPrice } =
   try { await replaceCachedCurrentPrices([data], { tenantId, testIds: [testId], scope: 'base' }); }
   catch { cacheUpdated = false; }
   return { created: true, price: data, cacheUpdated };
+}
+
+/** Published global master catalog; definitions are read-only and imported as tenant-owned copies. */
+export async function listMasterCatalogTests() {
+  const { data: releases, error: releaseError } = await db().from('master_catalog_releases')
+    .select('id, version, title, published_at').eq('status','published').order('published_at',{ascending:false});
+  if (releaseError) throw releaseError;
+  if (!releases?.length) return [];
+  const { data, error } = await db().from('master_catalog_tests')
+    .select('id, release_id, master_code, canonical_name, alternate_names, test_kind, category, service_type, clinical_review_status, source_name')
+    .in('release_id', releases.map(row=>row.id)).order('canonical_name');
+  if (error) throw error;
+  const byRelease = new Map(releases.map(row=>[row.id,row]));
+  return (data ?? []).map(row=>({...row, release:byRelease.get(row.release_id)}));
+}
+
+export async function importMasterCatalogTest({ tenantId, masterTestId } = {}) {
+  required(tenantId,'tenantId'); required(masterTestId,'masterTestId');
+  const { data, error } = await db().rpc('import_master_catalog_test', {
+    p_tenant_id:tenantId, p_master_test_id:masterTestId,
+  });
+  if (error) throw error;
+  return data;
 }
