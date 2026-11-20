@@ -107,7 +107,11 @@ jobs:
           while read -r version name; do
             test -n "$version"
             # Preserve the exact historical source path and ledger version.
-            source_file="database/migrations/${name}.sql"
+            case "$name" in
+              branch_archive_access) source_file="database/migrations/023_branch_archive_access.sql" ;;
+              print_settings_audit) source_file="database/migrations/024_print_settings_audit.sql" ;;
+              *) source_file="database/migrations/${name}.sql" ;;
+            esac
             if [[ ! -f "$source_file" ]]; then
               echo "Missing historical migration source: $source_file"
               exit 1
@@ -137,8 +141,8 @@ jobs:
           20261118230402 020_branch_outstanding_balances
           20261118231112 021_employee_actor_pending_fields
           20261118232302 022_employee_reactivation_order
-          20261119160000 023_branch_archive_access
-          20261120124000 024_print_settings_audit
+          20261119172624 branch_archive_access
+          20261120114157 print_settings_audit
           MIGRATIONS
           test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 14
 
