@@ -120,3 +120,25 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - Preview entry point: `https://teba-labs.github.io/teba-saas-demo/app/index.html`; direct reception page: `https://teba-labs.github.io/teba-saas-demo/app/reception.html`.
 - Important: this is a code promotion for owner preview, not clinical catalog sign-off or production-data migration. TEST still has 495 legacy source-name records marked `needs_review`, without complete technical parameter profiles. They remain blocked from verified-only import. Do not use those entries as complete clinical definitions.
 - Pending after owner preview: confirm GitHub Pages deployment and perform authenticated browser E2E from Catalog through Reception, Results, approval and printed report; continue clinical normalization/review of all 495 legacy entries; verify analyzer/reagent-specific intervals locally.
+
+
+## 2026-11-20 — Catalog completion cycle 2 (keyboard + formula editor)
+
+- New recovery point: `backup/pre-catalog-completion-cycle-2026-11-20`, pinned before this cycle to `cad1e1951cbf9379eab73c2d1b433235664a4b04`.
+- Active development branch: `feature/catalog-completion-cycle-2026-11-20`; `main` is not modified by this cycle.
+- Re-queried TEST with distinct IDs (not joined-row counts): **527 master tests = 32 verified profiles + 495 needs-review legacy names**; 300 master parameters; 10 calculated parameters. The 495 legacy entries still have zero parameter profiles and remain unimportable.
+- Verified the server-side formula evaluator directly on TEST with representative inputs: HOMA1-IR = 0.148148…; transferrin saturation = 30%; non-HDL cholesterol = 150 mg/dL; albumin/globulin ratio = 1.3333…; WHO semen total sperm number = 60 million/ejaculate; total motility = 50%; immotile = 50%. These are evaluator smoke tests using controlled inputs, not analyzer validation or complete clinical sign-off.
+- Extended the catalog formula expression editor to safely parse `abs()`, `round()`, `min()`, and `max()` in addition to arithmetic, parentheses, unary signs and decimals. Server-side AST validation/evaluation remains the authority.
+- Added keyboard-first navigation in the catalog screen: Enter advances between form controls; Up/Down move through single-line fields and catalog/parameter lists; Home/End jump within lists. Textareas and native select option navigation remain native.
+- Bumped service-worker shell cache from v22 to v23 so deployed clients refresh the updated catalog and formula modules.
+- Added unit/static contract tests for the new formula syntax and keyboard behavior; CI has not yet run for this branch at this tracker checkpoint.
+- Important: this cycle does **not** mark the 495 legacy records clinically complete. Their source identity, specimen, method, parameter sets, formula suitability, units, assay-specific intervals, specimen stability and citations still require structured clinical normalization. No guessed ranges were added.
+- No TEST schema/data migrations were applied in this cycle; only direct read-only queries and evaluator smoke tests were run.
+
+- CI run #729 initially failed because five existing contract tests still hard-coded the previous service-worker cache key v22. The application modules passed syntax checks and the new formula-engine tests passed; the failure was limited to stale cache-version assertions. Updated all five affected test files to expect v23; the PR push should trigger a fresh run. No production or TEST database changes resulted from the failed run.
+- Additional direct TEST evaluator checks: calculated globulin = 3 g/dL; A/G ratio = 1.33; division-by-zero returns null (no fabricated numeric result); rounding 1/3 to two decimals returns 0.33.
+
+- 2026-11-20: Added migration `054_source_suggested_core_intervals.sql` for 25 common numeric parameters across kidney, liver, protein, thyroid, iron, and coagulation profiles. Source intervals are traceable to Mayo Clinic Laboratories catalogs; all remain `local_verification_required`, with age/sex qualifiers and method-specific cautions preserved. Examples include adult TSH, thyroid hormones, electrolytes, creatinine/BUN, liver enzymes, iron/TIBC/ferritin, PT/INR/aPTT.
+- Applied migration 054 to TEST and recorded it in Supabase migration history as `source_suggested_core_intervals`. Idempotent guard prevents overwriting existing interval data or duplicating the source reference.
+- TEST interval count increased from 22 to **47 parameters with source-suggested ranges**; all 47 still carry `local_verification_required`. This is not local analyzer validation and must not be represented as locally verified.
+- The added intervals deliberately omit universal cutoffs for HOMA-IR, D-dimer, fibrinogen, eGFR, globulin/A:G ratio, and lipid risk thresholds where the supplied profile/method context is insufficient or the values are clinical decision limits rather than conventional reference intervals.
