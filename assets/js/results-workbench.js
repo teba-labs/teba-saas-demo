@@ -189,6 +189,7 @@ async function renderWork() {
 
 function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
   const localPending = status === 'local_verification_required';
+  if (localPending && (!value || (Array.isArray(value) && value.length === 0))) return 'لا يوجد مدى مصدر محدد؛ يلزم ضبطه محليًا';
   if (status === 'not_applicable' && !(value && (value.text || Array.isArray(value)))) return 'لا ينطبق';
   if (Array.isArray(value)) {
     const age = patient?.age_years == null ? null : Number(patient.age_years);
