@@ -53,7 +53,7 @@ export async function listTestParameters({ tenantId, testId, includeInactive = f
   required(tenantId, 'tenantId'); required(testId, 'testId');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order);
   let query = db().from(TABLES.parameters)
-    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active')
+    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula')
     .eq('tenant_id', tenantId).eq('test_id', testId)
     .order('display_order');
   const { data, error } = await query;
@@ -109,13 +109,18 @@ const validateParameter = parameter => {
   const displayOrder = Number(parameter.displayOrder ?? 0);
   if (!Number.isInteger(decimalPlaces) || decimalPlaces < 0 || decimalPlaces > 6) throw new Error('decimalPlaces must be from 0 to 6.');
   if (!Number.isInteger(displayOrder) || displayOrder < 0 || displayOrder > 10000) throw new Error('displayOrder must be a whole number from 0 to 10000.');
+  const resultSource = parameter.resultSource ?? 'manual';
+  if (!['manual','calculated'].includes(resultSource)) throw new Error('Unsupported parameter result source.');
+  const formula = parameter.formula ?? null;
+  if (resultSource === 'calculated' && (valueType !== 'numeric' || !formula || typeof formula !== 'object' || Array.isArray(formula))) throw new Error('Calculated parameters require a numeric formula.');
+  if (resultSource === 'manual' && formula !== null) throw new Error('Manual parameters cannot have a formula.');
   const ranges = parameter.referenceRanges ?? [];
   const choices = parameter.choices ?? [];
   const validRanges = Array.isArray(ranges) || (ranges !== null && typeof ranges === 'object');
   if (!validRanges || !Array.isArray(choices)) throw new Error('referenceRanges must be an object or array, and choices must be an array.');
   if (valueType === 'choice' && (choices.length === 0 || choices.some(choice => typeof choice !== 'string' || !choice.trim()))) throw new Error('Choice parameters require at least one choice, and each choice must be non-empty text.');
   if (valueType === 'choice' && new Set(choices.map(choice => choice.trim())).size !== choices.length) throw new Error('Choice parameters cannot contain duplicate choices.');
-  return { code, name, valueType, decimalPlaces, displayOrder, ranges, choices };
+  return { code, name, valueType, decimalPlaces, displayOrder, ranges, choices, resultSource, formula };
 };
 
 /** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
@@ -128,6 +133,7 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     unit: parameter.unit?.trim() || null, value_type: valid.valueType,
     decimal_places: valid.decimalPlaces, reference_ranges: valid.ranges,
     choices: valid.choices, display_order: valid.displayOrder,
+    result_source: valid.resultSource, formula: valid.formula,
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
   const { data, error } = await db().from(TABLES.parameters).upsert(payload).select().single();
