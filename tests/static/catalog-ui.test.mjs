@@ -66,3 +66,39 @@ test('catalog price cache replacement is transactional in IndexedDB', () => {
   assert.match(body, /bulkPut\(historicalized\)/);
   assert.match(body, /bulkPut\(safe\)/);
 });
+
+test('catalog edits flow through reception, immutable visit snapshots, results and reports', () => {
+  const catalogRepo = read('modules/catalog/repository.js');
+  const receptionJs = read('assets/js/reception.js');
+  const receptionRepo = read('modules/reception/repository.js');
+  const resultJs = read('assets/js/results-workbench.js');
+  const resultRepo = read('modules/results/repository.js');
+
+  // Catalog and parameter changes are persisted to the tenant's cloud tables.
+  assert.match(catalogRepo, /from\(TABLES\.catalog\)\.upsert\(payload\)/);
+  assert.match(catalogRepo, /from\(TABLES\.parameters\)\.upsert\(payload\)/);
+  assert.match(catalogRepo, /from\(TABLES\.prices\)/);
+
+  // Reception consumes the same tenant catalog, branch-effective prices and parameter definitions.
+  for (const token of ['listCatalog', 'listCurrentPrices', 'listTestParameters', 'createVisitIntake']) {
+    assert.ok(receptionJs.includes(token), `reception missing ${token}`);
+  }
+  assert.match(receptionRepo, /create_visit_intake_idempotent/);
+  assert.match(receptionRepo, /expected_prices/);
+  assert.match(receptionRepo, /DB trigger snapshots current price and technical parameters/);
+
+  // Results are rendered from the visit's frozen technical snapshot and saved atomically to Supabase.
+  assert.match(resultJs, /technical_snapshot\?\.parameters/);
+  assert.match(resultJs, /saveDraftResults/);
+  assert.match(resultRepo, /save_draft_results_atomic/);
+  assert.match(resultJs, /printVisitReport/);
+  assert.match(resultJs, /test_name_snapshot/);
+});
+
+test('master catalog import is blocked unless the test and every parameter are verified', () => {
+  const guard = read('database/migrations/037_guard_master_catalog_import.sql');
+  assert.match(guard, /v_test_status is distinct from 'verified'/);
+  assert.match(guard, /v_parameter_count=0/);
+  assert.match(guard, /v_unverified_count>0/);
+  assert.match(guard, /All master result parameters must be clinically verified/);
+});
