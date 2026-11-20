@@ -123,12 +123,15 @@ const validateParameter = parameter => {
   if (resultSource === 'calculated' && (valueType !== 'numeric' || !formula || typeof formula !== 'object' || Array.isArray(formula))) throw new Error('Calculated parameters require a numeric formula.');
   if (resultSource === 'manual' && formula !== null) throw new Error('Manual parameters cannot have a formula.');
   const ranges = parameter.referenceRanges ?? [];
+  const referenceIntervalStatus = parameter.referenceIntervalStatus || (valueType === 'numeric' ? 'local_verification_required' : 'not_applicable');
+  if (!['not_applicable','local_verification_required','verified_local'].includes(referenceIntervalStatus)) throw new Error('Unsupported reference interval status.');
+  if (referenceIntervalStatus === 'verified_local' && valueType === 'numeric' && (!Array.isArray(ranges) || !ranges.length)) throw new Error('لا يمكن اعتماد المدى محليًا دون إدخال مدى موثق واحد على الأقل.');
   const choices = parameter.choices ?? [];
   const validRanges = Array.isArray(ranges) || (ranges !== null && typeof ranges === 'object');
   if (!validRanges || !Array.isArray(choices)) throw new Error('referenceRanges must be an object or array, and choices must be an array.');
   if (valueType === 'choice' && (choices.length === 0 || choices.some(choice => typeof choice !== 'string' || !choice.trim()))) throw new Error('Choice parameters require at least one choice, and each choice must be non-empty text.');
   if (valueType === 'choice' && new Set(choices.map(choice => choice.trim())).size !== choices.length) throw new Error('Choice parameters cannot contain duplicate choices.');
-  return { code, name, valueType, decimalPlaces, displayOrder, ranges, choices, resultSource, formula };
+  return { code, name, valueType, decimalPlaces, displayOrder, ranges, choices, resultSource, formula, referenceIntervalStatus };
 };
 
 /** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
@@ -145,7 +148,7 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     unit_ucum: parameter.unitUcum?.trim() || null, alternate_units: parameter.alternateUnits ?? [],
     critical_ranges: parameter.criticalRanges ?? {}, interpretation_rules: parameter.interpretationRules ?? [],
     applicability: parameter.applicability ?? {}, method_notes: parameter.methodNotes?.trim() || null, clinical_metadata: parameter.clinicalMetadata ?? {},
-    source_references: parameter.sourceReferences ?? [], clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
+    source_references: parameter.sourceReferences ?? [], reference_interval_status: valid.referenceIntervalStatus, clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
   const { data, error } = await db().from(TABLES.parameters).upsert(payload).select().single();
