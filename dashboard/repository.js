@@ -30,7 +30,7 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
     readAllPages(() => client.from('branches').select('id,name,is_active')
       .eq('tenant_id', tenantId).order('name').order('id')),
     readAllPages(() => scope(client.from('financial_ledger')
-      .select('id,branch_id,source_type,direction,amount,work_date,movement_at,description')
+      .select('id,branch_id,source_type,source_id,direction,amount,work_date,movement_at,description')
       .eq('tenant_id', tenantId).gte('work_date', monthStart).lt('work_date', monthEnd)
       .order('work_date').order('movement_at').order('id'))),
     readAllPages(() => scope(client.from('visits')
