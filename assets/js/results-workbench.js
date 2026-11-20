@@ -196,6 +196,7 @@ async function renderWork() {
 
 
 async function editReferenceRange(button) {
+  if(window.taibaGetDirtyResultInputs?.().length){showNotice('احفظ النتائج التي أدخلتها قبل تعديل المدى المرجعي.',true);return;}
   const visitTestId=button.dataset.visitTestId,parameterCode=button.dataset.paramCode;
   const item=state.work.find(row=>row.id===visitTestId);
   const parameter=item?.technical_snapshot?.parameters?.find(row=>row.code===parameterCode);
@@ -548,6 +549,7 @@ async function approve(button) {
 }
 async function publish(button) {
   try {
+    if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها قبل نشر التقرير.');
     const visitId = button.dataset.visitId;
     const visitState = state.work.find(item=>item.visit_id===visitId)?.visits;
     if (!visitState || (visitState.status!=='approved' && !visitState.is_published)) throw new Error('اعتمد الزيارة بالكامل قبل نشر التقرير.');
