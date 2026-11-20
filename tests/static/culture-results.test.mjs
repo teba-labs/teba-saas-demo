@@ -29,7 +29,7 @@ test('culture results are editable from the workbench and printed with isolate-l
  assert.match(repo,/onConflict:'visit_test_id,isolate_number'/);
  assert.match(repo,/onConflict:'isolate_id,antimicrobial_agent'/);
  const sw=read('service-worker.js');
- assert.match(sw,/modules\\/results\\/culture-repository\\.js/);
+ assert.ok(sw.includes('modules/results/culture-repository.js'));
 });
 
 test('CBC, urine, stool and culture profiles are present with source references and local interval status',()=>{
