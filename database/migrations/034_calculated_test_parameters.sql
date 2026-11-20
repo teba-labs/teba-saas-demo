@@ -36,6 +36,46 @@ as $$
      and nullif(value->>'param','') is not null;
 $$;
 
+create or replace function private.validate_formula_ast(p_expr jsonb)
+returns boolean
+language plpgsql
+immutable
+set search_path = pg_catalog, private
+as $
+declare
+  v_op text; v_args jsonb; v_count integer; v_item jsonb;
+begin
+  if jsonb_typeof(p_expr)='number' then return true; end if;
+  if jsonb_typeof(p_expr)<>'object' then return false; end if;
+  if p_expr ? 'param' then
+    return jsonb_object_length(p_expr)=1 and jsonb_typeof(p_expr->'param')='string'
+      and length(btrim(p_expr->>'param'))>0;
+  end if;
+  if p_expr ? 'const' then
+    return jsonb_object_length(p_expr)=1 and jsonb_typeof(p_expr->'const')='number';
+  end if;
+  v_op:=p_expr->>'op'; v_args:=p_expr->'args';
+  if jsonb_object_length(p_expr)<>2 or jsonb_typeof(v_args)<>'array' then return false; end if;
+  v_count:=jsonb_array_length(v_args);
+  if v_op in ('add','multiply','min','max') then
+    if v_count<2 then return false; end if;
+  elsif v_op in ('subtract','divide') then
+    if v_count<>2 then return false; end if;
+  elsif v_op='abs' then
+    if v_count<>1 then return false; end if;
+  elsif v_op='round' then
+    if v_count not in (1,2) then return false; end if;
+  else return false;
+  end if;
+  for v_item in select value from jsonb_array_elements(v_args) loop
+    if not private.validate_formula_ast(v_item) then return false; end if;
+  end loop;
+  return true;
+end;
+$;
+
+revoke all on function private.validate_formula_ast(jsonb) from public,anon,authenticated;
+
 create or replace function private.validate_catalog_parameter_formula()
 returns trigger
 language plpgsql
@@ -46,11 +86,29 @@ declare
   v_ref text;
   v_bad text;
 begin
+  if tg_op='UPDATE' and old.parameter_code is distinct from new.parameter_code then
+    if exists (select 1 from public.test_parameters p
+      cross join lateral private.catalog_formula_refs(p.formula) ref
+      where p.tenant_id=old.tenant_id and p.test_id=old.test_id
+        and p.result_source='calculated' and p.is_active
+        and ref.parameter_code=old.parameter_code and p.id<>old.id) then
+      raise exception 'This parameter is used by a calculated parameter; keep its code stable';
+    end if;
+  end if;
+  if tg_op='UPDATE' and (not new.is_active or new.value_type<>'numeric') then
+    if exists (select 1 from public.test_parameters p
+      cross join lateral private.catalog_formula_refs(p.formula) ref
+      where p.tenant_id=old.tenant_id and p.test_id=old.test_id
+        and p.result_source='calculated' and p.is_active
+        and ref.parameter_code=old.parameter_code and p.id<>old.id) then
+      raise exception 'This parameter is used by a calculated parameter; update or deactivate dependent formulas first';
+    end if;
+  end if;
   if new.result_source='manual' then
     if new.formula is not null then raise exception 'Manual parameters cannot have a formula'; end if;
     return new;
   end if;
-  if new.result_source<>'calculated' or new.value_type<>'numeric' or jsonb_typeof(new.formula)<>'object' then
+  if new.result_source<>'calculated' or new.value_type<>'numeric' or jsonb_typeof(new.formula)<>'object' or not private.validate_formula_ast(new.formula) then
     raise exception 'Calculated parameters must be numeric and have a valid formula';
   end if;
   if coalesce(new.is_active,false)=false then return new; end if;
