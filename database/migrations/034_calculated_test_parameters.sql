@@ -72,7 +72,7 @@ begin
   end loop;
   return true;
 end;
-$;
+$formula_ast$;
 
 revoke all on function private.validate_formula_ast(jsonb) from public,anon,authenticated;
 
