@@ -28,4 +28,6 @@ test('new individual tests receive one distinct result parameter automatically; 
   assert.match(js, /if\(isNew&&testKind==='individual'\)/);
   assert.match(js, /saveTestParameter\(/);
   assert.match(js, /parameterRanges/);
+  assert.match(js, /testKind.*disabled=busy\|\|!!state\.selectedTest/);
+  assert.match(js, /مجموعة بارامترات/);
 });
