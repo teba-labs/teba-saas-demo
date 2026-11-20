@@ -46,6 +46,7 @@ const ENTITY_FIELDS = {
     ['result_value','النتيجة',false,['result','result value','value','النتيجة','القيمة']],
     ['unit','الوحدة',false,['unit','units','الوحدة']],
     ['reference_range','المدى المرجعي',false,['reference range','reference_range','normal range','المدى المرجعي','الرينج','القيم الطبيعية']],
+    ['raw_payload','النتيجة الخام / JSON',false,['results_data','results','result data','raw payload','النتائج الخام','بيانات النتائج']],
     ['result_at','وقت إجراء النتيجة',false,['result_at','result time','time','وقت النتيجة','وقت إجراء التحليل']],
     ['age','العمر الأصلي',false,['age','العمر']],
     ['age_type','وحدة العمر',false,['age type','age_type','age unit','نوع العمر','وحدة العمر']],
