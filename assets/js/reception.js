@@ -24,7 +24,8 @@ function showPaymentReceipt({patientName,visitNumber,amount,method,staffName,pay
   const logo=logoPath?getLabAssetPublicUrl(logoPath):'';
   const signature=print.showSignature&&print.signaturePath?getLabAssetPublicUrl(print.signaturePath):'';
   const labName=lab.laboratory_name||'Taiba Smart Lab';
-  const contact=[print.showPhone===false?'':(lab.phone||lab.whatsapp||''),print.showAddress===false?'':(lab.address||'')].filter(Boolean).join(' · ');
+  const branch=brand.branch||{};
+  const contact=[print.showBranch===false?'':(branch.name?'فرع '+branch.name:''),print.showPhone===false?'':(branch.phone||lab.phone||lab.whatsapp||''),print.showAddress===false?'':(branch.address||lab.address||'')].filter(Boolean).join(' · ');
   const doctor=print.showDoctor===false?'':(lab.doctor_name||'');
   const footer=print.footerText||lab.report_footer||'شكرًا لثقتكم في معامل طيبة';
   $('paymentReceiptContent').innerHTML=`<div style="text-align:center">
