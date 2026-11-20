@@ -24,6 +24,7 @@ jobs:
           node --experimental-default-type=module --check assets/js/tenant-branding.js
           node --experimental-default-type=module --check assets/js/reception.js
           node --experimental-default-type=module --check assets/js/results-workbench.js
+          node --experimental-default-type=module --check modules/laboratory/repository.js
           node --experimental-default-type=module --check assets/js/settings-center.js
       - name: Run identity and workspace contract tests
         run: |
