@@ -69,7 +69,7 @@ test('mapping review stays in-memory until explicit historical, catalog or price
  assert.doesNotMatch(js,/localStorage|sessionStorage|\.from\(|\.rpc\(|fetch\(/);
  assert.match(js,/importNewBasePrices/);
  assert.match(html,/فرع حفظ النتائج التاريخية/);
- assert.match(js,/أسعار البيع العامة/);
+ assert.match(html,/الأسعار الجديدة/);
 });
 
 test('file guards and workbook sheet limit remain enforced',()=>{
