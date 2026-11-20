@@ -35,7 +35,7 @@ with t as (
  ('STOOL_EXAM','ST_PARASITE_NAME','Parasite identification','text','Microscopy methods',250,'[]'::jsonb),
  ('STOOL_EXAM','ST_VEGETABLE_CELLS','Vegetable cells / fibers','choice','Microscopy',260,'["Not seen","Few","Moderate","Many"]'::jsonb),
  ('STOOL_EXAM','ST_UNDIGESTED_FOOD','Undigested food particles','choice','Microscopy',270,'["Not seen","Few","Moderate","Many"]'::jsonb),
- ('STOOL_EXAM','ST_PH','Stool pH','pH','numeric',1,'Chemical / additional',280,'[]'::jsonb)
+ ('STOOL_EXAM','ST_PH','Stool pH','numeric','Chemical / additional',280,'[]'::jsonb)
  ) as v(test_code,parameter_code,parameter_name,value_type,section,display_order,choices)
 )
 insert into public.master_catalog_parameters(
