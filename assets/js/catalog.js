@@ -133,8 +133,8 @@ function installCatalogKeyboardNavigation(){
  bindList('masterCatalogList','button[data-import-master]');
  bindList('parameterList','button[data-edit-param],button[data-toggle-param]');
  const focusFirst=(id,selector)=>$(id)?.querySelector(selector+':not([disabled])')?.focus();
- $('search')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();focusFirst('testList','button[data-id]');}});
- $('masterCatalogSearch')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();focusFirst('masterCatalogList','button[data-import-master]');}});
+ $('search')?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key==='ArrowDown'){event.preventDefault();focusFirst('testList','button[data-id]');}});
+ $('masterCatalogSearch')?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key==='ArrowDown'){event.preventDefault();focusFirst('masterCatalogList','button[data-import-master]');}});
 }
 installCatalogKeyboardNavigation();
 
