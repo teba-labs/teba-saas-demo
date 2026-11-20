@@ -1,0 +1,98 @@
+import { getSupabaseClient } from '../../core/supabase-client.js';
+import { loadMyTenantContext } from '../../core/tenant/context.js';
+import { getPreferredTenantId, getPreferredBranchId } from '../../core/tenant/workspace-selection.js';
+import { getLabSettings } from '../../modules/settings/repository.js';
+import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
+
+const state = { tenantId: null, branchId: null, settings: null };
+const $ = (selector) => document.querySelector(selector);
+
+function renderHeader(settings) {
+  const name = String(settings?.laboratory_name || '').trim();
+  const path = settings?.logo_path || '';
+  const url = path ? getLabAssetPublicUrl(path) : '';
+  const header = $('header');
+  if (!header) return;
+  const root = header.querySelector('.brand') || header.querySelector(':scope > a') ||
+    header.querySelector('.topbar > div') || header.querySelector(':scope > div');
+  if (!root) return;
+  const title = root.querySelector('strong');
+  if (title && name) title.textContent = name;
+
+  let mark = root.querySelector('.brand-mark, .mark');
+  let image = root.querySelector('[data-tenant-brand-logo]');
+  if (url) {
+    if (!image) {
+      image = document.createElement('img');
+      image.dataset.tenantBrandLogo = 'true';
+      image.alt = 'شعار المعمل';
+      image.width = 40;
+      image.height = 40;
+      image.style.cssText = 'width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;border-radius:8px;flex:0 0 40px;';
+      if (mark) {
+        mark.textContent = '';
+        mark.style.cssText += ';display:inline-flex;align-items:center;justify-content:center;background:transparent;padding:0;overflow:hidden;';
+        mark.append(image);
+      } else {
+        root.insertBefore(image, title || root.firstChild);
+      }
+    }
+    if (image.src !== url) image.src = url;
+    image.hidden = false;
+  } else {
+    image?.remove();
+    if (mark) {
+      mark.textContent = 'T';
+      mark.removeAttribute('style');
+    }
+  }
+}
+
+async function refreshTenantBranding() {
+  const sessionResult = await getSupabaseClient().auth.getSession();
+  if (!sessionResult.data?.session?.user?.id) return;
+  const context = await loadMyTenantContext();
+  const tenants = context.tenants || [];
+  if (!tenants.length) return;
+  const tenantId = getPreferredTenantId(tenants);
+  const tenant = tenants.find(item => item.id === tenantId) || tenants[0];
+  const branches = tenant.branches || [];
+  const branchId = getPreferredBranchId(tenant.id, branches) || branches[0]?.id || null;
+  if (state.tenantId === tenant.id && state.branchId === branchId && state.settings) {
+    renderHeader(state.settings);
+    return;
+  }
+  const settings = await getLabSettings({ tenantId: tenant.id });
+  state.tenantId = tenant.id;
+  state.branchId = branchId;
+  state.settings = settings || {};
+  renderHeader(state.settings);
+  document.documentElement.dataset.tenantBrandReady = 'true';
+  document.dispatchEvent(new CustomEvent('taiba:tenant-branding-ready', { detail: {
+    tenantId: tenant.id, branchId, settings: state.settings
+  }}));
+}
+
+function safelyRefresh() {
+  refreshTenantBranding().catch(error => {
+    console.warn('Tenant branding could not be loaded:', error?.message || error);
+  });
+}
+
+const client = getSupabaseClient();
+client.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+    queueMicrotask(safelyRefresh);
+  }
+  if (event === 'SIGNED_OUT') {
+    state.tenantId = null; state.branchId = null; state.settings = null;
+    renderHeader({});
+  }
+});
+document.addEventListener('change', event => {
+  if (event.target?.id === 'tenantSelect' || event.target?.id === 'branchSelect') {
+    state.tenantId = null; state.branchId = null; state.settings = null;
+    safelyRefresh();
+  }
+});
+safelyRefresh();
