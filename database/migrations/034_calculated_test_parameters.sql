@@ -195,7 +195,7 @@ begin
     if v_count<>2 then raise exception 'Formula operation % requires exactly two inputs',v_op; end if;
     v_left:=private.evaluate_catalog_formula(v_args->0,p_values);
     v_right:=private.evaluate_catalog_formula(v_args->1,p_values);
-    if v_op='divide' and v_right=0 then raise exception 'Cannot divide by zero in calculated parameter'; end if;
+    if v_op='divide' and v_right=0 then return null; end if;
     if v_op='subtract' then return v_left-v_right; end if;
     return v_left/v_right;
   elsif v_op in ('abs','round') then
@@ -328,13 +328,17 @@ begin
         v_code:=v_param->>'code';
         v_formula:=round(private.evaluate_catalog_formula(v_param->'formula',v_values),
           least(6,greatest(0,coalesce((v_param->>'decimal_places')::integer,2))));
-        insert into public.test_results(tenant_id,visit_test_id,parameter_code,value_numeric,value_text,flag,entered_by,entered_by_staff_id)
-        values(p_tenant_id,p_visit_test_id,v_code,v_formula,null,null,auth.uid(),p_staff_id)
-        on conflict (visit_test_id,parameter_code) do update set
-          value_numeric=excluded.value_numeric,value_text=null,flag=null,
-          entered_by=excluded.entered_by,entered_by_staff_id=excluded.entered_by_staff_id,updated_at=now();
-        v_values:=jsonb_set(v_values,array[v_code],to_jsonb(v_formula),true);
-        v_pass:=v_pass+1;
+        if v_formula is null then
+          delete from public.test_results where tenant_id=p_tenant_id and visit_test_id=p_visit_test_id and parameter_code=v_code;
+        else
+          insert into public.test_results(tenant_id,visit_test_id,parameter_code,value_numeric,value_text,flag,entered_by,entered_by_staff_id)
+          values(p_tenant_id,p_visit_test_id,v_code,v_formula,null,null,auth.uid(),p_staff_id)
+          on conflict (visit_test_id,parameter_code) do update set
+            value_numeric=excluded.value_numeric,value_text=null,flag=null,
+            entered_by=excluded.entered_by,entered_by_staff_id=excluded.entered_by_staff_id,updated_at=now();
+          v_values:=jsonb_set(v_values,array[v_code],to_jsonb(v_formula),true);
+          v_pass:=v_pass+1;
+        end if;
       end if;
     end loop;
     if v_pass=0 then exit; end if;
