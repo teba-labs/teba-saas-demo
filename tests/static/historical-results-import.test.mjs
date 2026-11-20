@@ -27,6 +27,8 @@ test('historical importer is separate from operational visits and uses tenant/br
   const importer = await readFile(new URL('../../assets/js/data-import.js', import.meta.url), 'utf8');
   assert.match(repository, /from\('historical_results'\)/);
   assert.match(repository, /onConflict: 'tenant_id,branch_id,source_record_key'/);
+  assert.match(repository, /mapping_signature/);
+  assert.match(importer, /sheetMappingSignature/);
   assert.match(repository, /from\('historical_import_batches'\)/);
   assert.match(repository, /storage\.from\('tenant-backups'\)/);
   assert.match(importer, /confirm\(/);
