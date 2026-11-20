@@ -80,3 +80,12 @@ Maintain method, analyzer/reagent applicability, calibration/QC notes, interfere
 - Require explicit owner confirmation for each update batch.
 - Never auto-create visits, invoices, payments, prices, or financial ledger entries during catalog import.
 - Never activate an unreviewed or incomplete definition merely because it exists in the master library.
+
+
+## Result-entry and reference interval behavior
+- The result-entry screen groups parameters by their clinical section metadata.
+- Age/sex-specific intervals are selected only when the patient demographics match one unique interval.
+- Source-derived intervals that have not been verified on the tenant's analyzer remain visibly labelled as suggestions and never generate low/high flags.
+- Low/normal/high flags are generated only when the tenant explicitly marks a numeric interval as locally verified and supplies its scientific source.
+- CBC morphology uses individual graded fields aligned to ICSH nomenclature in addition to free-text smear comments.
+- Culture results are repeatable per isolate. Antimicrobial results are isolate-specific and record method, measured value/unit, interpretation, breakpoint standard/edition, source URL and QC status. No breakpoint is guessed by the software.
