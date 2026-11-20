@@ -16,7 +16,22 @@ export async function findHistoricalPatientCandidates({ tenantId, branchId, name
     .order('created_at', { ascending: false })
     .limit(Math.min(20, Math.max(1, Number(limit) || 8)));
   if (error) throw error;
-  return data || [];
+  const patients = data || [];
+  if (!patients.length) return [];
+  const ids = patients.map(row => row.id);
+  const { data: visits, error: visitsError } = await db().from('visits')
+    .select('patient_id,visit_work_date')
+    .eq('tenant_id', tenantId).eq('branch_id', branchId)
+    .in('patient_id', ids)
+    .order('visit_work_date', { ascending: false }).limit(Math.min(200, ids.length * 5));
+  if (visitsError) throw visitsError;
+  const dates = new Map();
+  for (const visit of visits || []) {
+    const list = dates.get(visit.patient_id) || [];
+    if (list.length < 3) list.push(visit.visit_work_date);
+    dates.set(visit.patient_id, list);
+  }
+  return patients.map(row => ({ ...row, recent_visit_dates: dates.get(row.id) || [] }));
 }
 
 /** Import batches and source files are owner-only; the original workbook is retained in private storage. */
