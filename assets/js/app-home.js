@@ -69,7 +69,7 @@ async function refreshOperationalStatus() {
     const summary = await getOutboxSummary({ tenantId: state.tenant.id, branchId: state.branch.id });
     $('syncTitle').textContent = summary.total ? `${summary.total} عملية تحتاج متابعة` : 'لا توجد عمليات معلقة';
     $('syncText').textContent = summary.total
-      ? `انتظار ${summary.pending} · فاشلة ${summary.failed} · تعارض ${summary.conflict}`
+      ? `انتظار ${summary.pending} · قيد التنفيذ ${summary.syncing} · فاشلة ${summary.failed} · تعارض ${summary.conflict}`
       : (navigator.onLine ? 'لا توجد عمليات بانتظار المزامنة.' : 'لا توجد عمليات محلية معلقة مسجلة.');
   } catch {
     $('syncTitle').textContent = 'حالة المزامنة';
