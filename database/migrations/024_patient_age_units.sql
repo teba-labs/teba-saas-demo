@@ -46,7 +46,4 @@ begin
   end if;
 end $$;
 
-create index if not exists idx_patients_branch_number
-  on public.patients(tenant_id, branch_id, patient_number);
-
 commit;
