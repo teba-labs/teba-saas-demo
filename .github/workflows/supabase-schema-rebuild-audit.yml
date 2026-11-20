@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "integration/unified-test-2026-11-19"
+      - "feature/**"
     paths:
       - ".github/workflows/supabase-schema-rebuild-audit.yml"
       - "database/migrations/**"
@@ -13,6 +14,7 @@ on:
   pull_request:
     branches:
       - main
+      - integration/unified-test-2026-11-19
     paths:
       - ".github/workflows/supabase-schema-rebuild-audit.yml"
       - "database/migrations/**"
@@ -32,7 +34,7 @@ jobs:
       - name: Check out the exact development branch
         uses: actions/checkout@v4
         with:
-          ref: integration/unified-test-2026-11-19
+          ref: ${{ github.sha }}
 
       - name: Set up Supabase CLI v3
         uses: supabase/setup-cli@v3
@@ -42,7 +44,7 @@ jobs:
       - name: Verify isolated toolchain and CLI command contracts
         run: |
           set -euo pipefail
-          test "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}" = "integration/unified-test-2026-11-19"
+          git rev-parse --verify HEAD
           git rev-parse HEAD
           node --version
           supabase --version
@@ -97,7 +99,7 @@ jobs:
           test -s "$target"
           echo "Prepared CLI-created baseline migration: $target" | tee schema-rebuild.log
 
-      - name: Materialize CLI-created standard migrations 012-023 using TEST ledger versions
+      - name: Materialize CLI-created standard migrations 012-024 using TEST ledger versions
         shell: bash
         run: |
           set -euo pipefail
@@ -105,7 +107,11 @@ jobs:
           while read -r version name; do
             test -n "$version"
             # Preserve the exact historical source path and ledger version.
-            source_file="database/migrations/${name}.sql"
+            case "$name" in
+              branch_archive_access) source_file="database/migrations/023_branch_archive_access.sql" ;;
+              print_settings_audit) source_file="database/migrations/024_print_settings_audit.sql" ;;
+              *) source_file="database/migrations/${name}.sql" ;;
+            esac
             if [[ ! -f "$source_file" ]]; then
               echo "Missing historical migration source: $source_file"
               exit 1
@@ -135,16 +141,17 @@ jobs:
           20261118230402 020_branch_outstanding_balances
           20261118231112 021_employee_actor_pending_fields
           20261118232302 022_employee_reactivation_order
-          20261119160000 023_branch_archive_access
+          20261119172624 branch_archive_access
+          20261120114157 print_settings_audit
           MIGRATIONS
-          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 13
+          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 14
 
-      - name: Reset the disposable local DB and apply the complete 001-023 chain
+      - name: Reset the disposable local DB and apply the complete 001-024 chain
         run: |
           set -euo pipefail
           supabase db reset
           supabase migration list | tee migration-list-local.txt
-          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 13
+          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 14
 
       - name: Run post-install structural and security assertions
         shell: bash

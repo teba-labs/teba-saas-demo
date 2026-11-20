@@ -4,9 +4,9 @@ import { readFile } from 'node:fs/promises';
 
 const read = (name) => readFile(new URL(`../../${name}`, import.meta.url), 'utf8');
 
-test('isolated rebuild is pinned to the integration branch and a disposable local stack', async () => {
+test('isolated rebuild checks out the exact triggering commit and a disposable local stack', async () => {
   const workflow = await read('.github/workflows/supabase-schema-rebuild-audit.yml');
-  assert.match(workflow, /ref: integration\/unified-test-2026-11-19/);
+  assert.match(workflow, /ref: \$\{\{ github.sha \}\}/);
   assert.match(workflow, /supabase\/setup-cli@v3[\s\S]*version: 3\.2\.0/);
   assert.match(workflow, /supabase start/);
   assert.match(workflow, /supabase stop/);
@@ -18,6 +18,8 @@ test('isolated rebuild packages legacy 001-011 into a CLI baseline and resets on
   const workflow = await read('.github/workflows/supabase-schema-rebuild-audit.yml');
   assert.match(workflow, /source "\$RUNNER_TEMP\/supabase-local\.env"/);
   assert.match(workflow, /supabase migration new taiba_legacy_baseline_001_011/);
+  assert.match(workflow, /branch_archive_access\) source_file="database\/migrations\/023_branch_archive_access\.sql"/);
+  assert.match(workflow, /print_settings_audit\) source_file="database\/migrations\/024_print_settings_audit\.sql"/);
   assert.match(workflow, /20261118005154_taiba_legacy_baseline_001_011\.sql/);
   assert.match(workflow, /supabase db reset/);
   assert.match(workflow, /sed -E.*BEGIN\|COMMIT/);
@@ -25,12 +27,12 @@ test('isolated rebuild packages legacy 001-011 into a CLI baseline and resets on
   assert.match(workflow, /database\/migrations\/01\{0,1\}_\*\.sql/);
 });
 
-test('012-023 are generated with Supabase CLI and applied locally without remote credentials', async () => {
+test('012-024 are generated with Supabase CLI and applied locally without remote credentials', async () => {
   const workflow = await read('.github/workflows/supabase-schema-rebuild-audit.yml');
   assert.match(workflow, /supabase migration new "\$name"/);
   assert.match(workflow, /supabase db reset/);
   assert.match(workflow, /Unexpected hosted database credential/);
-  for (const version of ['20261118225924','20261118230038','20261118230051','20261118230054','20261118230057','20261118230348','20261118230358','20261118230400','20261118230402','20261118231112','20261118232302','20261119160000']) {
+  for (const version of ['20261118225924','20261118230038','20261118230051','20261118230054','20261118230057','20261118230348','20261118230358','20261118230400','20261118230402','20261118231112','20261118232302','20261119172624','20261120114157']) {
     assert.ok(workflow.includes(version), `missing TEST ledger version ${version}`);
   }
 });

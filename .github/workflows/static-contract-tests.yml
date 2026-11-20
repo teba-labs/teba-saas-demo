@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - "feature-completion/**"
+      - "feature/**"
       - "integration/**"
   pull_request:
     branches:
       - main
+      - integration/unified-test-2026-11-19
   workflow_dispatch:
 
 permissions:
