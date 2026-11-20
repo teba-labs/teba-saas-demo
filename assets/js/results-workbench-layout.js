@@ -13,7 +13,7 @@ function buildShell(host,cards){
   const tests=[...card.querySelectorAll(':scope > .parameter')];
   const actions=[...card.children].filter(node=>node!==header&&!tests.includes(node));
   card.classList.add('work-source-card');
-  return {card,visitId,title:header?.querySelector('h2')?.textContent||'زيارة',status:header?.querySelector('.pill')?.textContent||'',tests,actions};
+  return {card,visitId,title:header?.querySelector('h2')?.textContent||'زيارة',status:header?.querySelector('.pill')?.textContent||'',tests,actions,phone:card.dataset.patientPhone||'',visitNumber:card.dataset.visitNumber||'',published:card.dataset.published==='true'};
  }).filter(x=>x.visitId);
  host.replaceChildren();
  const shell=document.createElement('div');shell.className='results-workbench-shell';
@@ -51,7 +51,16 @@ function selectRecord(record,records,shell){
  preview.addEventListener('click',()=>{if(typeof window.taibaPreviewVisitReport!=='function'){window.alert('تعذر تحميل أداة معاينة التقرير.');return;}window.taibaPreviewVisitReport(record.visitId);});
  const hide=button('إخفاء الحالة من قائمة العمل','button button-secondary');
  hide.addEventListener('click',async()=>{const reason=window.prompt('سبب إخفاء الحالة (اختياري):')||'';if(!window.confirm('سيتم إخفاء الحالة من قائمة العمل فقط، مع الاحتفاظ بكل نتائجها وسجلها. متابعة؟'))return;hide.disabled=true;try{await setVisitWorkbenchHidden({tenantId:window.taibaResultsContext.tenantId,branchId:window.taibaResultsContext.branchId,visitId:record.visitId,staffId:$('staffSelect')?.value,hidden:true,reason});window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));}catch(error){hide.disabled=false;window.alert(error.message||'تعذر إخفاء الحالة.');}});
- actions.prepend(hide);actions.prepend(preview);shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
+ const whatsapp=button('إرسال واتساب للنتائج','button button-secondary');
+ const rawPhone=String(record.phone||'').replace(/[^0-9+]/g,'');
+ let waPhone=rawPhone.replace(/^00/,'');
+ if(waPhone.startsWith('0'))waPhone='20'+waPhone.slice(1);
+ else if(waPhone.startsWith('+'))waPhone=waPhone.slice(1);
+ const shareReady=record.published&&/^20\d{9,11}$/.test(waPhone)&&Boolean(window.taibaResultsContext?.tenantSlug);
+ whatsapp.disabled=!shareReady;
+ whatsapp.title=shareReady?'إرسال رابط بوابة المريض عبر واتساب':'يتطلب رقم هاتف صالحًا وتقريرًا منشورًا ورمز معمل';
+ whatsapp.addEventListener('click',()=>{if(!shareReady)return;const portal=new URL('../portal/index.html',location.href).href;const message='نتائج تحاليلك جاهزة من معامل '+(window.taibaResultsContext?.tenantSlug||'')+'. لعرض التقرير افتح بوابة النتائج: '+portal+' ثم أدخل رمز المعمل ورقم الزيارة '+record.visitNumber+' واسم المريض كما هو مسجل.';window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent(message),'_blank','noopener');});
+ actions.prepend(whatsapp);actions.prepend(hide);actions.prepend(preview);shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
 }
 async function loadHiddenVisits(column){
  const host=column.querySelector('.hidden-visits-list');if(!host.hidden){host.hidden=true;return;}host.hidden=false;host.textContent='جارٍ تحميل الحالات المخفية…';
