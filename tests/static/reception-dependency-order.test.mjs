@@ -13,7 +13,7 @@ test('visit intake stays queued while its patient creation dependency is pending
 
 test('patient replay verifies the full identity payload before acknowledging a duplicate ID', () => {
   const adapters = read('offline/supabase-adapters.js');
-  for (const field of ['full_name', 'patient_number', 'phone', 'age_years', 'sex', 'created_by_staff_id']) {
+  for (const field of ['full_name', 'patient_number', 'phone', 'age_years', 'age_value', 'age_unit', 'sex', 'created_by_staff_id']) {
     assert.match(adapters, new RegExp(`existing\\.data\\.${field}`));
   }
 });
