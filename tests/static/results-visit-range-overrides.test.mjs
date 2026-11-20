@@ -35,7 +35,9 @@ test('range edits are visit-local, audited and never update the catalog',()=>{
 test('completed result corrections remain visit-scoped and audited before and after publication',()=>{
  assert.ok(reportRepo.includes('correctCompletedVisitResult'));
  assert.ok(ui.includes('correct-unpublished-test'));
- assert.ok(ui.includes('correctPublishedResult'));
+ assert.ok(ui.includes('correctVisitResultWithFlag'));
+ assert.ok(reportRepo.includes('correctVisitResultWithFlag'));
+ assert.ok(correctionMigration.includes('correct_completed_visit_result'));
  assert.ok(correctionMigration.includes('correction_reason'));
  assert.ok(correctionMigration.includes('v_visit.is_published'));
 });
