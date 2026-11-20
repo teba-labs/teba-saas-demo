@@ -1,6 +1,6 @@
 # Taiba Smart Lab — Catalog Completion Tracker
 
-Last updated: 2026-11-20 19:35 Africa/Cairo
+Last updated: 2026-11-20 19:42 Africa/Cairo
 Repository: `teba-labs/teba-saas-demo`
 Active catalog branch: `feature/extended-culture-catalog-2026-11-20`
 Catalog extension PR: [#18 — Extended bacterial culture profiles](https://github.com/teba-labs/teba-saas-demo/pull/18)
@@ -35,6 +35,8 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - [x] Report rendering uses the saved visit snapshot and tenant/branch print settings.
 - [x] Offline catalog cache is tenant-scoped; catalog edits require an online connection and are not falsely reported as saved offline.
 - [x] Master catalog RLS is enabled on releases, tests, parameters and tenant links.
+- [x] Added static integration contract tests covering Catalog cloud writes → Reception catalog/branch price → immutable visit snapshots → Results workbench atomic save → report snapshot use.
+- [x] Added static tests for the master import guard (test and every parameter must be verified).
 
 ## Clinically structured profiles completed
 
@@ -77,7 +79,8 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - Read-only SQL snapshot on 2026-11-20: 527 tests, 300 parameters, 32 verified tests, 495 review-pending source names, 20 culture profiles, 129 culture parameters, 10 calculated parameters.
 - RLS is enabled on the master catalog tables.
 - PR #18 has no submitted reviews or inline review threads at the time of this update.
-- Static/unit CI and browser E2E for the latest PR head have not been independently confirmed in this session.
+- Database trigger definitions were inspected directly: new visit-test rows snapshot active catalog name/code, effective branch/base price, and all active parameter definitions; update attempts that change those snapshots are rejected. Result validation resolves parameter metadata from the immutable visit snapshot.
+- Static/unit CI for the latest PR head and browser E2E have not been independently confirmed in this session.
 - No production database or customer records were changed.
 
 ## Change log
@@ -86,3 +89,5 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - 2026-11-20: Verified TEST migration history through 053; recorded culture and semen profile counts.
 - 2026-11-20: Queried master catalog counts and documented the 495 legacy source records as review-pending (not complete and not importable).
 - 2026-11-20: Documented Catalog → Reception → visit snapshot → Results → approval/report data flow and the immutability rule for historical visits.
+- 2026-11-20: Added automated static contract tests for the cross-screen data path and verified-only master import gate (commit `ea435a8`).
+- 2026-11-20: Inspected live TEST database trigger definitions to confirm snapshot creation, effective branch/base price selection, immutable visit snapshots, and result metadata validation.
