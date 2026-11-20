@@ -322,8 +322,9 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const address = print.showAddress === false ? '' : (branch.address || lab.address || '');
   const footer = print.footerText || lab.report_footer || '';
   const branchAddressList = print.showBranchAddresses === false ? [] : (reportBranches.length ? reportBranches : [branch]).filter(row => row.address).map(row => ({name:row.name,address:row.address}));
-  const websiteUrl = String(print.websiteUrl || lab.settings_json?.website_url || '').trim();
-  const supportUrl = String(print.supportUrl || lab.settings_json?.support_url || '').trim();
+  const safeHttpUrl = value => { try { const url=new URL(String(value||'')); return ['http:','https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
+  const websiteUrl = safeHttpUrl(print.websiteUrl || lab.settings_json?.website_url || '');
+  const supportUrl = safeHttpUrl(print.supportUrl || lab.settings_json?.support_url || '');
   const phoneContact = print.showContacts === false || print.showPhone === false ? '' : (branch.phone || lab.phone || '');
   const whatsappContact = print.showContacts === false ? '' : (lab.whatsapp || '');
   const watermarkMode = print.watermarkMode || 'none';
@@ -337,9 +338,12 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const qrHtml = print.footerCenterMode === 'qr' && websiteUrl ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="QR للموقع"><small>امسح لزيارة موقع المعمل</small></a>' : '';
   const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
   const branchPhones = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + escapeHtml(row.phone) + '</div>');
-  const footerContacts = (branchPhones.length ? branchPhones.join('') : (phoneContact ? '<div>هاتف: ' + escapeHtml(phoneContact) + '</div>' : '')) +
-    (whatsappContact ? '<div>واتساب: ' + escapeHtml(whatsappContact) + '</div>' : '') +
-    (websiteUrl ? '<div>الموقع: ' + escapeHtml(websiteUrl) + '</div>' : '') + (supportUrl ? '<div>الدعم / بوابة المريض: ' + escapeHtml(supportUrl) + '</div>' : '');
+  const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(digits) + '</a>' : escapeHtml(value); };
+  const branchPhoneLinks = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + phoneLink(row.phone) + '</div>');
+  const footerContacts = (branchPhoneLinks.length ? branchPhoneLinks.join('') : (phoneContact ? '<div>هاتف: ' + phoneLink(phoneContact) + '</div>' : '')) +
+    (whatsappContact ? '<div>واتساب: ' + phoneLink(whatsappContact) + '</div>' : '') +
+    (websiteUrl ? '<div>الموقع: <a href="' + escapeHtml(websiteUrl) + '" target="_blank" rel="noopener">' + escapeHtml(websiteUrl) + '</a></div>' : '') +
+    (supportUrl ? '<div>الدعم / بوابة المريض: <a href="' + escapeHtml(supportUrl) + '" target="_blank" rel="noopener">' + escapeHtml(supportUrl) + '</a></div>' : '');
   const footerAddresses = branchAddressList.map(row => '<div><strong>' + escapeHtml(row.name) + ':</strong> ' + escapeHtml(row.address) + '</div>').join('');
   const footerGridColumns = centerFooter ? '1fr 120px 1fr' : '1fr 1fr';
   const footerCenterMarkup = centerFooter ? '<div class="footer-center">' + centerFooter + '</div>' : '';
