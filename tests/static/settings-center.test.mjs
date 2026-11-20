@@ -12,7 +12,7 @@ assert.match(s,/export async function updateStaffName/);
 assert.match(h,/id="dataManagementSettings"/);
 assert.match(h,/href="data-import.html"/);
 assert.match(h,/href="sync-center.html"/);
-assert.match(h,/النسخ المحلية ليست نسخة سحابية/);
+assert.match(h,/النسخة السحابية هنا تحفظ نسخة من بيانات هذا الجهاز فقط/);
 
 const backup=fs.readFileSync(new URL('offline/backup.js',root),'utf8');
 const archiveStore=fs.readFileSync(new URL('modules/dashboard/historical-workbooks.js',root),'utf8');
@@ -28,7 +28,7 @@ assert.match(archiveStore,/export async function restoreHistoricalWorkbooks/);
 assert.match(archiveStore,/row.tenantId!==String\(tenantId\)/);
 assert.match(sync,/historicalWorkbooksRestored/);
 assert.match(h,/ملفات Excel التاريخية المحفوظة لهذا المعمل/);
-assert.match(h,/الملفات المرفوعة إلى التخزين السحابي/);
+assert.match(h,/مرفقات المرضى/);
 
 const branchSettings=fs.readFileSync(new URL('assets/js/settings-center.js',root),'utf8');
 assert.match(branchSettings,/const BRANCH_ARCHIVE_READY=true/);
@@ -47,3 +47,22 @@ assert.match(j,/listOwnerAuditLogs/);
 assert.match(j,/const BRANCH_ARCHIVE_READY=true/);
 
 console.log('PASS: all seven owner settings areas, branch archive, local backup and single delegated handlers are wired.');
+
+const h2=fs.readFileSync(new URL('app/settings.html',root),'utf8'),j2=fs.readFileSync(new URL('assets/js/settings-center.js',root),'utf8');
+const ar=fs.readFileSync(new URL('modules/settings/assets-repository.js',root),'utf8'),br=fs.readFileSync(new URL('modules/settings/cloud-backup-repository.js',root),'utf8');
+assert.match(h2,/id="labLogoFile"/);assert.match(h2,/id="printPaperSize"/);assert.doesNotMatch(h2,/printSettingsJson|بيانات الطباعة بصيغة JSON/);
+assert.match(h2,/id="backupBranch"/);assert.match(h2,/id="restoreCloudBackup"/);assert.match(j2,/uploadLabAsset/);assert.match(j2,/createCloudBackup/);assert.match(j2,/downloadCloudBackup/);
+assert.match(ar,/tenant-site-assets/);assert.match(br,/tenant-backups/);assert.match(br,/checksum_sha256/);assert.match(br,/browser-local-cache/);assert.match(r,/inherited: true/);
+console.log('PASS: structured print controls, tenant-scoped assets, and private cloud copies of local snapshots are wired.');
+
+const printMigration=fs.readFileSync(new URL('database/migrations/024_print_settings_audit.sql',root),'utf8');
+assert.match(printMigration,/trg_audit_print_settings/);
+const schemaWorkflow=fs.readFileSync(new URL('.github/workflows/supabase-schema-rebuild-audit.yml',root),'utf8');
+assert.match(schemaWorkflow,/024_print_settings_audit/);
+
+assert.match(printMigration,/trg_audit_backup_runs/);
+
+assert.match(h2,/id="printLogoFile"/);
+assert.match(j2,/logoPath:\$\('printLogoFile'\)\.dataset\.storagePath/);
+assert.match(j2,/const logoPath=x\.logoPath/);
+assert.match(h2,/ملفات PDF الحالية تُرفع من برنامج خارجي/);
