@@ -22,7 +22,8 @@ test('range editing is available before approval, including a previously complet
  assert.ok(ui.includes('التقرير السابق محفوظ'));
  assert.ok(migration.includes('app.result_correction'));
  assert.ok(migration.includes("v_test.status='cancelled'"));
- assert.ok(migration.includes('Approved or published visits cannot have their reference ranges changed'));
+ assert.ok(migration.includes('An approved but unpublished visit must be reopened'));
+ assert.ok(migration.includes('app.result_correction'));
 });
 
 test('range edits are visit-local, audited and never update the catalog',()=>{
