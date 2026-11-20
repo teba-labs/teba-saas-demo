@@ -19,6 +19,7 @@ test('historical sheet supports repeated wide parameter columns without treating
 test('ambiguous legacy dates are never silently normalized', () => {
   assert.equal(inspectLegacyDate('01/02/2024').status, 'ambiguous');
   assert.equal(inspectLegacyDate('2024-02-01').isoDate, '2024-02-01');
+  assert.equal(inspectLegacyDate('2024-02-01T00:00:00.000Z').isoDate, '2024-02-01');
 });
 
 test('historical importer is separate from operational visits and uses tenant/branch idempotency', async () => {
