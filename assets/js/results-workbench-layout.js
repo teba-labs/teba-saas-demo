@@ -39,7 +39,7 @@ function buildShell(host,cards){
  rebuilding=false;
 }
 function selectRecord(record,records,shell){
- if(selectedVisitId&&selectedVisitId!==record.visitId&&window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ نتائج الزيارة الحالية قبل الانتقال إلى زيارة أخرى.');return;}
+ if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ نتائج الزيارة الحالية قبل تغيير الاختيار أو الانتقال إلى زيارة أخرى.');return;}
  selectedVisitId=record.visitId;window.taibaLastSelectedVisitId=selectedVisitId;window.taibaResultsContext=window.taibaGetResultsContext?.()||window.taibaResultsContext||{};
  shell.querySelectorAll('.visit-select-button').forEach(b=>b.classList.toggle('active',b.dataset.visitId===selectedVisitId));
  shell.querySelector('[data-selected-visit-label]').textContent=record.title;
