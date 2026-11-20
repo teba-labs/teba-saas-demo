@@ -43,7 +43,7 @@ function mountOwnerDashboardNavigation(){
  const anchor=$('status').closest('.panel');
  anchor.after(home,screens);
  home.addEventListener('click',event=>{const button=event.target.closest('[data-owner-report]');if(button)showOwnerReport(button.dataset.ownerReport);});
- screens.addEventListener('click',event=>{if(event.target.closest('[data-owner-back]')){screens.hidden=true;home.hidden=false;window.scrollTo({top:home.offsetTop-12,behavior:'smooth'});}});
+ screens.addEventListener('click',event=>{const exportButton=event.target.closest('[data-owner-export]');if(exportButton){exportOwnerReport(exportButton.dataset.ownerExport);return;}if(event.target.closest('[data-owner-back]')){screens.hidden=true;home.hidden=false;window.scrollTo({top:home.offsetTop-12,behavior:'smooth'});}});
  const content=id=>$('ownerContent-'+id);
  const move=(id,node)=>{if(node)content(id).append(node);};
  move('live',$('workspace').querySelector('.kpis'));
@@ -71,7 +71,7 @@ function mountOwnerDashboardNavigation(){
   move('upload',controls);
   if(results){
    const source=results;
-   const targets={bcg:'مصفوفة BCG التاريخية',monthlyPlan:'خطة الشهر التالي',topSellers:'الأكثر طلبًا',mostProfitable:'الأكثر ربحية',leastProfitable:'الأقل ربحية',needOffers:'تحاليل تحتاج تنشيطًا',lossMakers:'التحاليل الخاسرة',annual:'الملخص السنوي'};
+   const targets={bcg:'مصفوفة BCG التاريخية',monthlyPlan:'خطة الشهر التالي',cases:'موسمية الحالات حسب الشهر',topSellers:'الأكثر طلبًا',mostProfitable:'الأكثر ربحية',leastProfitable:'الأقل ربحية',needOffers:'تحاليل تحتاج تنشيطًا',lossMakers:'التحاليل الخاسرة',annual:'الملخص السنوي'};
    for(const [id,needle] of Object.entries({bcgDetails:'تفاصيل فئات BCG',annualTrend:'اتجاه الأداء المالي السنوي'})){
     const clone=document.createElement('section');clone.className='panel historical-report-card';
     content(id==='bcgDetails'?'bcg':'annual').append(clone);
@@ -100,6 +100,25 @@ function mountOwnerDashboardNavigation(){
  const note=document.createElement('p');note.className='hint';note.textContent='صافي النقدية ليس صافي ربح محاسبيًا؛ لا تتوفر في التشغيل الحي تكلفة موثوقة لكل تحليل ضمن هذا التقرير.';content('overview').append(note);
  const historyHint=document.createElement('p');historyHint.className='hint';historyHint.textContent='يعرض كل تقرير تاريخي بيانات ملف Excel فقط. لا تخلط هذه النتائج مع التشغيل الحي.';for(const id of ['bcg','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers'])content(id).prepend(historyHint.cloneNode(true));
  showOwnerReport('home');
+}
+
+function exportOwnerReport(id){
+ const screen=$('ownerContent-'+id);if(!screen)return;
+ const tables=[...screen.querySelectorAll('table')];
+ if(!tables.length){notify('لا توجد جداول قابلة للتصدير في هذا التقرير.',true);return;}
+ const rows=[];
+ for(const [index,table] of tables.entries()){
+  if(index)rows.push([]);
+  const heading=table.closest('.panel')?.querySelector('h4,h3,h2')?.textContent||'جدول التقرير';
+  rows.push([heading]);
+  for(const tr of table.querySelectorAll('tr'))rows.push([...tr.cells].map(cell=>cell.innerText.trim()));
+ }
+ const csv='\\uFEFF'+rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+ const url=URL.createObjectURL(blob);const link=document.createElement('a');
+ link.href=url;link.download='taiba-'+id+'-'+($('month').value||localToday())+'.csv';
+ document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
+ notify('تم تجهيز ملف CSV للتقرير.');
 }
 function filterHistoricalReport(source,target,needle){
  target.replaceChildren();
