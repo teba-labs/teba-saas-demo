@@ -68,7 +68,7 @@ Every test and parameter has a review state: draft, needs_review, verified, or d
 
 ## Quality and reporting requirements
 
-Maintain method, analyzer/reagent applicability, calibration/QC notes, interferences, limitations, report comments, critical result policy, specimen rejection rules, and source references. Preserve test/parameter snapshots on each visit so later catalog edits cannot rewrite historical reports.
+Maintain method, analyzer/reagent applicability, calibration/QC notes, interferences, limitations, report comments, critical result policy, specimen rejection rules, parameter-level clinical metadata, and source references. Preserve test/parameter snapshots on each visit so later catalog edits cannot rewrite historical reports.
 
 ## Import and update safety
 
