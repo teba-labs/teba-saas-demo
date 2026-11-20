@@ -39,7 +39,7 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
       .eq('tenant_id', tenantId).gte('visit_work_date', monthStart).lt('visit_work_date', monthEnd)
       .neq('status', 'cancelled').order('visit_work_date').order('id'))),
   ]);
-  const liveStatus = summarizeVisitTestStatus({ visits, visitTests: [] });
+  let liveStatus = summarizeVisitTestStatus({ visits, visitTests: [] });
   const visitIds = visits.map(row => row.id);
 
   let billing = [], payments = [], visitTests = [];
@@ -54,9 +54,7 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
         .eq('tenant_id', tenantId).in('visit_id', visitIds).neq('status', 'cancelled').order('visit_id').order('id')),
     ]);
     billing = billingRows; payments = paymentRows; visitTests = testRows;
-    Object.assign(liveStatus.totals, summarizeVisitTestStatus({ visits, visitTests }).totals);
-    liveStatus.branches = summarizeVisitTestStatus({ visits, visitTests }).branches;
-    liveStatus.daily = summarizeVisitTestStatus({ visits, visitTests }).daily;
+    liveStatus = summarizeVisitTestStatus({ visits, visitTests });
   }
 
   const collectedRows = ledger.filter(row => row.direction === 'inflow');
