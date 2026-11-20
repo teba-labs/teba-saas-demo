@@ -35,6 +35,14 @@
         <div class="toolbar"><button id="refreshButton" class="button button-secondary">تحديث القائمة</button><span id="contextStatus" class="muted" role="status"></span></div>
       </section>
       <section id="workList" class="work-list" aria-live="polite"></section>
+      <section class="panel historical-results-lookup">
+        <label class="history-toggle"><input id="showHistoricalToggle" type="checkbox"> إظهار النتائج التاريخية القديمة (لا تظهر افتراضيًا)</label>
+        <div id="historicalLookupPanel" hidden>
+          <p class="muted">ابحث باسم المريض لعرض نتائجه التاريخية في الفرع الحالي. هذه السجلات لا تدخل في قائمة العمل أو الفواتير أو التقرير التشغيلي تلقائيًا.</p>
+          <div class="toolbar"><input id="historicalSearch" type="search" placeholder="اسم المريض — حرفان على الأقل"><button id="searchHistoricalResults" class="button button-secondary" type="button">بحث في النتائج القديمة</button></div>
+          <div id="historicalResultsList" aria-live="polite"></div>
+        </div>
+      </section>
       <nav id="workPager" class="toolbar" aria-label="صفحات قائمة التحاليل" hidden>
         <button id="prevWorkPage" class="button button-secondary" type="button">السابق</button>
         <span id="workPageStatus" class="muted" role="status"></span>
