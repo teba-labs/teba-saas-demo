@@ -33,6 +33,9 @@ Complete the master test catalog sourced from the user's historical test-name li
 - [x] Add stool culture isolate and isolate-specific susceptibility workflow.
 - [ ] Normalize and classify every source name from the user's list; identify duplicates, synonyms, panels, procedures, and send-outs.
 - [x] Add initial protein/A:G, lipid/non-HDL, and HOMA1 calculated profiles with traceable sources.
+- [x] Add kidney, liver, thyroid, iron, and coagulation profiles; transferrin saturation is calculated from same-unit iron/TIBC.
+- [x] Index 495 legacy Taiba test names/categories as review-pending source records; no old prices were copied and none can be imported before clinical completion.
+- [x] Add Mayo adult CBC source intervals for RBC, HGB, HCT, MCV, RDW, WBC, platelets and absolute differential as clearly labelled suggestions, not locally activated ranges.
 - [ ] Normalize and seed the remaining source-name inventory and the other common clinical chemistry, endocrine, serology, coagulation, body-fluid, and microbiology profiles.
 - [ ] Verify end-to-end result entry, computed fields, report layout, and tenant import.
 - [ ] Run security/performance advisors and full CI.
