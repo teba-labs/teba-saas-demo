@@ -12,11 +12,14 @@ declare
   v_gross numeric(14,2);
   v_discount numeric(14,2);
   v_has_billing boolean := false;
+  v_visit_status text;
+  v_is_published boolean;
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
   if not private.can_access_branch(p_tenant_id,p_branch_id) then raise exception 'Branch access denied'; end if;
-  perform 1 from public.visits v where v.tenant_id=p_tenant_id and v.branch_id=p_branch_id and v.id=p_visit_id for update;
+  select v.status,v.is_published into v_visit_status,v_is_published from public.visits v where v.tenant_id=p_tenant_id and v.branch_id=p_branch_id and v.id=p_visit_id for update;
   if not found then raise exception 'Visit not found for billing update'; end if;
+  if v_visit_status in ('approved','published','cancelled') or v_is_published then raise exception 'Finalized visits cannot receive billing recalculation from test additions'; end if;
 
   select coalesce(sum(vt.price_snapshot),0)::numeric(14,2) into v_gross
     from public.visit_tests vt
