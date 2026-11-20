@@ -334,10 +334,13 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const centerLogo = logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '';
   const qrHtml = print.footerCenterMode === 'qr' && websiteUrl ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="QR للموقع"><small>امسح لزيارة موقع المعمل</small></a>' : '';
   const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
-  const footerContacts = (phoneContact ? '<div>هاتف: ' + escapeHtml(phoneContact) + '</div>' : '') +
+  const branchPhones = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + escapeHtml(row.phone) + '</div>');
+  const footerContacts = (branchPhones.length ? branchPhones.join('') : (phoneContact ? '<div>هاتف: ' + escapeHtml(phoneContact) + '</div>' : '')) +
     (whatsappContact ? '<div>واتساب: ' + escapeHtml(whatsappContact) + '</div>' : '') +
     (websiteUrl ? '<div>الموقع: ' + escapeHtml(websiteUrl) + '</div>' : '') + (supportUrl ? '<div>الدعم / بوابة المريض: ' + escapeHtml(supportUrl) + '</div>' : '');
   const footerAddresses = branchAddressList.map(row => '<div><strong>' + escapeHtml(row.name) + ':</strong> ' + escapeHtml(row.address) + '</div>').join('');
+  const footerGridColumns = centerFooter ? '1fr 120px 1fr' : '1fr 1fr';
+  const footerCenterMarkup = centerFooter ? '<div class="footer-center">' + centerFooter + '</div>' : '';
   const title = print.title || 'نتيجة الفحوصات الطبية';
   const paper = print.paperSize === 'A5' ? 'A5' : 'A4';
   const orientation = print.orientation === 'landscape' ? 'landscape' : 'portrait';
@@ -384,7 +387,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
     (signature ? '<p style="text-align:left"><img class="signature" src="' + escapeHtml(signature) + '" alt="التوقيع"></p>' : '') +
     '<div class="branch-performed">' + escapeHtml(performedAt) + '</div>' +
-    '<footer class="report-footer"><div class="footer-right">' + footerAddresses + '</div><div class="footer-center">' + centerFooter + '</div><div class="footer-left">' + footerContacts + '</div></footer>' +
+    '<footer class="report-footer" style="grid-template-columns:' + footerGridColumns + '"><div class="footer-right">' + footerAddresses + '</div>' + footerCenterMarkup + '<div class="footer-left">' + footerContacts + '</div></footer>' +
     (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</body></html>';
   win.document.open(); win.document.write(html); win.document.close();
   const printWhenReady = () => { try { win.focus(); if (autoPrint) win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
