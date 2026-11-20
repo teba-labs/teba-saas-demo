@@ -163,3 +163,59 @@ At the time this handoff was written:
 - `assets/css/results-workbench.css` contains a compact single-column work-card/parameter UI and responsive rules.
 - `assets/js/results-workbench.js` contains current work-list grouping and result controls, draft saving, completion/approval, PDF upload-based report publishing, historical lookup, attachments, and culture isolate/susceptibility handling. The current print function builds HTML inside JavaScript rather than using a separate report template file.
 - The agreed three-column experience, combined individual workspace, separate profile workspaces, report preview builder, configurable three-zone header/footer, watermark settings, and safe hide/archive flow must be implemented and tested rather than assumed to exist.
+
+
+---
+
+## 11. Implementation status — 2026-11-21
+
+**Working branch:** `feature/results-workbench-final-2026-11-21`  
+**Pull request:** [#24 — Results workbench rebuild](https://github.com/teba-labs/teba-saas-demo/pull/24)  
+**Current branch head at this update:** `9d855bf824940cb4b13d8eec5559f52e55343b8d`  
+**Main remains unchanged:** `db3c1db1acfe0e4605b574bd4e9926b3dc85b55a`  
+**PR state:** open, draft, not merged.
+
+### Implemented on the development branch
+
+- Replaced the old single-list results presentation with a three-column visits / individual tests / profiles workspace and a horizontal selected-visit action bar.
+- Individual tests remain together in one entry workspace. Profiles open one at a time in separate focused workspaces; their hidden form nodes remain mounted so unsaved entries are not discarded when moving between profiles.
+- Added per-column catalog access. Missing tests are added to the selected visit through the atomic RPC, with staff attribution and creation time. Duplicate additions are idempotent.
+- Added reception/billing synchronization for a test added from results. The visit gross total is recalculated from active visit-test price snapshots; the generated net total and existing discount remain consistent.
+- Added visit-and-parameter-specific reference-range overrides. Catalog values are not edited; the selected visit's result snapshot uses the override. Range changes are audited, old flags are cleared, and the report recalculates flags against the updated visit-specific range.
+- Added audited correction of completed results before approval and after publication, including recalculated low/high/normal flags. Previous published report files remain preserved; corrected output requires a new preview and corrected publication.
+- Added unsaved-result guards before changing visit, branch, refreshing, adding a test, hiding a case, approving, previewing, or publishing.
+- Added hide/restore (logical archive) for visits with an audit event. There is no ordinary hard-delete action for medical records.
+- Added WhatsApp action only when a patient phone exists and the report is published. It opens a prefilled WhatsApp message containing the patient-portal lookup link and visit number; it does not attach a PDF directly.
+- Added visit-results preview before final print/publication. Incomplete sections are identified; print is disabled until approval; publication requires a fresh preview and an approved/published visit.
+- Reworked the report template with English test data and Arabic patient/lab administrative data. Header and footer use right/center/left zones; header identity side is configurable; center logo can be general or branch-specific; footer supports all active branch addresses and phone numbers, WhatsApp, website/support links, optional QR/message center, branch-performed line, and a configurable watermark.
+- Print header and footer repeat in printed pages. Individual tests form one combined report flow; each profile begins a separate report page.
+- Added the corresponding print-settings controls for logo source, identity side, branch addresses/contacts, website/support URLs, optional footer center, watermark type/opacity/size/position, while retaining paper size/orientation/margins and existing brand/signature settings.
+- Updated service-worker shell cache version to v27 and added the new workbench layout module to the application shell.
+
+### Database migrations applied to TEST only
+
+Migrations `056` through `068` are present in the repository and applied to TEST project `hgqwpykeazuzceeiumjg`. They cover safe visit archive/restore, atomic test addition, visit-specific range overrides and history, completed/published result corrections, billing recalculation for added tests, stale-flag handling, and finalized-visit guards.
+
+No production database was modified.
+
+### Verification completed
+
+- Static contract tests: **235/235 passed** on run [44833208993](https://github.com/teba-labs/teba-saas-demo/actions/runs/44833208993).
+- JavaScript syntax/module checks passed.
+- Browser-only deployment build passed.
+- Exact source artifact was packaged and uploaded by the successful workflow.
+- TEST transaction smoke checks (all rolled back): archive/hide and restore; idempotent add-test behavior; billing gross/net reconciliation after adding a test; visit-only range override and result reference snapshot; completed-result correction with reason and flag.
+- Supabase security advisor showed no new findings for the added public RPCs/tables. Performance advisor reports the new audit/range indexes as unused on the currently small TEST dataset; this is expected until those tables have workload.
+
+### Remaining live-review items / limitations
+
+- The Netlify preview deployment cannot currently produce a live URL because this repository environment does not have the required Netlify authentication/site secrets. The existing GitHub Pages site still serves `main`; it was not overwritten to expose an unreviewed development build.
+- WhatsApp is a prefilled `wa.me` share flow to the patient portal, not a direct PDF attachment or automated WhatsApp Business API delivery.
+- The existing publication workflow remains: preview the report, print/save as PDF from the browser, then upload/publish through the existing report-version flow.
+- The TEST dataset has no already-published visit, so the published-range-correction path was reviewed in code and migration checks but could not be exercised against an existing published fixture. The unpublished correction and range-snapshot paths were exercised transactionally.
+- The TEST dataset has no active employee membership fixture, so the new staff-identity path was validated from the invoker/RLS function contracts and owner transaction tests, not a full employee login session.
+- Final visual acceptance remains the owner's live browser review. Do not merge PR #24 into `main` until that review is completed. Any changes after this point should be driven by concrete live-preview observations, not by reopening the settled product decisions above.
+
+## 12. Handoff instruction
+
+A receiving chat/developer must start from this branch and PR #24, read this document, inspect the current implementation and successful CI run, and continue from the latest commit. Do not ask the owner to repeat the three-column layout, individual/profile grouping, print design, range/history rules, archive behavior, or agreed print-settings options.
