@@ -205,7 +205,7 @@ begin
     coalesce(v_master.category,v_definition->>'category'),
     v_definition->>'specimen',v_definition->>'method',
     nullif(v_definition->>'turnaround_minutes','')::integer,v_definition->>'instructions',true,
-    v_definition->>'short_name',coalesce(array(select jsonb_array_elements_text(coalesce(v_master.alternate_names::jsonb,'[]'::jsonb))),'{}'),
+    v_definition->>'short_name',coalesce(v_master.alternate_names,'{}'),
     v_definition->>'loinc_code',v_definition->>'clinical_category',v_definition->>'clinical_purpose',
     coalesce(v_master.service_type,'laboratory_test'),
     coalesce(v_definition->'patient_preparation','{}'::jsonb),
