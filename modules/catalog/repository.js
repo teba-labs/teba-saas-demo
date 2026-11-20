@@ -53,7 +53,7 @@ export async function listTestParameters({ tenantId, testId, includeInactive = f
   required(tenantId, 'tenantId'); required(testId, 'testId');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order);
   let query = db().from(TABLES.parameters)
-    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, source_references, clinical_review_status')
+    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status')
     .eq('tenant_id', tenantId).eq('test_id', testId)
     .order('display_order');
   const { data, error } = await query;
@@ -144,7 +144,7 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     result_source: valid.resultSource, formula: valid.formula,
     unit_ucum: parameter.unitUcum?.trim() || null, alternate_units: parameter.alternateUnits ?? [],
     critical_ranges: parameter.criticalRanges ?? {}, interpretation_rules: parameter.interpretationRules ?? [],
-    applicability: parameter.applicability ?? {}, method_notes: parameter.methodNotes?.trim() || null,
+    applicability: parameter.applicability ?? {}, method_notes: parameter.methodNotes?.trim() || null, clinical_metadata: parameter.clinicalMetadata ?? {},
     source_references: parameter.sourceReferences ?? [], clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
