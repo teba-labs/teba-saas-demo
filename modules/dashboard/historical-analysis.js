@@ -82,6 +82,7 @@ export function buildHistoricalDashboardReport({salesWorkbook,pricesWorkbook,det
   const tests=movement.filter(t=>prices.has(normalize(t.name))).map(t=>{const p=prices.get(normalize(t.name)),trueCost=p.baseCost+p.weight*pointValue,profitUnit=p.sell-trueCost;return{name:t.name,count:t.count,type:p.type,baseCost:p.baseCost,weight:p.weight,sell:p.sell,trueCost,trueProfitUnit:profitUnit,trueTotalProfit:profitUnit*t.count};});
   return{branch,...totals,profit:totals.rev-totals.exp,margin:totals.rev>0?(totals.rev-totals.exp)/totals.rev*100:0,tests,unmatchedTests:movement.filter(t=>!prices.has(normalize(t.name))).map(t=>t.name),expenseBreakdown:breakdown?{chemicals:breakdown.chemicals,salaries:breakdown.salaries,misc:breakdown.misc,total:fixed}:null,allocation:{variableCost:variable,fixedCost:fixed,totalPoints:points,pointValue,expenseBreakdownAvailable:Boolean(breakdown)}};
  });
+ if(branch!=='all'&&!branchReports.length)throw new Error('اسم الفرع المختار غير موجود في ملف Excel التاريخي. راجع تطابق اسم الفرع.');
  const combined=new Map();
  for(const b of branchReports)for(const t of b.tests){const key=normalize(t.name);if(!combined.has(key))combined.set(key,{...t,count:0,trueTotalProfit:0});const item=combined.get(key);item.count+=t.count;item.trueTotalProfit+=t.trueTotalProfit;}
  const tests=[...combined.values()].map(t=>({...t,trueProfitUnit:t.count?t.trueTotalProfit/t.count:0,trueCost:t.sell-(t.count?t.trueTotalProfit/t.count:0)}));
