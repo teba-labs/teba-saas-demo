@@ -65,7 +65,7 @@ assert.match(printMigration,/trg_audit_backup_runs/);
 assert.match(h2,/id="printLogoFile"/);
 assert.match(j2,/logoPath:\$\('printLogoFile'\)\.dataset\.storagePath/);
 assert.match(j2,/const logoPath=x\.logoPath/);
-assert.match(h2,/ملفات PDF الحالية تُرفع من برنامج خارجي/);
+assert.match(h2,/تم ربط هذه الإعدادات بتقرير الزيارة القابل للطباعة من شاشة النتائج/);
 
 const tabbedSettings=fs.readFileSync(new URL("app/settings.html",root),"utf8");
 assert.match(tabbedSettings,/role="tablist"/);
