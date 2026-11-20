@@ -337,7 +337,7 @@ begin
         v_pass:=v_pass+1;
       end if;
     end loop;
-    if v_pass=0 then raise exception 'Calculated parameter dependencies are missing or cyclic'; end if;
+    if v_pass=0 then exit; end if;
     v_done:=v_done+v_pass;
     if v_done>100 then raise exception 'Too many calculated parameters in this test'; end if;
     select coalesce(jsonb_agg(p),'[]'::jsonb) into v_pending
