@@ -18,6 +18,7 @@ test('migration filenames follow the current main sequence without reusing 024',
   assert.ok(files.includes('059_visit_parameter_range_overrides.sql'));
   assert.ok(files.includes('060_visit_range_override_fk_indexes.sql'));
   assert.ok(files.includes('061_allow_published_range_corrections.sql'));
+  assert.ok(files.includes('062_correct_completed_visit_result.sql'));
   assert.ok(!files.includes('024_patient_age_units.sql'));
 });
 
@@ -54,6 +55,16 @@ test('visit range overrides are separate from the frozen catalog snapshot and ke
   assert.match(migration,/new_reference_ranges/);
   assert.doesNotMatch(migration,/update public.tests_catalog/i);
   assert.match(read('database/migrations/060_visit_range_override_fk_indexes.sql'),/idx_visit_range_overrides_updated_by/);
+});
+
+test('completed unpublished result correction is audited and cannot alter an approved or published visit',()=>{
+  const migration=read('database/migrations/062_correct_completed_visit_result.sql');
+  assert.ok(migration.includes('security invoker'));
+  assert.ok(migration.includes('visit_test.status'));
+  assert.ok(migration.includes('correction_reason'));
+  assert.ok(migration.includes('entered_by_staff_id'));
+  assert.ok(migration.includes('revoke all on function public.correct_completed_visit_result'));
+  assert.ok(migration.includes("v_visit.is_published"));
 });
 
 test('patient age migration preserves the entered unit and normalized compatibility value', () => {
