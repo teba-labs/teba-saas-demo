@@ -28,6 +28,7 @@ jobs:
           node --experimental-default-type=module --check assets/js/settings-center.js
           node --experimental-default-type=module --check assets/js/data-import.js
           node --experimental-default-type=module --check assets/js/catalog.js
+          node --experimental-default-type=module --check core/data/schema-contract.js
           node --experimental-default-type=module --check modules/catalog/formula-engine.js
           node --experimental-default-type=module --check modules/migration/workbook-inspector.js
           node --experimental-default-type=module --check modules/migration/historical-results-repository.js
