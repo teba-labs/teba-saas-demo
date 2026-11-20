@@ -12,7 +12,19 @@ test('migration filenames follow the current main sequence without reusing 024',
   assert.ok(files.includes('024_print_settings_audit.sql'));
   assert.ok(files.includes('054_source_suggested_core_intervals.sql'));
   assert.ok(files.includes('055_patient_age_units.sql'));
+  assert.ok(files.includes('056_visit_workbench_archive.sql'));
   assert.ok(!files.includes('024_patient_age_units.sql'));
+});
+
+test('workbench archive is non-destructive and records actor, branch and reason',()=>{
+  const migration = read('database/migrations/056_visit_workbench_archive.sql');
+  assert.match(migration, /workbench_hidden_at/);
+  assert.match(migration, /visit_workbench_archive_events/);
+  assert.match(migration, /action in \\(\\'hidden\\',\\'restored\\'\\)/);
+  assert.match(migration, /private.can_access_branch/);
+  assert.match(migration, /auth.uid\\(\\)/);
+  assert.match(migration, /revoke all on function public\\.set_visit_workbench_hidden/);
+  assert.doesNotMatch(migration, /delete from public\\.visits/i);
 });
 
 test('patient age migration preserves the entered unit and normalized compatibility value', () => {
