@@ -1,7 +1,7 @@
 import {getCurrentSession,signInWithEmail} from '../../core/auth/session.js';
 import {loadMyTenantContext} from '../../core/tenant/context.js';
 import {inspectWorkbookFile,getEntityOptions,getEntityFields,suggestColumnMapping,analyzeArchiveSheet,analyzeArchiveRelationships,inspectLegacyDate} from '../../modules/migration/workbook-inspector.js';
-import {findHistoricalPatientCandidates,importHistoricalResults,listHistoricalImportTemplates,saveHistoricalImportTemplate} from '../../modules/migration/historical-results-repository.js';
+import {findHistoricalPatientCandidates,importHistoricalResults,listHistoricalImportTemplatesForBranch,saveHistoricalImportTemplate} from '../../modules/migration/historical-results-repository.js';
 import {importNewCatalogTests} from '../../modules/migration/catalog-importer.js';
 import {importNewBasePrices} from '../../modules/migration/price-importer.js';
 import {listCatalog,saveCatalogTest,listCurrentBasePrices,addBasePriceIfMissing} from '../../modules/catalog/repository.js';
@@ -13,13 +13,14 @@ async function start(){const session=await getCurrentSession();if(!session){$('l
 async function sheetHeaderSignature(headers){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify((headers||[]).map(x=>String(x||'').trim()))));return [...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,'0')).join('');}
 async function applySavedSheetTemplates(){
  state.templateStatus={};
+ const templates=await listHistoricalImportTemplatesForBranch({tenantId:state.tenantId,branchId:state.branchId}).catch(()=>[]);
  for(const sheet of state.result.sheets){
-  if(sheet.entityType!=='historical_results')continue;
+  const matching=templates.filter(t=>t.sheet_name===sheet.name);
+  if(!matching.length)continue;
   const signature=await sheetHeaderSignature(sheet.headers);
-  const templates=await listHistoricalImportTemplates({tenantId:state.tenantId,branchId:state.branchId,sheetName:sheet.name}).catch(()=>[]);
-  const exact=templates.find(t=>t.header_signature===signature);
+  const exact=matching.find(t=>t.header_signature===signature);
   if(exact){sheet.entityType=exact.entity_type;sheet.columnMapping=exact.column_mapping||sheet.columnMapping;state.templateStatus[sheet.name]='تم تحميل قالب المطابقة المحفوظ لهذه البنية.';}
-  else if(templates.length){state.templateStatus[sheet.name]='تنبيه: بنية هذه الورقة تغيرت عن قالب محفوظ سابقًا. راجع العناوين والمطابقة يدويًا قبل الاعتماد.';}
+  else {if(sheet.entityType==='unknown')sheet.entityType=matching[0].entity_type;state.templateStatus[sheet.name]='تنبيه: بنية هذه الورقة تغيرت عن قالب محفوظ سابقًا. راجع العناوين والمطابقة يدويًا قبل الاعتماد.';}
  }
 }
 function renderSheet(){
