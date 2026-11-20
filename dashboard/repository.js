@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '../core/supabase-client.js';
 import { buildExpenseBreakdown } from '../modules/dashboard/expense-breakdown.js';
+import { summarizeVisitTestStatus } from '../modules/dashboard/live-status.js';
 const db = () => getSupabaseClient();
 const need = (value, name) => { if (!value) throw new Error(`${name} is required.`); };
 const sum = (rows, field) => (rows ?? []).reduce((total, row) => total + Number(row[field] ?? 0), 0);
@@ -34,10 +35,11 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
       .eq('tenant_id', tenantId).gte('work_date', monthStart).lt('work_date', monthEnd)
       .order('work_date').order('movement_at').order('id'))),
     readAllPages(() => scope(client.from('visits')
-      .select('id,branch_id,visit_work_date,status,patient_id')
+      .select('id,branch_id,visit_work_date,status,is_published,patient_id')
       .eq('tenant_id', tenantId).gte('visit_work_date', monthStart).lt('visit_work_date', monthEnd)
       .neq('status', 'cancelled').order('visit_work_date').order('id'))),
   ]);
+  const liveStatus = summarizeVisitTestStatus({ visits, visitTests: [] });
   const visitIds = visits.map(row => row.id);
 
   let billing = [], payments = [], visitTests = [];
@@ -52,6 +54,9 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
         .eq('tenant_id', tenantId).in('visit_id', visitIds).neq('status', 'cancelled').order('visit_id').order('id')),
     ]);
     billing = billingRows; payments = paymentRows; visitTests = testRows;
+    Object.assign(liveStatus.totals, summarizeVisitTestStatus({ visits, visitTests }).totals);
+    liveStatus.branches = summarizeVisitTestStatus({ visits, visitTests }).branches;
+    liveStatus.daily = summarizeVisitTestStatus({ visits, visitTests }).daily;
   }
 
   const collectedRows = ledger.filter(row => row.direction === 'inflow');
@@ -94,12 +99,13 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
       grossBilled: sum(branchBilling, 'gross_total'), discounts: sum(branchBilling, 'discount_amount'),
       netBilled: billed, collected: cashIn, expenses: cashOut, netCash: cashIn - cashOut,
       receivables: Math.max(0, billed - sum(branchPayments, 'amount')),
+      ...(liveStatus.branches.find(item => item.branchId === branch.id) || {pendingTests:0,inProgressTests:0,completedTests:0,publishedVisits:0,unpublishedVisits:0}),
     };
   });
 
-  const dailyMap = new Map();
+  const dailyMap = new Map(liveStatus.daily.map(item => [item.date, {...item, collected:0, expenses:0}]));
   const dailyItem = date => {
-    const item = dailyMap.get(date) ?? { date, collected: 0, expenses: 0, visits: 0, tests: 0 };
+    const item = dailyMap.get(date) ?? { date, collected: 0, expenses: 0, visits: 0, tests: 0, pendingTests:0, inProgressTests:0, completedTests:0, publishedVisits:0, unpublishedVisits:0 };
     dailyMap.set(date, item);
     return item;
   };
@@ -107,15 +113,6 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
     const item = dailyItem(row.work_date);
     if (row.direction === 'inflow') item.collected += Number(row.amount);
     if (row.direction === 'outflow') item.expenses += Number(row.amount);
-  }
-  const visitDateById = new Map();
-  for (const visit of visits) {
-    visitDateById.set(visit.id, visit.visit_work_date);
-    dailyItem(visit.visit_work_date).visits += 1;
-  }
-  for (const test of visitTests) {
-    const date = visitDateById.get(test.visit_id);
-    if (date) dailyItem(date).tests += 1;
   }
   const testMap = new Map();
   for (const row of visitTests) {
@@ -132,6 +129,7 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
       visits: visits.length, patients: uniquePatients.size, tests: visitTests.length,
       grossBilled, discounts, netBilled, collected, expenses, netCash: collected - expenses,
       receivables, paymentCount: collectedRows.length, expenseCount: expenseRows.length,
+      ...liveStatus.totals,
     },
     daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
     expenseBreakdown,
