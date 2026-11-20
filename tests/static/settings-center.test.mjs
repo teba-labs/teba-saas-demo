@@ -63,5 +63,6 @@ assert.match(schemaWorkflow,/024_print_settings_audit/);
 assert.match(printMigration,/trg_audit_backup_runs/);
 
 assert.match(h2,/id="printLogoFile"/);
-assert.match(j2,/logoPath:x\.logoPath/);
+assert.match(j2,/logoPath:\$\('printLogoFile'\)\.dataset\.storagePath/);
+assert.match(j2,/const logoPath=x\.logoPath/);
 assert.match(h2,/ملفات PDF الحالية تُرفع من برنامج خارجي/);
