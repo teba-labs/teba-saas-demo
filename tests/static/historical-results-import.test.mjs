@@ -39,7 +39,11 @@ test('historical results are opt-in in reception and results screens', async () 
   const reception = await readFile(new URL('../../app/reception.html', import.meta.url), 'utf8');
   const results = await readFile(new URL('../../app/results-workbench.html', import.meta.url), 'utf8');
   const settings = await readFile(new URL('../../app/settings.html', import.meta.url), 'utf8');
+  const resultsScript = await readFile(new URL('../../assets/js/results-workbench.js', import.meta.url), 'utf8');
   assert.match(reception, /patientHistoricalPanel/);
   assert.match(results, /showHistoricalToggle[^>]*type="checkbox"/);
   assert.match(settings, /داتا المعمل القديمة/);
+  assert.match(resultsScript, /selectedHistoricalIds/);
+  assert.match(resultsScript, /historicalSections/);
+  assert.match(resultsScript, /select-historical-report/);
 });
