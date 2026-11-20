@@ -134,3 +134,6 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - Added unit/static contract tests for the new formula syntax and keyboard behavior; CI has not yet run for this branch at this tracker checkpoint.
 - Important: this cycle does **not** mark the 495 legacy records clinically complete. Their source identity, specimen, method, parameter sets, formula suitability, units, assay-specific intervals, specimen stability and citations still require structured clinical normalization. No guessed ranges were added.
 - No TEST schema/data migrations were applied in this cycle; only direct read-only queries and evaluator smoke tests were run.
+
+- CI run #729 initially failed because five existing contract tests still hard-coded the previous service-worker cache key v22. The application modules passed syntax checks and the new formula-engine tests passed; the failure was limited to stale cache-version assertions. Updated all five affected test files to expect v23; the PR push should trigger a fresh run. No production or TEST database changes resulted from the failed run.
+- Additional direct TEST evaluator checks: calculated globulin = 3 g/dL; A/G ratio = 1.33; division-by-zero returns null (no fabricated numeric result); rounding 1/3 to two decimals returns 0.33.
