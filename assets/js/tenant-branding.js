@@ -101,6 +101,10 @@ client.auth.onAuthStateChange((event) => {
     renderHeader({});
   }
 });
+document.addEventListener('taiba:tenant-settings-updated', () => {
+  state.tenantId = null; state.branchId = null; state.settings = null;
+  safelyRefresh();
+});
 document.addEventListener('change', event => {
   if (event.target?.id === 'tenantSelect' || event.target?.id === 'branchSelect') {
     state.tenantId = null; state.branchId = null; state.settings = null;
