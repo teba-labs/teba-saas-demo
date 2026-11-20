@@ -4,7 +4,7 @@ import { getPreferredTenantId, getPreferredBranchId } from '../../core/tenant/wo
 import { getLabSettings } from '../../modules/settings/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 
-const state = { tenantId: null, branchId: null, settings: null };
+const state = { tenantId: null, branchId: null, settings: null, originalTitle: null };
 const $ = (selector) => document.querySelector(selector);
 
 function renderHeader(settings) {
@@ -17,7 +17,8 @@ function renderHeader(settings) {
     header.querySelector('.topbar > div') || header.querySelector(':scope > div');
   if (!root) return;
   const title = root.querySelector('strong');
-  if (title && name) title.textContent = name;
+  if (title && state.originalTitle === null) state.originalTitle = title.textContent;
+  if (title) title.textContent = name || state.originalTitle || 'Taiba Smart Lab';
 
   let mark = root.querySelector('.brand-mark, .mark');
   let image = root.querySelector('[data-tenant-brand-logo]');
