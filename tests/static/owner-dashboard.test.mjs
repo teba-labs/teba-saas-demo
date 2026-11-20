@@ -74,6 +74,28 @@ test('live expense details reconcile ledger outflows to tenant-scoped expense ca
 
 test('owner dashboard shell refresh includes the archived-branch selector update',()=>{
   const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
-  assert.match(sw,/taiba-smart-lab-shell-v26/);
+  assert.match(sw,/taiba-smart-lab-shell-v27/);
   assert.match(sw,/\.\/assets\/js\/dashboard\.js/);
+});
+
+test('owner dashboard presents exactly 18 independent report entries and separate screens',()=>{
+  const entries=script.match(/\['[A-Za-z]+','[^']+','[^']+'\]/g)||[];
+  assert.equal(entries.length,18);
+  for(const id of ['dailyFinance','reconciliation','live','overview','financial','annual','cases','expenseBreakdown','bcg','testReport','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers','upload','security']){
+    assert.match(script,new RegExp("'"+id+"'"));
+  }
+  assert.match(script,/data-owner-report=/);
+  assert.match(script,/data-owner-screen=/);
+  assert.match(script,/data-owner-back/);
+  assert.match(script,/showOwnerReport\('home'\)/);
+});
+test('daily financial movement is read-only and links to Workday for new entries',()=>{
+  assert.match(script,/report\.ledger\.length/);
+  assert.match(script,/workday\.html/);
+  assert.match(script,/تسجيل التحصيل والمصروفات يظل من شاشة يوم العمل/);
+});
+test('security screen does not misrepresent local Excel archive as cloud backup',()=>{
+  assert.match(script,/ليس نسخة سحابية/);
+  assert.match(script,/غير مثبت كميزة استعادة كاملة/);
+  assert.match(script,/sync-center\.html/);
 });
