@@ -95,3 +95,27 @@ export async function listResultsForVisitTests({ tenantId, visitTestIds } = {}) 
   }
   return rows;
 }
+
+/** Visit-only reference range overrides; the master catalog and frozen visit identity remain untouched. */
+export async function listVisitParameterRangeOverrides({ tenantId, visitTestIds } = {}) {
+  if (!tenantId || !Array.isArray(visitTestIds)) throw new Error('tenantId and visitTestIds are required.');
+  const ids=[...new Set(visitTestIds.filter(Boolean))];if(!ids.length)return [];
+  const rows=[];
+  for(let start=0;start<ids.length;start+=100){
+    const chunk=ids.slice(start,start+100);
+    const {data,error}=await db().from('visit_test_parameter_range_overrides')
+      .select('visit_test_id,parameter_code,reference_ranges,reason,updated_at')
+      .eq('tenant_id',tenantId).in('visit_test_id',chunk);
+    if(error)throw error;rows.push(...(data||[]));
+  }
+  return rows;
+}
+export async function saveVisitParameterRangeOverride({tenantId,branchId,visitTestId,parameterCode,referenceRanges,staffId,reason}={}) {
+  if(!tenantId||!branchId||!visitTestId||!parameterCode||!staffId||!referenceRanges||!reason)throw new Error('بيانات تعديل المدى المرجعي غير مكتملة.');
+  if(globalThis.navigator?.onLine===false)throw new Error('تعديل المدى المرجعي يحتاج اتصالًا بالإنترنت لحفظ أثر التعديل بأمان.');
+  const {data,error}=await db().rpc('set_visit_parameter_range_override',{
+    p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTestId,
+    p_parameter_code:parameterCode,p_reference_ranges:referenceRanges,p_staff_id:staffId,p_reason:reason,
+  });
+  if(error)throw error;return data;
+}
