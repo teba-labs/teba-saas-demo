@@ -60,6 +60,7 @@ test('live expense details reconcile ledger outflows to tenant-scoped expense ca
   const breakdown=fs.readFileSync(path.join(root,'modules/dashboard/expense-breakdown.js'),'utf8');
   assert.match(repo,/buildExpenseBreakdown/);
   assert.match(repo,/source_type === 'expense'/);
+  assert.match(repo,/source_type,source_id,direction/); // ledger source_id is required to resolve expense categories
   assert.match(repo,/from\('expenses'\)/);
   assert.match(repo,/from\('expense_categories'\)/);
   assert.match(repo,/\.eq\('tenant_id', tenantId\)/);
