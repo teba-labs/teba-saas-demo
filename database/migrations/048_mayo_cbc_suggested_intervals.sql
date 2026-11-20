@@ -29,9 +29,9 @@ set reference_ranges=ranges.range_json,
       'reference_interval_note','Mayo-derived adult comparison interval only. Not activated as a local reference interval until verified for the tenant analyzer, reagent, method, and population.'
     )
 from ranges
-join public.master_catalog_tests t on t.id=p.master_test_id
+join public.master_catalog_tests t on t.master_code='HEM_CBC'
 join r on t.release_id=r.id
-where t.master_code='HEM_CBC' and p.parameter_code=ranges.code;
+where p.master_test_id=t.id and p.parameter_code=ranges.code;
 
 -- Qualitative parasitology expectation: negative unless organism is detected and identified.
 update public.master_catalog_parameters p
