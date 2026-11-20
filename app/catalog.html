@@ -23,6 +23,7 @@
         <form id="testForm" class="form-grid">
           <label>كود التحليل *<input id="testCode" maxlength="40" required></label>
           <label>اسم التحليل *<input id="testName" maxlength="160" required></label>
+          <label>نوع التحليل<select id="testKind"><option value="individual">تحليل فردي — نتيجة واحدة</option><option value="panel">مجموعة تحاليل — عدة بارامترات</option></select><small>النوع يحدد طريقة تنظيم النتائج في شاشة تسجيل النتائج.</small></label>
           <label>التصنيف<input id="testCategory" maxlength="100"></label>
           <label>نوع العينة<input id="testSpecimen" maxlength="100" placeholder="Serum / EDTA / Urine"></label>
           <label>الطريقة<input id="testMethod" maxlength="120"></label>
@@ -40,10 +41,12 @@
             <div class="form-grid">
               <label>الكود *<input id="parameterCode" maxlength="40" required></label><label>اسم البارامتر *<input id="parameterName" maxlength="160" required></label>
               <label>الوحدة<input id="parameterUnit" maxlength="50" placeholder="mg/dL"></label>
+              <label>مصدر النتيجة<select id="parameterSource"><option value="manual">إدخال يدوي بواسطة الموظف</option><option value="calculated">محسوبة تلقائيًا من بارامترات أخرى</option></select></label>
+              <label id="formulaField" class="wide" hidden>المعادلة الحسابية<textarea id="parameterFormula" rows="2" placeholder="مثال: (HGB + HCT) / 2"></textarea><small>اكتب أكواد البارامترات الرقمية مع العمليات الحسابية (+ − × ÷ والأقواس). الحساب يتم على السحابة عند حفظ النتائج.</small></label>
               <label>نوع القيمة<select id="parameterType"><option value="numeric">رقمية</option><option value="text">نص</option><option value="boolean">نعم / لا</option><option value="choice">اختيار من قائمة</option></select></label>
               <label>الخانات العشرية<input id="parameterDecimals" type="number" min="0" max="6" value="2"></label><label>ترتيب العرض<input id="parameterOrder" type="number" min="0" max="10000" value="0"></label>
-              <label class="wide">المدى المرجعي (JSON)<textarea id="parameterRanges" rows="3" placeholder='{"text":"0.5 - 1.2"}'></textarea><small>يمكن كتابة كائن مثل {"text":"0.5 - 1.2"} أو قائمة JSON. اتركه [] إذا لم يوجد مدى مرجعي.</small></label>
-              <label class="wide">الاختيارات (JSON)<textarea id="parameterChoices" rows="2" placeholder='["Positive","Negative"]'></textarea><small>مطلوب فقط إذا كان نوع القيمة «اختيار من قائمة».</small></label>
+              <label class="wide">المدى المرجعي<textarea id="parameterRanges" rows="2" placeholder="مثال: 0.5 - 1.2"></textarea><small>اكتب المدى بالطريقة المعتادة. وللحالات الخاصة يمكن إدخال JSON متقدم لتحديد أكثر من مدى حسب السن أو النوع.</small></label>
+              <label class="wide">الاختيارات<textarea id="parameterChoices" rows="2" placeholder="Positive, Negative"></textarea><small>اكتب الاختيارات مفصولة بفاصلة، ومطلوبة فقط لنوع «اختيار من قائمة».</small></label>
               <label class="check-line"><input id="parameterRequired" type="checkbox" checked> نتيجة إلزامية</label><label class="check-line"><input id="parameterActive" type="checkbox" checked> بارامتر نشط</label>
             </div>
             <div class="actions"><button class="button" type="submit">حفظ البارامتر</button><button id="cancelParameter" class="button button-light" type="button">إلغاء</button></div>

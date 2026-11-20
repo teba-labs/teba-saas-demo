@@ -109,7 +109,9 @@ async function renderWork() {
         const name = escapeHtml(p.name ?? p.parameter_name ?? p.code);
         const metadata = `data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit ?? '')}" data-value-type="${escapeHtml(type)}" data-range='${escapeHtml(JSON.stringify(p.reference_ranges ?? {}))}' data-choices='${escapeHtml(JSON.stringify(p.choices ?? []))}'`;
         let control;
-        if (type === 'boolean') {
+        if (p.result_source === 'calculated') {
+          control = `<input type="number" step="any" ${metadata} data-result-source="calculated" disabled placeholder="تُحسب تلقائيًا بعد إدخال المدخلات" />`;
+        } else if (type === 'boolean') {
           control = `<select ${metadata}${locked ? ' disabled' : ''}><option value="">اختر نعم أو لا</option><option value="true">نعم</option><option value="false">لا</option></select>`;
         } else if (type === 'choice') {
           const choices = Array.isArray(p.choices) ? p.choices : [];
@@ -297,16 +299,17 @@ async function saveTest(button) {
     const section = button.closest('[data-test-id]');
     const testId = button.dataset.testId;
     const inputs = [...section.querySelectorAll('[data-param-code]')];
-    const results = inputs.filter(input => input.value.trim()).map(input => ({
+    const results = inputs.filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim()).map(input => ({
       parameter: { code: input.dataset.paramCode, name: input.dataset.paramName, unit: input.dataset.unit,
         valueType: input.dataset.valueType, referenceRange: JSON.parse(input.dataset.range || '{}'),
         choices: JSON.parse(input.dataset.choices || '[]') },
       value: input.value,
     }));
     if (!results.length) throw new Error('أدخل نتيجة واحدة على الأقل قبل الحفظ.');
-    await saveDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id,
+    const savedRows = await saveDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id,
       visitTestId: testId, results, staffId: $('staffSelect').value });
-    showNotice('تم حفظ النتائج المدخلة بالكامل في عملية واحدة.');
+    for (const row of savedRows) { const input=section.querySelector(`[data-param-code="${CSS.escape(row.parameter_code)}"]`); if(input){input.value=row.value_numeric??row.value_text??'';input.dataset.resultId=row.id;input.dataset.originalValue=input.value;} }
+    showNotice('تم حفظ النتائج اليدوية وحساب البارامترات المشتقة تلقائيًا على السحابة.');
   } catch (error) { showNotice(error.message || 'تعذر حفظ النتائج.', true); }
   finally { setBusy(button, false); }
 }
