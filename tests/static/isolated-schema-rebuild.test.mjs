@@ -20,6 +20,8 @@ test('migration filenames follow the current main sequence without reusing 024',
   assert.ok(files.includes('061_allow_published_range_corrections.sql'));
   assert.ok(files.includes('062_correct_completed_visit_result.sql'));
   assert.ok(files.includes('063_sync_billing_for_results_test_additions.sql'));
+  assert.ok(files.includes('064_sync_visit_billing_net_total.sql'));
+  assert.ok(files.includes('065_fix_billing_generated_net_total.sql'));
   assert.ok(!files.includes('024_patient_age_units.sql'));
 });
 
@@ -63,6 +65,8 @@ test('results-screen test additions recalculate visit billing without duplicatin
   assert.ok(migration.includes('private.sync_visit_billing_for_added_test'));
   assert.ok(migration.includes('sum(vt.price_snapshot)'));
   assert.ok(migration.includes('update public.visit_billing set gross_total=v_gross'));
+  assert.ok(!migration.includes('set gross_total=v_gross,net_total='));
+  assert.ok(migration.includes('discount_amount,created_by'));
   assert.ok(migration.includes('pg_advisory_xact_lock'));
   assert.ok(migration.includes('return v_existing'));
 });
