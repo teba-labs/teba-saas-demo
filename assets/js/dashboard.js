@@ -39,7 +39,7 @@ function mountOwnerDashboardNavigation(){
  const home=document.createElement('section');home.id='ownerDashboardHome';home.className='owner-dashboard-home panel';
  home.innerHTML='<div class="owner-dashboard-title"><div><h2>مركز تقارير المالك</h2><p class="muted">اختر تقريرًا لفتح شاشته المستقلة. كل الأرقام المالية خاصة بالمالك.</p></div><span class="badge">18 تقريرًا</span></div><div class="owner-report-grid">'+OWNER_REPORTS.map(([id,title,desc],i)=>'<button type="button" class="owner-report-card" data-owner-report="'+id+'"><span class="owner-report-number">'+String(i+1).padStart(2,'0')+'</span><strong>'+title+'</strong><small>'+desc+'</small><span class="owner-report-open">فتح التقرير ←</span></button>').join('')+'</div>';
  const screens=document.createElement('section');screens.id='ownerDashboardScreens';screens.hidden=true;
- screens.innerHTML=OWNER_REPORTS.map(([id,title,desc])=>'<section class="owner-report-screen" data-owner-screen="'+id+'" hidden><div class="owner-screen-head"><div><p class="eyebrow">تقارير المالك / '+String(OWNER_REPORTS.findIndex(x=>x[0]===id)+1).padStart(2,'0')+'</p><h2>'+title+'</h2><p class="muted">'+desc+'</p></div><button type="button" class="btn secondary" data-owner-back>العودة إلى التقارير</button></div><div class="owner-screen-content" id="ownerContent-'+id+'"></div></section>').join('');
+ screens.innerHTML=OWNER_REPORTS.map(([id,title,desc])=>'<section class="owner-report-screen" data-owner-screen="'+id+'" hidden><div class="owner-screen-head"><div><p class="eyebrow">تقارير المالك / '+String(OWNER_REPORTS.findIndex(x=>x[0]===id)+1).padStart(2,'0')+'</p><h2>'+title+'</h2><p class="muted">'+desc+'</p></div><button type="button" class="btn secondary" data-owner-export="'+id+'">تصدير التقرير CSV</button><button type="button" class="btn secondary" data-owner-back>العودة إلى التقارير</button></div><div class="owner-screen-content" id="ownerContent-'+id+'"></div></section>').join('');
  const anchor=$('status').closest('.panel');
  anchor.after(home,screens);
  home.addEventListener('click',event=>{const button=event.target.closest('[data-owner-report]');if(button)showOwnerReport(button.dataset.ownerReport);});
@@ -105,19 +105,21 @@ function mountOwnerDashboardNavigation(){
 function exportOwnerReport(id){
  const screen=$('ownerContent-'+id);if(!screen)return;
  const tables=[...screen.querySelectorAll('table')];
- if(!tables.length){notify('لا توجد جداول قابلة للتصدير في هذا التقرير.',true);return;}
+ const cards=[...screen.querySelectorAll('.kpi')];
+ if(!tables.length&&!cards.length){notify('لا توجد بيانات قابلة للتصدير في هذا التقرير.',true);return;}
  const rows=[];
+ if(!tables.length&&cards.length)for(const card of cards)rows.push([card.querySelector('span')?.textContent||'',card.querySelector('strong')?.textContent||'',card.querySelector('small')?.textContent||'']);
  for(const [index,table] of tables.entries()){
   if(index)rows.push([]);
   const heading=table.closest('.panel')?.querySelector('h4,h3,h2')?.textContent||'جدول التقرير';
   rows.push([heading]);
   for(const tr of table.querySelectorAll('tr'))rows.push([...tr.cells].map(cell=>cell.innerText.trim()));
  }
- const csv='\\uFEFF'+rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n');
+ const csv='\uFEFF'+rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
  const url=URL.createObjectURL(blob);const link=document.createElement('a');
  link.href=url;link.download='taiba-'+id+'-'+($('month').value||localToday())+'.csv';
- document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
+ document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  notify('تم تجهيز ملف CSV للتقرير.');
 }
 function filterHistoricalReport(source,target,needle){
