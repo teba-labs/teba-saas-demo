@@ -22,6 +22,7 @@ test('migration filenames follow the current main sequence without reusing 024',
   assert.ok(files.includes('063_sync_billing_for_results_test_additions.sql'));
   assert.ok(files.includes('064_sync_visit_billing_net_total.sql'));
   assert.ok(files.includes('065_fix_billing_generated_net_total.sql'));
+  assert.ok(files.includes('066_correct_visit_result_with_flag.sql'));
   assert.ok(!files.includes('024_patient_age_units.sql'));
 });
 
@@ -79,6 +80,15 @@ test('completed unpublished result correction is audited and cannot alter an app
   assert.ok(migration.includes('entered_by_staff_id'));
   assert.ok(migration.includes('revoke all on function public.correct_completed_visit_result'));
   assert.ok(migration.includes("v_visit.is_published"));
+});
+
+test('unified visit result correction recalculates the flag and preserves published report history',()=>{
+  const migration=read('database/migrations/066_correct_visit_result_with_flag.sql');
+  assert.ok(migration.includes('security invoker'));
+  assert.ok(migration.includes('p_flag text'));
+  assert.ok(migration.includes('flag=p_flag'));
+  assert.ok(migration.includes('app.result_correction'));
+  assert.ok(migration.includes('revoke all on function public.correct_visit_result_with_flag'));
 });
 
 test('patient age migration preserves the entered unit and normalized compatibility value', () => {
