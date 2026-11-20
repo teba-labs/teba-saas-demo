@@ -247,7 +247,7 @@ async function loadRecent(){
     host.innerHTML=rows.length?rows.map(v=>`<div class="visit-row"><div><strong>${escapeHtml(v.patient_name||'مريض')}</strong><small>زيارة ${escapeHtml(v.visit_number)} · ${escapeHtml(v.visit_work_date||'محفوظة محليًا')}</small></div><span class="muted">${escapeHtml(v.status||'بانتظار المزامنة')}</span></div>`).join(''):'<p class="muted">لا توجد زيارات محفوظة محليًا.</p>';return;
   }
   const {data,error}=await getSupabaseClient().from('visits').select('id,tenant_id,branch_id,visit_number,visit_work_date,status,created_at,patients!inner(full_name)').eq('tenant_id',state.tenant.id).eq('branch_id',state.branch.id).order('created_at',{ascending:false}).limit(12);
-  if(error){if(/fetch|network|offline/i.test(error.message||''))return loadRecent();throw error;}
+  if(error){host.innerHTML='<p class="muted">تعذر تحديث الزيارات: '+escapeHtml(error.message||'خطأ في الاتصال')+'</p>';throw error;}
   await cacheRows('visits',(data||[]).map(v=>({...v,patient_name:v.patients?.full_name||'مريض'})));
   host.innerHTML=data?.length?data.map(v=>`<div class="visit-row"><div><strong>${escapeHtml(v.patients?.full_name||'مريض')}</strong><small>زيارة ${escapeHtml(v.visit_number)} · ${escapeHtml(v.visit_work_date)} · ${escapeHtml(v.status)}</small></div><button class="button button-secondary open-visit-results" type="button" data-visit-id="${escapeHtml(v.id)}">فتح النتائج</button></div>`).join(''):'<p class="muted">لا توجد زيارات مسجلة حتى الآن.</p>';
 }
