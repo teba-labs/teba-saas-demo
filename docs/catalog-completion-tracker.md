@@ -106,3 +106,17 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - Additional authoritative reference reviewed: Mayo Clinic Laboratories ACTH catalog (test 8411), which specifies EDTA plasma, chilled collection, time-sensitive processing/freezing, ECLIA on Roche Cobas e801, and a.m.-specific reference values. This illustrates why a generic ACTH record cannot safely be populated without method and timing metadata.
 - Supabase security advisor snapshot on TEST returned existing findings: RLS-enabled tables without policies (3 informational findings), SECURITY DEFINER RPC execution warnings (20 warnings across anon/authenticated scopes), and leaked-password protection disabled (1 warning). These require separate function-by-function authorization review; no broad permission changes were applied as part of catalog work.
 - Current PR #18 remains open. The 51/51 static test result does not substitute for authenticated browser E2E or clinical review of the 495 entries. Do not merge or deploy until these gates are resolved.
+
+
+## 2026-11-20 — Development promotion to main
+
+- Owner explicitly requested that the latest development state be merged to `main` now for local preview/testing.
+- PR #18 was successfully merged using a merge commit. Merge commit: `01d6600f767f750992ce78b42526098cc17917ca`.
+- Pre-merge main recovery branch: `backup/main-before-catalog-merge-2026-11-20`, pinned to former main commit `6ddb4f039bfb38686c8a40b725987b77318e9212`.
+- Pre-finalization development recovery branch: `backup/pre-catalog-finalization-2026-11-20`, pinned to `2c3b2fdec0f11bda262409a1fcf1879b83af5bdb`.
+- Verified immediately after merge: `main` points to merge commit `01d6600f767f750992ce78b42526098cc17917ca`; development branch is now one commit behind main and has no unique commits. This confirms all development changes were promoted.
+- Confirmed on `main`: `app/catalog.html`, `app/reception.html`, and this tracker are present and readable.
+- Static CI evidence available before promotion: run #725 passed 51/51 tests. A new main-branch CI result and GitHub Pages deployment status were not available from the connected GitHub action-run listing at the time of this update.
+- Preview entry point: `https://teba-labs.github.io/teba-saas-demo/app/index.html`; direct reception page: `https://teba-labs.github.io/teba-saas-demo/app/reception.html`.
+- Important: this is a code promotion for owner preview, not clinical catalog sign-off or production-data migration. TEST still has 495 legacy source-name records marked `needs_review`, without complete technical parameter profiles. They remain blocked from verified-only import. Do not use those entries as complete clinical definitions.
+- Pending after owner preview: confirm GitHub Pages deployment and perform authenticated browser E2E from Catalog through Reception, Results, approval and printed report; continue clinical normalization/review of all 495 legacy entries; verify analyzer/reagent-specific intervals locally.
