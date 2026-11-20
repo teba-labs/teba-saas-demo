@@ -2,7 +2,7 @@ import { getSupabaseClient } from '../../core/supabase-client.js';
 import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
-import { listBranchWorkPage } from '../../modules/laboratory/repository.js';
+import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/laboratory/repository.js';
 import { listResultsForVisitTests, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
 import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
@@ -149,7 +149,11 @@ async function renderWork() {
     tenantId: state.tenant.id,
     visitTestIds: state.work.map(item => item.id),
   });
-  host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => printVisitReport(btn.dataset.visitId, resultRows)));
+  host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => {
+    const win = window.open('', '_blank');
+    if (!win) { showNotice('اسمح بفتح نافذة التقرير من إعدادات المتصفح ثم أعد المحاولة.', true); return; }
+    printVisitReport(btn.dataset.visitId, win).catch(error => { win.close(); showNotice(error.message || 'تعذر تجهيز التقرير.', true); });
+  }));
   const resultsByTest = new Map();
   for (const result of resultRows) {
     if (!resultsByTest.has(result.visit_test_id)) resultsByTest.set(result.visit_test_id, []);
@@ -179,14 +183,14 @@ function formatReferenceRange(value) {
   return '—';
 }
 
-function printVisitReport(visitId, resultRows) {
-  const visitItems = state.work.filter(item => item.visit_id === visitId);
-  if (!visitItems.length) { showNotice('تعذر العثور على الزيارة المحددة.', true); return; }
+async function printVisitReport(visitId, win) {
+  const visitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
+  if (!visitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
   const visit = visitItems[0].visits || {};
+  if (visit.status !== 'approved' && !visit.is_published) throw new Error('اعتمد الزيارة أولًا قبل طباعة التقرير.');
   const patient = visit.patients || {};
-  const ids = new Set(visitItems.map(item => item.id));
-  const rows = (resultRows || []).filter(row => ids.has(row.visit_test_id));
-  if (!rows.length) { showNotice('لا توجد نتائج محفوظة لهذه الزيارة حتى الآن.', true); return; }
+  const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
+  if (!rows.length) throw new Error('لا توجد نتائج محفوظة لهذه الزيارة حتى الآن.');
 
   const brand = globalThis.__taibaTenantBrand || {};
   const lab = brand.settings || {};
@@ -229,8 +233,6 @@ function printVisitReport(visitId, resultRows) {
     return '<section class="test"><h2>' + escapeHtml(item.test_name_snapshot || 'تحليل') + '</h2><table><thead><tr><th>الفحص</th><th>النتيجة</th><th>الوحدة</th><th>القيمة المرجعية</th><th>ملاحظة</th></tr></thead><tbody>' + (lines || '<tr><td colspan="5">لا توجد نتائج لهذا التحليل</td></tr>') + '</tbody></table></section>';
   }).join('');
   const contact = [branchName ? 'الفرع: ' + branchName : '', phone, address].filter(Boolean).join(' · ');
-  const win = window.open('', '_blank');
-  if (!win) { showNotice('اسمح بفتح نافذة التقرير من إعدادات المتصفح ثم أعد المحاولة.', true); return; }
   const html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' +
     '@page{size:' + paper + ' ' + orientation + ';margin:' + margin + 'mm}' +
     'body{font-family:Arial,Tahoma,sans-serif;color:#182b36;font-size:12px;line-height:1.6}header{text-align:center;border-bottom:2px solid #244b5d;padding-bottom:12px;margin-bottom:16px}header img{max-width:140px;max-height:70px;object-fit:contain}h1{font-size:20px;margin:6px 0}h2{font-size:15px;margin:14px 0 6px}.meta{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px}.meta span{padding:5px 8px;background:#f1f5f7;border-radius:5px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid #cbd5dc;padding:6px;text-align:right}th{background:#edf2f5}.test{break-inside:avoid}footer{border-top:1px solid #cbd5dc;margin-top:24px;padding-top:10px;text-align:center}.signature{max-width:140px;max-height:70px;object-fit:contain}@media print{button{display:none}}' +
