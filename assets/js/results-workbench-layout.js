@@ -1,0 +1,69 @@
+import { listCatalog } from '../../modules/catalog/repository.js';
+import { addTestToVisit } from '../../modules/reception/repository.js';
+const $ = id => document.getElementById(id);
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let selectedVisitId = null, catalogCache = null, rebuilding = false;
+function button(label, cls='button button-secondary'){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;return b;}
+function buildShell(host,cards){
+ if(rebuilding)return;rebuilding=true;
+ const records=cards.map(card=>{
+  const header=card.querySelector(':scope > .card-head');
+  const visitId=card.dataset.visitId||card.querySelector('[data-visit-id]')?.dataset.visitId;
+  const tests=[...card.querySelectorAll(':scope > .parameter')];
+  const actions=[...card.children].filter(node=>node!==header&&!tests.includes(node));
+  card.classList.add('work-source-card');
+  return {card,visitId,title:header?.querySelector('h2')?.textContent||'زيارة',status:header?.querySelector('.pill')?.textContent||'',tests,actions};
+ }).filter(x=>x.visitId);
+ host.replaceChildren();
+ const shell=document.createElement('div');shell.className='results-workbench-shell';
+ const bar=document.createElement('section');bar.className='results-actionbar panel';
+ bar.innerHTML='<div class="results-actionbar-title"><strong>إجراءات الزيارة المحددة</strong><span class="muted" data-selected-visit-label>اختر زيارة من العمود الأول</span></div><div class="results-actionbar-buttons" data-visit-actions></div>';
+ const columns=document.createElement('div');columns.className='results-columns';
+ const visits=document.createElement('section');visits.className='results-column visits-column';
+ visits.innerHTML='<div class="results-column-head"><h2>الزيارات</h2><span class="pill" data-visit-count></span></div><input class="visit-filter" type="search" placeholder="ابحث باسم المريض أو رقم الزيارة"><div class="visit-list" data-visit-list></div>';
+ const individual=document.createElement('section');individual.className='results-column tests-column';
+ individual.innerHTML='<div class="results-column-head"><h2>التحاليل الفردية</h2><span class="pill" data-individual-count>0</span></div><div class="catalog-tools"><input type="search" placeholder="بحث في التحاليل الفردية" data-catalog-search><button type="button" class="button button-secondary" data-catalog-toggle>+ إضافة تحليل</button></div><div class="catalog-results" data-catalog-results hidden></div><div class="test-workspace" data-individual-workspace><div class="empty">اختر زيارة لعرض التحاليل الفردية.</div></div>';
+ const profiles=document.createElement('section');profiles.className='results-column tests-column';
+ profiles.innerHTML='<div class="results-column-head"><h2>البروفايلات</h2><span class="pill" data-profile-count>0</span></div><div class="catalog-tools"><input type="search" placeholder="بحث في البروفايلات" data-catalog-search><button type="button" class="button button-secondary" data-catalog-toggle>+ إضافة بروفايل</button></div><div class="catalog-results" data-catalog-results hidden></div><div class="test-workspace" data-profile-workspace><div class="empty">اختر زيارة لعرض البروفايلات.</div></div>';
+ columns.append(visits,individual,profiles);shell.append(bar,columns);host.append(shell);
+ const source=document.createElement('div');source.className='results-source-records';source.hidden=true;records.forEach(r=>source.append(r.card));host.append(source);
+ const list=visits.querySelector('[data-visit-list]');
+ records.forEach(record=>{const b=button(record.title+' · '+record.status,'visit-select-button');b.dataset.visitId=record.visitId;b.addEventListener('click',()=>selectRecord(record,records,shell));list.append(b);});
+ visits.querySelector('.visit-filter').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();list.querySelectorAll('button').forEach(b=>b.hidden=!b.textContent.toLowerCase().includes(q));});
+ visits.querySelector('[data-visit-count]').textContent=String(records.length);
+ shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>b.addEventListener('click',()=>toggleCatalog(b,b.closest('.results-column'),records)));
+ if(records.length){const requested=new URLSearchParams(location.search).get('visit_id');selectRecord(records.find(r=>r.visitId===requested)||records[0],records,shell);}
+ rebuilding=false;
+}
+function selectRecord(record,records,shell){
+ selectedVisitId=record.visitId;
+ shell.querySelectorAll('.visit-select-button').forEach(b=>b.classList.toggle('active',b.dataset.visitId===selectedVisitId));
+ shell.querySelector('[data-selected-visit-label]').textContent=record.title;
+ const individual=record.tests.filter(node=>node.dataset.testKind!=='panel'),panels=record.tests.filter(node=>node.dataset.testKind==='panel');
+ const ih=shell.querySelector('[data-individual-workspace]'),ph=shell.querySelector('[data-profile-workspace]');ih.replaceChildren();ph.replaceChildren();
+ if(individual.length)individual.forEach(node=>ih.append(node));else ih.innerHTML='<div class="empty">لا توجد تحاليل فردية في هذه الزيارة.</div>';
+ if(panels.length)panels.forEach(node=>ph.append(node));else ph.innerHTML='<div class="empty">لا توجد بروفايلات في هذه الزيارة.</div>';
+ shell.querySelector('[data-individual-count]').textContent=String(individual.length);shell.querySelector('[data-profile-count]').textContent=String(panels.length);
+ const actions=shell.querySelector('[data-visit-actions]');actions.replaceChildren();record.actions.forEach(node=>actions.append(node));
+ const preview=button('معاينة نتائج الزيارة','button button-preview');
+ preview.addEventListener('click',()=>{if(typeof window.taibaPreviewVisitReport!=='function'){window.alert('تعذر تحميل أداة معاينة التقرير.');return;}window.taibaPreviewVisitReport(record.visitId);});
+ actions.prepend(preview);shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
+}
+async function toggleCatalog(button,column,records){
+ const host=column.querySelector('[data-catalog-results]');if(!host.hidden){host.hidden=true;return;}if(!selectedVisitId){window.alert('اختر زيارة أولًا.');return;}
+ host.hidden=false;host.textContent='جارٍ تحميل الكتالوج…';
+ try{
+  catalogCache ||= await listCatalog({tenantId:window.taibaResultsContext?.tenantId});
+  const isIndividual=column.querySelector('h2').textContent.includes('الفردية');
+  const rows=catalogCache.filter(row=>row.is_active&&(isIndividual?row.test_kind!=='panel':row.test_kind==='panel'));
+  const current=records.find(r=>r.visitId===selectedVisitId),currentCodes=new Set((current?.tests||[]).map(node=>node.dataset.testCode));
+  const search=column.querySelector('[data-catalog-search]');
+  const draw=()=>{const term=search.value.trim().toLowerCase();const filtered=rows.filter(row=>(row.name+' '+row.code).toLowerCase().includes(term));
+   host.innerHTML=filtered.length?filtered.map(row=>'<div class="catalog-result-row"><span><strong>'+esc(row.name)+'</strong><small>'+esc(row.code)+'</small></span><button type="button" class="button button-secondary" data-add-test="'+esc(row.id)+'" '+(currentCodes.has(row.code)?'disabled':'')+'>'+(currentCodes.has(row.code)?'مضاف':'إضافة')+'</button></div>').join(''):'<p class="muted">لا توجد نتائج مطابقة.</p>';
+   host.querySelectorAll('[data-add-test]').forEach(add=>add.addEventListener('click',async()=>{add.disabled=true;add.textContent='جارٍ الإضافة…';try{await addTestToVisit({tenantId:window.taibaResultsContext.tenantId,branchId:window.taibaResultsContext.branchId,visitId:selectedVisitId,testId:add.dataset.addTest,staffId:$('staffSelect')?.value});window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));}catch(error){add.disabled=false;add.textContent='إضافة';window.alert(error.message||'تعذرت إضافة التحليل.');}}));
+  };search.oninput=draw;draw();
+ }catch(error){host.textContent=error.message||'تعذر تحميل كتالوج التحاليل.';}
+}
+const host=$('workList');
+if(host){const observer=new MutationObserver(()=>{const cards=[...host.querySelectorAll(':scope > .work-card')];if(cards.length&&!host.querySelector('.results-workbench-shell'))buildShell(host,cards);});observer.observe(host,{childList:true,subtree:false});window.addEventListener('taiba:results-work-refresh',()=> $('refreshButton')?.click());}
+document.addEventListener('taiba:results-context',event=>{window.taibaResultsContext=event.detail;catalogCache=null;});
