@@ -4,7 +4,7 @@ import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/laboratory/repository.js';
 import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
-import { publishReportVersion, correctPublishedResult, correctCompletedVisitResult } from '../../modules/reports/repository.js';
+import { publishReportVersion, correctVisitResultWithFlag } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
 import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
@@ -491,11 +491,7 @@ async function correctTest(button) {
     setBusy(button,true,'جارٍ حفظ التصحيح…');
     for(const input of changed){
       const raw=input.value.trim(),numeric=input.dataset.valueType==='numeric'?raw:null,text=input.dataset.valueType==='numeric'?null:raw;
-      if(isPublished){
-        await correctPublishedResult({tenantId:state.tenant.id,branchId:state.branch.id,visitId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,reason,staffId:$('staffSelect').value});
-      }else{
-        await correctCompletedVisitResult({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,reason,staffId:$('staffSelect').value});
-      }
+      await correctVisitResultWithFlag({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,flag:classifyResultFlag(input),reason,staffId:$('staffSelect').value});
       input.dataset.originalValue=input.value;
     }
     state.previewedVisits.delete(visitId);
