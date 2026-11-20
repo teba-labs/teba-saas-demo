@@ -459,6 +459,7 @@ async function saveTest(button) {
     const savedRows = await saveDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id,
       visitTestId: testId, results, staffId: $('staffSelect').value });
     for (const row of savedRows) { const input=section.querySelector(`[data-param-code="${CSS.escape(row.parameter_code)}"]`); if(input){input.value=row.value_numeric??row.value_text??'';input.dataset.resultId=row.id;input.dataset.originalValue=input.value;} }
+    const affectedVisit=state.work.find(row=>row.id===testId)?.visit_id;if(affectedVisit)state.previewedVisits.delete(affectedVisit);
     showNotice('تم حفظ النتائج اليدوية وحساب البارامترات المشتقة تلقائيًا على السحابة.');
   } catch (error) { showNotice(error.message || 'تعذر حفظ النتائج.', true); }
   finally { setBusy(button, false); }
@@ -577,7 +578,7 @@ $('signOut').addEventListener('click', async () => { try { await signOut(); awai
 $('refreshButton').addEventListener('click', async () => { try { await refreshWork(); } catch (error) { showNotice(error.message, true); } });
 
 try { await startWorkspace(); window.dispatchEvent(new CustomEvent('taiba:results-context',{detail:{tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug}})); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
-window.taibaPreviewVisitReport = async visitId => { const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});state.previewedVisits.add(visitId);window.dispatchEvent(new CustomEvent('taiba:visit-report-previewed',{detail:{visitId}}));showNotice('تم تجهيز معاينة التقرير. راجعها قبل الطباعة أو النشر.');}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
+window.taibaPreviewVisitReport = async visitId => { const dirty=[...document.querySelectorAll('[data-param-code]')].filter(input=>{const section=input.closest('[data-test-id]');const item=state.work.find(row=>row.id===section?.dataset.testId);return item?.visit_id===visitId&&input.dataset.resultSource!=='calculated'&&input.value.trim()!==String(input.dataset.originalValue??'');});if(dirty.length){showNotice('هناك نتائج تم تغييرها ولم تُحفظ بعد. احفظها أولًا ثم أعد المعاينة.',true);return;} const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});state.previewedVisits.add(visitId);window.dispatchEvent(new CustomEvent('taiba:visit-report-previewed',{detail:{visitId}}));showNotice('تم تجهيز معاينة التقرير. راجعها قبل الطباعة أو النشر.');}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
 
 $('prevWorkPage').addEventListener('click', async () => {
   if (state.workPage <= 0) return;
