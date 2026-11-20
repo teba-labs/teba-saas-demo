@@ -51,6 +51,10 @@ test('CBC, urine, stool and culture profiles are present with source references 
  assert.match(read('database/migrations/049_granular_microscopy_fields.sql'),/ST_PARASITE_METHOD/);
  assert.match(read('database/migrations/050_mayo_pediatric_cbc_intervals.sql'),/pediatric/);
  assert.match(read('database/migrations/051_culture_fk_indexes_and_rls_perf.sql'),/idx_culture_ast_tenant_branch_staff/);
+ const extended=read('database/migrations/052_extended_bacterial_culture_profiles.sql');
+ for(const code of ['CULTURE_BLOOD','CULTURE_CSF','CULTURE_PUS','CULTURE_SYNOVIAL','CULTURE_VAGINAL']) assert.ok(extended.includes(code));
+ assert.match(extended,/left\(new\.test_code_snapshot,8\) = 'CULTURE_'/);
+ assert.match(js,/startsWith\('CULTURE_'\)/);
 });
 
 test('catalog editor separates verified local intervals from clinical definition review',()=>{
