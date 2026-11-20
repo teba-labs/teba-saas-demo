@@ -66,3 +66,9 @@ assert.match(h2,/id="printLogoFile"/);
 assert.match(j2,/logoPath:\$\('printLogoFile'\)\.dataset\.storagePath/);
 assert.match(j2,/const logoPath=x\.logoPath/);
 assert.match(h2,/ملفات PDF الحالية تُرفع من برنامج خارجي/);
+
+const tabbedSettings=fs.readFileSync(new URL("app/settings.html",root),"utf8");
+assert.match(tabbedSettings,/role="tablist"/);
+for(const key of ["identity","team","expenses","printing","data","audit","advanced"]){assert.ok(tabbedSettings.includes(`data-settings-panel="${key}"`));assert.ok(tabbedSettings.includes(`data-settings-tab="${key}"`));}
+assert.match(tabbedSettings,/ترحيل نتائج المرضى والزيارات ما زال يحتاج مسار اعتماد مستقل/);
+console.log("PASS: settings center is organized into seven keyboard-accessible sections without replacing existing control IDs.");
