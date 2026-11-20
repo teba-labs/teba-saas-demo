@@ -7,6 +7,7 @@ let selectedVisitId = null, catalogCache = null, rebuilding = false;
 function button(label, cls='button button-secondary'){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;return b;}
 function buildShell(host,cards){
  if(rebuilding)return;rebuilding=true;
+ window.taibaResultsContext=window.taibaGetResultsContext?.()||window.taibaResultsContext||{};
  const records=cards.map(card=>{
   const header=card.querySelector(':scope > .card-head');
   const visitId=card.dataset.visitId||card.querySelector('[data-visit-id]')?.dataset.visitId;
@@ -34,11 +35,11 @@ function buildShell(host,cards){
  visits.querySelector('[data-visit-count]').textContent=String(records.length);
  visits.querySelector('.hidden-visits-toggle').addEventListener('click',()=>loadHiddenVisits(visits));
  shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>b.addEventListener('click',()=>toggleCatalog(b,b.closest('.results-column'),records)));
- if(records.length){const requested=new URLSearchParams(location.search).get('visit_id');selectRecord(records.find(r=>r.visitId===requested)||records[0],records,shell);}
+ if(records.length){const requested=new URLSearchParams(location.search).get('visit_id');selectRecord(records.find(r=>r.visitId===requested)||records.find(r=>r.visitId===window.taibaLastSelectedVisitId)||records[0],records,shell);}
  rebuilding=false;
 }
 function selectRecord(record,records,shell){
- selectedVisitId=record.visitId;
+ selectedVisitId=record.visitId;window.taibaLastSelectedVisitId=selectedVisitId;window.taibaResultsContext=window.taibaGetResultsContext?.()||window.taibaResultsContext||{};
  shell.querySelectorAll('.visit-select-button').forEach(b=>b.classList.toggle('active',b.dataset.visitId===selectedVisitId));
  shell.querySelector('[data-selected-visit-label]').textContent=record.title;
  const individual=record.tests.filter(node=>node.dataset.testKind!=='panel'),panels=record.tests.filter(node=>node.dataset.testKind==='panel');
