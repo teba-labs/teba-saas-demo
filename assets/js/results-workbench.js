@@ -4,7 +4,7 @@ import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/laboratory/repository.js';
 import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
-import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
+import { publishReportVersion, correctPublishedResult, correctCompletedVisitResult } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
 import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
@@ -130,16 +130,16 @@ async function renderWork() {
           const decimals = Math.max(0, Math.min(6, Number(p.decimal_places ?? 2)));
           control = `<input type="number" step="${decimals === 0 ? '1' : String(10 ** -decimals)}" ${metadata}${locked ? ' disabled' : ''} placeholder="أدخل النتيجة" />`;
         } else {
-          control = `<input type="text" ${metadata} placeholder="أدخل النتيجة" />`;
+          control = `<input type="text" ${metadata}${locked ? " disabled" : ""} placeholder="أدخل النتيجة" />`;
         }
         const rangeText = resolveReferenceRange(parameterRange, item.visits?.patients || {}, p.reference_interval_status);
-        const rangeEditButton = (isPublished || group.visit?.status !== 'approved')
+        const rangeEditButton = (isPublished || (group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled'))
           ? '<button type="button" class="edit-reference-range" data-visit-test-id="' + escapeHtml(item.id) + '" data-param-code="' + code + '" data-range="' + escapeHtml(JSON.stringify(parameterRange)) + '" data-published="' + String(isPublished) + '">' + (isPublished ? 'تصحيح رينج التقرير المنشور' : 'تعديل الرينج لهذه الزيارة') + '</button>' : '';
         return '<label>' + name + (p.is_required === false ? ' (اختياري)' : '') + '<small>' + escapeHtml(p.unit ?? '') + ' ' + escapeHtml(rangeText) + '</small>' + control + rangeEditButton + '</label>';
       }).join('')}</fieldset>`).join('');
       const isCulture = String(item.test_code_snapshot || '').startsWith('CULTURE_');
       const cultureEditor = isCulture ? `<section class="culture-workflow" data-culture-workflow="${escapeHtml(item.id)}"><h3>العزلات والاختبار الحساسي (Antibiogram)</h3><p class="muted">أضف كل عزلة منفصلة. أدخل تفسير الحساسية وفق إصدار CLSI/EUCAST والطريقة المعتمدة في المعمل؛ النظام لا يخمّن نقاط القطع.</p><div class="culture-isolates" data-culture-isolates="${escapeHtml(item.id)}"><p class="muted">جارٍ تحميل العزلات…</p></div>${!locked && !isPublished ? `<form class="culture-isolate-form" data-visit-test-id="${escapeHtml(item.id)}"><label>رقم العزلة<input name="isolateNumber" type="number" min="1" max="20" value="1" required></label><label>اسم الكائن الممرض / العزلة<input name="organismName" maxlength="200" required placeholder="مثال: Escherichia coli"></label><label>وصف النمو<input name="growthDescription" placeholder="Pure growth / mixed growth"></label><label>عدد المستعمرات<input name="colonyCount" type="number" min="0" step="any"></label><label>وحدة العد<input name="colonyCountUnit" value="CFU/mL"></label><label>طريقة التعريف<input name="identificationMethod" placeholder="Biochemical / MALDI-TOF / Automated"></label><label class="wide">ملاحظات<textarea name="notes" rows="2"></textarea></label><button class="button" type="submit">حفظ العزلة</button></form>` : ''}</section>` : '';
-      return `<section class="parameter" data-test-id="${escapeHtml(item.id)}" data-test-code="${escapeHtml(item.test_code_snapshot || '')}" data-test-kind="${escapeHtml(item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind || 'individual')}">
+      return `<section class="parameter" data-test-id="${escapeHtml(item.id)}" data-visit-id="${escapeHtml(visitId)}" data-test-status="${escapeHtml(item.status)}" data-published="${String(isPublished)}" data-test-code="${escapeHtml(item.test_code_snapshot || '')}" data-test-kind="${escapeHtml(item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind || 'individual')}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
         <div class="parameter-grid">${parameterControls}</div>${cultureEditor}
         <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة منشورة</button>' : locked && group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled' ? '<button class="button button-secondary correct-unpublished-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة محفوظة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
@@ -158,7 +158,7 @@ async function renderWork() {
   host.querySelectorAll('.edit-reference-range').forEach(btn => btn.addEventListener('click', () => editReferenceRange(btn)));
   host.querySelectorAll('.save-test').forEach(btn => btn.addEventListener('click', () => saveTest(btn)));
   host.querySelectorAll('.complete-test').forEach(btn => btn.addEventListener('click', () => completeTest(btn)));
-  host.querySelectorAll('.correct-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
+  host.querySelectorAll('.correct-test, .correct-unpublished-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
   host.querySelectorAll('.publish-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
   host.querySelectorAll('.upload-attachment').forEach(btn => btn.addEventListener('click', () => uploadAttachment(btn)));
@@ -466,29 +466,40 @@ async function saveTest(button) {
   finally { setBusy(button, false); }
 }
 async function correctTest(button) {
+  const section=button.closest('[data-test-id]');
+  const isPublished=section?.dataset.published==='true';
+  if(!section)return;
+  if(button.dataset.correctionMode!=='true'){
+    button.dataset.correctionMode='true';button.textContent='حفظ التصحيح';
+    section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=false;});
+    showNotice('وضع التصحيح مفعل. غيّر نتيجة واحدة فقط ثم اضغط حفظ التصحيح.');
+    return;
+  }
   try {
-    const section = button.closest('[data-test-id]');
-    const changed = [...section.querySelectorAll('[data-param-code]')].filter(input => input.dataset.resultId && input.value.trim() !== '' && input.value.trim() !== (input.dataset.originalValue ?? '').trim());
-    if (!changed.length) throw new Error('لا توجد نتيجة محفوظة تغيرت قيمتها للتصحيح.');
-    if (changed.length > 1) throw new Error('صحح نتيجة واحدة في كل مرة لتجنب حفظ بعض التصحيحات دون غيرها.');
-    const reason = window.prompt('اكتب سبب تصحيح النتيجة المنشورة:')?.trim() ?? '';
-    if (!reason) throw new Error('سبب التصحيح إلزامي.');
-    setBusy(button, true, 'جارٍ حفظ التصحيح…');
+    const changed=[...section.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultId&&input.value.trim()!==''&&input.value.trim()!==(input.dataset.originalValue??'').trim());
+    if(!changed.length)throw new Error('لا توجد نتيجة محفوظة تغيرت قيمتها للتصحيح.');
+    if(changed.length>1)throw new Error('صحح نتيجة واحدة في كل مرة لتجنب حفظ بعض التصحيحات دون غيرها.');
     const visitId=state.work.find(row=>row.id===section.dataset.testId)?.visit_id;
     if(!visitId)throw new Error('تعذر تحديد الزيارة المرتبطة بالنتيجة.');
-    for (const input of changed) {
-      const raw = input.value.trim();
-      const numeric = input.dataset.valueType === 'numeric' ? raw : null;
-      const text = input.dataset.valueType === 'numeric' ? null : raw;
-      await correctPublishedResult({ tenantId: state.tenant.id, branchId: state.branch.id, visitId, resultId: input.dataset.resultId, valueNumeric: numeric, valueText: text, reason, staffId: $('staffSelect').value });
+    const reason=window.prompt(isPublished?'سبب تصحيح النتيجة المنشورة:':'سبب تصحيح النتيجة المحفوظة:')?.trim()??'';
+    if(!reason)throw new Error('سبب التصحيح إلزامي.');
+    setBusy(button,true,'جارٍ حفظ التصحيح…');
+    for(const input of changed){
+      const raw=input.value.trim(),numeric=input.dataset.valueType==='numeric'?raw:null,text=input.dataset.valueType==='numeric'?null:raw;
+      if(isPublished){
+        await correctPublishedResult({tenantId:state.tenant.id,branchId:state.branch.id,visitId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,reason,staffId:$('staffSelect').value});
+      }else{
+        await correctCompletedVisitResult({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,reason,staffId:$('staffSelect').value});
+      }
+      input.dataset.originalValue=input.value;
     }
     state.previewedVisits.delete(visitId);
-    showNotice('تم تسجيل التصحيح. راجع معاينة جديدة ثم ارفع نسخة PDF مصححة؛ النسخة السابقة تظل محفوظة.');
-    for (const input of changed) input.dataset.originalValue = input.value;
-  } catch (error) { showNotice(error.message || 'تعذر تصحيح النتيجة.', true); }
-  finally { setBusy(button, false); }
+    section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=true;});
+    button.dataset.correctionMode='false';button.textContent=isPublished?'تصحيح نتيجة منشورة':'تصحيح نتيجة محفوظة';
+    showNotice(isPublished?'تم تسجيل التصحيح. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع نسخة مصححة.':'تم تصحيح النتيجة قبل اعتماد الزيارة، وحُفظ سبب التصحيح وسجل التعديل.');
+  } catch(error){showNotice(error.message||'تعذر تصحيح النتيجة.',true);}
+  finally{setBusy(button,false);}
 }
-
 
 async function loadAttachments(visitId) {
   const host=document.querySelector(`[data-attachment-list="${CSS.escape(visitId)}"]`);
