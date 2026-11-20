@@ -109,7 +109,7 @@ function mountOwnerDashboardNavigation(){
 function exportOwnerReport(id){
  const screen=$('ownerContent-'+id);if(!screen)return;
  const tables=[...screen.querySelectorAll('table')];
- const cards=[...screen.querySelectorAll('.kpi')];
+ const cards=[...screen.querySelectorAll('.kpi,.history-analysis-kpis article')];
  if(!tables.length&&!cards.length){notify('لا توجد بيانات قابلة للتصدير في هذا التقرير.',true);return;}
  const rows=[];
  for(const card of cards)rows.push([card.querySelector('span')?.textContent||'',card.querySelector('strong')?.textContent||'',card.querySelector('small')?.textContent||'']);
