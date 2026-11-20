@@ -56,6 +56,10 @@ test('daily dashboard trend combines live visits, tests, statuses and ledger mov
   assert.match(script,/today\.tests/);
   assert.match(page,/الزيارات/);
   assert.match(page,/التحاليل/);
+  assert.match(page,/معلقة/);
+  assert.match(page,/قيد التنفيذ/);
+  assert.match(page,/تقارير منشورة/);
+  assert.match(page,/colspan="11"/);
 });
 
 test('live expense details reconcile ledger outflows to tenant-scoped expense categories',()=>{
