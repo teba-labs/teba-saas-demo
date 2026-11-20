@@ -7,7 +7,7 @@ const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
 test('culture workflow stores multiple isolates and isolate-specific AST with branch RLS',()=>{
  const sql=read('database/migrations/041_culture_isolates_and_ast.sql');
- for(const table of ['visit_test_culture_isolates','visit_test_culture_susceptibility']) assert.match(sql,new RegExp('create table if not exists public\\\\.'+table));
+ for(const table of ['visit_test_culture_isolates','visit_test_culture_susceptibility']) assert.ok(sql.includes('create table if not exists public.'+table));
  assert.match(sql,/enable row level security/);
  assert.match(sql,/private\\.can_access_branch/);
  assert.match(sql,/breakpoint_edition/);
