@@ -82,7 +82,7 @@
                   <label class="wide">الانطباق حسب العمر والنوع والحمل — JSON<textarea id="parameterApplicability" rows="2" placeholder='{"age":{"min":18,"max":120,"unit":"years"},"sex":["female"]}'></textarea></label>
                   <label class="wide">ملاحظات المنهجية<textarea id="parameterMethodNotes" rows="2"></textarea></label><label class="wide">بيانات الجهاز والجودة والتداخلات والقيود — JSON<textarea id="parameterClinicalMetadata" rows="2"></textarea></label>
                   <label class="wide">المراجع العلمية — JSON<textarea id="parameterSources" rows="2"></textarea></label>
-                  <label>حالة المراجعة الطبية<select id="parameterReviewStatus"><option value="needs_review">تحتاج مراجعة</option><option value="draft">مسودة</option><option value="verified">معتمدة داخليًا بعد التحقق</option><option value="deprecated">متقادمة</option></select></label>
+                  <label>حالة المدى المرجعي<select id="parameterReferenceStatus"><option value="local_verification_required">يحتاج اعتمادًا محليًا حسب الجهاز والطريقة</option><option value="verified_local">تم التحقق محليًا</option><option value="not_applicable">لا ينطبق</option></select></label><label>حالة المراجعة الطبية<select id="parameterReviewStatus"><option value="needs_review">تحتاج مراجعة</option><option value="draft">مسودة</option><option value="verified">معتمدة داخليًا بعد التحقق</option><option value="deprecated">متقادمة</option></select></label>
                 </div>
               </details>
               <label class="check-line"><input id="parameterRequired" type="checkbox" checked> نتيجة إلزامية</label><label class="check-line"><input id="parameterActive" type="checkbox" checked> بارامتر نشط</label>
