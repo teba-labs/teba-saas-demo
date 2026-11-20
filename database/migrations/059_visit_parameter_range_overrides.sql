@@ -197,7 +197,7 @@ begin
    where vt.tenant_id=p_tenant_id and vt.branch_id=p_branch_id and vt.id=p_visit_test_id
    for update;
   if not found then raise exception 'Visit test not found for this tenant and branch'; end if;
-  if v_test.status in ('completed','cancelled') then raise exception 'Completed or cancelled tests require the authorized correction workflow'; end if;
+  if v_test.status='cancelled' then raise exception 'Cancelled tests cannot have their reference ranges changed'; end if;
   select v.* into v_visit from public.visits v
    where v.tenant_id=p_tenant_id and v.branch_id=p_branch_id and v.id=v_test.visit_id
    for update;
