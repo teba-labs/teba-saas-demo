@@ -7,9 +7,10 @@ import { listResultsForVisitTests, saveDraftResults, completeVisitTest, approveV
 import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
+import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0 };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map() };
 const showNotice = (message, error = false) => {
   const el = $('notice'); el.textContent = message; el.className = `notice show${error ? ' error' : ''}`;
   window.clearTimeout(showNotice.timer); showNotice.timer = window.setTimeout(() => el.className = 'notice', 5000);
@@ -130,6 +131,7 @@ async function renderWork() {
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
       <div class="actions"><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
       <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>طباعة التقرير بإعدادات المعمل / حفظ PDF</button></div>
+      <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
       <div class="file-row"><label>ملف التقرير PDF<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!group.visit?.status || (!isPublished && group.visit.status !== 'approved') ? 'disabled' : ''}></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
@@ -149,6 +151,7 @@ async function renderWork() {
     tenantId: state.tenant.id,
     visitTestIds: state.work.map(item => item.id),
   });
+  host.querySelectorAll('.select-historical-report').forEach(btn => btn.addEventListener('click', () => loadHistoricalReportPicker(btn)));
   host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => {
     const win = window.open('', '_blank');
     if (!win) { showNotice('اسمح بفتح نافذة التقرير من إعدادات المتصفح ثم أعد المحاولة.', true); return; }
@@ -183,6 +186,31 @@ function formatReferenceRange(value) {
   return '—';
 }
 
+async function loadHistoricalReportPicker(button){
+ const visitId=button.dataset.visitId,group=state.work.find(item=>item.visit_id===visitId)?.visits||{};
+ const patient=group.patients||{},picker=document.querySelector('[data-historical-picker="'+CSS.escape(visitId)+'"]');
+ if(!picker)return;
+ if(!picker.hidden){picker.hidden=true;return;}
+ picker.hidden=false;picker.textContent='جارٍ تحميل النتائج التاريخية…';
+ try{
+  const [linked,unlinked]=await Promise.all([
+   patient.id?listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,patientId:patient.id,limit:200}):Promise.resolve([]),
+   listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,search:patient.full_name||'',limit:200})
+  ]);
+  const rows=[...new Map([...linked,...unlinked.filter(row=>!row.patient_id)].map(row=>[row.id,row])).values()];
+  picker.replaceChildren();
+  if(!rows.length){picker.textContent='لا توجد نتائج تاريخية لهذا المريض في الفرع الحالي.';return;}
+  const note=document.createElement('p');note.textContent='حدد النتائج القديمة التي تريد إرفاقها بهذا التقرير فقط. لن تُضاف أي نتيجة دون تحديدها هنا.';picker.append(note);
+  const selected=state.historicalSelections.get(visitId)||new Set();
+  for(const row of rows){
+   const label=document.createElement('label');label.className='historical-report-choice';
+   const input=document.createElement('input');input.type='checkbox';input.checked=selected.has(row.id);input.dataset.historicalId=row.id;
+   input.addEventListener('change',()=>{const set=state.historicalSelections.get(visitId)||new Set();if(input.checked)set.add(row.id);else set.delete(row.id);state.historicalSelections.set(visitId,set);});
+   const text=document.createElement('span');text.textContent=row.test_name_snapshot+' · '+row.result_date+' · '+row.patient_name_snapshot;
+   label.append(input,text);picker.append(label);
+  }
+ }catch(error){picker.textContent=error.message||'تعذر تحميل النتائج التاريخية.';}
+}
 async function printVisitReport(visitId, win) {
   const visitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
   if (!visitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
@@ -191,6 +219,15 @@ async function printVisitReport(visitId, win) {
   const patient = visit.patients || {};
   const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
   if (!rows.length) throw new Error('لا توجد نتائج محفوظة لهذه الزيارة حتى الآن.');
+  const selectedHistoricalIds=state.historicalSelections.get(visitId)||new Set();
+  let selectedHistoricalRows=[];
+  if(selectedHistoricalIds.size){
+    const [linked,unlinked]=await Promise.all([
+      patient.id?listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,patientId:patient.id,limit:200}):Promise.resolve([]),
+      listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,search:patient.full_name||'',limit:200})
+    ]);
+    selectedHistoricalRows=[...new Map([...linked,...unlinked.filter(row=>!row.patient_id)].map(row=>[row.id,row])).values()].filter(row=>selectedHistoricalIds.has(row.id));
+  }
 
   const brand = globalThis.__taibaTenantBrand || {};
   const lab = brand.settings || {};
@@ -232,15 +269,20 @@ async function printVisitReport(visitId, win) {
     }).filter(Boolean).join('');
     return '<section class="test"><h2>' + escapeHtml(item.test_name_snapshot || 'تحليل') + '</h2><table><thead><tr><th>الفحص</th><th>النتيجة</th><th>الوحدة</th><th>القيمة المرجعية</th><th>ملاحظة</th></tr></thead><tbody>' + (lines || '<tr><td colspan="5">لا توجد نتائج لهذا التحليل</td></tr>') + '</tbody></table></section>';
   }).join('');
+  const historicalSections=selectedHistoricalRows.map(row=>{
+    const payload=row.result_data||{},parameters=payload.parameters&&typeof payload.parameters==='object'?Object.entries(payload.parameters):[];
+    const resultLines=parameters.length?parameters.map(([name,value])=>'<tr><td>'+escapeHtml(name)+'</td><td>'+escapeHtml(value)+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>').join(''):'<tr><td>'+escapeHtml(row.test_name_snapshot)+'</td><td>'+escapeHtml(payload.value??payload.raw_original??JSON.stringify(payload))+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>';
+    return '<section class="test historical-test"><h2>نتيجة تاريخية — '+escapeHtml(row.test_name_snapshot)+' · '+escapeHtml(row.result_date)+'</h2><table><thead><tr><th>الفحص / البارامتر</th><th>النتيجة القديمة</th><th>الوحدة وقتها</th><th>المدى المرجعي وقتها</th></tr></thead><tbody>'+resultLines+'</tbody></table><small>مصدر تاريخي: '+escapeHtml(row.source_file_name||'')+' · '+escapeHtml(row.source_sheet_name||'')+' · صف '+escapeHtml(row.source_row_number||'—')+'</small></section>';
+  }).join('');
   const contact = [branchName ? 'الفرع: ' + branchName : '', phone, address].filter(Boolean).join(' · ');
   const html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' +
     '@page{size:' + paper + ' ' + orientation + ';margin:' + margin + 'mm}' +
-    'body{font-family:Arial,Tahoma,sans-serif;color:#182b36;font-size:12px;line-height:1.6}header{text-align:center;border-bottom:2px solid #244b5d;padding-bottom:12px;margin-bottom:16px}header img{max-width:140px;max-height:70px;object-fit:contain}h1{font-size:20px;margin:6px 0}h2{font-size:15px;margin:14px 0 6px}.meta{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px}.meta span{padding:5px 8px;background:#f1f5f7;border-radius:5px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid #cbd5dc;padding:6px;text-align:right}th{background:#edf2f5}.test{break-inside:avoid}footer{border-top:1px solid #cbd5dc;margin-top:24px;padding-top:10px;text-align:center}.signature{max-width:140px;max-height:70px;object-fit:contain}@media print{button{display:none}}' +
+    'body{font-family:Arial,Tahoma,sans-serif;color:#182b36;font-size:12px;line-height:1.6}header{text-align:center;border-bottom:2px solid #244b5d;padding-bottom:12px;margin-bottom:16px}header img{max-width:140px;max-height:70px;object-fit:contain}h1{font-size:20px;margin:6px 0}h2{font-size:15px;margin:14px 0 6px}.meta{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px}.meta span{padding:5px 8px;background:#f1f5f7;border-radius:5px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid #cbd5dc;padding:6px;text-align:right}th{background:#edf2f5}.test{break-inside:avoid}.historical-test{border:2px dashed #8a6d3b;padding:8px;margin-top:18px}.historical-test h2{color:#765a27}footer{border-top:1px solid #cbd5dc;margin-top:24px;padding-top:10px;text-align:center}.signature{max-width:140px;max-height:70px;object-fit:contain}@media print{button{display:none}}' +
     '</style></head><body><header>' + (logo ? '<img src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '') +
     '<h1>' + escapeHtml(labName) + '</h1><strong>' + escapeHtml(title) + '</strong>' +
     (doctor ? '<p>' + escapeHtml(doctor) + '</p>' : '') + (contact ? '<p>' + escapeHtml(contact) + '</p>' : '') +
     '</header><div class="meta"><span>المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>التاريخ: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div>' +
-    testSections + (signature ? '<p style="text-align:left"><img class="signature" src="' + escapeHtml(signature) + '" alt="التوقيع"></p>' : '') +
+    testSections + historicalSections + (signature ? '<p style="text-align:left"><img class="signature" src="' + escapeHtml(signature) + '" alt="التوقيع"></p>' : '') +
     (footer ? '<footer>' + escapeHtml(footer) + '</footer>' : '') + '</body></html>';
   win.document.open(); win.document.write(html); win.document.close();
   const printWhenReady = () => { try { win.focus(); win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
@@ -348,6 +390,27 @@ async function publish(button) {
   finally { setBusy(button, false); }
 }
 
+async function searchHistorical(){
+ const term=$('historicalSearch').value.trim(),host=$('historicalResultsList');
+ if(term.length<2){host.textContent='اكتب حرفين على الأقل من اسم المريض.';return;}
+ host.textContent='جارٍ البحث في النتائج التاريخية…';
+ try{
+  const rows=await listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,search:term,limit:200});
+  host.replaceChildren();
+  if(!rows.length){host.textContent='لا توجد نتائج تاريخية مطابقة في هذا الفرع.';return;}
+  for(const row of rows){
+   const card=document.createElement('article');card.className='historical-result-card';
+   const heading=document.createElement('strong');heading.textContent=row.patient_name_snapshot+' · '+row.test_name_snapshot;card.append(heading);
+   const meta=document.createElement('small');meta.textContent='نتيجة تاريخية · '+row.result_date+(row.patient_age_raw?' · العمر وقت النتيجة: '+row.patient_age_raw+' '+(row.patient_age_unit||''):'');card.append(meta);
+   const data=document.createElement('pre');data.textContent=JSON.stringify(row.result_data,null,2);card.append(data);
+   const source=document.createElement('small');source.textContent='المصدر: '+(row.source_file_name||'سجل قديم')+' · '+(row.source_sheet_name||'')+' · صف '+(row.source_row_number||'—');card.append(source);
+   host.append(card);
+  }
+ }catch(error){host.textContent=error.message||'تعذر تحميل النتائج التاريخية.';}
+}
+$('showHistoricalToggle').addEventListener('change',()=>{$('historicalLookupPanel').hidden=!$('showHistoricalToggle').checked;if(!$('showHistoricalToggle').checked)$('historicalResultsList').replaceChildren();});
+$('searchHistoricalResults').addEventListener('click',()=>searchHistorical());
+$('historicalSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchHistorical();}});
 $('loginForm').addEventListener('submit', async (event) => {
   event.preventDefault(); const button = event.currentTarget.querySelector('button[type="submit"]');
   try { setBusy(button, true, 'جارٍ الدخول…'); await signInWithEmail($('email').value, $('password').value); await startWorkspace(); }

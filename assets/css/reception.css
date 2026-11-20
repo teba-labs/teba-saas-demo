@@ -6,3 +6,5 @@
   #paymentReceipt{display:block!important;position:absolute!important;inset:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:24px!important;border:0!important;box-shadow:none!important}
   #paymentReceipt .print-actions{display:none!important}
 }
+
+.historical-results-panel{margin:14px 0;padding:14px;border:1px solid #c9d8df;border-radius:14px;background:#f7fafb}.historical-result-card{display:grid;gap:6px;padding:12px;margin:8px 0;border:1px solid #d8e2e7;border-radius:10px;background:#fff}.historical-result-card small{color:#607782}.historical-result-card pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;background:#f3f6f7;padding:10px;border-radius:8px;font-size:12px;direction:ltr;text-align:left}.historyMatch{display:grid;grid-template-columns:minmax(140px,1fr) minmax(180px,2fr);gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #dbe4e8}.historyMatch select{width:100%;min-width:0}
