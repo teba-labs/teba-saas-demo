@@ -13,12 +13,12 @@ const migration = read('database/migrations/023_branch_archive_access.sql');
 assert.match(context, /branch\.is_active\s*&&\s*\(isOwner\s*\|\|\s*allowedIds\.has\(branch\.id\)\)/);
 assert.match(context, /allBranches:\s*isOwner\s*\?\s*tenantBranches\s*:\s*visibleBranches/);
 assert.match(settings, /state\.tenant\.allBranches\s*\|\|\s*active/);
-assert.match(settings, /BRANCH_ARCHIVE_READY\s*=\s*false/);
+assert.match(settings, /BRANCH_ARCHIVE_READY\s*=\s*true/);
 assert.match(settings, /data-branch-toggle/);
 assert.match(settings, /setBranchActive\(/);
 assert.match(settings, /if\(!BRANCH_ARCHIVE_READY\)/);
-assert.match(html, /الأرشفة وإعادة التفعيل/);
-assert.match(html, /معطلة حتى اجتياز اختبار صلاحيات الوصول/);
+assert.match(html, /إعادة تفعيل الفرع لاحقًا/);
+assert.match(html, /أرشفة الفرع توقفه عن التشغيل للموظفين/);
 
 // SQL keeps owner access to historical rows but requires an active branch for employees.
 assert.match(migration, /private\.is_tenant_owner\(p_tenant_id\)/);

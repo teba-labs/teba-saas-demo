@@ -57,15 +57,14 @@ test('test-branch preview deploys only a Netlify draft and requires preconfigure
   assert.match(workflow, /secrets\.NETLIFY_SITE_ID/);
   assert.match(workflow, /netlify-cli@27\.20\.0/);
   assert.match(workflow, /--dir=dist/);
-  assert.ok(workflow.includes('test ! -e dist/database'));
-  assert.ok(workflow.includes('test ! -e dist/supabase'));
+  assert.match(workflow, /bash scripts\/build-netlify\.sh/);
   assert.match(workflow, /--alias=taiba-unified-test/);
   assert.doesNotMatch(workflow, /--prod\b|prod-if-unlocked|functions deploy/i);
 });
 
-test('development source backup is packaged only after the exact branch passes checks', async () => {
+test('development source backup is packaged only after the exact triggering commit passes checks', async () => {
   const workflow = await read('.github/workflows/static-contract-tests.yml');
-  assert.ok(workflow.includes('ref: integration/unified-test-2026-11-19'));
+  assert.ok(workflow.includes('ref: ${{ github.sha }}'));
   assert.ok(workflow.includes('node --test tests/static/*.test.mjs'));
   assert.ok(workflow.includes('node --experimental-default-type=module --check'));
   assert.ok(workflow.includes('git archive --format=zip'));
