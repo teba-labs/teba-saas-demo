@@ -103,10 +103,12 @@ export async function createVisit({ tenantId, branchId, patientId, visitNumber, 
 /** Adds a test; DB trigger snapshots current price and technical parameters. */
 export async function addTestToVisit({ tenantId, branchId, visitId, testId, staffId } = {}) {
   need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(visitId, 'visitId'); need(testId, 'testId');
-  const { data, error } = await db().from(TABLES.visitTests).insert({
-    tenant_id: tenantId, branch_id: branchId, visit_id: visitId,
-    test_id: testId, created_by_staff_id: staffId ?? null,
-  }).select().single();
+  if (!staffId) throw new Error('An active staff identity is required to add a test to this visit.');
+  if (globalThis.navigator?.onLine === false) throw new Error('إضافة تحليل لزيارة قائمة تحتاج اتصالًا بالإنترنت.');
+  const { data, error } = await db().rpc('add_test_to_visit_atomic', {
+    p_tenant_id: tenantId, p_branch_id: branchId, p_visit_id: visitId,
+    p_test_id: testId, p_staff_id: staffId,
+  });
   if (error) throw error;
   return data;
 }
