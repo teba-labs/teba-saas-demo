@@ -474,13 +474,16 @@ async function correctTest(button) {
     const reason = window.prompt('اكتب سبب تصحيح النتيجة المنشورة:')?.trim() ?? '';
     if (!reason) throw new Error('سبب التصحيح إلزامي.');
     setBusy(button, true, 'جارٍ حفظ التصحيح…');
+    const visitId=state.work.find(row=>row.id===section.dataset.testId)?.visit_id;
+    if(!visitId)throw new Error('تعذر تحديد الزيارة المرتبطة بالنتيجة.');
     for (const input of changed) {
       const raw = input.value.trim();
       const numeric = input.dataset.valueType === 'numeric' ? raw : null;
       const text = input.dataset.valueType === 'numeric' ? null : raw;
-      await correctPublishedResult({ tenantId: state.tenant.id, branchId: state.branch.id, visitId: section.closest('.work-card').querySelector('.publish-report').dataset.visitId, resultId: input.dataset.resultId, valueNumeric: numeric, valueText: text, reason, staffId: $('staffSelect').value });
+      await correctPublishedResult({ tenantId: state.tenant.id, branchId: state.branch.id, visitId, resultId: input.dataset.resultId, valueNumeric: numeric, valueText: text, reason, staffId: $('staffSelect').value });
     }
-    showNotice('تم تسجيل التصحيح. ارفع نسخة PDF جديدة بسبب التصحيح لتحديث تقرير المريض.');
+    state.previewedVisits.delete(visitId);
+    showNotice('تم تسجيل التصحيح. راجع معاينة جديدة ثم ارفع نسخة PDF مصححة؛ النسخة السابقة تظل محفوظة.');
     for (const input of changed) input.dataset.originalValue = input.value;
   } catch (error) { showNotice(error.message || 'تعذر تصحيح النتيجة.', true); }
   finally { setBusy(button, false); }
