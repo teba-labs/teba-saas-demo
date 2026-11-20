@@ -38,7 +38,9 @@ test('catalog screen and assets are included in the offline application shell', 
 
 test('parameter repository supports inactive rows only when management explicitly requests them', () => {
   const repo = read('modules/catalog/repository.js');
-  assert.match(repo, /listMasterCatalogTests/);\n  assert.match(repo, /importMasterCatalogTest/);\n  assert.match(repo, /listTestParameters\(\{ tenantId, testId, includeInactive = false \}/);
+  assert.match(repo, /listMasterCatalogTests/);
+  assert.match(repo, /importMasterCatalogTest/);
+  assert.match(repo, /listTestParameters\(\{ tenantId, testId, includeInactive = false \}/);
   assert.match(repo, /return \(data \?\? \[\]\)\.filter\(row => includeInactive \|\| row\.is_active\)/);
 });
 
