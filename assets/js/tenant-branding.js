@@ -75,11 +75,12 @@ async function refreshTenantBranding() {
   ]);
   state.tenantId = tenant.id;
   state.branchId = branchId;
-  state.branchName = branches.find(item => item.id === branchId)?.name || '';
+  state.branchInfo = branches.find(item => item.id === branchId) || null;
+  state.branchName = state.branchInfo?.name || '';
   state.settings = settings || {};
   state.printSettings = printRow?.settings_json || {};
   renderHeader(state.settings);
-  globalThis.__taibaTenantBrand = { tenantId: tenant.id, branchId, branchName: state.branchName, settings: state.settings, printSettings: state.printSettings };
+  globalThis.__taibaTenantBrand = { tenantId: tenant.id, branchId, branchName: state.branchName, branch: state.branchInfo, settings: state.settings, printSettings: state.printSettings };
   document.documentElement.dataset.tenantBrandReady = 'true';
   document.dispatchEvent(new CustomEvent('taiba:tenant-branding-ready', { detail: globalThis.__taibaTenantBrand }));
 }
