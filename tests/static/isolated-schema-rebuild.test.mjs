@@ -24,11 +24,11 @@ test('workbench archive is non-destructive and records actor, branch and reason'
   const migration = read('database/migrations/056_visit_workbench_archive.sql');
   assert.match(migration, /workbench_hidden_at/);
   assert.match(migration, /visit_workbench_archive_events/);
-  assert.match(migration, /action in \\(\\'hidden\\',\\'restored\\'\\)/);
+  assert.ok(migration.includes("action in ('hidden','restored')"));
   assert.match(migration, /private.can_access_branch/);
-  assert.match(migration, /auth.uid\\(\\)/);
-  assert.match(migration, /revoke all on function public\\.set_visit_workbench_hidden/);
-  assert.doesNotMatch(migration, /delete from public\\.visits/i);
+  assert.ok(migration.includes('auth.uid()'));
+  assert.ok(migration.includes('revoke all on function public.set_visit_workbench_hidden'));
+  assert.doesNotMatch(migration, /delete from public.visits/i);
 });
 
 test('test addition to an existing visit is atomic, idempotent, branch-scoped and uses invoker RLS',()=>{
@@ -38,7 +38,7 @@ test('test addition to an existing visit is atomic, idempotent, branch-scoped an
   assert.match(migration, /pg_advisory_xact_lock/);
   assert.match(migration, /status<>'cancelled'/);
   assert.match(migration, /created_by_staff_id/);
-  assert.match(migration, /revoke all on function public\\.add_test_to_visit_atomic/);
+  assert.ok(migration.includes('revoke all on function public.add_test_to_visit_atomic'));
 });
 
 test('visit range overrides are separate from the frozen catalog snapshot and keep before/after history',()=>{
@@ -46,11 +46,11 @@ test('visit range overrides are separate from the frozen catalog snapshot and ke
   assert.match(migration,/visit_test_parameter_range_overrides/);
   assert.match(migration,/visit_test_parameter_range_events/);
   assert.match(migration,/security invoker/);
-  assert.match(migration,/new\\.reference_range_snapshot := coalesce\\(v_override/);
+  assert.ok(migration.includes('new.reference_range_snapshot := coalesce(v_override'));
   assert.match(migration,/Approved or published visits cannot have their reference ranges changed/);
   assert.match(migration,/old_reference_ranges/);
   assert.match(migration,/new_reference_ranges/);
-  assert.doesNotMatch(migration,/update public\\.tests_catalog/i);
+  assert.doesNotMatch(migration,/update public.tests_catalog/i);
   assert.match(read('database/migrations/060_visit_range_override_fk_indexes.sql'),/idx_visit_range_overrides_updated_by/);
 });
 
