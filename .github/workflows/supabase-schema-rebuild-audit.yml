@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "integration/unified-test-2026-11-19"
+      - "feature/**"
     paths:
       - ".github/workflows/supabase-schema-rebuild-audit.yml"
       - "database/migrations/**"
@@ -32,7 +33,7 @@ jobs:
       - name: Check out the exact development branch
         uses: actions/checkout@v4
         with:
-          ref: integration/unified-test-2026-11-19
+          ref: ${{ github.sha }}
 
       - name: Set up Supabase CLI v3
         uses: supabase/setup-cli@v3
@@ -42,7 +43,7 @@ jobs:
       - name: Verify isolated toolchain and CLI command contracts
         run: |
           set -euo pipefail
-          test "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}" = "integration/unified-test-2026-11-19"
+          git rev-parse --verify HEAD
           git rev-parse HEAD
           node --version
           supabase --version
@@ -136,8 +137,9 @@ jobs:
           20261118231112 021_employee_actor_pending_fields
           20261118232302 022_employee_reactivation_order
           20261119160000 023_branch_archive_access
+20261120124000 024_print_settings_audit
           MIGRATIONS
-          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 13
+          test "$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)" -eq 14
 
       - name: Reset the disposable local DB and apply the complete 001-023 chain
         run: |

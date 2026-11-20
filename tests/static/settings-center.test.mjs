@@ -54,3 +54,7 @@ assert.match(h2,/id="labLogoFile"/);assert.match(h2,/id="printPaperSize"/);asser
 assert.match(h2,/id="backupBranch"/);assert.match(h2,/id="restoreCloudBackup"/);assert.match(j2,/uploadLabAsset/);assert.match(j2,/createCloudBackup/);assert.match(j2,/downloadCloudBackup/);
 assert.match(ar,/tenant-site-assets/);assert.match(br,/tenant-backups/);assert.match(br,/checksum_sha256/);assert.match(br,/browser-local-cache/);assert.match(r,/inherited: true/);
 console.log('PASS: structured print controls, tenant-scoped assets, and private cloud copies of local snapshots are wired.');
+
+const printMigration=fs.readFileSync(new URL('database/migrations/024_print_settings_audit.sql',root),'utf8');
+assert.match(printMigration,/trg_audit_print_settings/);
+assert.match(mw,/024_print_settings_audit/);

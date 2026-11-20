@@ -114,3 +114,17 @@ begin
   end if;
   raise notice 'Structural checks passed. Manual tenant/branch RLS tests are still required.';
 end $$;
+
+
+-- Owner print settings must write into the same metadata-only audit stream.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgrelid = 'public.print_settings'::regclass
+      AND tgname = 'trg_audit_print_settings'
+      AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'Missing print settings audit trigger';
+  END IF;
+END $$;
