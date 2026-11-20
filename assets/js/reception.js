@@ -294,7 +294,7 @@ $('printPaymentReceipt').addEventListener('click',()=>window.print());
 $('balancesList').addEventListener('click',e=>{const button=e.target.closest('.collect-balance');if(button)collectBalance(button);});
 $('recentVisits').addEventListener('click',e=>{const button=e.target.closest('.open-visit-results');if(button)goToResults(button.dataset.visitId);});
 $('goToResults').addEventListener('click',()=>goToResults());
-$('newPatientAfterSave').addEventListener('click',clearIntake);
+$('newPatientAfterSave').addEventListener('click',()=>{clearIntake();focusNewPatient();});
 $('initialPayment').addEventListener('change',updateTotals);
 bindKeyboard();
 try{await start();}catch(error){notice(error.message||'تعذر تهيئة شاشة الاستقبال.',true);}
