@@ -16,6 +16,7 @@
       <label>بحث بالاسم أو رقم الهاتف<input id="patientSearch" placeholder="اكتب حرفين على الأقل من الاسم أو الهاتف" autocomplete="off"></label>
       <div id="patientMatches" class="matches"><p class="muted">ابدأ البحث لاختيار مريض.</p></div>
       <div id="selectedPatient" class="selected" hidden></div>
+      <section id="patientHistoricalPanel" class="historical-results-panel" hidden><div class="section-head"><div><h3>النتائج التاريخية السابقة</h3><p class="muted">سجلات قديمة منفصلة عن الزيارات الجديدة. لا تدخل في الفاتورة أو التقرير الحالي تلقائيًا.</p></div></div><div id="patientHistoricalList"></div></section>
       <details id="newPatientDetails"><summary>تسجيل مريض جديد</summary>
         <div class="form-grid"><label>اسم المريض *<input id="patientName" maxlength="160" required></label><label>رقم الهاتف<input id="patientPhone" inputmode="tel" maxlength="30"></label><label>العمر بالسنوات<input id="patientAge" type="number" min="0" max="120" step="0.01"></label><label>النوع<select id="patientSex"><option value="unknown">غير محدد</option><option value="male">ذكر</option><option value="female">أنثى</option><option value="other">آخر</option></select></label></div>
         <button id="createPatient" class="button button-secondary" type="button">حفظ واختيار المريض</button>
