@@ -142,7 +142,7 @@ begin
   if v_bad is not null then raise exception 'Calculated parameter dependency cycle detected'; end if;
   return new;
 end;
-$formula_ast$;
+$$;
 
 revoke all on function private.validate_catalog_parameter_formula() from public,anon,authenticated;
 drop trigger if exists validate_catalog_parameter_formula on public.test_parameters;
