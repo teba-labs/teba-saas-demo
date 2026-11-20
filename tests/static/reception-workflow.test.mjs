@@ -11,7 +11,7 @@ test('reception intake captures age value and unit and generates patient and vis
   const html = read('app/reception.html');
   const js = read('assets/js/reception.js');
   const repository = read('modules/reception/repository.js');
-  const migration = read('database/migrations/024_patient_age_units.sql');
+  const migration = read('database/migrations/055_patient_age_units.sql');
   assert.match(html, /id="patientAgeUnit"/);
   assert.match(html, /id="patientSex" required/);
   assert.match(html, /id="patientNumberPreview" readonly/);
