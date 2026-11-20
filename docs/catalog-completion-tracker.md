@@ -1,64 +1,88 @@
 # Taiba Smart Lab — Catalog Completion Tracker
 
-Last updated: 2026-11-20 18:40 Africa/Cairo
+Last updated: 2026-11-20 19:35 Africa/Cairo
+Repository: `teba-labs/teba-saas-demo`
+Active catalog branch: `feature/extended-culture-catalog-2026-11-20`
+Catalog extension PR: [#18 — Extended bacterial culture profiles](https://github.com/teba-labs/teba-saas-demo/pull/18)
+TEST Supabase project: `hgqwpykeazuzceeiumjg`
 
-## Objective
-Complete the master test catalog sourced from the user's historical test-name list, then merge the verified application and database work to `main`. Priority workflows: CBC, complete urinalysis, stool analysis, urine culture, stool culture, and other culture/sensitivity profiles.
+## Executive status — do not mark the catalog clinically complete yet
 
-## Safety and clinical governance
-- Never invent reference intervals, critical limits, formulae, sample stability, transport conditions, or antimicrobial breakpoints.
-- Keep source citation at test/parameter level: publisher, document title, edition/version/date, URL/DOI, page/section, access date, and local applicability notes.
-- Separate reference intervals from clinical decision limits and critical-result thresholds.
-- Reference intervals must be method/analyzer/reagent and population specific. Prefer verified local intervals; otherwise retain null/unset with an explicit review state.
-- Antimicrobial susceptibility interpretation must be tied to the laboratory's adopted CLSI or EUCAST edition and organism/drug/method scope. Never use stale breakpoints.
-- Master items cannot be imported into tenant catalog until both the test and every parameter are clinically verified.
-- Keep master catalog immutable by release; tenant copies and their prices/customizations remain independent.
+The catalog software foundation and core result workflows are present. The database state was queried directly on TEST on 2026-11-20:
 
-## Work completed so far
-- [x] Added master release/test/parameter/link schema (migration 035).
-- [x] Added master catalog read policies and tenant-owner import flow.
-- [x] Changed import RPC to SECURITY INVOKER (036), gated import to verified definitions (037).
-- [x] Fixed formula dependency import ordering and parameter clinical metadata (038).
-- [x] Added alternate units (039).
-- [x] Added master library UI and structured clinical metadata editor.
-- [x] Added static master catalog contract tests.
-- [x] Applied migrations 035–052 to isolated Supabase TEST project `hgqwpykeazuzceeiumjg`.
-- [x] Smoke-tested owner import of a verified panel with a dependent calculated parameter inside a rollback transaction.
-- [x] Negative test confirmed unverified test definitions cannot be imported.
-- [x] Fix schema-contract literal newline defect and add JavaScript syntax check.
-- [x] Add initial CBC analyzer profile and peripheral-smear fields; analyzer-specific numeric intervals remain local-verification required.
-- [x] Add physical, chemical-strip, and microscopic sediment urinalysis sections.
-- [x] Add macroscopic and microscopic stool/parasitology fields.
-- [x] Add urine culture isolate and isolate-specific antimicrobial susceptibility workflow.
-- [x] Extend the same isolate/AST result-entry and reporting workflow to 18 additional bacterial culture profiles (blood, CSF, pus, respiratory, body fluids, genital and swab cultures).
-- [x] Add stool culture isolate and isolate-specific susceptibility workflow.
-- [ ] Normalize and classify every source name from the user's list; identify duplicates, synonyms, panels, procedures, and send-outs.
-- [x] Add initial protein/A:G, lipid/non-HDL, and HOMA1 calculated profiles with traceable sources.
-- [x] Add kidney, liver, thyroid, iron, and coagulation profiles; transferrin saturation is calculated from same-unit iron/TIBC.
-- [x] Index 495 legacy Taiba test names/categories as review-pending source records; no old prices were copied and none can be imported before clinical completion.
-- [x] Add Mayo adult and pediatric age/sex-specific CBC source intervals for RBC, HGB, HCT, MCV, RDW, WBC and platelets as clearly labelled suggestions, not locally activated ranges.
-- [x] Expand CBC morphology into individual graded RBC/WBC/platelet findings (ICSH terminology), and add granular urine/stool microscopy fields.
-- [x] Add tenant-local reference interval validation: verified numeric ranges require structured bounds and scientific source citations; result flags are calculated only after local verification.
-- [x] Add pediatric CBC source interval suggestions and preserve age in decimal years for pediatric matching.
-- [x] Add culture table foreign-key indexes and optimize auth checks in culture RLS policies.
-- [x] Normalize and seed the legacy source-name index and common kidney, liver, thyroid, iron, coagulation, protein, lipid and HOMA profiles.
-- [ ] Complete the remaining individual tests, serology panels, hormones, body-fluid examinations, semen analysis, specialty microbiology and method-specific reference intervals.
-- [ ] Verify end-to-end result entry, computed fields, report layout, and tenant import.
-- [ ] Run security/performance advisors and full CI.
-- [ ] Merge all approved changes into main, preserve development/backup branches, verify Pages deployment.
-- [ ] Ask user to preview and test CBC, urine, stool, and culture profiles.
+- **527 master test definitions** total: 32 clinically verified + 495 legacy source-name entries pending review.
+- **32/32 verified definitions have parameters**; no verified definition is missing its parameter set.
+- **300 master parameters** exist and all 300 are marked clinically verified within their profiles.
+- **10 calculated parameters** are present.
+- **20 bacterial culture profiles / 129 culture parameters** are present and marked verified.
+- **495 legacy source names remain unreviewed and have no parameters**. Their names/categories were indexed only. They are intentionally not importable.
+- **No numeric reference interval is locally verified yet** in the shared master data. CBC age/sex reference values are source suggestions only and must not trigger flags until verified against each tenant's analyzer/method.
+- 19 catalog-related migrations (035–053) are recorded in TEST, including extended cultures (052) and WHO 6th semen analysis (053).
 
-## Key clinical source families to use
-- ICSH: CBC analyzer evaluation and peripheral blood smear nomenclature/morphology grading.
-- CLSI EP28: defining/verifying reference intervals; method-specific/local validation.
-- EFLM European Urinalysis Guideline 2023: specimen and urine particle analysis standardization.
-- WHO Basic Laboratory Methods in Medical Parasitology: stool collection and microscopy.
-- IDSA/ASM Guide to Utilization of the Microbiology Laboratory (2024 update): specimen collection and culture interpretation.
-- Current CLSI M100 or EUCAST breakpoint tables: antimicrobial susceptibility only after selecting and documenting the laboratory's adopted standard and edition.
+This is an honest progress snapshot, not a claim that all 495 tests have been clinically completed.
 
-## Current branch / database
-- Repository: `teba-labs/teba-saas-demo`
-- Development branch: `feature/master-lab-catalog-2026-11-20`
-- Open PR: #16 (not merged)
-- TEST Supabase: `hgqwpykeazuzceeiumjg`
-- No production customer records have been modified.
+## Completed platform / cross-screen behavior
+
+- [x] Versioned master releases, master tests, master parameters, and tenant master links.
+- [x] Master library is read-only to tenant users; imports are owner-only and opt-in.
+- [x] Import gate requires the test AND every parameter to be clinically verified; rejects empty parameter sets.
+- [x] Tenant copies are independent; historical prices are not copied; base/branch prices remain tenant-owned.
+- [x] Catalog editor persists test and parameter definitions to Supabase `tests_catalog` and `test_parameters`.
+- [x] Reception uses active tenant catalog entries and the tenant's effective branch/base price; a missing price must be configured by the owner before ordering.
+- [x] Registration stores the ordered test and technical definition snapshot on the visit. Later catalog edits apply to future visits and do not rewrite old visit reports.
+- [x] Results workbench reads the visit technical snapshot, saves result values through the atomic cloud RPC, and calculates approved formulas server-side.
+- [x] Result completion, visit approval, and report publication remain separate controlled steps.
+- [x] Report rendering uses the saved visit snapshot and tenant/branch print settings.
+- [x] Offline catalog cache is tenant-scoped; catalog edits require an online connection and are not falsely reported as saved offline.
+- [x] Master catalog RLS is enabled on releases, tests, parameters and tenant links.
+
+## Clinically structured profiles completed
+
+- [x] CBC: 46 parameters, granular morphology; numeric intervals are suggestions pending local analyzer validation.
+- [x] Complete urinalysis: 37 parameters across physical, chemical and microscopic sections.
+- [x] Complete stool examination: 24 parameters including macroscopic, microscopy and parasitology fields.
+- [x] Urine culture: repeatable isolate and isolate-specific AST workflow.
+- [x] Stool culture: repeatable isolate and isolate-specific AST workflow.
+- [x] 18 additional bacterial culture profiles: blood, sputum, bronchial lavage, pus, wound, CSF, ascitic, pleural, synovial, semen, vaginal, cervical, urethral, prostatic, throat, ear, nasal and conjunctival.
+- [x] WHO 6th edition semen analysis profile: 19 parameters.
+- [x] Kidney, liver, thyroid, iron, coagulation, protein, lipid and HOMA1 profiles, including documented calculated parameters.
+
+## Scientific governance
+
+- [x] Source references stored with profiles/parameters where available (ICSH, CLSI EP28, EFLM 2023, WHO parasitology, IDSA/ASM 2024, Mayo CBC sources, NIDDK eGFR, ICHCLR TSAT, WHO semen manual).
+- [x] Reference intervals are separate from critical limits and interpretation rules.
+- [x] Source-suggested intervals are not treated as tenant-validated intervals.
+- [x] AST interpretation is not guessed: it requires the performing lab's adopted CLSI/EUCAST edition and validated method.
+- [x] Formula import inserts the full parameter set before enabling formula dependencies.
+- [x] Tenant import is blocked until test and all parameters are verified.
+- [ ] Confirm current exact CLSI M100 / EUCAST edition adopted by each performing lab before enabling AST interpretations.
+- [ ] Add method/analyzer/reagent-specific numeric reference intervals only with traceable source and local verification.
+- [ ] Review all 495 legacy entries for duplicate/synonym identity, individual vs panel, specimen, method, service/procedure/send-out classification, parameters and source citations.
+
+## Remaining work — required before calling the full historical catalog closed
+
+1. Normalize all 495 legacy names: merge synonyms safely, flag ambiguous names, distinguish true individual tests from panels/procedures/services/send-outs, and map to canonical identity.
+2. Build structured profiles for the remaining tests in controlled batches: specimen/preparation/collection/transport/stability/rejection/method, parameter types/units, source references, formulas and applicable interpretation.
+3. Add numeric ranges only where authoritative, method-appropriate and locally verifiable; no blanket adult ranges for pediatric/pregnancy populations.
+4. Run end-to-end browser checks using a real TEST tenant: create/edit a test and parameter in Catalog → confirm it appears in Reception with correct branch price → register a visit → confirm snapshot in Results → save/reopen results → complete → approve → print and verify report.
+5. Exercise culture positive/negative, multiple isolates, isolate-specific AST, incomplete-result blocking, and branch/tenant isolation.
+6. Run full CI on the current PR head, Supabase security/performance advisors, and fix only findings attributable to catalog changes without broad unreviewed security changes.
+7. Keep PR #18 open until checks pass. Do not merge into `main` or deploy production as part of this catalog task.
+
+## Current TEST evidence
+
+- Migrations 035–053 are recorded in `hgqwpykeazuzceeiumjg`.
+- Migration 052: 20 bacterial culture profiles and 129 parameters.
+- Migration 053: WHO 6th semen analysis profile.
+- Read-only SQL snapshot on 2026-11-20: 527 tests, 300 parameters, 32 verified tests, 495 review-pending source names, 20 culture profiles, 129 culture parameters, 10 calculated parameters.
+- RLS is enabled on the master catalog tables.
+- PR #18 has no submitted reviews or inline review threads at the time of this update.
+- Static/unit CI and browser E2E for the latest PR head have not been independently confirmed in this session.
+- No production database or customer records were changed.
+
+## Change log
+
+- 2026-11-20: Reconciled stale tracker branch/PR pointers against GitHub. Corrected active branch to `feature/extended-culture-catalog-2026-11-20` and PR to #18.
+- 2026-11-20: Verified TEST migration history through 053; recorded culture and semen profile counts.
+- 2026-11-20: Queried master catalog counts and documented the 495 legacy source records as review-pending (not complete and not importable).
+- 2026-11-20: Documented Catalog → Reception → visit snapshot → Results → approval/report data flow and the immutability rule for historical visits.
