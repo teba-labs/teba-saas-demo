@@ -25,3 +25,22 @@ jobs:
         run: bash scripts/build-netlify.sh
       - name: Run all static and unit regression tests
         run: node --test tests/static/*.test.mjs tests/unit/*.test.mjs
+      - name: Package exact source after all checks pass
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="taiba-smart-lab-reconciled-$(git rev-parse --short=12 HEAD).zip"
+          git archive --format=zip --output="$archive" HEAD
+          test -s "$archive"
+          sha256sum "$archive" | tee "$archive.sha256"
+      - name: Upload source archive
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taiba-smart-lab-reconciled-source
+          path: |
+            taiba-smart-lab-reconciled-*.zip
+            taiba-smart-lab-reconciled-*.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
