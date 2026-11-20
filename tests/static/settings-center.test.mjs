@@ -12,7 +12,7 @@ assert.match(s,/export async function updateStaffName/);
 assert.match(h,/id="dataManagementSettings"/);
 assert.match(h,/href="data-import.html"/);
 assert.match(h,/href="sync-center.html"/);
-assert.match(h,/النسخ المحلية ليست نسخة سحابية/);
+assert.match(h,/النسخة السحابية هنا تحفظ نسخة من بيانات هذا الجهاز فقط/);
 
 const backup=fs.readFileSync(new URL('offline/backup.js',root),'utf8');
 const archiveStore=fs.readFileSync(new URL('modules/dashboard/historical-workbooks.js',root),'utf8');
@@ -28,7 +28,7 @@ assert.match(archiveStore,/export async function restoreHistoricalWorkbooks/);
 assert.match(archiveStore,/row.tenantId!==String\(tenantId\)/);
 assert.match(sync,/historicalWorkbooksRestored/);
 assert.match(h,/ملفات Excel التاريخية المحفوظة لهذا المعمل/);
-assert.match(h,/الملفات المرفوعة إلى التخزين السحابي/);
+assert.match(h,/ولا تشمل مرفقات المرضى/);
 
 const branchSettings=fs.readFileSync(new URL('assets/js/settings-center.js',root),'utf8');
 assert.match(branchSettings,/const BRANCH_ARCHIVE_READY=true/);
