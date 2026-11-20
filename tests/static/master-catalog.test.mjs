@@ -14,6 +14,8 @@ test('master medical catalog has read-only global definitions and tenant-owned i
  assert.match(sql,/private\.is_tenant_owner\(p_tenant_id\)/);
  assert.match(sql,/import_master_catalog_test/);
  assert.match(sql,/revoke all on function public\.import_master_catalog_test/);
+ assert.match(read('database/migrations/036_master_catalog_import_invoker.sql'),/security invoker/);
+ assert.match(read('database/migrations/037_guard_master_catalog_import.sql'),/must be clinically verified/);
 });
 
 test('medical catalog definitions carry specimen, collection, stability, critical and source metadata',()=>{
