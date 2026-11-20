@@ -23,6 +23,7 @@ test('migration filenames follow the current main sequence without reusing 024',
   assert.ok(files.includes('064_sync_visit_billing_net_total.sql'));
   assert.ok(files.includes('065_fix_billing_generated_net_total.sql'));
   assert.ok(files.includes('066_correct_visit_result_with_flag.sql'));
+  assert.ok(files.includes('067_clear_stale_flags_on_range_override.sql'));
   assert.ok(!files.includes('024_patient_age_units.sql'));
 });
 
