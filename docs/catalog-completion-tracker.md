@@ -152,3 +152,8 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - Service-worker shell bumped to v24 and now pre-caches the shared module.
 - CI contract tests updated for v24 and expanded to verify that every application screen loads the shared module. No PR or CI result yet at this checkpoint.
 - This improves keyboard usability but does not substitute for manual browser testing with real focus order on each screen.
+
+- PR #20 successfully merged to `main` on 2026-11-20: `5071313f33d898ca11074a81570a6dd355ef818c`. It introduces shared keyboard navigation on all 11 application screens and updates the service-worker shell to v24.
+- Pre-merge recovery branch: `backup/pre-app-wide-keyboard-2026-11-20`, pinned to `d9be861b77a31778832853dd43b6020883be4f59`.
+- CI run #738 on PR #20 passed: syntax checks including the shared keyboard module and all static/unit contract tests. An earlier run #737 failed only because the new test used an invalid regex for the service-worker asset path; replaced it with a direct string assertion and the final run passed.
+- Manual browser testing of focus order on all 11 screens remains pending; automated tests prove wiring and syntax, not real-user keyboard interaction in a browser.
