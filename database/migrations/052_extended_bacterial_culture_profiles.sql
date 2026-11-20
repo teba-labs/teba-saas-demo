@@ -7,7 +7,7 @@ begin
  select vt.test_code_snapshot,vt.status,v.status,v.is_published into v_test_code,v_test_status,v_visit_status,v_published
  from public.visit_tests vt join public.visits v on v.id=vt.visit_id and v.tenant_id=vt.tenant_id and v.branch_id=vt.branch_id
  where vt.id=new.visit_test_id and vt.tenant_id=new.tenant_id and vt.branch_id=new.branch_id;
- if v_test_code not like 'CULTURE\\_%' escape '\\' then raise exception 'Culture results can only be saved for a bacterial culture profile'; end if;
+ if left(v_test_code,8) <> 'CULTURE_' then raise exception 'Culture results can only be saved for a bacterial culture profile'; end if;
  if v_test_status in ('completed','cancelled') or v_visit_status in ('cancelled','closed') or coalesce(v_published,false) then raise exception 'Culture results cannot be changed after test completion or report publication'; end if;
  if not private.can_access_branch(new.tenant_id,new.branch_id) then raise exception 'Branch access denied'; end if;
  return new;
@@ -23,7 +23,7 @@ begin
  from public.visit_test_culture_isolates ci join public.visit_tests vt on vt.id=ci.visit_test_id and vt.tenant_id=ci.tenant_id and vt.branch_id=ci.branch_id
  join public.visits v on v.id=vt.visit_id and v.tenant_id=vt.tenant_id and v.branch_id=vt.branch_id
  where ci.id=new.isolate_id and ci.tenant_id=new.tenant_id and ci.branch_id=new.branch_id;
- if v_test_code not like 'CULTURE\\_%' escape '\\' then raise exception 'AST can only be saved for a bacterial culture profile'; end if;
+ if left(v_test_code,8) <> 'CULTURE_' then raise exception 'AST can only be saved for a bacterial culture profile'; end if;
  if v_test_status in ('completed','cancelled') or v_visit_status in ('cancelled','closed') or coalesce(v_published,false) then raise exception 'AST cannot be changed after test completion or report publication'; end if;
  if not private.can_access_branch(new.tenant_id,new.branch_id) then raise exception 'Branch access denied'; end if;
  return new;
@@ -35,7 +35,7 @@ returns trigger language plpgsql security definer set search_path=pg_catalog,pub
 as $function$
 declare v_growth text; v_has_isolate boolean;
 begin
- if new.status='completed' and old.status is distinct from 'completed' and new.test_code_snapshot like 'CULTURE\\_%' escape '\\' then
+ if new.status='completed' and old.status is distinct from 'completed' and left(new.test_code_snapshot,8) = 'CULTURE_' then
   select value_text into v_growth from public.test_results where tenant_id=new.tenant_id and visit_test_id=new.id and parameter_code in ('CU_GROWTH','CS_GROWTH','CULTURE_GROWTH');
   if v_growth is null then raise exception 'Enter the culture growth status before completing this culture profile'; end if;
   select exists(select 1 from public.visit_test_culture_isolates where tenant_id=new.tenant_id and branch_id=new.branch_id and visit_test_id=new.id) into v_has_isolate;
@@ -78,14 +78,14 @@ from public.master_catalog_releases r cross join (values
 where r.version='taiba-core-2026.11.20-r1' on conflict(release_id,master_code) do nothing;
 
 insert into public.master_catalog_parameters(master_test_id,parameter_code,parameter_name,value_type,unit,decimal_places,reference_ranges,choices,display_order,is_required,result_source,formula,clinical_metadata,source_references,clinical_review_status,reference_interval_status)
-select t.id,'CULTURE_GROWTH','Culture growth status','choice',10,["No growth","Growth","Mixed growth / possible contamination","Pending","Not performed"]::jsonb,true from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture'
+select t.id,'CULTURE_GROWTH','Culture growth status','choice',10,'["No growth","Growth","Mixed growth / possible contamination","Pending","Not performed"]'::jsonb,true from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture'
 union all
-select t.id,'CULTURE_SPECIMEN_QUALITY','Specimen quality','choice',20,["Acceptable","Suboptimal - interpret with caution","Rejected"]::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture'
+select t.id,'CULTURE_SPECIMEN_QUALITY','Specimen quality','choice',20,'["Acceptable","Suboptimal - interpret with caution","Rejected"]'::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture'
 union all
-select t.id,'CULTURE_IDENTIFICATION','Organism identification summary','text',30,[]::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture'
+select t.id,'CULTURE_IDENTIFICATION','Organism identification summary','text',30,'[]'::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture'
 union all
-select t.id,'CULTURE_GRAM_STAIN','Direct microscopy / Gram stain','text',40,[]::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture'
+select t.id,'CULTURE_GRAM_STAIN','Direct microscopy / Gram stain','text',40,'[]'::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture'
 union all
-select t.id,'CULTURE_AST_COMMENT','Antimicrobial susceptibility comment','text',50,[]::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture'
+select t.id,'CULTURE_AST_COMMENT','Antimicrobial susceptibility comment','text',50,'[]'::jsonb,false from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture'
 union all
-select t.id,'CULTURE_REPORT_COMMENT','Final culture report comment','text',60,[]::jsonb,true from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture';
+select t.id,'CULTURE_REPORT_COMMENT','Final culture report comment','text',60,'[]'::jsonb,true from public.master_catalog_tests t where t.release_id=(select id from public.master_catalog_releases where version='taiba-core-2026.11.20-r1') and t.service_type='culture';
