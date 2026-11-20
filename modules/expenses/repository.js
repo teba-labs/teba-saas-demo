@@ -33,8 +33,11 @@ export async function saveExpenseCategory({ tenantId, name, id } = {}) {
   if (!tenantId) throw new Error('tenantId is required.');
   const cleanName = String(name ?? '').trim();
   if (cleanName.length < 2 || cleanName.length > 80) throw new Error('اسم بند المصروف يجب أن يكون بين حرفين و80 حرفًا.');
-  const payload = { tenant_id: tenantId, name: cleanName, is_active: true, ...(id ? { id } : {}) };
-  const { data, error } = await db().from(TABLES.expenseCategories).upsert(payload, { onConflict: 'tenant_id,name' }).select('id, tenant_id, name, is_active').single();
+  const payload = { tenant_id: tenantId, name: cleanName, is_active: true };
+  const query = id
+    ? db().from(TABLES.expenseCategories).update({ name: cleanName }).eq('tenant_id', tenantId).eq('id', id)
+    : db().from(TABLES.expenseCategories).upsert(payload, { onConflict: 'tenant_id,name' });
+  const { data, error } = await query.select('id, tenant_id, name, is_active').single();
   if (error) throw error;
   return data;
 }
