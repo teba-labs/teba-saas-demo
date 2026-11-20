@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../core/supabase-client.js';
+import { buildExpenseBreakdown } from '../modules/dashboard/expense-breakdown.js';
 const db = () => getSupabaseClient();
 const need = (value, name) => { if (!value) throw new Error(`${name} is required.`); };
 const sum = (rows, field) => (rows ?? []).reduce((total, row) => total + Number(row[field] ?? 0), 0);
@@ -55,6 +56,21 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
 
   const collectedRows = ledger.filter(row => row.direction === 'inflow');
   const expenseRows = ledger.filter(row => row.direction === 'outflow');
+  const expenseSourceIds = [...new Set(expenseRows.filter(row => row.source_type === 'expense' && row.source_id).map(row => row.source_id))];
+  const linkedExpenses = [];
+  for (let offset = 0; offset < expenseSourceIds.length; offset += 500) {
+    const ids = expenseSourceIds.slice(offset, offset + 500);
+    linkedExpenses.push(...await readAllPages(() => client.from('expenses').select('id,category_id')
+      .eq('tenant_id', tenantId).in('id', ids).order('id')));
+  }
+  const categoryIds = [...new Set(linkedExpenses.map(row => row.category_id).filter(Boolean))];
+  const expenseCategories = [];
+  for (let offset = 0; offset < categoryIds.length; offset += 500) {
+    const ids = categoryIds.slice(offset, offset + 500);
+    expenseCategories.push(...await readAllPages(() => client.from('expense_categories').select('id,name')
+      .eq('tenant_id', tenantId).in('id', ids).order('name').order('id')));
+  }
+  const expenseBreakdown = buildExpenseBreakdown({ ledgerRows: expenseRows, expenseRows: linkedExpenses, categoryRows: expenseCategories, branches });
   const collected = sum(collectedRows, 'amount');
   const expenses = sum(expenseRows, 'amount');
   const grossBilled = sum(billing, 'gross_total');
@@ -82,11 +98,24 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
   });
 
   const dailyMap = new Map();
+  const dailyItem = date => {
+    const item = dailyMap.get(date) ?? { date, collected: 0, expenses: 0, visits: 0, tests: 0 };
+    dailyMap.set(date, item);
+    return item;
+  };
   for (const row of ledger) {
-    const item = dailyMap.get(row.work_date) ?? { date: row.work_date, collected: 0, expenses: 0 };
+    const item = dailyItem(row.work_date);
     if (row.direction === 'inflow') item.collected += Number(row.amount);
     if (row.direction === 'outflow') item.expenses += Number(row.amount);
-    dailyMap.set(row.work_date, item);
+  }
+  const visitDateById = new Map();
+  for (const visit of visits) {
+    visitDateById.set(visit.id, visit.visit_work_date);
+    dailyItem(visit.visit_work_date).visits += 1;
+  }
+  for (const test of visitTests) {
+    const date = visitDateById.get(test.visit_id);
+    if (date) dailyItem(date).tests += 1;
   }
   const testMap = new Map();
   for (const row of visitTests) {
@@ -102,7 +131,38 @@ export async function getOwnerMonthlyDashboard({ tenantId, monthStart, monthEnd,
       receivables, paymentCount: collectedRows.length, expenseCount: expenseRows.length,
     },
     daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
+    expenseBreakdown,
     topTests: [...testMap.values()].sort((a, b) => b.count - a.count).slice(0, 12),
     ledger,
   };
+}
+
+/** Date-range test demand report; tenant/branch scoped and paginated without changing data. */
+export async function getOwnerTestRangeReport({tenantId,fromDate,toDateExclusive,branchId=null,search=''}={}){
+ need(tenantId,'tenantId');need(fromDate,'fromDate');need(toDateExclusive,'toDateExclusive');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(fromDate)||!/^\d{4}-\d{2}-\d{2}$/.test(toDateExclusive)||toDateExclusive<=fromDate)throw new Error('A valid half-open date range is required.');
+ const client=db();
+ const buildVisitsQuery=()=>{
+  let query=client.from('visits').select('id,branch_id').eq('tenant_id',tenantId)
+   .gte('visit_work_date',fromDate).lt('visit_work_date',toDateExclusive).neq('status','cancelled')
+   .order('visit_work_date').order('id');
+  if(branchId)query=query.eq('branch_id',branchId);
+  return query;
+ };
+ const visits=await readAllPages(buildVisitsQuery);
+ const counts=new Map();
+ for(let offset=0;offset<visits.length;offset+=500){
+  const ids=visits.slice(offset,offset+500).map(row=>row.id);
+  const tests=await readAllPages(()=>client.from('visit_tests')
+   .select('test_id,test_name_snapshot,price_snapshot,status')
+   .eq('tenant_id',tenantId).in('visit_id',ids).neq('status','cancelled').order('test_id'));
+  for(const row of tests){
+   const key=String(row.test_id||row.test_name_snapshot||'').trim();if(!key)continue;
+   const item=counts.get(key)||{testId:row.test_id,name:row.test_name_snapshot||key,count:0,billed:0};
+   item.count+=1;item.billed+=Number(row.price_snapshot||0);counts.set(key,item);
+  }
+ }
+ const needle=String(search||'').trim().toLocaleLowerCase('ar');
+ const tests=[...counts.values()].filter(item=>!needle||String(item.name).toLocaleLowerCase('ar').includes(needle)||String(item.testId||'').toLocaleLowerCase('ar').includes(needle)).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'ar'));
+ return {period:{fromDate,toDateExclusive},visitCount:visits.length,testCount:tests.reduce((sum,item)=>sum+item.count,0),tests};
 }
