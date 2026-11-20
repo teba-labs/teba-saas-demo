@@ -47,6 +47,7 @@ test('launcher provides a responsive medical workspace and live operational stat
   assert.match(css, /--teal:/);
   assert.match(js, /يوم العمل مفتوح/);
   assert.match(js, /لا توجد عمليات معلقة/);
+  assert.match(js, /قيد التنفيذ/);
 });
 
 test('all tenant and platform screens link back to the launcher', () => {
