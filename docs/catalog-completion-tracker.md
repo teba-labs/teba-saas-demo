@@ -160,7 +160,7 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 
 ## Final verified snapshot for 2026-11-20
 
-- Main after both promotions and tracker update: `cf3b118591656708f068b7020218a5445e6efe51`.
+- Main immediately before this final tracker snapshot: `cf3b118591656708f068b7020218a5445e6efe51`.
 - TEST counts: 527 master test records (32 verified, 495 legacy needs-review), 300 parameter definitions, 101 numeric parameters, 10 calculated parameters.
 - Source-suggested ranges: 47/101 numeric parameters; all 47 explicitly `local_verification_required`; 0 locally verified. The new 25-parameter batch is recorded in migration 054.
 - Result workbench displays matching external-source intervals with the explicit label "مقترح من المصدر — غير معتمد محليًا" and only auto-classifies numeric values when the interval status is `verified_local`.
