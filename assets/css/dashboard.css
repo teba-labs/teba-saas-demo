@@ -42,3 +42,17 @@
 .expense-bar-row strong{white-space:nowrap;font-variant-numeric:tabular-nums}
 .expense-bar-track{height:9px;background:#edf2f4;border-radius:20px;overflow:hidden}
 .expense-bar-track span{display:block;height:100%;background:#43879a;border-radius:20px;min-width:2px}
+
+@media print{
+ body{background:#fff!important;color:#111!important}
+ .topbar,#loginPanel,#ownerDashboardHome,.owner-screen-head button,.filters,.notice,.history-period-global{display:none!important}
+ .shell{max-width:none;margin:0;padding:0}
+ #workspace>.panel:first-child{display:none!important}
+ #ownerDashboardScreens{display:block!important}
+ .owner-report-screen[hidden]{display:none!important}
+ .owner-screen-head{border:0;padding:0;margin:0 0 12px}
+ .owner-screen-content>.panel,.owner-screen-content .panel{box-shadow:none;border-color:#ddd;break-inside:avoid}
+ .table-wrap{overflow:visible}
+ table{white-space:normal;font-size:10pt}
+ th,td{padding:6px}
+}
