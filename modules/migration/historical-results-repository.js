@@ -123,3 +123,27 @@ export async function listHistoricalResults({ tenantId, branchId, patientId = nu
   if (error) throw error;
   return data || [];
 }
+
+export async function listHistoricalImportTemplates({ tenantId, branchId, sheetName } = {}) {
+  need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(sheetName, 'sheetName');
+  const { data, error } = await db().from('historical_import_templates')
+    .select('id,sheet_name,header_signature,headers_json,entity_type,column_mapping,updated_at')
+    .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('sheet_name', sheetName)
+    .order('updated_at', { ascending: false }).limit(20);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function saveHistoricalImportTemplate({ tenantId, branchId, userId, sheetName, headerSignature, headers, entityType, columnMapping } = {}) {
+  need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(userId, 'userId');
+  need(sheetName, 'sheetName'); need(headerSignature, 'headerSignature');
+  const { data, error } = await db().from('historical_import_templates').upsert({
+    tenant_id: tenantId, branch_id: branchId, sheet_name: sheetName,
+    header_signature: headerSignature, headers_json: headers || [],
+    entity_type: entityType || 'historical_results', column_mapping: columnMapping || [],
+    updated_by: userId
+  }, { onConflict: 'tenant_id,branch_id,sheet_name,header_signature' })
+    .select('id,updated_at').single();
+  if (error) throw error;
+  return data;
+}
