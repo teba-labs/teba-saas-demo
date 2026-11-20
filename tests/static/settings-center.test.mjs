@@ -57,6 +57,7 @@ console.log('PASS: structured print controls, tenant-scoped assets, and private 
 
 const printMigration=fs.readFileSync(new URL('database/migrations/024_print_settings_audit.sql',root),'utf8');
 assert.match(printMigration,/trg_audit_print_settings/);
-assert.match(mw,/024_print_settings_audit/);
+const schemaWorkflow=fs.readFileSync(new URL('.github/workflows/supabase-schema-rebuild-audit.yml',root),'utf8');
+assert.match(schemaWorkflow,/024_print_settings_audit/);
 
 assert.match(printMigration,/trg_audit_backup_runs/);
