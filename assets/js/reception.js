@@ -37,7 +37,7 @@ function showPaymentReceipt({patientName,visitNumber,amount,method,staffName,pay
 }
 function setPatient(patient){
   state.patient=patient;$('selectedPatient').hidden=!patient;$('patientHistoricalPanel').hidden=true;
-  $('selectedPatient').innerHTML=patient?`<div><strong>${escapeHtml(patient.full_name)}</strong><small>${escapeHtml(patient.phone||'لا يوجد هاتف')} · كود الملف: ${escapeHtml(patient.patient_number||'—')}</small></div><div class="selected-actions"><button id="clearPatient" class="button button-ghost" type="button">تغيير المريض</button><button id="showPatientHistory" class="button button-secondary" type="button">النتائج التاريخية</button></div>`:'';
+  $('selectedPatient').innerHTML=patient?`<div><strong>${escapeHtml(patient.full_name)}</strong><small>${escapeHtml(patient.phone||'لا يوجد هاتف')} · كود الملف: ${escapeHtml(patient.patient_number||'—')}${patient.age_value!=null?' · العمر: '+escapeHtml(patient.age_value)+' '+({days:'يوم',months:'شهر',years:'سنة'}[patient.age_unit]||''):''}</small></div><div class="selected-actions"><button id="clearPatient" class="button button-ghost" type="button">تغيير المريض</button><button id="showPatientHistory" class="button button-secondary" type="button">النتائج التاريخية</button></div>`:'';
   updateTotals();
   if(patient){$('newPatientDetails').open=false;$('clearPatient').addEventListener('click',()=>setPatient(null));$('showPatientHistory').addEventListener('click',e=>showPatientHistory(e.currentTarget));}
 }
