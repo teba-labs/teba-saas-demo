@@ -208,7 +208,7 @@ async function submitVisit(button){
       notice(`تم تسجيل الزيارة رقم ${visitNumber} وإضافة ${state.selected.size} تحليلًا.`);
       await loadRecent();await loadBalances();
     }
-    state.selected.clear();renderCatalog();$('discount').value='0';$('initialPayment').value='0';$('initialPaymentMethod').value='cash';$('referredBy').value='';$('visitNotes').value='';
+    state.selected.clear();renderCatalog();$('visitNumber').value=makeCode('V');$('discount').value='0';$('initialPayment').value='0';$('initialPaymentMethod').value='cash';$('referredBy').value='';$('visitNotes').value='';
     if(!result?.queued){$('newPatientDetails').open=false;}
     updateTotals();$('postSaveActions').scrollIntoView({behavior:'smooth',block:'center'});
   }catch(error){notice(error.message||'تعذر تسجيل الزيارة. لم يتم تأكيد حفظ الفاتورة.',true);}
