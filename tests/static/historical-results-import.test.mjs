@@ -24,14 +24,14 @@ test('ambiguous legacy dates are never silently normalized', () => {
 test('historical importer is separate from operational visits and uses tenant/branch idempotency', async () => {
   const repository = await readFile(new URL('../../modules/migration/historical-results-repository.js', import.meta.url), 'utf8');
   const importer = await readFile(new URL('../../assets/js/data-import.js', import.meta.url), 'utf8');
-  assert.match(repository, /from\\('historical_results'\\)/);
+  assert.match(repository, /from\('historical_results'\)/);
   assert.match(repository, /onConflict: 'tenant_id,branch_id,source_record_key'/);
-  assert.match(repository, /from\\('historical_import_batches'\\)/);
-  assert.match(repository, /storage\\.from\\('tenant-backups'\\)/);
-  assert.match(importer, /confirm\\(/);
+  assert.match(repository, /from\('historical_import_batches'\)/);
+  assert.match(repository, /storage\.from\('tenant-backups'\)/);
+  assert.match(importer, /confirm\(/);
   assert.match(importer, /source_sheet_name/);
-  assert.doesNotMatch(repository, /from\\('visits'\\)\\.insert/);
-  assert.doesNotMatch(repository, /from\\('financial_ledger'\\)\\.insert/);
+  assert.doesNotMatch(repository, /from\('visits'\)\.insert/);
+  assert.doesNotMatch(repository, /from\('financial_ledger'\)\.insert/);
 });
 
 test('historical results are opt-in in reception and results screens', async () => {
