@@ -19,7 +19,7 @@ test('visit snapshots retain formulas and server-side save computes dependencies
   const sql=read('database/migrations/034_calculated_test_parameters.sql');
   assert.match(sql,/'result_source',p\.result_source,'formula',p\.formula/);
   assert.match(sql,/evaluate_catalog_formula/);
-  assert.match(sql,/Cannot divide by zero/);
+  assert.match(sql,/v_right=0 then return null/);
   assert.match(sql,/Calculated parameters cannot be entered manually/);
   assert.match(sql,/save_draft_results_atomic/);
   assert.match(sql,/return query select \* from public\.test_results/);
@@ -32,6 +32,9 @@ test('catalog editor saves calculated numeric formulas and results UI is read-on
   const results=read('assets/js/results-workbench.js');
   assert.match(html,/id="parameterSource"/);
   assert.match(html,/id="parameterFormula"/);
+  const sw=read('service-worker.js');
+  assert.match(sw,/modules\/catalog\/formula-engine\.js/);
+  assert.match(sw,/taiba-smart-lab-shell-v20/);
   assert.match(catalog,/parseFormulaExpression\(/);
   assert.match(repository,/result_source: valid\.resultSource, formula: valid\.formula/);
   assert.match(results,/data-result-source="calculated"/);
