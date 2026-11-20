@@ -97,7 +97,8 @@ test('daily financial movement is read-only and links to Workday for new entries
 });
 test('security screen does not misrepresent local Excel archive as cloud backup',()=>{
   assert.match(script,/ليس نسخة سحابية/);
-  assert.match(script,/غير مثبت كميزة استعادة كاملة/);
+  assert.match(script,/ليس قاعدة بيانات الخادم كاملة/);
+  assert.match(script,/settings\.html/);
   assert.match(script,/sync-center\.html/);
 });
 
