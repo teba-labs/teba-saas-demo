@@ -78,7 +78,7 @@ async function exportBackup() {
     const document = await exportLocalBackup({ tenantId: state.tenant.id, branchId: state.branch.id, tenantName: state.tenant.name, branchName: state.branch.name });
     const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob); const a = documentCreateLink(url, `taiba-local-${state.branch.id}-${new Date().toISOString().slice(0,10)}.json`); a.click(); URL.revokeObjectURL(url);
-    notice('تم إنشاء نسخة محلية لهذا الجهاز. احتفظ بها في مكان آمن.');
+    notice('تم إنشاء نسخة محلية لهذا الجهاز تشمل سجلاته التشغيلية والأرشيف التاريخي المحفوظ للمعمل. احتفظ بها في مكان آمن.');
   } catch (e) { notice(e.message || 'تعذر إنشاء النسخة المحلية.', true); }
 }
 function documentCreateLink(url, filename) { const a = document.createElement('a'); a.href = url; a.download = filename; return a; }
@@ -88,7 +88,7 @@ async function importBackup(file) {
   try {
     const document = JSON.parse(await file.text());
     const result = await restoreLocalBackup(document, { tenantId: state.tenant.id, branchId: state.branch.id });
-    notice(`تمت الاستعادة المحلية: ${result.restoredRows} سجلًا عبر ${result.restoredTables} جداول.`);
+    notice(`تمت الاستعادة المحلية: ${result.restoredRows} سجلًا عبر ${result.restoredTables} جداول. الأرشيف التاريخي: ${result.historicalWorkbooksRestored||0} ملف مستعاد، ${result.historicalWorkbooksSkipped||0} ملف محفوظ مسبقًا.`);
     await refresh();
   } catch (e) { notice(e.message || 'فشلت الاستعادة. لم يتم اعتماد الملف.', true); }
   finally { $('backupFile').value = ''; }
