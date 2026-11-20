@@ -2,8 +2,12 @@ import {getSupabaseClient} from '../../core/supabase-client.js';
 const db=()=>getSupabaseClient(),BUCKET='tenant-backups';
 export async function listCloudBackups({tenantId,branchId=null,limit=30}={}) {
  if(!tenantId)throw new Error('tenantId is required.');
- const {data,error}=await db().from('backup_runs').select('id,tenant_id,backup_type,storage_path,manifest,status,created_at,completed_at').eq('tenant_id',tenantId).eq('backup_type','manual_export').eq('status','completed').order('created_at',{ascending:false}).limit(Math.min(100,Math.max(1,Number(limit)||30)));
- if(error)throw error;return (data||[]).filter(x=>!branchId||x.manifest?.branch_id===branchId);
+ let query=db().from('backup_runs').select('id,tenant_id,backup_type,storage_path,manifest,status,created_at,completed_at').eq('tenant_id',tenantId).eq('backup_type','manual_export').eq('status','completed');
+ // Filter the JSONB branch scope in Postgres before applying the limit. Client-side filtering
+ // after a tenant-wide limit could hide this branch's older backups when other branches are busy.
+ if(branchId)query=query.contains('manifest',{branch_id:branchId});
+ const {data,error}=await query.order('created_at',{ascending:false}).limit(Math.min(100,Math.max(1,Number(limit)||30)));
+ if(error)throw error;return data||[];
 }
 /** Cloud copy of this browser's local snapshot, not a full server database backup. */
 export async function createCloudBackup({tenantId,branchId,branchName='',document}={}) {
