@@ -34,3 +34,11 @@
 .history-period-global{border-inline-start:4px solid #568493;margin-top:14px}
 .history-period-global h3{margin:0 0 5px;font-size:15px}
 .history-period-global label{max-width:260px}
+
+.owner-insight-list{margin:12px 0 0;padding-inline-start:22px;line-height:1.9;color:#344b56;font-size:13px}
+.owner-insight-list li{padding:4px 0}
+.expense-breakdown-chart{display:grid;gap:12px;margin:14px 0 18px}
+.expense-bar-row>div:first-child{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#445a65;margin-bottom:6px}
+.expense-bar-row strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+.expense-bar-track{height:9px;background:#edf2f4;border-radius:20px;overflow:hidden}
+.expense-bar-track span{display:block;height:100%;background:#43879a;border-radius:20px;min-width:2px}
