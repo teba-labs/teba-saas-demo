@@ -20,7 +20,7 @@ test('archive import is owner-only, review-first and linked from settings',()=>{
  assert.match(inspector,/workbook\.SheetNames\.map/);
  assert.match(inspector,/blankrows: true/);
  assert.match(inspector,/sha256/);
- assert.match(inspector,/20 \* 1024 \* 1024/);
+ assert.match(inspector,/50 \* 1024 \* 1024/);
  assert.match(settings,/data-import\.html/);
  assert.doesNotMatch(inspector,/fetch\(|\.from\(['"]|\.rpc\(/);
 });
