@@ -27,11 +27,11 @@ begin
   v_has_billing := found;
   if v_has_billing then
     if coalesce(v_discount,0)>v_gross then raise exception 'Existing visit discount exceeds the updated gross total'; end if;
-    update public.visit_billing set gross_total=v_gross,net_total=v_gross-coalesce(v_discount,0)
+    update public.visit_billing set gross_total=v_gross
      where visit_id=p_visit_id and tenant_id=p_tenant_id and branch_id=p_branch_id;
   else
-    insert into public.visit_billing(tenant_id,branch_id,visit_id,gross_total,discount_amount,net_total,created_by)
-    values(p_tenant_id,p_branch_id,p_visit_id,v_gross,0,v_gross,auth.uid());
+    insert into public.visit_billing(tenant_id,branch_id,visit_id,gross_total,discount_amount,created_by)
+    values(p_tenant_id,p_branch_id,p_visit_id,v_gross,0,auth.uid());
   end if;
 end;
 $function$;
