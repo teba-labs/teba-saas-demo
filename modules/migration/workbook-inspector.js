@@ -152,7 +152,7 @@ function dateStatus(value) {
 export function inspectLegacyDate(value) {
   const raw=value===undefined||value===null?'':String(value).trim();
   if(!raw)return {raw,status:'empty',isoDate:null};
-  let m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  let m=raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T].*)?$/);
   if(m){const y=+m[1],mo=+m[2],d=+m[3],dt=new Date(Date.UTC(y,mo-1,d));const valid=dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d;return {raw,status:valid?'valid':'invalid',isoDate:valid?raw:null};}
   m=raw.match(/^(\d{1,2})[\/. -](\d{1,2})[\/. -](\d{4})$/);
   if(m){const a=+m[1],b=+m[2],y=+m[3];if(a>=1&&a<=12&&b>=1&&b<=12)return {raw,status:'ambiguous',isoDate:null};const day=a>12?a:b,month=a>12?b:a;const dt=new Date(Date.UTC(y,month-1,day));const valid=dt.getUTCFullYear()===y&&dt.getUTCMonth()===month-1&&dt.getUTCDate()===day;return {raw,status:valid?'valid':'invalid',isoDate:valid?dt.toISOString().slice(0,10):null};}
