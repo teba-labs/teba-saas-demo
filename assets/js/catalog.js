@@ -87,4 +87,55 @@ $('masterCatalogList').addEventListener('click',async e=>{
 });
 $('priceBranchSelect').addEventListener('change',()=>loadPrice());
 $('priceForm').addEventListener('submit',async e=>{e.preventDefault();if(state.role!=='owner'||!state.selectedTest)return;const form=e.currentTarget;setBusy(form,true);try{requireOnline();const value=Number($('newPrice').value);if(!Number.isFinite(value)||value<0)throw new Error('أدخل سعرًا صحيحًا غير سالب.');const branchId=$('priceBranchSelect').value||null;const saved=branchId?await setBranchPrice({tenantId:state.tenant.id,branchId,testId:state.selectedTest,sellingPrice:value}):await setCurrentPrice({tenantId:state.tenant.id,testId:state.selectedTest,sellingPrice:value});state.prices.set(priceKey(state.selectedTest,branchId),saved);await loadPrice();notice(branchId?'تم تحديث سعر الفرع.':'تم تحديث السعر الأساسي.');}catch(err){notice(err.message||'تعذر تحديث السعر.',true);}finally{setBusy(form,false);}});
+
+// Keyboard-first workflow: Enter advances through form controls; Up/Down move between
+// single-line fields and result lists. Native textareas and select controls keep their
+// normal cursor/option behavior.
+function installCatalogKeyboardNavigation(){
+ const focusable=form=>[...form.querySelectorAll('input:not([type="hidden"]):not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled])')]
+  .filter(el=>!el.hidden&&el.getClientRects().length>0);
+ for(const formId of ['loginForm','testForm','parameterForm','priceForm']){
+  const form=$(formId);if(!form)continue;
+  form.addEventListener('keydown',event=>{
+   const target=event.target;
+   if(event.key==='Enter' && target.matches('input:not([type="submit"]):not([type="button"]),select') && target.type!=='search'){
+    event.preventDefault();
+    const items=focusable(form);const index=items.indexOf(target);
+    const next=items[index+1];
+    if(next)next.focus();
+    else form.querySelector('button[type="submit"],button:not([type])')?.focus();
+    return;
+   }
+   if((event.key==='ArrowDown'||event.key==='ArrowUp') &&
+      target.matches('input[type="text"],input[type="email"],input[type="tel"],input[type="search"]')){
+    event.preventDefault();
+    const items=focusable(form);const index=items.indexOf(target);
+    items[Math.max(0,Math.min(items.length-1,index+(event.key==='ArrowDown'?1:-1)))]?.focus();
+   }
+  });
+ }
+ const bindList=(id,selector)=>{
+  const host=$(id);if(!host)return;
+  host.addEventListener('keydown',event=>{
+   if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;
+   const items=[...host.querySelectorAll(selector)].filter(el=>!el.disabled&&el.getClientRects().length>0);
+   if(!items.length)return;
+   const current=items.indexOf(document.activeElement);
+   let next=current<0?0:current;
+   if(event.key==='ArrowDown')next=Math.min(items.length-1,next+1);
+   if(event.key==='ArrowUp')next=Math.max(0,next-1);
+   if(event.key==='Home')next=0;
+   if(event.key==='End')next=items.length-1;
+   event.preventDefault();items[next].focus();
+  });
+ };
+ bindList('testList','button[data-id]');
+ bindList('masterCatalogList','button[data-import-master]');
+ bindList('parameterList','button[data-edit-param],button[data-toggle-param]');
+ const focusFirst=(id,selector)=>$(id)?.querySelector(selector+':not([disabled])')?.focus();
+ $('search')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();focusFirst('testList','button[data-id]');}});
+ $('masterCatalogSearch')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();focusFirst('masterCatalogList','button[data-import-master]');}});
+}
+installCatalogKeyboardNavigation();
+
 try{await start();}catch(e){notice(e.message||'تعذر تحميل كتالوج المعمل.',true);}
