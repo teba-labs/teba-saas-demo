@@ -31,8 +31,9 @@ test('launcher exposes core operations to staff and reserves owner controls', ()
   assert.match(js, /href:'workday\.html'.*roles:\['owner','staff'\]/);
   assert.match(js, /href:'sync-center\.html'.*roles:\['owner','staff'\]/);
   assert.match(js, /\$\('ownerArea'\)\.hidden = role !== 'owner'/);
-  assert.match(js, /إعدادات النظام/);
-  assert.match(js, /إدارة موقع المعمل/);
+  const html = read('app/index.html');
+  assert.match(html, /إعدادات النظام/);
+  assert.match(html, /إدارة موقع المعمل/);
 });
 
 test('launcher provides a responsive medical workspace and live operational status', () => {
