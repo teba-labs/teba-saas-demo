@@ -79,3 +79,15 @@ export async function correctCompletedVisitResult({tenantId,branchId,visitTestId
   });
   if(error)throw error;return data;
 }
+
+/** Correct one completed result with its recalculated flag; preserves the previous published report version. */
+export async function correctVisitResultWithFlag({tenantId,branchId,visitTestId,resultId,valueNumeric,valueText,flag,reason,staffId}={}) {
+  if(!tenantId||!branchId||!visitTestId||!resultId||!staffId||!String(reason||'').trim()) throw new Error('بيانات تصحيح النتيجة غير مكتملة.');
+  if((valueNumeric==null)===(valueText==null)) throw new Error('أدخل قيمة رقمية أو نصية واحدة فقط.');
+  if(globalThis.navigator?.onLine===false) throw new Error('تصحيح نتيجة محفوظة يحتاج اتصالًا بالإنترنت.');
+  const {data,error}=await getSupabaseClient().rpc('correct_visit_result_with_flag',{
+    p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTestId,p_result_id:resultId,
+    p_value_numeric:valueNumeric,p_value_text:valueText,p_flag:flag??null,p_reason:String(reason).trim(),p_staff_id:staffId,
+  });
+  if(error)throw error;return data;
+}
