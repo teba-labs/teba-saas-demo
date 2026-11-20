@@ -125,7 +125,8 @@ async function renderWork() {
         } else {
           control = `<input type="text" ${metadata} placeholder="أدخل النتيجة" />`;
         }
-        return `<label>${name}${p.is_required === false ? ' (اختياري)' : ''}<small>${escapeHtml(p.unit ?? '')} ${escapeHtml(p.reference_ranges?.text ?? '')}</small>${control}</label>`;
+        const rangeText = resolveReferenceRange(p.reference_ranges, item.visits?.patients || {}, p.reference_interval_status);
+        return `<label>${name}${p.is_required === false ? ' (اختياري)' : ''}<small>${escapeHtml(p.unit ?? '')} ${escapeHtml(rangeText)}</small>${control}</label>`;
       }).join('')}</fieldset>`).join('');
       const isCulture = ['CULTURE_URINE','CULTURE_STOOL'].includes(item.test_code_snapshot);
       const cultureEditor = isCulture ? `<section class="culture-workflow" data-culture-workflow="${escapeHtml(item.id)}"><h3>العزلات والاختبار الحساسي (Antibiogram)</h3><p class="muted">أضف كل عزلة منفصلة. أدخل تفسير الحساسية وفق إصدار CLSI/EUCAST والطريقة المعتمدة في المعمل؛ النظام لا يخمّن نقاط القطع.</p><div class="culture-isolates" data-culture-isolates="${escapeHtml(item.id)}"><p class="muted">جارٍ تحميل العزلات…</p></div>${!locked && !isPublished ? `<form class="culture-isolate-form" data-visit-test-id="${escapeHtml(item.id)}"><label>رقم العزلة<input name="isolateNumber" type="number" min="1" max="20" value="1" required></label><label>اسم الكائن الممرض / العزلة<input name="organismName" maxlength="200" required placeholder="مثال: Escherichia coli"></label><label>وصف النمو<input name="growthDescription" placeholder="Pure growth / mixed growth"></label><label>عدد المستعمرات<input name="colonyCount" type="number" min="0" step="any"></label><label>وحدة العد<input name="colonyCountUnit" value="CFU/mL"></label><label>طريقة التعريف<input name="identificationMethod" placeholder="Biochemical / MALDI-TOF / Automated"></label><label class="wide">ملاحظات<textarea name="notes" rows="2"></textarea></label><button class="button" type="submit">حفظ العزلة</button></form>` : ''}</section>` : '';
@@ -185,6 +186,29 @@ async function renderWork() {
   }
 }
 
+
+function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
+  if (status === 'local_verification_required') return 'المدى المرجعي يحتاج تحققًا محليًا حسب الجهاز والطريقة';
+  if (status === 'not_applicable') return 'لا ينطبق';
+  if (Array.isArray(value)) {
+    const age = patient?.age_years == null ? null : Number(patient.age_years);
+    const sex = String(patient?.sex || '').toLowerCase();
+    const matches = value.filter(range => {
+      if (range.pregnancy) return false;
+      if (range.sex && String(range.sex).toLowerCase() !== sex) return false;
+      if (range.age) {
+        if (age === null || (range.age.unit && !['year','years','y'].includes(String(range.age.unit).toLowerCase()))) return false;
+        if (range.age.min != null && age < Number(range.age.min)) return false;
+        if (range.age.max != null && age > Number(range.age.max)) return false;
+      }
+      return true;
+    });
+    if (matches.length === 1) return formatReferenceRange(matches[0]);
+    if (!matches.length && value.length === 1 && !value[0].age && !value[0].sex && !value[0].pregnancy) return formatReferenceRange(value[0]);
+    return matches.length > 1 ? 'أكثر من مدى ينطبق؛ يلزم تحديد الفئة' : 'لا يوجد مدى مطابق لعمر/نوع المريض';
+  }
+  return formatReferenceRange(value);
+}
 
 function formatReferenceRange(value) {
   if (value === null || value === undefined || value === '') return '—';
@@ -276,7 +300,7 @@ async function printVisitReport(visitId, win) {
       const parameterName = result.parameter_name_snapshot || parameter.name || parameter.parameter_name || code;
       const value = result.value_numeric ?? result.value_text ?? '—';
       const unit = result.unit_snapshot || parameter.unit || '';
-      const reference = formatReferenceRange(result.reference_range_snapshot ?? parameter.reference_ranges);
+      const reference = resolveReferenceRange(result.reference_range_snapshot ?? parameter.reference_ranges, patient, parameter.reference_interval_status);
       const flag = result.flag ? ' · ' + result.flag : '';
       return '<tr><td>' + escapeHtml(parameterName) + '</td><td>' + escapeHtml(value) + '</td><td>' + escapeHtml(unit) + '</td><td>' + escapeHtml(reference) + '</td><td>' + escapeHtml(flag) + '</td></tr>';
     }).filter(Boolean).join('');
