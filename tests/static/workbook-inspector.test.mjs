@@ -6,11 +6,12 @@ import {inferSheetType,suggestColumnMapping,getEntityFields,rankHeaderCandidates
 const root=path.resolve(import.meta.dirname,'../..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
-test('archive preflight is owner-only, local-only and linked from settings',()=>{
+test('archive import is owner-only, review-first and linked from settings',()=>{
  const html=read('app/data-import.html'),js=read('assets/js/data-import.js'),inspector=read('modules/migration/workbook-inspector.js'),settings=read('app/settings.html');
  assert.match(html,/فحص شامل واستيراد محدود آمن/);
- assert.match(html,/المعاينة محلية/);
- assert.match(html,/بقية أنواع البيانات تظل معاينة دون ترحيل/);
+ assert.match(html,/استيراد نتائج المعمل السابقة/);
+ assert.match(html,/لا يُرفع الملف إلا عند اعتماد النتائج التاريخية/);
+ assert.match(html,/historicalBranch/);
  assert.match(js,/accountType==='owner'/);
  assert.match(js,/inspectWorkbookFile/);
  assert.match(js,/headerRowSelect/);
@@ -19,7 +20,7 @@ test('archive preflight is owner-only, local-only and linked from settings',()=>
  assert.match(inspector,/workbook\.SheetNames\.map/);
  assert.match(inspector,/blankrows: true/);
  assert.match(inspector,/sha256/);
- assert.match(inspector,/20 \* 1024 \* 1024/);
+ assert.match(inspector,/50 \* 1024 \* 1024/);
  assert.match(settings,/data-import\.html/);
  assert.doesNotMatch(inspector,/fetch\(|\.from\(['"]|\.rpc\(/);
 });
@@ -56,21 +57,25 @@ test('required fields are explicitly identified for each supported entity',()=>{
  assert.deepEqual(getEntityFields('unknown'),[]);
 });
 
-test('mapping review stays in-memory and imports are restricted to catalog and base prices',()=>{
+test('mapping review stays in-memory until explicit historical, catalog or price import',()=>{
  const js=read('assets/js/data-import.js'),html=read('app/data-import.html');
  assert.match(js,/suggestColumnMapping/);
  assert.match(js,/addEventListener\('change'/);
  assert.match(js,/columnMapping/);
- assert.match(js,/تغييرات مؤقتة داخل الصفحة فقط/);
+ assert.match(js,/findHistoricalPatientCandidates/);
+ assert.match(js,/importHistoricalResults/);
+ assert.match(js,/importNewCatalogTests/);
+ assert.match(js,/importNewBasePrices/);
  assert.doesNotMatch(js,/localStorage|sessionStorage|\.from\(|\.rpc\(|fetch\(/);
  assert.match(js,/importNewBasePrices/);
- assert.match(html,/أسعار البيع العامة/);
+ assert.match(html,/فرع حفظ النتائج التاريخية/);
+ assert.match(html,/الأسعار الجديدة/);
 });
 
 test('file guards and workbook sheet limit remain enforced',()=>{
  const inspector=read('modules/migration/workbook-inspector.js');
- assert.match(inspector,/MAX_FILE_BYTES = 20 \* 1024 \* 1024/);
- assert.match(inspector,/MAX_SHEETS = 50/);
+ assert.match(inspector,/MAX_FILE_BYTES = 50 \* 1024 \* 1024/);
+ assert.match(inspector,/MAX_SHEETS = 200/);
  assert.match(inspector,/fileSize > MAX_FILE_BYTES/);
  assert.match(inspector,/count > MAX_SHEETS/);
  assert.match(inspector,/slice\(0, 15\)/);
@@ -94,17 +99,17 @@ test('synthetic multi-sheet names retain distinct entity classifications',()=>{
  assert.deepEqual(sheets.map(inferSheetType),['patients','visits','visit_tests','test_results','ledger','catalog','prices','expenses','website']);
 });
 
-test('archive file validation rejects malformed extensions, empty files and files above 20 MB',()=>{
- assert.equal(validateArchiveFileMeta('backup.xlsx',20*1024*1024),true);
+test('archive file validation rejects malformed extensions, empty files and files above 50 MB',()=>{
+ assert.equal(validateArchiveFileMeta('backup.xlsx',50*1024*1024),true);
  assert.throws(()=>validateArchiveFileMeta('backup.pdf',100),/الملفات المدعومة/);
  assert.throws(()=>validateArchiveFileMeta('empty.csv',0),/حجم الملف/);
- assert.throws(()=>validateArchiveFileMeta('oversized.xlsx',20*1024*1024+1),/حجم الملف/);
+ assert.throws(()=>validateArchiveFileMeta('oversized.xlsx',50*1024*1024+1),/حجم الملف/);
 });
 
 test('sheet-count guard rejects empty or over-limit workbooks',()=>{
- assert.equal(validateSheetCount(50),true);
+ assert.equal(validateSheetCount(200),true);
  assert.throws(()=>validateSheetCount(0),/عدد أوراق العمل/);
- assert.throws(()=>validateSheetCount(51),/عدد أوراق العمل/);
+ assert.throws(()=>validateSheetCount(201),/عدد أوراق العمل/);
 });
 
 test('synthetic patient rows detect missing required values, duplicate IDs and invalid numbers',async()=>{

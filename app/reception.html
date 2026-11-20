@@ -1,42 +1,124 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light"><title>Taiba Smart Lab | الاستقبال</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#123b46">
+  <title>Taiba Smart Lab | الاستقبال</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="../assets/css/reception.css">
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('../service-worker.js').catch(()=>{}));}</script></head>
+  <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('../service-worker.js').catch(()=>{}));}</script>
+</head>
 <body>
-<header class="topbar"><div><strong>Taiba Smart Lab</strong><span>الاستقبال · تسجيل المرضى والزيارات</span></div><a href="index.html" style="color:#fff;font-size:13px;margin-inline:10px">الرئيسية</a><a href="sync-center.html" style="color:#fff;font-size:13px">المزامنة والنسخ المحلي</a><button id="signOut" class="button button-quiet" hidden>تسجيل الخروج</button></header>
+<header class="topbar">
+  <a class="brand" href="index.html"><span class="brand-mark">T</span><span><strong>Taiba Smart Lab</strong><small>الاستقبال وإدارة الزيارات</small></span></a>
+  <nav class="top-actions" aria-label="التنقل">
+    <a href="index.html">الرئيسية</a>
+    <a href="workday.html">يوم العمل</a>\n    <a href="sync-center.html">المزامنة</a>
+    <button id="signOut" class="button button-outline" type="button" hidden>تسجيل الخروج</button>
+  </nav>
+</header>
 <main class="shell">
-  <section id="loginPanel" class="panel login-panel"><h1>تسجيل دخول المعمل</h1><p class="muted">استخدم حساب المعمل على مشروع الاختبار فقط.</p><form id="loginForm" class="stack"><label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label><label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label><button class="button" type="submit">دخول</button></form></section>
-  <section id="workspace" hidden><p id="pendingSyncNotice" class="status bad" hidden>هناك عمليات محفوظة على هذا الجهاز تنتظر المزامنة. افتح <a href="sync-center.html">مركز المزامنة والنسخ المحلي</a> عند عودة الاتصال.</p>
-    <section class="panel"><h1>بيانات الفرع والشفت</h1><div class="selectors"><label>المعمل<select id="tenantSelect"></select></label><label>الفرع<select id="branchSelect"></select></label><label>اسم الموظف<select id="staffSelect"></select></label></div><p id="workdayStatus" class="status" role="status">جارٍ التحقق من يوم العمل…</p></section>
-    <section id="intakePanel" class="panel" hidden>
-      <div class="section-head"><div><h2>1. بيانات المريض</h2><p class="muted">ابحث داخل الفرع الحالي فقط، أو سجّل مريضًا جديدًا.</p></div></div>
-      <label>بحث بالاسم أو رقم الهاتف<input id="patientSearch" placeholder="اكتب حرفين على الأقل من الاسم أو الهاتف" autocomplete="off"></label>
-      <div id="patientMatches" class="matches"><p class="muted">ابدأ البحث لاختيار مريض.</p></div>
-      <div id="selectedPatient" class="selected" hidden></div>
-      <section id="patientHistoricalPanel" class="historical-results-panel" hidden><div class="section-head"><div><h3>النتائج التاريخية السابقة</h3><p class="muted">سجلات قديمة منفصلة عن الزيارات الجديدة. لا تدخل في الفاتورة أو التقرير الحالي تلقائيًا.</p></div></div><div id="patientHistoricalList"></div></section>
-      <details id="newPatientDetails"><summary>تسجيل مريض جديد</summary>
-        <div class="form-grid"><label>اسم المريض *<input id="patientName" maxlength="160" required></label><label>رقم الهاتف<input id="patientPhone" inputmode="tel" maxlength="30"></label><label>العمر بالسنوات<input id="patientAge" type="number" min="0" max="120" step="0.01"></label><label>النوع<select id="patientSex"><option value="unknown">غير محدد</option><option value="male">ذكر</option><option value="female">أنثى</option><option value="other">آخر</option></select></label></div>
-        <button id="createPatient" class="button button-secondary" type="button">حفظ واختيار المريض</button>
-      </details>
-      <div class="divider"></div>
-      <h2>2. الزيارة والتحاليل</h2>
-      <div class="form-grid"><label>رقم الزيارة *<input id="visitNumber" maxlength="40" placeholder="أدخل رقمًا فريدًا لهذا الفرع"></label><label>الطبيب / جهة التحويل<input id="referredBy" maxlength="160"></label></div>
-      <label>ملاحظات الزيارة<textarea id="visitNotes" rows="2" maxlength="1000"></textarea></label>
-      <label>بحث في قائمة التحاليل<input id="catalogSearch" placeholder="ابحث باسم التحليل أو الكود"></label>
-      <div id="catalogList" class="catalog-list"><p class="muted">جارٍ تحميل قائمة التحاليل…</p></div>
-      <div class="billing"><div><span>إجمالي التحاليل</span><strong id="grossTotal">0.00 ج.م</strong></div><div><span>الخصم</span><label class="inline-input"><input id="discount" type="number" min="0" step="0.01" value="0"><small>ج.م</small></label></div><div><span>صافي الفاتورة</span><strong id="netTotal">0.00 ج.م</strong></div><div><span>المدفوع الآن (اختياري)</span><label class="inline-input"><input id="initialPayment" type="number" min="0" step="0.01" value="0"><small>ج.م</small></label></div></div>
-      <label>طريقة تحصيل الدفعة الأولى<select id="initialPaymentMethod"><option value="cash">نقدي</option><option value="card">بطاقة</option><option value="wallet">محفظة إلكترونية</option><option value="bank_transfer">تحويل بنكي</option><option value="other">أخرى</option></select></label>
-      <div class="actions"><button id="createVisit" class="button" type="button" disabled>تسجيل الزيارة والفاتورة</button><button id="resetSelection" class="button button-quiet-dark" type="button">مسح الاختيارات</button></div>
-      <p class="danger-note">لن يتم تسجيل الزيارة إذا لم يكن يوم العمل مفتوحًا، أو لم يكن للمريض اختيار، أو لم تُحدد تحاليل لها سعر نشط ومعاملات فنية معرفة.</p>
+  <section id="loginPanel" class="panel login-panel">
+    <div class="login-symbol">T</div><span class="eyebrow">Taiba Smart Lab</span>
+    <h1>تسجيل دخول المعمل</h1><p class="muted">استخدم حساب المعمل المخصص لك.</p>
+    <form id="loginForm" class="stack">
+      <label for="email">البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label>
+      <label for="password">كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label>
+      <button class="button button-primary" type="submit">دخول إلى الاستقبال</button>
+    </form>
+  </section>
+  <section id="workspace" hidden>
+    <section class="workspace-context panel">
+      <div class="context-title"><span class="eyebrow">التشغيل اليومي</span><h1>استقبال المرضى</h1><p class="muted">تسجيل المريض والزيارة والتحاليل والحسابات في مسار واحد.</p></div>
+      <div class="selectors">
+        <label>المعمل<select id="tenantSelect" aria-label="المعمل"></select></label>
+        <label>الفرع<select id="branchSelect" aria-label="الفرع"></select></label>
+        <label>اسم الموظف<select id="staffSelect" aria-label="الموظف"></select></label>
+      </div>
+      <p id="workdayStatus" class="status" role="status">جارٍ التحقق من يوم العمل…</p>
     </section>
-    <section id="recentPanel" class="panel"><div class="section-head"><div><h2>آخر الزيارات المسجلة</h2><p class="muted">سجل الفرع الحالي فقط.</p></div><button id="refreshRecent" class="button button-secondary">تحديث</button></div><div id="recentVisits" class="matches"><p class="muted">اختر الفرع لعرض الزيارات.</p></div></section>
-    <section id="paymentReceipt" class="panel" hidden><div id="paymentReceiptContent"></div><div class="actions print-actions"><button id="printPaymentReceipt" class="button button-secondary" type="button">طباعة إيصال التحصيل</button></div></section>
-    <section id="balancePanel" class="panel"><div class="section-head"><div><h2>المديونيات والتحصيلات اللاحقة</h2><p class="muted">اعرض الزيارات ذات الرصيد المتبقي وسجل دفعة جديدة دون تعديل الفاتورة الأصلية.</p></div><button id="refreshBalances" class="button button-secondary" type="button">تحديث المديونيات</button></div><div id="balancesList" class="matches"><p class="muted">اختر الفرع لعرض الأرصدة.</p></div></section>
+    <p id="pendingSyncNotice" class="status bad" hidden>توجد عمليات محفوظة على هذا الجهاز تنتظر المزامنة. افتح <a href="sync-center.html">مركز المزامنة</a> لمتابعتها.</p>
+
+    <section id="intakePanel" class="panel intake-panel" hidden>
+      <div class="panel-heading">
+        <div><span class="step-kicker">مسار تسجيل الزيارة</span><h2>تسجيل مريض وزيارة جديدة</h2><p class="muted">املأ البيانات بالترتيب، ويمكنك استخدام لوحة المفاتيح من أول خانة حتى الحفظ.</p></div>
+        <span class="workday-chip" id="intakeWorkdayChip">يوم العمل</span>
+      </div>
+      <div class="section-divider"><span>01</span><div><h3>بيانات المريض</h3><p>ابحث عن مريض مسجل أو أضف مريضًا جديدًا.</p></div></div>
+      <label for="patientSearch">البحث عن مريض بالاسم أو رقم الهاتف</label>
+      <input id="patientSearch" type="search" placeholder="اكتب حرفين على الأقل من الاسم أو الهاتف" autocomplete="off">
+      <div id="patientMatches" class="matches" role="listbox" aria-label="نتائج البحث عن المرضى"><p class="muted">ابدأ البحث لاختيار مريض مسجل.</p></div>
+      <div id="selectedPatient" class="selected" hidden></div>
+      <section id="patientHistoricalPanel" class="historical-results-panel" hidden><div class="section-head"><div><h3>النتائج التاريخية السابقة</h3><p class="muted">نتائج قديمة للرجوع إليها فقط، ولا تدخل في الزيارة الحالية.</p></div></div><div id="patientHistoricalList"></div></section>
+
+      <details id="newPatientDetails" class="new-patient-box">
+        <summary>＋ تسجيل مريض جديد</summary>
+        <form id="newPatientForm" class="new-patient-form">
+          <div class="form-grid patient-fields">
+            <label for="patientName">اسم المريض <b>*</b><input id="patientName" maxlength="160" required autocomplete="off" placeholder="الاسم بالكامل"></label>
+            <label for="patientPhone">رقم الهاتف<input id="patientPhone" type="tel" inputmode="tel" maxlength="30" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
+            <label for="patientAge">العمر
+              <span class="age-control"><input id="patientAge" type="number" min="0" step="any" inputmode="decimal" placeholder="مثال: 5"><select id="patientAgeUnit" aria-label="وحدة العمر"><option value="years">سنة</option><option value="months">شهر</option><option value="days">يوم</option></select></span>
+            </label>
+            <label for="patientSex">النوع<select id="patientSex" required><option value="" disabled selected>اختر النوع</option><option value="male">ذكر</option><option value="female">أنثى</option><option value="unknown">غير محدد</option></select></label>
+          </div>
+          <div class="generated-fields"><label for="patientNumberPreview">كود المريض (تلقائي)<input id="patientNumberPreview" readonly tabindex="-1"></label><span class="generated-note">يُنشأ كود فريد عند الحفظ</span></div>
+          <div class="actions"><button id="createPatient" class="button button-secondary" type="submit">حفظ المريض واختياره</button><button id="cancelNewPatient" class="button button-ghost" type="button">إلغاء</button></div>
+        </form>
+      </details>
+
+      <div class="section-divider"><span>02</span><div><h3>بيانات الزيارة</h3><p>رقم الزيارة وتاريخ يوم العمل يتم إنشاؤهما تلقائيًا.</p></div></div>
+      <div class="form-grid visit-meta">
+        <label for="visitNumber">رقم الزيارة (تلقائي)<input id="visitNumber" readonly></label>
+        <label for="visitDate">تاريخ الزيارة<input id="visitDate" readonly></label>
+        <label for="referredBy">الطبيب / جهة التحويل<input id="referredBy" maxlength="160" placeholder="اختياري"></label>
+      </div>
+      <label for="visitNotes">ملاحظات طبية أو إدارية<textarea id="visitNotes" rows="2" maxlength="1000" placeholder="أي ملاحظات تخص الزيارة…"></textarea></label>
+
+      <div class="section-divider"><span>03</span><div><h3>اختيار التحاليل</h3><p>ابحث في الكتالوج وحدد تحليلًا أو أكثر؛ السعر يظهر بجوار كل تحليل.</p></div></div>
+      <label for="catalogSearch">بحث في كتالوج التحاليل</label>
+      <input id="catalogSearch" type="search" placeholder="اسم التحليل أو الكود…">
+      <div class="catalog-toolbar"><span id="catalogCount">قائمة التحاليل</span><span id="selectedCount">لم يتم اختيار تحاليل</span></div>
+      <div id="catalogList" class="catalog-list" data-keyboard-list><p class="muted">جارٍ تحميل قائمة التحاليل…</p></div>
+
+      <div class="section-divider"><span>04</span><div><h3>الحسابات والتحصيل</h3><p>راجع الإجمالي والخصم والمبلغ المدفوع قبل الحفظ.</p></div></div>
+      <div class="billing">
+        <div><span>إجمالي التحاليل</span><strong id="grossTotal">0.00 ج.م</strong></div>
+        <label for="discount">الخصم (ج.م)<input id="discount" type="number" min="0" step="0.01" value="0"></label>
+        <div class="net-box"><span>صافي الفاتورة</span><strong id="netTotal">0.00 ج.م</strong></div>
+        <label for="initialPayment">المدفوع الآن (ج.م)<input id="initialPayment" type="number" min="0" step="0.01" value="0"></label>
+        <div class="remaining-box"><span>المتبقي</span><strong id="remainingTotal">0.00 ج.م</strong></div>
+        <label for="initialPaymentMethod">طريقة الدفع<select id="initialPaymentMethod"><option value="cash">نقدي</option><option value="card">بطاقة</option><option value="wallet">محفظة إلكترونية</option><option value="bank_transfer">تحويل بنكي</option><option value="other">أخرى</option></select></label>
+      </div>
+      <div class="actions main-actions">
+        <button id="createVisit" class="button button-primary" type="button" disabled>حفظ الزيارة والفاتورة</button>
+        <button id="resetSelection" class="button button-ghost" type="button">مسح التحاليل المختارة</button>
+        <button id="clearIntake" class="button button-ghost" type="button">بدء تسجيل جديد</button>
+      </div>
+      <p class="danger-note">لا يمكن الحفظ دون يوم عمل مفتوح ومريض مختار وتحاليل لها سعر نشط ومعاملات فنية معتمدة.</p>
+      <section id="postSaveActions" class="post-save-actions" hidden aria-live="polite">
+        <div><strong id="postSaveTitle">تم حفظ الزيارة بنجاح</strong><p id="postSaveDetail">اختر الخطوة التالية.</p></div>
+        <div class="actions"><button id="goToResults" class="button button-primary" type="button">الانتقال لتسجيل النتائج</button><button id="newPatientAfterSave" class="button button-secondary" type="button">تسجيل مريض جديد</button></div>
+      </section>
+    </section>
+
+    <section id="recentPanel" class="panel">
+      <div class="section-head"><div><span class="step-kicker">متابعة الفرع</span><h2>آخر الزيارات المسجلة</h2><p class="muted">آخر الزيارات التي تم تسجيلها في الفرع الحالي.</p></div><button id="refreshRecent" class="button button-secondary" type="button">تحديث القائمة</button></div>
+      <div id="recentVisits" class="matches"><p class="muted">اختر الفرع لعرض الزيارات.</p></div>
+    </section>
+    <section id="paymentReceipt" class="panel receipt-panel" hidden><div id="paymentReceiptContent"></div><div class="actions print-actions"><button id="printPaymentReceipt" class="button button-secondary" type="button">طباعة إيصال التحصيل</button></div></section>
+    <section id="balancePanel" class="panel">
+      <div class="section-head"><div><span class="step-kicker">الحسابات</span><h2>المديونيات والتحصيلات اللاحقة</h2><p class="muted">اعرض الزيارات ذات الرصيد المتبقي وسجل دفعة جديدة دون تعديل الفاتورة الأصلية.</p></div><button id="refreshBalances" class="button button-secondary" type="button">تحديث المديونيات</button></div>
+      <div id="balancesList" class="matches"><p class="muted">اختر الفرع لعرض الأرصدة.</p></div>
+    </section>
   </section>
   <div id="notice" class="notice" role="status" aria-live="polite"></div>
-</main><script type="module" src="../assets/js/tenant-branding.js"></script><script type="module" src="../assets/js/reception.js"></script>
+</main>
+<script type="module" src="../assets/js/tenant-branding.js"></script>
+<script type="module" src="../assets/js/reception.js"></script>
 <script type="module" src="../modules/ui/keyboard-navigation.js"></script>
-</body></html>
+</body>
+</html>

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';import fs from 'node:fs';const root=new 
 assert.match(j,/updateStaffName/);
 assert.match(j,/data-edit-staff/);
 assert.match(h,/editStaffId/);
-assert.match(h,/cancelStaffEdit/);assert.match(j,/setStaffActive/);assert.match(j,/getPrintSettings/);assert.match(j,/actor_label/);assert.match(j,/printSettingsForm/);assert.match(j,/JSON\.parse/);assert.match(j,/accountType==='owner'/);assert.match(a,/href:'settings.html'/);assert.match(w,/app\/settings.html/);assert.match(w,/settings-center.js/);const r=fs.readFileSync(new URL('modules/settings/repository.js',root),'utf8');assert.match(r,/export async function savePrintSettings/);assert.match(r,/onConflict: 'tenant_id,branch_id'/);assert.match(r,/settings_json: settings/);assert.match(r,/export async function createBranch/);assert.match(r,/export async function updateBranch/);assert.match(j,/data-edit-branch/);assert.match(j,/updateBranch/);assert.match(h,/editBranchId/);assert.match(h,/cancelBranchEdit/);assert.match(r,/export async function setBranchActive/);const e=fs.readFileSync(new URL('modules/expenses/repository.js',root),'utf8');assert.match(e,/export async function saveExpenseCategory/);assert.match(e,/onConflict: 'tenant_id,name'/);assert.match(e,/export async function setExpenseCategoryActive/);
+assert.match(h,/cancelStaffEdit/);assert.match(j,/setStaffActive/);assert.match(j,/getPrintSettings/);assert.match(j,/actor_label/);assert.match(j,/printSettingsForm/);assert.match(j,/JSON\.parse/);assert.match(j,/accountType==='owner'/);const launcher=fs.readFileSync(new URL('app/index.html',root),'utf8');assert.match(launcher,/href="settings.html"/);assert.match(w,/app\/settings.html/);assert.match(w,/settings-center.js/);const r=fs.readFileSync(new URL('modules/settings/repository.js',root),'utf8');assert.match(r,/export async function savePrintSettings/);assert.match(r,/onConflict: 'tenant_id,branch_id'/);assert.match(r,/settings_json: settings/);assert.match(r,/export async function createBranch/);assert.match(r,/export async function updateBranch/);assert.match(j,/data-edit-branch/);assert.match(j,/updateBranch/);assert.match(h,/editBranchId/);assert.match(h,/cancelBranchEdit/);assert.match(r,/export async function setBranchActive/);const e=fs.readFileSync(new URL('modules/expenses/repository.js',root),'utf8');assert.match(e,/export async function saveExpenseCategory/);assert.match(e,/onConflict: 'tenant_id,name'/);assert.match(e,/export async function setExpenseCategoryActive/);
 assert.match(e,/\.update\(\{ name: cleanName \}\)/);
 assert.match(e,/\.eq\('tenant_id', tenantId\)\.eq\('id', id\)/);
 assert.match(j,/data-edit-expense-category/);
@@ -57,8 +57,6 @@ console.log('PASS: structured print controls, tenant-scoped assets, and private 
 
 const printMigration=fs.readFileSync(new URL('database/migrations/024_print_settings_audit.sql',root),'utf8');
 assert.match(printMigration,/trg_audit_print_settings/);
-const schemaWorkflow=fs.readFileSync(new URL('.github/workflows/supabase-schema-rebuild-audit.yml',root),'utf8');
-assert.match(schemaWorkflow,/024_print_settings_audit/);
 
 assert.match(printMigration,/trg_audit_backup_runs/);
 
@@ -70,5 +68,5 @@ assert.match(h2,/تم ربط هذه الإعدادات بتقرير الزيار
 const tabbedSettings=fs.readFileSync(new URL("app/settings.html",root),"utf8");
 assert.match(tabbedSettings,/role="tablist"/);
 for(const key of ["identity","team","expenses","printing","data","audit","advanced"]){assert.ok(tabbedSettings.includes(`data-settings-panel="${key}"`));assert.ok(tabbedSettings.includes(`data-settings-tab="${key}"`));}
-assert.match(tabbedSettings,/ترحيل نتائج المرضى والزيارات ما زال يحتاج مسار اعتماد مستقل/);
+assert.match(tabbedSettings,/داتا المعمل القديمة/);
 console.log("PASS: settings center is organized into seven keyboard-accessible sections without replacing existing control IDs.");

@@ -19,11 +19,13 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
   const safePage = Math.max(0, Math.floor(Number(page) || 0));
   const safeSize = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 25)));
   const from = safePage * safeSize;
-  const { data, error, count } = await db().from(TABLES.visitTests)
+  let query = db().from(TABLES.visitTests)
     .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number, age_years, sex))', { count: 'exact' })
     .eq('tenant_id', tenantId).eq('branch_id', branchId)
-    .neq('status', 'cancelled').neq('visits.status', 'cancelled')
-    .order('created_at').order('id').range(from, from + safeSize - 1);
+    .neq('status', 'cancelled').neq('visits.status', 'cancelled');
+  const requestedVisitId = new URLSearchParams(globalThis.location?.search || '').get('visit_id');
+  if (requestedVisitId) query = query.eq('visit_id', requestedVisitId);
+  const { data, error, count } = await query.order('created_at').order('id').range(from, from + safeSize - 1);
   if (error) throw error;
   return { rows: data ?? [], count: count ?? 0, page: safePage, pageSize: safeSize };
 }

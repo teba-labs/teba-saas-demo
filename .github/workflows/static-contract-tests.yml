@@ -2,9 +2,9 @@ name: Static contract tests
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, integration/reconciled-release-2026-11-20]
   push:
-    branches: [main]
+    branches: [main, feature/reception-complete-workflow-2026-11-20, integration/reconciled-release-2026-11-20]
 
 permissions:
   contents: read
@@ -19,22 +19,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Check changed application modules
+      - name: Check all tracked JavaScript modules
+        run: git ls-files -z '*.js' '*.mjs' | xargs -0 -r -n1 node --experimental-default-type=module --check
+      - name: Build browser-only deployment artifact
+        run: bash scripts/build-netlify.sh
+      - name: Run all static and unit regression tests
+        run: node --test tests/static/*.test.mjs tests/unit/*.test.mjs
+      - name: Package exact source after all checks pass
+        if: success()
+        shell: bash
         run: |
-          node --experimental-default-type=module --check assets/js/tenant-branding.js
-          node --experimental-default-type=module --check assets/js/reception.js
-          node --experimental-default-type=module --check assets/js/results-workbench.js
-          node --experimental-default-type=module --check modules/laboratory/repository.js
-          node --experimental-default-type=module --check assets/js/settings-center.js
-          node --experimental-default-type=module --check assets/js/data-import.js
-          node --experimental-default-type=module --check assets/js/catalog.js
-          node --experimental-default-type=module --check core/data/schema-contract.js
-          node --experimental-default-type=module --check assets/js/results-workbench.js
-          node --experimental-default-type=module --check modules/catalog/formula-engine.js
-          node --experimental-default-type=module --check modules/ui/keyboard-navigation.js
-          node --experimental-default-type=module --check modules/results/culture-repository.js
-          node --experimental-default-type=module --check modules/migration/workbook-inspector.js
-          node --experimental-default-type=module --check modules/migration/historical-results-repository.js
-      - name: Run identity and workspace contract tests
-        run: |
-          node --test tests/static/app-integration.test.mjs tests/static/workspace-selection.test.mjs tests/static/tenant-branding.test.mjs tests/static/report-print-settings.test.mjs tests/static/historical-results-import.test.mjs tests/static/catalog-management.test.mjs tests/static/catalog-ui.test.mjs tests/static/catalog-atomic-price.test.mjs tests/static/catalog-kind.test.mjs tests/static/calculated-parameters.test.mjs tests/static/master-catalog.test.mjs tests/static/culture-results.test.mjs tests/static/catalog-keyboard.test.mjs tests/static/catalog-source-ranges.test.mjs tests/unit/catalog-formula-engine.test.mjs tests/unit/catalog-importer.test.mjs
+          set -euo pipefail
+          archive="taiba-smart-lab-reconciled-$(git rev-parse --short=12 HEAD).zip"
+          git archive --format=zip --output="$archive" HEAD
+          test -s "$archive"
+          sha256sum "$archive" | tee "$archive.sha256"
+      - name: Upload source archive
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taiba-smart-lab-reconciled-source
+          path: |
+            taiba-smart-lab-reconciled-*.zip
+            taiba-smart-lab-reconciled-*.zip.sha256
+          if-no-files-found: error
+          retention-days: 30

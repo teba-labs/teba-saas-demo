@@ -12,13 +12,14 @@ test('reception displays branch outstanding balances and allows later collection
   for(const id of ['balancePanel','refreshBalances','balancesList']) assert.match(html,new RegExp('id="'+id+'"'));
   assert.match(script,/listBranchOutstandingBalances/);
   assert.match(script,/recordPayment\(\{tenantId:state\.tenant\.id,branchId:state\.branch\.id/);
-  assert.match(script,/paymentMethod:card\.querySelector\('\.balance-method'\)\.value/);
+  assert.match(script,/const method=card\.querySelector\('\.balance-method'\)\.value/);
+  assert.match(script,/paymentMethod:method/);
   assert.match(script,/amount>remaining/);
   assert.match(script,/if\(!state\.workday\)/);
   assert.match(html,/id="paymentReceipt"/);
   assert.match(script,/showPaymentReceipt/);
   assert.match(script,/window\.print\(\)/);
-  assert.match(script,/لا تطبع إيصالًا نهائيًا قبل التأكيد/);
+  assert.match(script,/لا تطبع إيصالًا نهائيًا قبل تأكيد الخادم/);
 });
 
 test('outstanding balances are calculated server-side across all payments for branch visits',()=>{

@@ -14,7 +14,7 @@ test('reception page is Arabic RTL and includes patient, visit, catalog and bill
 test('reception resolves authenticated tenant and branch context and requires open workday',()=>{
   assert.match(script,/loadMyTenantContext/);
   assert.match(script,/getOpenWorkday\(/);
-  assert.match(script,/if\(!state\.workday\)\{await loadRecent\(\);await loadBalances\(\);return;\}/);
+  assert.match(script,/if\(!state\.workday\|\|!state\.staff\.length\)/);
 });
 test('patient search and creation are branch-scoped',()=>{
   assert.match(script,/findPatients\(\{tenantId:state\.tenant\.id,branchId:state\.branch\.id/);
@@ -31,7 +31,7 @@ test('visit uses database price snapshots and creates billing from actual select
 });
 test('intake validates patient, unique visit number input, test selection and payment bounds',()=>{
   assert.match(script,/if\(!state\.patient\)/);
-  assert.match(script,/if\(!visitNumber\)/);
+  assert.match(script,/visitNumber=\$\('visitNumber'\)\.value\|\|makeCode\('V'\)/);
   assert.match(script,/if\(!state\.selected\.size\)/);
   assert.match(script,/paid>gross-discount/);
 });
