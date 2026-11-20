@@ -125,13 +125,26 @@ const validateParameter = parameter => {
   const ranges = parameter.referenceRanges ?? [];
   const referenceIntervalStatus = parameter.referenceIntervalStatus || (valueType === 'numeric' ? 'local_verification_required' : 'not_applicable');
   if (!['not_applicable','local_verification_required','verified_local'].includes(referenceIntervalStatus)) throw new Error('Unsupported reference interval status.');
+  const sourceReferences = parameter.sourceReferences ?? [];
+  if (!Array.isArray(sourceReferences)) throw new Error('المراجع العلمية يجب أن تكون قائمة JSON.');
   if (referenceIntervalStatus === 'verified_local' && valueType === 'numeric' && (!Array.isArray(ranges) || !ranges.length)) throw new Error('لا يمكن اعتماد المدى محليًا دون إدخال مدى موثق واحد على الأقل.');
+  if (referenceIntervalStatus === 'verified_local' && valueType === 'numeric' && !sourceReferences.length) throw new Error('اعتماد المدى محليًا يتطلب مرجعًا علميًا موثقًا.');
+  const rangeRows = Array.isArray(ranges) ? ranges : (ranges && typeof ranges === 'object' ? [ranges] : []);
+  for (const range of rangeRows) {
+    if (!range || typeof range !== 'object' || Array.isArray(range)) throw new Error('كل مدى مرجعي يجب أن يكون كائن JSON.');
+    const low = range.lower ?? range.low ?? range.min;
+    const high = range.upper ?? range.high ?? range.max;
+    if (low != null && !Number.isFinite(Number(low))) throw new Error('الحد الأدنى للمدى المرجعي يجب أن يكون رقمًا.');
+    if (high != null && !Number.isFinite(Number(high))) throw new Error('الحد الأعلى للمدى المرجعي يجب أن يكون رقمًا.');
+    if (low != null && high != null && Number(low) > Number(high)) throw new Error('الحد الأدنى لا يمكن أن يتجاوز الحد الأعلى.');
+    if (range.age && range.age.min != null && range.age.max != null && Number(range.age.min) > Number(range.age.max)) throw new Error('نطاق العمر المرجعي غير صحيح.');
+  }
   const choices = parameter.choices ?? [];
   const validRanges = Array.isArray(ranges) || (ranges !== null && typeof ranges === 'object');
   if (!validRanges || !Array.isArray(choices)) throw new Error('referenceRanges must be an object or array, and choices must be an array.');
   if (valueType === 'choice' && (choices.length === 0 || choices.some(choice => typeof choice !== 'string' || !choice.trim()))) throw new Error('Choice parameters require at least one choice, and each choice must be non-empty text.');
   if (valueType === 'choice' && new Set(choices.map(choice => choice.trim())).size !== choices.length) throw new Error('Choice parameters cannot contain duplicate choices.');
-  return { code, name, valueType, decimalPlaces, displayOrder, ranges, choices, resultSource, formula, referenceIntervalStatus };
+  return { code, name, valueType, decimalPlaces, displayOrder, ranges, choices, resultSource, formula, referenceIntervalStatus, sourceReferences };
 };
 
 /** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
@@ -148,7 +161,7 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     unit_ucum: parameter.unitUcum?.trim() || null, alternate_units: parameter.alternateUnits ?? [],
     critical_ranges: parameter.criticalRanges ?? {}, interpretation_rules: parameter.interpretationRules ?? [],
     applicability: parameter.applicability ?? {}, method_notes: parameter.methodNotes?.trim() || null, clinical_metadata: parameter.clinicalMetadata ?? {},
-    source_references: parameter.sourceReferences ?? [], reference_interval_status: valid.referenceIntervalStatus, clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
+    source_references: valid.sourceReferences, reference_interval_status: valid.referenceIntervalStatus, clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
   const { data, error } = await db().from(TABLES.parameters).upsert(payload).select().single();
