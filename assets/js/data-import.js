@@ -70,6 +70,7 @@ function renderSheet(){
   line.append(name,choice,statusCell);mapBody.append(line);
  });
  mapTable.append(mapBody);const mapWrap=el('div');mapWrap.className='tableWrap';mapWrap.append(mapTable);root.append(mapWrap);
+ if(s.entityType==='historical_results'){const bulk=el('button','اعتبار كل الأعمدة غير المربوطة بارامترات نتائج');bulk.type='button';bulk.addEventListener('click',()=>{s.columnMapping=s.columnMapping.map(item=>item.fieldKey?item:{...item,fieldKey:'parameter_columns',confidence:'manual'});renderSheet();});root.append(bulk);}
  if(s.entityType==='historical_results'){
   const historyButton=el('button','مراجعة النتائج التاريخية ومطابقة المرضى');historyButton.type='button';
   historyButton.addEventListener('click',()=>prepareHistoricalSheet(s,historyButton).catch(error=>note(error.message||'تعذرت معاينة النتائج التاريخية.',true)));
