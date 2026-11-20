@@ -19,6 +19,7 @@ test('migration filenames follow the current main sequence without reusing 024',
   assert.ok(files.includes('060_visit_range_override_fk_indexes.sql'));
   assert.ok(files.includes('061_allow_published_range_corrections.sql'));
   assert.ok(files.includes('062_correct_completed_visit_result.sql'));
+  assert.ok(files.includes('063_sync_billing_for_results_test_additions.sql'));
   assert.ok(!files.includes('024_patient_age_units.sql'));
 });
 
@@ -55,6 +56,15 @@ test('visit range overrides are separate from the frozen catalog snapshot and ke
   assert.match(migration,/new_reference_ranges/);
   assert.doesNotMatch(migration,/update public.tests_catalog/i);
   assert.match(read('database/migrations/060_visit_range_override_fk_indexes.sql'),/idx_visit_range_overrides_updated_by/);
+});
+
+test('results-screen test additions recalculate visit billing without duplicating tests',()=>{
+  const migration=read('database/migrations/063_sync_billing_for_results_test_additions.sql');
+  assert.ok(migration.includes('private.sync_visit_billing_for_added_test'));
+  assert.ok(migration.includes('sum(vt.price_snapshot)'));
+  assert.ok(migration.includes('update public.visit_billing set gross_total=v_gross'));
+  assert.ok(migration.includes('pg_advisory_xact_lock'));
+  assert.ok(migration.includes('return v_existing'));
 });
 
 test('completed unpublished result correction is audited and cannot alter an approved or published visit',()=>{
