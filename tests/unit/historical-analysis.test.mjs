@@ -41,6 +41,12 @@ assert.ok(Math.abs(report.branches[0].tests.find(t=>t.name==='ALT').trueProfitUn
 assert.equal(report.tests.find(t=>t.name==='CBC').count,20);
 assert.deepEqual(report.unmatchedTests,['غير مسعر']);
 assert.equal(report.lossMakers.length,2);
+const branchReport=engine.buildHistoricalDashboardReport({salesWorkbook,pricesWorkbook,detailWorkbook,movementWorkbooks:salesWorkbook,year:'2026',month:'11',branch:'فرع ألف'});
+assert.equal(branchReport.branches.length,1);
+assert.equal(branchReport.totals.rev,1000);
+assert.equal(branchReport.totals.cases,20);
+assert.equal(branchReport.tests.find(t=>t.name==='CBC').count,10);
+assert.throws(()=>engine.buildHistoricalDashboardReport({salesWorkbook,pricesWorkbook,detailWorkbook,movementWorkbooks:salesWorkbook,year:'2026',month:'11',branch:'فرع غير موجود'}),/اسم الفرع المختار/);
 const portfolio=engine.buildHistoricalProductPortfolio(report);
 assert.equal(portfolio.topSellers[0].name,'CBC');
 assert.equal(portfolio.lossMakers.length,2);
