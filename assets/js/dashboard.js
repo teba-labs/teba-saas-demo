@@ -102,7 +102,7 @@ function mountOwnerDashboardNavigation(){
  content('security').append(security);
  const summary=panelByHeading('ملخص قابل للنسخ');move('overview',summary);
  const note=document.createElement('p');note.className='hint';note.textContent='صافي النقدية ليس صافي ربح محاسبيًا؛ لا تتوفر في التشغيل الحي تكلفة موثوقة لكل تحليل ضمن هذا التقرير.';content('overview').append(note);
- const historyHint=document.createElement('p');historyHint.className='hint';historyHint.textContent='يعرض كل تقرير تاريخي بيانات ملف Excel فقط. لا تخلط هذه النتائج مع التشغيل الحي.';for(const id of ['bcg','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers'])content(id).prepend(historyHint.cloneNode(true));
+ const historyHint=document.createElement('p');historyHint.className='hint';historyHint.textContent='يعرض كل تقرير تاريخي بيانات ملف Excel فقط. فلتر الفرع يطابق الاسم حرفيًا؛ عند اختلاف الاسم لا نعرض فرعًا بديلًا. لا تخلط هذه النتائج مع التشغيل الحي.';for(const id of ['bcg','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers'])content(id).prepend(historyHint.cloneNode(true));
  showOwnerReport('home');
 }
 
