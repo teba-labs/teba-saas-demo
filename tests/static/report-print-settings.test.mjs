@@ -18,6 +18,6 @@ assert.match(js,/paperSize/);
 assert.match(js,/orientation/);
 assert.match(js,/signaturePath/);
 assert.match(js,/win\.print\(\)/);
-assert.match(worker,/taiba-smart-lab-shell-v23/);
+assert.match(worker,/taiba-smart-lab-shell-v24/);
 assert.match(worker,/modules\/settings\/assets-repository\.js/);
 console.log('PASS: approved visit results can be rendered and printed using tenant and branch print settings.');

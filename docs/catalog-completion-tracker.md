@@ -142,3 +142,13 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - Applied migration 054 to TEST and recorded it in Supabase migration history as `source_suggested_core_intervals`. Idempotent guard prevents overwriting existing interval data or duplicating the source reference.
 - TEST interval count increased from 22 to **47 parameters with source-suggested ranges**; all 47 still carry `local_verification_required`. This is not local analyzer validation and must not be represented as locally verified.
 - The added intervals deliberately omit universal cutoffs for HOMA-IR, D-dimer, fibrinogen, eGFR, globulin/A:G ratio, and lipid risk thresholds where the supplied profile/method context is insufficient or the values are clinical decision limits rather than conventional reference intervals.
+
+## 2026-11-20 — App-wide keyboard navigation follow-up
+
+- New recovery point: `backup/pre-app-wide-keyboard-2026-11-20`, pinned before this follow-up to main commit `d9be861b77a31778832853dd43b6020883be4f59`.
+- Active branch: `feature/app-wide-keyboard-navigation-2026-11-20`.
+- Replaced catalog-only keyboard handling with one shared module loaded by all 11 application screens: launcher, catalog, CMS, dashboard, import, platform admin, reception, results, settings, sync center, and workday.
+- Shared behavior: Enter advances through visible form fields and then focuses the submit action; Up/Down move through single-line form fields; Up/Down/Home/End navigate actionable list items. Textareas, select option arrows, and controls marked `data-keyboard-native` retain native behavior.
+- Service-worker shell bumped to v24 and now pre-caches the shared module.
+- CI contract tests updated for v24 and expanded to verify that every application screen loads the shared module. No PR or CI result yet at this checkpoint.
+- This improves keyboard usability but does not substitute for manual browser testing with real focus order on each screen.
