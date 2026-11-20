@@ -15,7 +15,10 @@ test('reference range overrides are loaded and saved by visit-test and parameter
 });
 
 test('range editing is available before approval, including a previously completed test, but not after publication',()=>{
- assert.ok(ui.includes("!isPublished && group.visit?.status !== 'approved'"));
+ assert.ok(ui.includes("isPublished || group.visit?.status !== 'approved'"));
+ assert.ok(ui.includes('تصحيح رينج التقرير المنشور'));
+ assert.ok(ui.includes('التقرير السابق محفوظ'));
+ assert.ok(migration.includes('app.result_correction'));
  assert.ok(migration.includes("v_test.status='cancelled'"));
  assert.ok(migration.includes('Approved or published visits cannot have their reference ranges changed'));
 });
