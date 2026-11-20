@@ -26,7 +26,9 @@ export async function refreshHistoricalDashboard(){
   const [sales,prices,detail25,detail26]=await Promise.all(['sales','prices','detail2025','detail2026'].map(type=>getHistoricalWorkbook({tenantId:activeTenantId,type})));
   if(!sales||!prices){target.textContent='للبدء: حمّل ملف المتابعة السنوية والشهرية وملف أسعار وتكلفة التحاليل من الأرشيف أعلاه.';return;}
   const salesSheets=workbookSheets(sales),priceSheets=workbookSheets(prices);let [year,month]=periodValue.split('-');if(!year||!month){const latest=findLatestHistoricalPeriod(salesSheets);if(!latest){target.textContent='لم يتم العثور على شهر تاريخي له إيراد مسجل.';return;}year=latest.year;month=latest.month;if(periodInput)periodInput.value=year+'-'+month;}const detailSheets=workbookSheets(Number(year)===2025?detail25:detail26);
-  const report=buildHistoricalDashboardReport({salesWorkbook:salesSheets,pricesWorkbook:priceSheets,detailWorkbook:detailSheets,movementWorkbooks:salesSheets,year,month});
+  const branchSelect=document.getElementById('branchSelect');
+  const branch=branchSelect?.value==='all'?'all':branchSelect?.selectedOptions?.[0]?.dataset?.branchName||'all';
+  const report=buildHistoricalDashboardReport({salesWorkbook:salesSheets,pricesWorkbook:priceSheets,detailWorkbook:detailSheets,movementWorkbooks:salesSheets,year,month,branch});
   renderAnalysis(report);
  }catch(error){target.textContent=error.message||'تعذر حساب التحليل التاريخي.';}
 }
