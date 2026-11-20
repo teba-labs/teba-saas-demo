@@ -79,7 +79,7 @@ export async function importHistoricalResults({
       patient_id: row.patient_id || null, patient_name_snapshot: row.patient_name_snapshot,
       test_code: row.test_code, test_name_snapshot: row.test_name_snapshot,
       result_date: row.result_date, result_at: row.result_at || null,
-      result_data: row.result_data || {}, source: 'excel_import', created_by: userId,
+      result_data: row.result_data || {}, source: 'import', created_by: userId,
       source_file_name: file.name, source_file_sha256: fileSha256,
       source_sheet_name: row.source_sheet_name, source_row_number: row.source_row_number,
       source_record_key: row.source_record_key, patient_age_raw: row.patient_age_raw || null,
