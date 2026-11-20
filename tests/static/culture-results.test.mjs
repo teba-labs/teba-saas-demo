@@ -38,6 +38,12 @@ test('CBC, urine, stool and culture profiles are present with source references 
  for(const source of ['ICSH-PBS-2015','EFLM-UA-2023','WHO-PARASITOLOGY','IDSA-ASM-2024','CLSI-M100-36']) assert.ok(sql.includes(source));
  assert.match(sql,/local_verification_required/);
  assert.match(sql,/reference_interval_status/);
+ const formulas=read('database/migrations/045_seed_validated_calculated_profiles.sql');
+ for(const code of ['PROTEIN_PROFILE','LIPID_PROFILE','HOMA_IR']) assert.ok(formulas.includes(code));
+ for(const formula of ['GLOBULIN','AG_RATIO','NON_HDL_C','HOMA1_IR']) assert.ok(formulas.includes(formula));
+ assert.match(formulas,/Matthews-HOMA-Paper/);
+ assert.match(read('database/migrations/043_culture_completion_guard.sql'),/positive culture/);
+ assert.match(read('database/migrations/044_core_profile_optional_fields.sql'),/UA_RENAL_EPITHELIAL/);
 });
 
 test('catalog editor separates verified local intervals from clinical definition review',()=>{
