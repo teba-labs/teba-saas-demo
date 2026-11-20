@@ -59,6 +59,7 @@ function mountOwnerDashboardNavigation(){
  const historyPanel=panelByHeading('ملفات Excel التاريخية والتحليلات القديمة');
  if(historyPanel){
   const results=historyPanel.querySelector('#historyAnalysisResults');
+  if(results)results.hidden=true;
   const period=historyPanel.querySelector('#historyMonth');
   const files=historyPanel.querySelector('#historyFilesList');
   const notice=historyPanel.querySelector('#historyNotice');
@@ -70,7 +71,7 @@ function mountOwnerDashboardNavigation(){
   move('upload',controls);
   if(results){
    const source=results;
-   const targets={bcg:'مصفوفة BCG التاريخية',monthlyPlan:'خطة الشهر التالي',topSellers:'الأكثر طلبًا',mostProfitable:'الأكثر ربحية',leastProfitable:'الأقل ربحية',needOffers:'تحاليل تحتاج تنشيطًا',lossMakers:'التحاليل الخاسرة'};
+   const targets={bcg:'مصفوفة BCG التاريخية',monthlyPlan:'خطة الشهر التالي',topSellers:'الأكثر طلبًا',mostProfitable:'الأكثر ربحية',leastProfitable:'الأقل ربحية',needOffers:'تحاليل تحتاج تنشيطًا',lossMakers:'التحاليل الخاسرة',annual:'الملخص السنوي'};
    for(const [id,needle] of Object.entries(targets)){
     const clone=document.createElement('section');clone.className='panel historical-report-card';clone.dataset.historyNeedle=needle;
     content(id).append(clone);
@@ -84,7 +85,7 @@ function mountOwnerDashboardNavigation(){
  const movement=document.createElement('section');movement.className='panel';movement.innerHTML='<h3>سجل الحركات المالية</h3><p class="muted">قراءة فقط من دفتر الحركات. تسجيل التحصيل والمصروفات يظل من شاشة يوم العمل لمنع تكرار الإدخال.</p><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الفرع</th><th>نوع الحركة</th><th>البيان</th><th>المبلغ</th></tr></thead><tbody id="ownerLedgerRows"><tr><td colspan="5">جارٍ تحميل الحركات…</td></tr></tbody></table></div>';
  content('dailyFinance').append(movement);
  const financeLink=document.createElement('a');financeLink.href='workday.html';financeLink.className='btn secondary owner-workday-link';financeLink.textContent='فتح شاشة يوم العمل لتسجيل حركة جديدة';content('dailyFinance').prepend(financeLink);
- const security=document.createElement('section');security.className='panel';security.innerHTML='<h3>حالة الأمان والنسخ</h3><p class="muted">عزل بيانات المعمل والصلاحيات تُطبّق من طبقة الحساب وقاعدة البيانات. الأرشيف التاريخي في هذه اللوحة محفوظ محليًا على هذا المتصفح فقط، وليس نسخة سحابية.</p><div class="security-status-grid"><article><strong>أرشيف Excel</strong><span>محلي على الجهاز</span></article><article><strong>النسخ السحابي</strong><span>غير مثبت كميزة استعادة كاملة في هذه النسخة</span></article><article><strong>إدارة المزامنة</strong><span>راجع مركز المزامنة والنسخ المحلي</span></article></div><a class="btn secondary" href="sync-center.html">فتح مركز المزامنة والنسخ</a><p class="hint">لا تعرض هذه الشاشة أن النسخة المحلية Backup سحابيًا، ولا تنفذ حذفًا أو استعادة تلقائية.</p>';
+ const liveNote=document.createElement('p');liveNote.className='hint';liveNote.textContent='تعرض هذه المؤشرات بيانات التشغيل الحية للشهر والفرع المحددين. مؤشرات حالات التحاليل قيد التشغيل والمنشورة لم تُضف بعد لعدم اكتمال ربط مصدر حالتها في هذه الشاشة.';content('live').append(liveNote);\n const annualNote=document.createElement('p');annualNote.className='hint';annualNote.textContent='المقارنة أعلى الشاشة تقارن الشهر نفسه بالعام السابق، والجداول التاريخية أدناه تعرض السنة الكاملة من أرشيف Excel عند توفره.';content('annual').append(annualNote);\n const security=document.createElement('section');security.className='panel';security.innerHTML='<h3>حالة الأمان والنسخ</h3><p class="muted">عزل بيانات المعمل والصلاحيات تُطبّق من طبقة الحساب وقاعدة البيانات. الأرشيف التاريخي في هذه اللوحة محفوظ محليًا على هذا المتصفح فقط، وليس نسخة سحابية.</p><div class="security-status-grid"><article><strong>أرشيف Excel</strong><span>محلي على الجهاز</span></article><article><strong>النسخ السحابي</strong><span>غير مثبت كميزة استعادة كاملة في هذه النسخة</span></article><article><strong>إدارة المزامنة</strong><span>راجع مركز المزامنة والنسخ المحلي</span></article></div><a class="btn secondary" href="sync-center.html">فتح مركز المزامنة والنسخ</a><p class="hint">لا تعرض هذه الشاشة أن النسخة المحلية Backup سحابيًا، ولا تنفذ حذفًا أو استعادة تلقائية.</p>';
  content('security').append(security);
  const summary=panelByHeading('ملخص قابل للنسخ');move('overview',summary);
  const note=document.createElement('p');note.className='hint';note.textContent='صافي النقدية ليس صافي ربح محاسبيًا؛ لا تتوفر في التشغيل الحي تكلفة موثوقة لكل تحليل ضمن هذا التقرير.';content('overview').append(note);
