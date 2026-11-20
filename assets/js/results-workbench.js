@@ -11,7 +11,7 @@ import { listHistoricalResults } from '../../modules/migration/historical-result
 import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } from '../../modules/results/culture-repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map() };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set() };
 window.taibaGetResultsContext=()=>({tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug});
 window.addEventListener('taiba:results-work-refresh',()=>refreshWork().catch(error=>showNotice(error.message||'تعذر تحديث قائمة النتائج.',true)));
 const showNotice = (message, error = false) => {
@@ -178,7 +178,7 @@ async function renderWork() {
   host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => {
     const win = window.open('', '_blank');
     if (!win) { showNotice('اسمح بفتح نافذة التقرير من إعدادات المتصفح ثم أعد المحاولة.', true); return; }
-    printVisitReport(btn.dataset.visitId, win).catch(error => { win.close(); showNotice(error.message || 'تعذر تجهيز التقرير.', true); });
+    win.close(); window.taibaPreviewVisitReport(btn.dataset.visitId);
   }));
   const resultsByTest = new Map();
   for (const result of resultRows) {
@@ -529,6 +529,7 @@ async function approve(button) {
 async function publish(button) {
   try {
     const visitId = button.dataset.visitId;
+    if (!state.previewedVisits.has(visitId)) throw new Error('افتح معاينة نتائج الزيارة وراجع التقرير قبل النشر.');
     const fileInput = document.querySelector(`[data-report-file="${CSS.escape(visitId)}"]`);
     const file = fileInput?.files?.[0];
     if (!file) throw new Error('اختر ملف التقرير PDF أولًا.');
@@ -538,7 +539,7 @@ async function publish(button) {
     setBusy(button, true, 'جارٍ النشر…');
     await publishReportVersion({ tenantId: state.tenant.id, branchId: state.branch.id, visitId,
       staffId: $('staffSelect').value, file, changeReason: reason });
-    showNotice('تم إرسال التقرير لمسار النشر.'); await refreshWork();
+    state.previewedVisits.delete(visitId); showNotice('تم إرسال التقرير لمسار النشر.'); await refreshWork();
   } catch (error) { showNotice(error.message || 'تعذر نشر التقرير.', true); }
   finally { setBusy(button, false); }
 }
@@ -574,7 +575,7 @@ $('signOut').addEventListener('click', async () => { try { await signOut(); awai
 $('refreshButton').addEventListener('click', async () => { try { await refreshWork(); } catch (error) { showNotice(error.message, true); } });
 
 try { await startWorkspace(); window.dispatchEvent(new CustomEvent('taiba:results-context',{detail:{tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug}})); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
-window.taibaPreviewVisitReport = async visitId => { const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
+window.taibaPreviewVisitReport = async visitId => { const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});state.previewedVisits.add(visitId);window.dispatchEvent(new CustomEvent('taiba:visit-report-previewed',{detail:{visitId}}));showNotice('تم تجهيز معاينة التقرير. راجعها قبل الطباعة أو النشر.');}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
 
 $('prevWorkPage').addEventListener('click', async () => {
   if (state.workPage <= 0) return;
