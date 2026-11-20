@@ -46,6 +46,7 @@ test('workspace-aware pages all use the same validated selection helper', async 
     'assets/js/dashboard.js',
     'assets/js/cms-editor.js',
     'assets/js/settings-center.js',
+    'assets/js/tenant-branding.js',
   ];
   for (const path of paths) {
     const source = await readFile(new URL('../../' + path, import.meta.url), 'utf8');
@@ -54,5 +55,5 @@ test('workspace-aware pages all use the same validated selection helper', async 
   }
   const serviceWorker = await readFile(new URL('../../service-worker.js', import.meta.url), 'utf8');
   assert.match(serviceWorker, /workspace-selection\.js/);
-  assert.match(serviceWorker, /taiba-smart-lab-shell-v12/);
+  assert.match(serviceWorker, /taiba-smart-lab-shell-v13/);
 });

@@ -1,0 +1,29 @@
+name: Static contract tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  static-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check changed application modules
+        run: |
+          node --experimental-default-type=module --check assets/js/tenant-branding.js
+          node --experimental-default-type=module --check assets/js/reception.js
+          node --experimental-default-type=module --check assets/js/settings-center.js
+      - name: Run identity and workspace contract tests
+        run: |
+          node --test tests/static/app-integration.test.mjs tests/static/workspace-selection.test.mjs tests/static/tenant-branding.test.mjs

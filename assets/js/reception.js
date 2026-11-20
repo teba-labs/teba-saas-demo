@@ -5,6 +5,7 @@ import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection 
 import { findPatients, createPatient, getOpenWorkday, createVisitIntake, recordPayment, listBranchOutstandingBalances } from '../../modules/reception/repository.js';
 import { listCatalog, listCurrentPrices, listTestParameters } from '../../modules/catalog/repository.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
+import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { cacheRows, getCachedRows, replaceCachedRows } from '../../offline/cache.js';
 
 const $ = id => document.getElementById(id);
@@ -16,7 +17,31 @@ function busy(button,on,label){button.disabled=on;if(on){button.dataset.label=bu
 function currentStaff(){return $('staffSelect').value || null;}
 const paymentMethodLabels={cash:'نقدي',card:'بطاقة',wallet:'محفظة إلكترونية',bank_transfer:'تحويل بنكي',other:'أخرى'};
 function showPaymentReceipt({patientName,visitNumber,amount,method,staffName,paymentId}){
-  $('paymentReceiptContent').innerHTML=`<div style="text-align:center"><h2>إيصال تحصيل</h2><strong>Taiba Smart Lab</strong></div><hr><p>اسم المريض: <b>${escapeHtml(patientName)}</b></p><p>رقم الزيارة: <b>${escapeHtml(visitNumber)}</b></p><p>المبلغ المحصل: <b>${money(amount)}</b></p><p>طريقة الدفع: <b>${escapeHtml(paymentMethodLabels[method]||method)}</b></p><p>الموظف: <b>${escapeHtml(staffName||'—')}</b></p><p>التاريخ والوقت: <b>${new Date().toLocaleString('ar-EG')}</b></p>${paymentId?'<p>مرجع العملية: '+escapeHtml(paymentId)+'</p>':''}<hr><p style="text-align:center">شكرًا لثقتكم في معامل طيبة</p>`;
+  const brand=globalThis.__taibaTenantBrand||{};
+  const lab=brand.settings||{};
+  const print=brand.printSettings||{};
+  const logoPath=print.showLogo===false?'':(print.logoPath||lab.logo_path||'');
+  const logo=logoPath?getLabAssetPublicUrl(logoPath):'';
+  const signature=print.showSignature&&print.signaturePath?getLabAssetPublicUrl(print.signaturePath):'';
+  const labName=lab.laboratory_name||'Taiba Smart Lab';
+  const branch=brand.branch||{};
+  const contact=[print.showBranch===false?'':(branch.name?'فرع '+branch.name:''),print.showPhone===false?'':(branch.phone||lab.phone||lab.whatsapp||''),print.showAddress===false?'':(branch.address||lab.address||'')].filter(Boolean).join(' · ');
+  const doctor=print.showDoctor===false?'':(lab.doctor_name||'');
+  const footer=print.footerText||lab.report_footer||'شكرًا لثقتكم في معامل طيبة';
+  $('paymentReceiptContent').innerHTML=`<div style="text-align:center">
+    ${logo?'<img src="'+escapeHtml(logo)+'" alt="شعار المعمل" style="max-width:120px;max-height:65px;object-fit:contain">':''}
+    <h2>${escapeHtml(print.title||'إيصال تحصيل')}</h2><strong>${escapeHtml(labName)}</strong>
+    ${doctor?'<p>'+escapeHtml(doctor)+'</p>':''}
+    ${contact?'<small>'+escapeHtml(contact)+'</small>':''}
+  </div><hr><p>اسم المريض: <b>${escapeHtml(patientName)}</b></p><p>رقم الزيارة: <b>${escapeHtml(visitNumber)}</b></p><p>المبلغ المحصل: <b>${money(amount)}</b></p><p>طريقة الدفع: <b>${escapeHtml(paymentMethodLabels[method]||method)}</b></p><p>الموظف: <b>${escapeHtml(staffName||'—')}</b></p><p>التاريخ والوقت: <b>${new Date().toLocaleString('ar-EG')}</b></p>${paymentId?'<p>مرجع العملية: '+escapeHtml(paymentId)+'</p>':''}
+  ${signature?'<div style="text-align:left"><img src="'+escapeHtml(signature)+'" alt="التوقيع" style="max-width:130px;max-height:65px;object-fit:contain"></div>':''}
+  <hr><p style="text-align:center">${escapeHtml(footer)}</p>`;
+  const paper=print.paperSize==='A5'?'A5':'A4';
+  const orientation=print.orientation==='landscape'?'landscape':'portrait';
+  const margin=Math.min(30,Math.max(5,Number(print.margin)||12));
+  let style=document.getElementById('tenant-print-page-style');
+  if(!style){style=document.createElement('style');style.id='tenant-print-page-style';document.head.append(style);}
+  style.textContent='@page{size:'+paper+' '+orientation+';margin:'+margin+'mm}';
   $('paymentReceipt').hidden=false;
 }
 
