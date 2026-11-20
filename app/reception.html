@@ -63,7 +63,7 @@
             <label for="patientAge">العمر
               <span class="age-control"><input id="patientAge" type="number" min="0" step="any" inputmode="decimal" placeholder="مثال: 5"><select id="patientAgeUnit" aria-label="وحدة العمر"><option value="years">سنة</option><option value="months">شهر</option><option value="days">يوم</option></select></span>
             </label>
-            <label for="patientSex">النوع<select id="patientSex"><option value="male">ذكر</option><option value="female">أنثى</option><option value="unknown">غير محدد</option></select></label>
+            <label for="patientSex">النوع<select id="patientSex" required><option value="" disabled selected>اختر النوع</option><option value="male">ذكر</option><option value="female">أنثى</option><option value="unknown">غير محدد</option></select></label>
           </div>
           <div class="generated-fields"><label for="patientNumberPreview">كود المريض (تلقائي)<input id="patientNumberPreview" readonly tabindex="-1"></label><span class="generated-note">يُنشأ كود فريد عند الحفظ</span></div>
           <div class="actions"><button id="createPatient" class="button button-secondary" type="submit">حفظ المريض واختياره</button><button id="cancelNewPatient" class="button button-ghost" type="button">إلغاء</button></div>
