@@ -20,7 +20,7 @@ assert.match(reception,/print\.paperSize/);
 assert.match(reception,/print\.signaturePath/);
 assert.match(settings,/notifyTenantSettingsUpdated/);
 assert.match(settings,/taiba:tenant-settings-updated/);
-assert.match(worker,/taiba-smart-lab-shell-v23/);
+assert.match(worker,/taiba-smart-lab-shell-v24/);
 assert.match(worker,/assets\/js\/tenant-branding\.js/);
 for (const page of ['index','reception','workday','results-workbench','catalog','dashboard','cms-editor','sync-center','settings','data-import']) {
   const html=fs.readFileSync(new URL(`app/${page}.html`,root),'utf8');
