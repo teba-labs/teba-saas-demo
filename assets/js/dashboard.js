@@ -70,9 +70,9 @@ function mountOwnerDashboardNavigation(){
   const uploadPanel=document.createElement('section');uploadPanel.className='panel history-upload-panel';
   uploadPanel.append(notice,files);
   move('upload',uploadPanel);
-  const controls=document.createElement('section');controls.className='panel';controls.innerHTML='<h3>الفترة التاريخية المختارة</h3>';
+  const controls=document.createElement('section');controls.id='historyPeriodPanel';controls.className='panel history-period-global';controls.hidden=true;controls.innerHTML='<h3>الفترة التاريخية المختارة</h3><p class="muted">يتغير معها تحليل BCG والربحية والخطة والموسمية التاريخية.</p>';
   if(period)controls.append(period.closest('label'));
-  move('upload',controls);
+  home.after(controls);
   if(results){
    const source=results;
    const targets={bcg:'مصفوفة BCG التاريخية',monthlyPlan:'خطة الشهر التالي',cases:'موسمية الحالات حسب الشهر',topSellers:'الأكثر طلبًا',mostProfitable:'الأكثر ربحية',leastProfitable:'الأقل ربحية',needOffers:'تحاليل تحتاج تنشيطًا',lossMakers:'التحاليل الخاسرة',annual:'الملخص السنوي'};
@@ -141,6 +141,7 @@ function filterHistoricalReport(source,target,needle){
 }
 function showOwnerReport(id){
  const home=$('ownerDashboardHome'),screens=$('ownerDashboardScreens');
+ const historicalScreens=['annual','cases','bcg','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers','upload'];const historyPeriod=$('historyPeriodPanel');if(historyPeriod)historyPeriod.hidden=!historicalScreens.includes(id);
  if(id==='home'){home.hidden=false;screens.hidden=true;return;}
  const screen=screens.querySelector('[data-owner-screen="'+id+'"]');if(!screen)return;
  home.hidden=true;screens.hidden=false;
