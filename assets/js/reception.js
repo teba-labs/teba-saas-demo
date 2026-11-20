@@ -261,6 +261,7 @@ function bindKeyboard(){
   $('newPatientForm').addEventListener('submit',e=>{e.preventDefault();addNewPatient($('createPatient'));});
   $('patientMatches').addEventListener('keydown',e=>{if(e.key==='Escape')$('patientSearch').focus();});
   $('catalogList').addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&e.target.matches('input[type="checkbox"]')){e.preventDefault();e.target.checked=!e.target.checked;e.target.dispatchEvent(new Event('change',{bubbles:true}));return;}
     if(!['ArrowDown','ArrowUp'].includes(e.key))return;
     const inputs=[...$('catalogList').querySelectorAll('input[type="checkbox"]:not(:disabled)')],index=inputs.indexOf(e.target);
     if(index<0)return;e.preventDefault();inputs[Math.max(0,Math.min(inputs.length-1,index+(e.key==='ArrowDown'?1:-1)))].focus();
