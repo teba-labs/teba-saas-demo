@@ -25,7 +25,7 @@ jobs:
           node --experimental-default-type=module --check assets/js/tenant-branding.js
           node --experimental-default-type=module --check assets/js/reception.js
           node --experimental-default-type=module --check assets/js/results-workbench.js
-          node --experimental-default-type=module --check modules/laboratory/repository.js
+          node --experimental-default-type=module --check modules/laboratory/repository.js\n          node --experimental-default-type=module --check modules/reception/repository.js\n          node --experimental-default-type=module --check offline/supabase-adapters.js
           node --experimental-default-type=module --check assets/js/settings-center.js
           node --experimental-default-type=module --check assets/js/data-import.js
           node --experimental-default-type=module --check assets/js/catalog.js
@@ -38,4 +38,4 @@ jobs:
           node --experimental-default-type=module --check modules/migration/historical-results-repository.js
       - name: Run identity and workspace contract tests
         run: |
-          node --test tests/static/app-integration.test.mjs tests/static/workspace-selection.test.mjs tests/static/tenant-branding.test.mjs tests/static/report-print-settings.test.mjs tests/static/historical-results-import.test.mjs tests/static/catalog-management.test.mjs tests/static/catalog-ui.test.mjs tests/static/catalog-atomic-price.test.mjs tests/static/catalog-kind.test.mjs tests/static/calculated-parameters.test.mjs tests/static/master-catalog.test.mjs tests/static/culture-results.test.mjs tests/static/catalog-keyboard.test.mjs tests/static/catalog-source-ranges.test.mjs tests/static/reception-intake.test.mjs tests/static/reception-dependency-order.test.mjs tests/static/reception-followup-payments.test.mjs tests/static/reception-workflow.test.mjs tests/unit/catalog-formula-engine.test.mjs tests/unit/catalog-importer.test.mjs
+          node --test tests/static/app-integration.test.mjs tests/static/workspace-selection.test.mjs tests/static/tenant-branding.test.mjs tests/static/report-print-settings.test.mjs tests/static/historical-results-import.test.mjs tests/static/catalog-management.test.mjs tests/static/catalog-ui.test.mjs tests/static/catalog-atomic-price.test.mjs tests/static/catalog-kind.test.mjs tests/static/calculated-parameters.test.mjs tests/static/master-catalog.test.mjs tests/static/culture-results.test.mjs tests/static/catalog-keyboard.test.mjs tests/static/catalog-source-ranges.test.mjs tests/static/reception-intake.test.mjs tests/static/reception-dependency-order.test.mjs tests/static/reception-followup-payments.test.mjs tests/static/reception-workflow.test.mjs tests/static/migration-chain-results.test.mjs tests/unit/catalog-formula-engine.test.mjs tests/unit/catalog-importer.test.mjs
