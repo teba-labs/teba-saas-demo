@@ -45,7 +45,22 @@ function selectRecord(record,records,shell){
  const individual=record.tests.filter(node=>node.dataset.testKind!=='panel'),panels=record.tests.filter(node=>node.dataset.testKind==='panel');
  const ih=shell.querySelector('[data-individual-workspace]'),ph=shell.querySelector('[data-profile-workspace]');ih.replaceChildren();ph.replaceChildren();
  if(individual.length)individual.forEach(node=>ih.append(node));else ih.innerHTML='<div class="empty">لا توجد تحاليل فردية في هذه الزيارة.</div>';
- if(panels.length)panels.forEach(node=>ph.append(node));else ph.innerHTML='<div class="empty">لا توجد بروفايلات في هذه الزيارة.</div>';
+ if(panels.length){
+  const profileList=document.createElement('div');profileList.className='profile-work-list';
+  panels.forEach(node=>{
+   const name=node.querySelector('h3,h2')?.textContent?.trim()||'بروفايل';
+   const status=node.querySelector('.pill')?.textContent||'';
+   const open=button(name+' · '+status,'profile-open-button');
+   open.addEventListener('click',()=>{
+    const back=button('رجوع لقائمة البروفايلات','button button-secondary');
+    const panel=document.createElement('div');panel.className='profile-entry-view';
+    back.addEventListener('click',()=>ph.replaceChildren(profileList));
+    panel.append(back,node);ph.replaceChildren(panel);
+   });
+   profileList.append(open);
+  });
+  ph.replaceChildren(profileList);
+ }else ph.innerHTML='<div class="empty">لا توجد بروفايلات في هذه الزيارة.</div>';
  shell.querySelector('[data-individual-count]').textContent=String(individual.length);shell.querySelector('[data-profile-count]').textContent=String(panels.length);
  const actions=shell.querySelector('[data-visit-actions]');actions.replaceChildren();record.actions.forEach(node=>{if(!node.querySelector('.print-visit-report'))actions.append(node);});
  const preview=button('معاينة نتائج الزيارة','button button-preview');
