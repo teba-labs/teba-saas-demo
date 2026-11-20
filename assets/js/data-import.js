@@ -120,14 +120,14 @@ async function prepareHistoricalSheet(sheet,button){
   if(!patientName){rejected.push({row:row._rowNumber,reason:'اسم المريض فارغ'});continue;}
   if(date.status!=='valid'||!date.isoDate){rejected.push({row:row._rowNumber,reason:date.status==='ambiguous'?'تاريخ ملتبس يحتاج تصحيحًا':'تاريخ غير صالح أو فارغ'});continue;}
   if(!testName){rejected.push({row:row._rowNumber,reason:'اسم التحليل غير موجود'});continue;}
-  if(!String(row.result_value||'').trim()&&!Object.keys(parameters).length){rejected.push({row:row._rowNumber,reason:'لا توجد نتيجة أو بارامترات مربوطة'});continue;}
+  if(!String(row.result_value||'').trim()&&!String(row.raw_payload||'').trim()&&!Object.keys(parameters).length){rejected.push({row:row._rowNumber,reason:'لا توجد نتيجة أو بارامترات مربوطة'});continue;}
   const testCode=String(row.test_code||('LEGACY-'+testName.toLocaleUpperCase('en').replace(/[^A-Z0-9]+/g,'-').slice(0,48))).trim();
   const originalCells=sheet.rawRows[row._rowNumber-1]||[],originalRow={};
   sheet.headers.forEach((header,index)=>{if(String(originalCells[index]??'').trim()!=='')originalRow[String(header||('Column '+(index+1)))]=String(originalCells[index]);});
-  const resultData={format:'legacy-historical-v1',value:row.result_value||null,parameters,unit:row.unit||null,reference_range:row.reference_range||null,raw_original:row.results_data||null,raw_result_at:row.result_at||null,raw_age:row.age||null,raw_age_unit:row.age_type||null};
+  const resultData={format:'legacy-historical-v1',value:row.result_value||null,parameters,unit:row.unit||null,reference_range:row.reference_range||null,raw_original:row.raw_payload||null,raw_result_at:row.result_at||null,raw_age:row.age||null,raw_age_unit:row.age_type||null};
   const duplicateSignature=JSON.stringify([patientName,date.isoDate,testCode,resultData]);if(seenContent.has(duplicateSignature)){rejected.push({row:row._rowNumber,reason:'صف مكرر بنفس المريض والتاريخ والتحليل والنتيجة'});continue;}seenContent.add(duplicateSignature);
   const sourceRecordKey=await historicalRecordKey(state.result.sha256,sheet.name,row._rowNumber,testCode);
-  let resultAt=null;if(row.result_at){const candidate=new Date(row.result_at);if(!Number.isNaN(candidate.getTime()))resultAt=candidate.toISOString();}
+  let resultAt=null;if(row.result_at){let candidate=new Date(row.result_at);if(Number.isNaN(candidate.getTime()))candidate=new Date(date.isoDate+'T'+row.result_at);if(!Number.isNaN(candidate.getTime()))resultAt=candidate.toISOString();}
   prepared.push({patient_name_snapshot:patientName,test_code:testCode,test_name_snapshot:testName,result_date:date.isoDate,result_at:resultAt,result_data:resultData,patient_age_raw:row.age||null,patient_age_unit:row.age_type||null,source_sheet_name:sheet.name,source_row_number:row._rowNumber,source_record_key:sourceRecordKey,original_row:originalRow});
  }
  if(!prepared.length)throw new Error('لا توجد صفوف صالحة. الصفوف المرفوضة: '+rejected.length);
@@ -135,8 +135,9 @@ async function prepareHistoricalSheet(sheet,button){
  const stats=el('div');stats.className='validationStats';
  for(const [label,value] of [['صفوف مقبولة',prepared.length],['صفوف مرفوضة',rejected.length],['أسماء مرضى مختلفة',new Set(prepared.map(x=>x.patient_name_snapshot)).size]]){const item=el('div');item.append(el('small',label),el('b',value));stats.append(item);}panel.append(stats);
  if(rejected.length){const list=el('ul');rejected.slice(0,30).forEach(x=>list.append(el('li','صف '+x.row+': '+x.reason)));panel.append(list);}
- const names=[...new Set(prepared.map(x=>x.patient_name_snapshot))].slice(0,100);state.patientLinks={};
- panel.append(el('p','مطابقة المرضى لا تتم تلقائيًا. راجع المرشحين حسب الاسم والعمر وتاريخ التسجيل، واختر المريض الصحيح أو اترك الاسم محفوظًا كنص تاريخي دون ربط.'));
+ const allNames=[...new Set(prepared.map(x=>x.patient_name_snapshot))],names=allNames.slice(0,100);state.patientLinks={};
+ panel.append(el('p','مطابقة المرضى لا تتم تلقائيًا. راجع المرشحين حسب الاسم والعمر وتواريخ الزيارات السابقة، واختر المريض الصحيح أو اترك الاسم محفوظًا كنص تاريخي دون ربط.'));
+ if(allNames.length>100)panel.append(el('p','تنبيه: يوجد '+(allNames.length-100)+' اسمًا إضافيًا لن تُعرض له اقتراحات ربط في هذه المراجعة؛ ستُحفظ أسماؤهم كما وردت دون ربط بمريض، ويمكن مراجعتهم لاحقًا.'));
  for(let i=0;i<names.length;i+=10){
   const group=names.slice(i,i+10);
   const candidates=await Promise.all(group.map(name=>findHistoricalPatientCandidates({tenantId:state.tenantId,branchId:state.branchId,name,limit:8}).catch(()=>[])));
