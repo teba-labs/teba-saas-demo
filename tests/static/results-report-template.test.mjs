@@ -24,4 +24,6 @@ test('print settings persist and reload the newly added options as structured JS
  assert.ok(js.includes('اعتمد الزيارة أولًا للطباعة'));
  assert.ok(js.includes('state.previewedVisits.has(visitId)'));
  assert.ok(js.includes('لم تُحفظ بعد'));
+ assert.ok(js.includes('taibaGetDirtyResultInputs'));
+ assert.ok(js.includes('قبل نشر التقرير'));
 });
