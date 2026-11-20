@@ -1,6 +1,6 @@
 const XLSX_URL = 'https://esm.sh/xlsx@0.18.5';
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
-const MAX_SHEETS = 50;
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const MAX_SHEETS = 200;
 
 const ENTITY_FIELDS = {
   patients: { label: 'المرضى', fields: [
@@ -35,6 +35,19 @@ const ENTITY_FIELDS = {
     ['test_code','كود التحليل',false,['test_code','code','كود التحليل']],
     ['results_data','بيانات النتائج الخام',true,['results_data','results','result data','النتائج','بيانات النتائج']],
     ['created_at','تاريخ النتيجة',false,['created_at','result date','تاريخ النتيجة']]
+  ]},
+  historical_results: { label: 'نتائج تاريخية للمرضى', fields: [
+    ['patient_name','اسم المريض',true,['patient_name','patient name','full name','اسم المريض','الاسم']],
+    ['result_date','تاريخ الزيارة / النتيجة',true,['result_date','visit date','date','تاريخ الزيارة','التاريخ','تاريخ التحليل']],
+    ['test_name','اسم التحليل',false,['test_name','test name','analysis','اسم التحليل','التحليل']],
+    ['test_code','كود التحليل',false,['test_code','code','كود التحليل','الكود']],
+    ['result_value','النتيجة',false,['result','result value','value','النتيجة','القيمة']],
+    ['unit','الوحدة',false,['unit','units','الوحدة']],
+    ['reference_range','المدى المرجعي',false,['reference range','reference_range','normal range','المدى المرجعي','الرينج','القيم الطبيعية']],
+    ['result_at','وقت إجراء النتيجة',false,['result_at','result time','time','وقت النتيجة','وقت إجراء التحليل']],
+    ['age','العمر الأصلي',false,['age','العمر']],
+    ['age_type','وحدة العمر',false,['age type','age_type','age unit','نوع العمر','وحدة العمر']],
+    ['parameter_columns','بارامتر نتيجة (يمكن تكراره)',false,[]]
   ]},
   ledger: { label: 'الحركة المالية', fields: [
     ['source_id','معرّف الحركة',false,['id','ledger_id','معرف الحركة']],
@@ -72,7 +85,7 @@ const ENTITY_FIELDS = {
 };
 const ENTITY_OPTIONS = [
   ['unknown','غير محدد'],['patients','المرضى'],['visits','الزيارات / الحالات'],
-  ['visit_tests','تحاليل الزيارة'],['test_results','نتائج التحاليل'],['ledger','الحركة المالية'],
+  ['visit_tests','تحاليل الزيارة'],['test_results','نتائج التحاليل التشغيلية'],['historical_results','نتائج تاريخية للمرضى'],['ledger','الحركة المالية'],
   ['catalog','كتالوج التحاليل'],['prices','أسعار التحاليل'],['expenses','بنود / مصروفات'],['website','محتوى الموقع']
 ];
 
@@ -107,9 +120,15 @@ const RELATIONSHIPS = [
   {from:'ledger',field:'visit_id',to:'visits',targetField:'source_id',optional:true,label:'الزيارة المرتبطة بالحركة المالية'}
 ];
 function rowObject(row, mapping) {
-  const out={}, counts=new Map();
-  for(const item of mapping||[]) if(item.fieldKey) counts.set(item.fieldKey,(counts.get(item.fieldKey)||0)+1);
-  for(const item of mapping||[]) if(item.fieldKey && counts.get(item.fieldKey)===1) out[item.fieldKey]=cleanCell(row?.[item.columnIndex]);
+  const out={}, counts=new Map(), parameters={};
+  for(const item of mapping||[]) if(item.fieldKey && item.fieldKey!=='parameter_columns') counts.set(item.fieldKey,(counts.get(item.fieldKey)||0)+1);
+  for(const item of mapping||[]) {
+    if(item.fieldKey==='parameter_columns') {
+      const value=cleanCell(row?.[item.columnIndex]);
+      if(value!=='') parameters[cleanCell(item.header)||('Parameter '+(item.columnIndex+1))]=value;
+    } else if(item.fieldKey && counts.get(item.fieldKey)===1) out[item.fieldKey]=cleanCell(row?.[item.columnIndex]);
+  }
+  if(Object.keys(parameters).length) out.parameter_columns=parameters;
   return out;
 }
 function numericValue(value) {
@@ -193,8 +212,8 @@ export function analyzeArchiveSheet(rows, headerRowIndex, entityType, mapping) {
   if(duplicateHeaders)add('duplicate-header',headerRowIndex+1,'يوجد '+duplicateHeaders+' عنوان عمود مكرر؛ راجع المطابقة يدويًا.');
   const legacyReview={ageRows:0,dateAmbiguous:0,dateInvalid:0,resultPayloadInvalid:0,financeRows:0};
   for(const record of records){
-    if(entityType==='patients'&&record.age){const age=inspectLegacyAge(record.age,record.age_type);record._legacyAgeReview=age;if(age.status!=='empty')legacyReview.ageRows++;}
-    const dateField=entityType==='visits'?'visit_date':entityType==='ledger'?'created_at':entityType==='expenses'?'date':entityType==='patients'?'created_at':null;
+    if((entityType==='patients'||entityType==='historical_results')&&record.age){const age=inspectLegacyAge(record.age,record.age_type);record._legacyAgeReview=age;if(age.status!=='empty')legacyReview.ageRows++;}
+    const dateField=entityType==='visits'?'visit_date':entityType==='historical_results'?'result_date':entityType==='ledger'?'created_at':entityType==='expenses'?'date':entityType==='patients'?'created_at':null;
     if(dateField&&record[dateField]){record._legacyDateReview=inspectLegacyDate(record[dateField]);if(record._legacyDateReview.status==='ambiguous')legacyReview.dateAmbiguous++;if(['invalid','needs-review'].includes(record._legacyDateReview.status))legacyReview.dateInvalid++;}
     if(entityType==='test_results'&&record.results_data){record._legacyResultReview=inspectLegacyResultPayload(record.results_data);if(!record._legacyResultReview.valid)legacyReview.resultPayloadInvalid++;}
     if(entityType==='visits'&&record.paid_amount!==undefined)legacyReview.financeRows++;
@@ -230,7 +249,7 @@ function hashHex(buffer) {
 export function inferSheetType(sheetName) {
   const n=normalizeHeader(sheetName);
   const rules=[
-    ['patients',/مرض|patient|patients|عملاء/],['visit_tests',/تحاليل الزيار|visit test|visit_tests|تفاصيل التحاليل/],
+    ['patients',/مرض|patient|patients|عملاء/],['historical_results',/نتائج قديم|نتائج تاريخي|historical|legacy result|نتائج المرضى/],['visit_tests',/تحاليل الزيار|visit test|visit_tests|تفاصيل التحاليل/],
     ['visits',/زيار|حالا|visit|visits|استقبال/],
     ['test_results',/نتائج|نتايج|result|test_results/],['ledger',/حرك|مالي|ledger|financial|خزين|مدفوع/],
     ['prices',/سعر|اسعار|price|prices/],['catalog',/كتالوج|تحاليل|catalog|tests/],['expenses',/مصروف|expense|بنود/],
@@ -249,18 +268,18 @@ export function suggestColumnMapping(headers, entityType) {
       const score=aliases.includes(normalized)?100:aliases.some(a=>a&&normalized.includes(a))?65:0;
       if(score>(best?.score||0))best={key:field[0],score};
     }
-    const key=best&&best.score>=65&&!used.has(best.key)?best.key:'';
+    const key=best&&best.score>=65&&(best.key==='parameter_columns'||!used.has(best.key))?best.key:'';
     if(key)used.add(key);
     return {columnIndex:index,header:cleanCell(header),fieldKey:key,confidence:key?(best.score===100?'high':'review'):'unmapped'};
   });
 }
 export function validateArchiveFileMeta(fileName,fileSize){
   if (!/\.(xlsx|xls|csv)$/i.test(String(fileName||''))) throw new Error('الملفات المدعومة الآن: XLSX وXLS وCSV.');
-  if (!fileSize || fileSize > MAX_FILE_BYTES) throw new Error('حجم الملف يجب أن يكون أقل من 20 ميجابايت.');
+  if (!fileSize || fileSize > MAX_FILE_BYTES) throw new Error('حجم الملف يجب ألا يتجاوز 50 ميجابايت.');
   return true;
 }
 export function validateSheetCount(count){
-  if (!Number.isInteger(count) || count < 1 || count > MAX_SHEETS) throw new Error('عدد أوراق العمل غير صالح أو يتجاوز الحد المسموح (50 ورقة).');
+  if (!Number.isInteger(count) || count < 1 || count > MAX_SHEETS) throw new Error('عدد أوراق العمل غير صالح أو يتجاوز الحد المسموح (200 ورقة).');
   return true;
 }
 export function getEntityOptions(){return ENTITY_OPTIONS.map(([value,label])=>({value,label}));}
