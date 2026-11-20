@@ -175,11 +175,7 @@ async function renderWork() {
     bindCultureForms(host);
   }
   host.querySelectorAll('.select-historical-report').forEach(btn => btn.addEventListener('click', () => loadHistoricalReportPicker(btn)));
-  host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => {
-    const win = window.open('', '_blank');
-    if (!win) { showNotice('اسمح بفتح نافذة التقرير من إعدادات المتصفح ثم أعد المحاولة.', true); return; }
-    win.close(); window.taibaPreviewVisitReport(btn.dataset.visitId);
-  }));
+  host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => window.taibaPreviewVisitReport(btn.dataset.visitId)));
   const resultsByTest = new Map();
   for (const result of resultRows) {
     if (!resultsByTest.has(result.visit_test_id)) resultsByTest.set(result.visit_test_id, []);
