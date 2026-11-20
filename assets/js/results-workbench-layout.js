@@ -47,7 +47,7 @@ function selectRecord(record,records,shell){
  if(individual.length)individual.forEach(node=>ih.append(node));else ih.innerHTML='<div class="empty">لا توجد تحاليل فردية في هذه الزيارة.</div>';
  if(panels.length)panels.forEach(node=>ph.append(node));else ph.innerHTML='<div class="empty">لا توجد بروفايلات في هذه الزيارة.</div>';
  shell.querySelector('[data-individual-count]').textContent=String(individual.length);shell.querySelector('[data-profile-count]').textContent=String(panels.length);
- const actions=shell.querySelector('[data-visit-actions]');actions.replaceChildren();record.actions.forEach(node=>actions.append(node));
+ const actions=shell.querySelector('[data-visit-actions]');actions.replaceChildren();record.actions.forEach(node=>{if(!node.querySelector('.print-visit-report'))actions.append(node);});
  const preview=button('معاينة نتائج الزيارة','button button-preview');
  preview.addEventListener('click',()=>{if(typeof window.taibaPreviewVisitReport!=='function'){window.alert('تعذر تحميل أداة معاينة التقرير.');return;}window.taibaPreviewVisitReport(record.visitId);});
  const hide=button('إخفاء الحالة من قائمة العمل','button button-secondary');
