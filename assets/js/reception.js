@@ -163,7 +163,7 @@ async function addNewPatient(button){
   try{
     const patient=await createPatient({tenantId:state.tenant.id,branchId:state.branch.id,patient:{
       fullName,phone:$('patientPhone').value.trim()||null,ageValue:age,ageUnit:unit,patientNumber:$('patientNumberPreview').value,
-      sex:$('patientSex').value,createdByStaffId:currentStaff()
+      sex,createdByStaffId:currentStaff()
     }});
     setPatient(patient);$('patientSearch').value='';$('patientMatches').replaceChildren();$('newPatientForm').reset();
     $('patientNumberPreview').value=makeCode('P');
