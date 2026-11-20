@@ -34,6 +34,8 @@ test('launcher exposes core operations to staff and reserves owner controls', ()
   const html = read('app/index.html');
   assert.match(html, /إعدادات النظام/);
   assert.match(html, /إدارة موقع المعمل/);
+  assert.match(html, /href="\.\.\/portal\/index\.html"/);
+  assert.match(html, /معاينة بوابة المريض/);
 });
 
 test('launcher provides a responsive medical workspace and live operational status', () => {
