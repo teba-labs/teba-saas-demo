@@ -1,6 +1,8 @@
 const XLSX_URL = 'https://esm.sh/xlsx@0.18.5';
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const MAX_SHEETS = 200;
+const MAX_TOTAL_ROWS = 250000;
+const MAX_ROWS_PER_SHEET = 100000;
 
 const ENTITY_FIELDS = {
   patients: { label: 'المرضى', fields: [
@@ -296,9 +298,12 @@ export async function inspectWorkbookFile(file) {
   try { workbook = XLSX.read(buffer, { type: 'array', cellDates: true, raw: false }); }
   catch { throw new Error('تعذر قراءة الملف. تأكد أنه ملف Excel أو CSV سليم وغير تالف.'); }
   validateSheetCount(workbook.SheetNames.length);
+  let totalRows=0;
   const sheets = workbook.SheetNames.map(name => {
     const worksheet = workbook.Sheets[name];
     const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false, blankrows: true });
+    if(rows.length>MAX_ROWS_PER_SHEET)throw new Error('الورقة «'+name+'» تتجاوز 100 ألف صف؛ قسّم الملف إلى أجزاء أصغر.');
+    totalRows+=rows.length;if(totalRows>MAX_TOTAL_ROWS)throw new Error('إجمالي صفوف الملف يتجاوز 250 ألف صف؛ قسّم الملف إلى ملفات أصغر.');
     const candidates = rankHeaderCandidates(rows);
     const suggested = candidates[0]?.rowIndex ?? 0;
     const header = (rows[suggested] || []).map(cleanCell);
