@@ -8,7 +8,7 @@ const required = (value, name) => { if (!value) throw new Error(`${name} is requ
 export async function listCatalog({ tenantId, includeInactive = false } = {}) {
   required(tenantId, 'tenantId');
   let query = db().from(TABLES.catalog)
-    .select('id, tenant_id, code, name, category, specimen, method, turnaround_minutes, instructions, is_active, updated_at')
+    .select('id, tenant_id, code, name, test_kind, category, specimen, method, turnaround_minutes, instructions, is_active, updated_at')
     .eq('tenant_id', tenantId).order('name');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('catalog', { tenantId })).filter(row => includeInactive || row.is_active);
   const { data, error } = await query;
@@ -73,8 +73,10 @@ export async function saveCatalogTest({ tenantId, test, id } = {}) {
   if (turnaround !== null && (!Number.isInteger(turnaround) || turnaround < 0 || turnaround > 10080)) {
     throw new Error('turnaroundMinutes must be a whole number from 0 to 10080.');
   }
+  const testKind = test?.testKind ?? 'individual';
+  if (!['individual', 'panel'].includes(testKind)) throw new Error('testKind must be individual or panel.');
   const payload = {
-    ...(id ? { id } : {}), tenant_id: tenantId, code, name,
+    ...(id ? { id } : {}), tenant_id: tenantId, code, name, test_kind: testKind,
     category: test.category?.trim() || null, specimen: test.specimen?.trim() || null,
     method: test.method?.trim() || null, turnaround_minutes: turnaround,
     instructions: test.instructions?.trim() || null, is_active: test.isActive !== false,
