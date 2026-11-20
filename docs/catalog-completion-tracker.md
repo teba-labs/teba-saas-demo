@@ -1,6 +1,6 @@
 # Taiba Smart Lab — Catalog Completion Tracker
 
-Last updated: 2026-11-20 19:48 Africa/Cairo
+Last updated: 2026-11-20 19:53 Africa/Cairo
 Repository: `teba-labs/teba-saas-demo`
 Active catalog branch: `feature/extended-culture-catalog-2026-11-20`
 Catalog extension PR: [#18 — Extended bacterial culture profiles](https://github.com/teba-labs/teba-saas-demo/pull/18)
@@ -80,7 +80,7 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - RLS is enabled on the master catalog tables.
 - PR #18 has no submitted reviews or inline review threads at the time of this update.
 - Database trigger definitions were inspected directly: new visit-test rows snapshot active catalog name/code, effective branch/base price, and all active parameter definitions; update attempts that change those snapshots are rejected. Result validation resolves parameter metadata from the immutable visit snapshot.
-- First CI run after adding the new cross-screen contract tests: 50/51 passed; one existing culture contract test failed because its `js` fixture was not declared in that test scope. Fixed by adding the missing local fixture (commit `c830494`). A new CI run is required to confirm the fix.
+- CI run #724 on final tracker commit `26b3e74`: **51/51 tests passed**, 0 failed. Run: https://github.com/teba-labs/teba-saas-demo/actions/runs/44782975646.
 - Browser E2E using an authenticated TEST tenant has not been run in this session.
 - No production database or customer records were changed.
 
@@ -92,4 +92,5 @@ This is an honest progress snapshot, not a claim that all 495 tests have been cl
 - 2026-11-20: Documented Catalog → Reception → visit snapshot → Results → approval/report data flow and the immutability rule for historical visits.
 - 2026-11-20: Added automated static contract tests for the cross-screen data path and verified-only master import gate (commit `ea435a8`).
 - 2026-11-20: Inspected live TEST database trigger definitions to confirm snapshot creation, effective branch/base price selection, immutable visit snapshots, and result metadata validation.
-- 2026-11-20: CI surfaced one missing test-local fixture (`js is not defined`) in the culture contract suite; corrected the test and queued a fresh PR check.
+- 2026-11-20: CI surfaced one missing test-local fixture (`js is not defined`) in the culture contract suite; corrected it, reran the workflow, and confirmed 51/51 passing in run #724.
+- 2026-11-20: Final active PR head at this checkpoint: `26b3e74ff35435a7f5cca5a84d4cdfc85c1cc9ec`; 21 commits ahead of `main`, 0 behind. PR #18 remains open and `main` is unchanged.
