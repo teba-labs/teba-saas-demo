@@ -128,7 +128,7 @@ async function renderWork() {
         const rangeText = resolveReferenceRange(p.reference_ranges, item.visits?.patients || {}, p.reference_interval_status);
         return `<label>${name}${p.is_required === false ? ' (اختياري)' : ''}<small>${escapeHtml(p.unit ?? '')} ${escapeHtml(rangeText)}</small>${control}</label>`;
       }).join('')}</fieldset>`).join('');
-      const isCulture = ['CULTURE_URINE','CULTURE_STOOL'].includes(item.test_code_snapshot);
+      const isCulture = String(item.test_code_snapshot || '').startsWith('CULTURE_');
       const cultureEditor = isCulture ? `<section class="culture-workflow" data-culture-workflow="${escapeHtml(item.id)}"><h3>العزلات والاختبار الحساسي (Antibiogram)</h3><p class="muted">أضف كل عزلة منفصلة. أدخل تفسير الحساسية وفق إصدار CLSI/EUCAST والطريقة المعتمدة في المعمل؛ النظام لا يخمّن نقاط القطع.</p><div class="culture-isolates" data-culture-isolates="${escapeHtml(item.id)}"><p class="muted">جارٍ تحميل العزلات…</p></div>${!locked && !isPublished ? `<form class="culture-isolate-form" data-visit-test-id="${escapeHtml(item.id)}"><label>رقم العزلة<input name="isolateNumber" type="number" min="1" max="20" value="1" required></label><label>اسم الكائن الممرض / العزلة<input name="organismName" maxlength="200" required placeholder="مثال: Escherichia coli"></label><label>وصف النمو<input name="growthDescription" placeholder="Pure growth / mixed growth"></label><label>عدد المستعمرات<input name="colonyCount" type="number" min="0" step="any"></label><label>وحدة العد<input name="colonyCountUnit" value="CFU/mL"></label><label>طريقة التعريف<input name="identificationMethod" placeholder="Biochemical / MALDI-TOF / Automated"></label><label class="wide">ملاحظات<textarea name="notes" rows="2"></textarea></label><button class="button" type="submit">حفظ العزلة</button></form>` : ''}</section>` : '';
       return `<section class="parameter" data-test-id="${escapeHtml(item.id)}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
@@ -159,7 +159,7 @@ async function renderWork() {
     tenantId: state.tenant.id,
     visitTestIds: state.work.map(item => item.id),
   });
-  const cultureWork = state.work.filter(item => ['CULTURE_URINE','CULTURE_STOOL'].includes(item.test_code_snapshot));
+  const cultureWork = state.work.filter(item => String(item.test_code_snapshot || '').startsWith('CULTURE_'));
   if (cultureWork.length) {
     const cultureRows = await listCultureResults({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:cultureWork.map(item=>item.id)});
     for (const item of cultureWork) renderCultureResults(host,item,cultureRows);
@@ -257,7 +257,7 @@ async function printVisitReport(visitId, win) {
   if (visit.status !== 'approved' && !visit.is_published) throw new Error('اعتمد الزيارة أولًا قبل طباعة التقرير.');
   const patient = visit.patients || {};
   const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
-  const cultureRows = await listCultureResults({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:visitItems.filter(item=>['CULTURE_URINE','CULTURE_STOOL'].includes(item.test_code_snapshot)).map(item=>item.id)});
+  const cultureRows = await listCultureResults({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:visitItems.filter(item=>String(item.test_code_snapshot || '').startsWith('CULTURE_')).map(item=>item.id)});
   if (!rows.length && !cultureRows.isolates.length) throw new Error('لا توجد نتائج محفوظة لهذه الزيارة حتى الآن.');
   const selectedHistoricalIds=state.historicalSelections.get(visitId)||new Set();
   let selectedHistoricalRows=[];
