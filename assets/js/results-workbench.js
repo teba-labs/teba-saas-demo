@@ -133,8 +133,8 @@ async function renderWork() {
           control = `<input type="text" ${metadata} placeholder="أدخل النتيجة" />`;
         }
         const rangeText = resolveReferenceRange(parameterRange, item.visits?.patients || {}, p.reference_interval_status);
-        const rangeEditButton = !isPublished && group.visit?.status !== 'approved'
-          ? '<button type="button" class="edit-reference-range" data-visit-test-id="' + escapeHtml(item.id) + '" data-param-code="' + code + '" data-range="' + escapeHtml(JSON.stringify(parameterRange)) + '">تعديل الرينج لهذه الزيارة</button>' : '';
+        const rangeEditButton = (isPublished || group.visit?.status !== 'approved')
+          ? '<button type="button" class="edit-reference-range" data-visit-test-id="' + escapeHtml(item.id) + '" data-param-code="' + code + '" data-range="' + escapeHtml(JSON.stringify(parameterRange)) + '" data-published="' + String(isPublished) + '">' + (isPublished ? 'تصحيح رينج التقرير المنشور' : 'تعديل الرينج لهذه الزيارة') + '</button>' : '';
         return '<label>' + name + (p.is_required === false ? ' (اختياري)' : '') + '<small>' + escapeHtml(p.unit ?? '') + ' ' + escapeHtml(rangeText) + '</small>' + control + rangeEditButton + '</label>';
       }).join('')}</fieldset>`).join('');
       const isCulture = String(item.test_code_snapshot || '').startsWith('CULTURE_');
@@ -211,13 +211,14 @@ async function editReferenceRange(button) {
     if(lower>upper){showNotice('الحد الأدنى لا يمكن أن يتجاوز الحد الأعلى.',true);return;}
     referenceRanges=[{lower,upper}];
   }else referenceRanges=[{text:clean}];
+  if(button.dataset.published==='true'&&!window.confirm('هذه الزيارة منشورة بالفعل. سيظل التقرير السابق محفوظًا، وسيحتاج التعديل إلى معاينة ونشر نسخة مصححة. هل تريد المتابعة؟'))return;
   const reason=window.prompt('سبب تعديل المدى (سيُحفظ في سجل التعديلات):','تعديل محلي للمدى المرجعي أثناء تسجيل النتيجة');
   if(reason===null)return;
   const saveReason=reason.trim()||'تعديل محلي للمدى المرجعي أثناء تسجيل النتيجة';
   button.disabled=true;
   try{
     await saveVisitParameterRangeOverride({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId,parameterCode,referenceRanges,staffId:$('staffSelect').value,reason:saveReason});
-    showNotice('تم حفظ المدى المرجعي لهذه الزيارة والبارامتر فقط. لم يتغير كتالوج التحاليل أو أي زيارة أخرى.');
+    showNotice(button.dataset.published==='true'?'تم حفظ تصحيح المدى. التقرير المنشور السابق محفوظ، ويجب معاينة ونشر النسخة المصححة.':'تم حفظ المدى المرجعي لهذه الزيارة والبارامتر فقط. لم يتغير كتالوج التحاليل أو أي زيارة أخرى.');
     window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));
   }catch(error){button.disabled=false;showNotice(error.message||'تعذر حفظ المدى المرجعي.',true);}
 }
