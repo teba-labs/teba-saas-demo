@@ -13,6 +13,7 @@ test('unified Arabic launcher exists and loads authenticated tenant context', ()
   assert.match(html, /id="loginForm"/);
   assert.match(html, /id="tenantSelect"/);
   assert.match(html, /id="branchSelect"/);
+  assert.match(html, /assets\\/js\\/tenant-branding\\.js/);
   assert.match(js, /loadMyTenantContext/);
   assert.match(js, /getCurrentSession/);
 });
@@ -34,12 +35,13 @@ test('all tenant and platform screens link back to the launcher', () => {
 
 test('service worker pre-caches all application screens and local assets', () => {
   const sw = read('service-worker.js');
-  assert.match(sw, /taiba-smart-lab-shell-v12/);
+  assert.match(sw, /taiba-smart-lab-shell-v13/);
   const shell = sw.match(/const APP_SHELL = \[([\s\S]*?)\];/)[1];
   const assets = [...shell.matchAll(/'\.\/([^']+)'/g)].map(m => m[1]);
   assert.ok(assets.includes('app/index.html'));
   assert.ok(assets.includes('app/dashboard.html'));
   assert.ok(assets.includes('app/cms-editor.html'));
+  assert.ok(assets.includes('assets/js/tenant-branding.js'));
   const missing = assets.filter(asset => !fs.existsSync(path.join(root, asset)));
   assert.deepEqual(missing, []);
   assert.match(sw, /hostname\.endsWith\('\.supabase\.co'\)\) return/);
