@@ -2,8 +2,6 @@ name: Static contract tests
 
 on:
   pull_request:
-    branches: [main]
-  pull_request:
     branches: [main, integration/reconciled-release-2026-11-20]
   push:
     branches: [main, feature/reception-complete-workflow-2026-11-20, integration/reconciled-release-2026-11-20]
