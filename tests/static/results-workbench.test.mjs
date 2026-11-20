@@ -23,7 +23,7 @@ test('workbench separates draft entry, approval, audited correction and PDF publ
   assert.match(script, /saveDraftResults/);
   assert.match(script, /completeVisitTest/);
   assert.match(script, /approveVisit/);
-  assert.match(script, /correctPublishedResult/);
+  assert.match(script, /correctVisitResultWithFlag/);
   assert.match(script, /publishReportVersion/);
   assert.match(script, /صحح نتيجة واحدة في كل مرة/);
 });
