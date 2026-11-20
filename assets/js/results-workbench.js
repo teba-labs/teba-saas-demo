@@ -188,8 +188,8 @@ async function renderWork() {
 
 
 function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
-  if (status === 'local_verification_required') return 'المدى المرجعي يحتاج تحققًا محليًا حسب الجهاز والطريقة';
-  if (status === 'not_applicable') return 'لا ينطبق';
+  const localPending = status === 'local_verification_required';
+  if (status === 'not_applicable' && !(value && (value.text || Array.isArray(value)))) return 'لا ينطبق';
   if (Array.isArray(value)) {
     const age = patient?.age_years == null ? null : Number(patient.age_years);
     const sex = String(patient?.sex || '').toLowerCase();
@@ -203,11 +203,12 @@ function resolveReferenceRange(value, patient = {}, status = 'local_verification
       }
       return true;
     });
-    if (matches.length === 1) return formatReferenceRange(matches[0]);
-    if (!matches.length && value.length === 1 && !value[0].age && !value[0].sex && !value[0].pregnancy) return formatReferenceRange(value[0]);
-    return matches.length > 1 ? 'أكثر من مدى ينطبق؛ يلزم تحديد الفئة' : 'لا يوجد مدى مطابق لعمر/نوع المريض';
+    if (matches.length === 1) return (localPending ? 'مقترح من المصدر — غير معتمد محليًا: ' : '') + formatReferenceRange(matches[0]);
+    if (!matches.length && value.length === 1 && !value[0].age && !value[0].sex && !value[0].pregnancy) return (localPending ? 'مقترح — غير معتمد محليًا: ' : '') + formatReferenceRange(value[0]);
+    return matches.length > 1 ? 'أكثر من مدى ينطبق؛ يلزم تحديد الفئة' : (localPending ? 'لا يوجد مدى مصدر مطابق؛ يلزم ضبط محلي' : 'لا يوجد مدى مطابق لعمر/نوع المريض');
   }
-  return formatReferenceRange(value);
+  const formatted = formatReferenceRange(value);
+  return localPending && formatted !== '—' ? 'مقترح من المصدر — غير معتمد محليًا: ' + formatted : formatted;
 }
 
 function formatReferenceRange(value) {
