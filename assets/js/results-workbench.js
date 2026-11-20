@@ -10,7 +10,7 @@ import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUr
 import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0 };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map() };
 const showNotice = (message, error = false) => {
   const el = $('notice'); el.textContent = message; el.className = `notice show${error ? ' error' : ''}`;
   window.clearTimeout(showNotice.timer); showNotice.timer = window.setTimeout(() => el.className = 'notice', 5000);
@@ -131,6 +131,7 @@ async function renderWork() {
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
       <div class="actions"><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
       <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>طباعة التقرير بإعدادات المعمل / حفظ PDF</button></div>
+      <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
       <div class="file-row"><label>ملف التقرير PDF<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!group.visit?.status || (!isPublished && group.visit.status !== 'approved') ? 'disabled' : ''}></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
@@ -150,6 +151,7 @@ async function renderWork() {
     tenantId: state.tenant.id,
     visitTestIds: state.work.map(item => item.id),
   });
+  host.querySelectorAll('.select-historical-report').forEach(btn => btn.addEventListener('click', () => loadHistoricalReportPicker(btn)));
   host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => {
     const win = window.open('', '_blank');
     if (!win) { showNotice('اسمح بفتح نافذة التقرير من إعدادات المتصفح ثم أعد المحاولة.', true); return; }
@@ -184,6 +186,31 @@ function formatReferenceRange(value) {
   return '—';
 }
 
+async function loadHistoricalReportPicker(button){
+ const visitId=button.dataset.visitId,group=state.work.find(item=>item.visit_id===visitId)?.visits||{};
+ const patient=group.patients||{},picker=document.querySelector('[data-historical-picker="'+CSS.escape(visitId)+'"]');
+ if(!picker)return;
+ if(!picker.hidden){picker.hidden=true;return;}
+ picker.hidden=false;picker.textContent='جارٍ تحميل النتائج التاريخية…';
+ try{
+  const [linked,unlinked]=await Promise.all([
+   patient.id?listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,patientId:patient.id,limit:200}):Promise.resolve([]),
+   listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,search:patient.full_name||'',limit:200})
+  ]);
+  const rows=[...new Map([...linked,...unlinked.filter(row=>!row.patient_id)].map(row=>[row.id,row])).values()];
+  picker.replaceChildren();
+  if(!rows.length){picker.textContent='لا توجد نتائج تاريخية لهذا المريض في الفرع الحالي.';return;}
+  const note=document.createElement('p');note.textContent='حدد النتائج القديمة التي تريد إرفاقها بهذا التقرير فقط. لن تُضاف أي نتيجة دون تحديدها هنا.';picker.append(note);
+  const selected=state.historicalSelections.get(visitId)||new Set();
+  for(const row of rows){
+   const label=document.createElement('label');label.className='historical-report-choice';
+   const input=document.createElement('input');input.type='checkbox';input.checked=selected.has(row.id);input.dataset.historicalId=row.id;
+   input.addEventListener('change',()=>{const set=state.historicalSelections.get(visitId)||new Set();if(input.checked)set.add(row.id);else set.delete(row.id);state.historicalSelections.set(visitId,set);});
+   const text=document.createElement('span');text.textContent=row.test_name_snapshot+' · '+row.result_date+' · '+row.patient_name_snapshot;
+   label.append(input,text);picker.append(label);
+  }
+ }catch(error){picker.textContent=error.message||'تعذر تحميل النتائج التاريخية.';}
+}
 async function printVisitReport(visitId, win) {
   const visitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
   if (!visitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
