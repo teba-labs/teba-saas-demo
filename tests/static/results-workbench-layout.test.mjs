@@ -8,6 +8,7 @@ const html=read('app/results-workbench.html');
 const layout=read('assets/js/results-workbench-layout.js');
 const js=read('assets/js/results-workbench.js');
 const repo=read('modules/laboratory/repository.js');
+const reception=read('modules/reception/repository.js');
 const migration=read('database/migrations/056_visit_workbench_archive.sql');
 
 test('results workbench loads the three-column visits, individual and profile layout',()=>{
@@ -19,7 +20,7 @@ test('results workbench loads the three-column visits, individual and profile la
 
 test('individual catalog and panel catalog add to the selected visit without leaving results',()=>{
  for(const value of ['listCatalog',"test_kind==='panel'",'addTestToVisit','taiba:results-work-refresh']) assert.ok(layout.includes(value),value);
- assert.ok(repo.includes('addTestToVisit'));
+ assert.ok(reception.includes('addTestToVisit'));
 });
 
 test('visit preview is available without automatically invoking print',()=>{
