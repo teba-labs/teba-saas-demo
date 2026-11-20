@@ -14,7 +14,7 @@ test('reception page is Arabic RTL and includes patient, visit, catalog and bill
 test('reception resolves authenticated tenant and branch context and requires open workday',()=>{
   assert.match(script,/loadMyTenantContext/);
   assert.match(script,/getOpenWorkday\(/);
-  assert.match(script,/if\(!state\.workday\)\{await loadRecent\(\);await loadBalances\(\);return;\}/);
+  assert.match(script,/if\(!state\.workday\|\|!state\.staff\.length\)/);
 });
 test('patient search and creation are branch-scoped',()=>{
   assert.match(script,/findPatients\(\{tenantId:state\.tenant\.id,branchId:state\.branch\.id/);
