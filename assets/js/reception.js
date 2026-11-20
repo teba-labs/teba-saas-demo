@@ -105,6 +105,7 @@ async function loadBranch(){
   state.workday=workdayResult.error?null:workdayResult;
   $('workdayStatus').className='status '+(state.workday?'good':'bad');
   $('workdayStatus').textContent=state.workday?`يوم العمل مفتوح: ${state.workday.work_date}`:`لا يوجد يوم عمل مفتوح. ${workdayResult.error?.message||''}`;
+  if(!state.workday){const openLink=document.createElement('a');openLink.href='workday.html';openLink.className='button button-secondary';openLink.textContent='فتح يوم العمل';openLink.style.marginInlineStart='8px';$('workdayStatus').append(document.createTextNode(' '),openLink);}
   $('intakeWorkdayChip').textContent=state.workday?`يوم العمل · ${state.workday.work_date}`:'يوم العمل مغلق';
   $('visitDate').value=state.workday?.work_date||'—';
   if(!state.staff.length)$('workdayStatus').textContent+=' لا توجد هوية موظف نشطة مرتبطة بهذا الحساب في الفرع.';
