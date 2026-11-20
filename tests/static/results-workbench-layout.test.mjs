@@ -21,6 +21,8 @@ test('results workbench loads the three-column visits, individual and profile la
 test('individual catalog and panel catalog add to the selected visit without leaving results',()=>{
  for(const value of ['listCatalog',"test_kind==='panel'",'addTestToVisit','taiba:results-work-refresh']) assert.ok(layout.includes(value),value);
  assert.ok(reception.includes('addTestToVisit'));
+ assert.ok(reception.includes('add_test_to_visit_atomic'));
+ assert.ok(read('database/migrations/063_sync_billing_for_results_test_additions.sql').includes('sync_visit_billing_for_added_test'));
 });
 
 test('visit preview is available without automatically invoking print',()=>{
