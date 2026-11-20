@@ -5,6 +5,7 @@ import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection 
 import { listBranchWorkPage } from '../../modules/laboratory/repository.js';
 import { listResultsForVisitTests, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
 import { publishReportVersion, correctPublishedResult } from '../../modules/reports/repository.js';
+import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
 
 const $ = (id) => document.getElementById(id);
@@ -128,6 +129,7 @@ async function renderWork() {
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
       <div class="actions"><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
+      <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="\${escapeHtml(visitId)}" \${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>طباعة التقرير بإعدادات المعمل / حفظ PDF</button></div>
       <div class="file-row"><label>ملف التقرير PDF<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!group.visit?.status || (!isPublished && group.visit.status !== 'approved') ? 'disabled' : ''}></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
@@ -139,6 +141,7 @@ async function renderWork() {
   host.querySelectorAll('.correct-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
   host.querySelectorAll('.publish-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
+  host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => printVisitReport(btn.dataset.visitId, resultRows)));
   host.querySelectorAll('.upload-attachment').forEach(btn => btn.addEventListener('click', () => uploadAttachment(btn)));
   host.querySelectorAll('.list-attachments').forEach(btn => btn.addEventListener('click', () => loadAttachments(btn.dataset.visitId)));
   host.querySelectorAll('.attachment-download').forEach(btn => btn.addEventListener('click', () => downloadAttachment(btn)));
@@ -160,6 +163,88 @@ async function renderWork() {
       if (input) { input.value = result.value_numeric ?? result.value_text ?? ''; input.dataset.resultId = result.id; input.dataset.originalValue = input.value; }
     }
   }
+}
+
+
+function formatReferenceRange(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (typeof value === 'object') {
+    if (value.text) return String(value.text);
+    const low = value.low ?? value.min ?? value.lower;
+    const high = value.high ?? value.max ?? value.upper;
+    if (low !== undefined || high !== undefined) return (low ?? '—') + ' – ' + (high ?? '—');
+    return Object.entries(value).map(([key, item]) => key + ': ' + item).join(' · ');
+  }
+  return '—';
+}
+
+function printVisitReport(visitId, resultRows) {
+  const visitItems = state.work.filter(item => item.visit_id === visitId);
+  if (!visitItems.length) { showNotice('تعذر العثور على الزيارة المحددة.', true); return; }
+  const visit = visitItems[0].visits || {};
+  const patient = visit.patients || {};
+  const ids = new Set(visitItems.map(item => item.id));
+  const rows = (resultRows || []).filter(row => ids.has(row.visit_test_id));
+  if (!rows.length) { showNotice('لا توجد نتائج محفوظة لهذه الزيارة حتى الآن.', true); return; }
+
+  const brand = globalThis.__taibaTenantBrand || {};
+  const lab = brand.settings || {};
+  const print = brand.printSettings || {};
+  const branch = state.branch || brand.branch || {};
+  const logoPath = print.showLogo === false ? '' : (print.logoPath || lab.logo_path || '');
+  const signaturePath = print.showSignature ? print.signaturePath || '' : '';
+  const logo = logoPath ? getLabAssetPublicUrl(logoPath) : '';
+  const signature = signaturePath ? getLabAssetPublicUrl(signaturePath) : '';
+  const labName = lab.laboratory_name || state.tenant?.name || 'Taiba Smart Lab';
+  const doctor = print.showDoctor === false ? '' : (lab.doctor_name || '');
+  const branchName = print.showBranch === false ? '' : (branch.name || '');
+  const phone = print.showPhone === false ? '' : (branch.phone || lab.phone || lab.whatsapp || '');
+  const address = print.showAddress === false ? '' : (branch.address || lab.address || '');
+  const footer = print.footerText || lab.report_footer || '';
+  const title = print.title || 'نتيجة الفحوصات الطبية';
+  const paper = print.paperSize === 'A5' ? 'A5' : 'A4';
+  const orientation = print.orientation === 'landscape' ? 'landscape' : 'portrait';
+  const margin = Math.min(30, Math.max(5, Number(print.margin) || 12));
+  const byTest = new Map();
+  for (const row of rows) {
+    if (!byTest.has(row.visit_test_id)) byTest.set(row.visit_test_id, new Map());
+    byTest.get(row.visit_test_id).set(row.parameter_code, row);
+  }
+  const testSections = visitItems.map(item => {
+    const resultMap = byTest.get(item.id) || new Map();
+    const parameters = item.technical_snapshot?.parameters || [];
+    const codes = new Set([...parameters.map(parameter => parameter.code), ...resultMap.keys()]);
+    const lines = [...codes].map(code => {
+      const parameter = parameters.find(candidate => candidate.code === code) || {};
+      const result = resultMap.get(code);
+      if (!result) return '';
+      const parameterName = result.parameter_name_snapshot || parameter.name || parameter.parameter_name || code;
+      const value = result.value_numeric ?? result.value_text ?? '—';
+      const unit = result.unit_snapshot || parameter.unit || '';
+      const reference = formatReferenceRange(result.reference_range_snapshot ?? parameter.reference_ranges);
+      const flag = result.flag ? ' · ' + result.flag : '';
+      return '<tr><td>' + escapeHtml(parameterName) + '</td><td>' + escapeHtml(value) + '</td><td>' + escapeHtml(unit) + '</td><td>' + escapeHtml(reference) + '</td><td>' + escapeHtml(flag) + '</td></tr>';
+    }).filter(Boolean).join('');
+    return '<section class="test"><h2>' + escapeHtml(item.test_name_snapshot || 'تحليل') + '</h2><table><thead><tr><th>الفحص</th><th>النتيجة</th><th>الوحدة</th><th>القيمة المرجعية</th><th>ملاحظة</th></tr></thead><tbody>' + (lines || '<tr><td colspan="5">لا توجد نتائج لهذا التحليل</td></tr>') + '</tbody></table></section>';
+  }).join('');
+  const contact = [branchName ? 'الفرع: ' + branchName : '', phone, address].filter(Boolean).join(' · ');
+  const win = window.open('', '_blank');
+  if (!win) { showNotice('اسمح بفتح نافذة التقرير من إعدادات المتصفح ثم أعد المحاولة.', true); return; }
+  const html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' +
+    '@page{size:' + paper + ' ' + orientation + ';margin:' + margin + 'mm}' +
+    'body{font-family:Arial,Tahoma,sans-serif;color:#182b36;font-size:12px;line-height:1.6}header{text-align:center;border-bottom:2px solid #244b5d;padding-bottom:12px;margin-bottom:16px}header img{max-width:140px;max-height:70px;object-fit:contain}h1{font-size:20px;margin:6px 0}h2{font-size:15px;margin:14px 0 6px}.meta{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px}.meta span{padding:5px 8px;background:#f1f5f7;border-radius:5px}table{width:100%;border-collapse:collapse;margin-bottom:12px}th,td{border:1px solid #cbd5dc;padding:6px;text-align:right}th{background:#edf2f5}.test{break-inside:avoid}footer{border-top:1px solid #cbd5dc;margin-top:24px;padding-top:10px;text-align:center}.signature{max-width:140px;max-height:70px;object-fit:contain}@media print{button{display:none}}' +
+    '</style></head><body><header>' + (logo ? '<img src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '') +
+    '<h1>' + escapeHtml(labName) + '</h1><strong>' + escapeHtml(title) + '</strong>' +
+    (doctor ? '<p>' + escapeHtml(doctor) + '</p>' : '') + (contact ? '<p>' + escapeHtml(contact) + '</p>' : '') +
+    '</header><div class="meta"><span>المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>التاريخ: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div>' +
+    testSections + (signature ? '<p style="text-align:left"><img class="signature" src="' + escapeHtml(signature) + '" alt="التوقيع"></p>' : '') +
+    (footer ? '<footer>' + escapeHtml(footer) + '</footer>' : '') + '</body></html>';
+  win.document.open(); win.document.write(html); win.document.close();
+  const printWhenReady = () => { try { win.focus(); win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
+  const images = [...win.document.images];
+  if (!images.length) setTimeout(printWhenReady, 250);
+  else Promise.all(images.map(image => image.decode?.().catch(() => null))).then(() => setTimeout(printWhenReady, 150));
 }
 
 async function saveTest(button) {
