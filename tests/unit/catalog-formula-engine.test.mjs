@@ -28,3 +28,13 @@ test('rejects malformed expressions and formulas without parameter references',(
   assert.throws(()=>parseFormulaExpression('12 / 2',parameters,'MCV'),/بارامتر/);
   assert.throws(()=>parseFormulaExpression('HGB @ 2',parameters,'MCV'),/غير مفهومة/);
 });
+
+test('supports validated scientific helper functions and decimal constants',()=>{
+  assert.deepEqual(parseFormulaExpression('round(ABS(HGB - HCT) / 2, 1)',parameters,'MCV'),{
+    op:'round',args:[{op:'divide',args:[{op:'abs',args:[{op:'subtract',args:[{param:'HGB'},{param:'HCT'}]}]},{const:2}]},{const:1}]
+  });
+  const aggregate=parseFormulaExpression('max(HGB, HCT, .5) + min(HGB, HCT)',parameters,'MCV');
+  assert.equal(formulaToExpression(aggregate),'(max(HGB, HCT, 0.5) + min(HGB, HCT))');
+  assert.throws(()=>parseFormulaExpression('sqrt(HGB)',parameters,'MCV'),/الدالة غير معروفة/);
+  assert.throws(()=>parseFormulaExpression('round(HGB, 1, 2)',parameters,'MCV'),/عدد مدخلاتها/);
+});
