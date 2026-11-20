@@ -1,28 +1,105 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#102c3b"><meta name="color-scheme" content="light">
-  <title>Taiba Smart Lab | الرئيسية</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#102b3a">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Taiba Smart Lab — مساحة تشغيل المعمل الطبية">
+  <title>Taiba Smart Lab | مساحة العمل</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="../assets/css/app-home.css">
   <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('../service-worker.js').catch(()=>{}));}</script>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="index.html"><span class="brand-mark">T</span><span><strong>Taiba Smart Lab</strong><small>نظام إدارة المعامل الطبية</small></span></a><div class="top-actions"><span id="environment" class="env-badge">بيئة الاختبار</span><button id="signOut" class="button button-light" hidden>تسجيل الخروج</button></div></header>
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="Taiba Smart Lab الرئيسية">
+      <span class="brand-mark" aria-hidden="true">T</span>
+      <span class="brand-copy"><strong>Taiba Smart Lab</strong><small>نظام إدارة المعامل الطبية</small></span>
+    </a>
+    <div class="top-actions">
+      <span id="environment" class="env-badge">بيئة التطوير</span>
+      <span id="topConnection" class="connection-pill"><i></i><span>جارٍ فحص الاتصال</span></span>
+      <button id="signOut" class="button button-quiet" type="button" hidden>تسجيل الخروج</button>
+    </div>
+  </header>
+
   <main class="shell">
-    <section id="loginPanel" class="hero login-card">
-      <div class="hero-copy"><span class="eyebrow">منصة واحدة · كل تشغيل المعمل</span><h1>إدارة معملك<br><em>بشكل أبسط وأوضح</em></h1><p>الاستقبال، النتائج، يوم العمل، الحسابات وإدارة موقع المعمل في مكان واحد.</p><div class="hero-points"><span>✓ صلاحيات حسب دور المستخدم</span><span>✓ بيانات كل معمل مستقلة</span><span>✓ تجهيز للعمل مع انقطاع الإنترنت</span></div></div>
-      <form id="loginForm" class="login-form"><div class="form-icon">↗</div><h2>تسجيل الدخول</h2><p class="muted">استخدم حساب المعمل المخصص لك.</p><label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required placeholder="name@example.com"></label><label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required placeholder="كلمة المرور"></label><button id="loginButton" class="button button-primary" type="submit">دخول إلى النظام</button><p id="configNotice" class="config-notice" hidden></p></form>
+    <section id="loginPanel" class="login-layout">
+      <div class="login-story">
+        <div class="story-kicker"><span class="kicker-line"></span> مساحة تشغيل متكاملة للمعمل</div>
+        <h1>كل تفاصيل معملك،<br><em>في مكان واحد.</em></h1>
+        <p>من استقبال المريض إلى اعتماد النتيجة ومتابعة يوم العمل — تجربة واضحة وسريعة تساعد فريقك يشتغل بثقة.</p>
+        <div class="story-features">
+          <span><b>01</b> سير عمل مترابط</span>
+          <span><b>02</b> صلاحيات حسب الدور</span>
+          <span><b>03</b> استمرار العمل دون اتصال للوظائف المدعومة</span>
+        </div>
+        <div class="story-foot"><span class="pulse-dot"></span> مصمم لاحتياجات المعامل اليومية</div>
+      </div>
+      <form id="loginForm" class="login-card">
+        <div class="login-symbol" aria-hidden="true">T</div>
+        <span class="card-eyebrow">مرحبًا بعودتك</span>
+        <h2>تسجيل الدخول</h2>
+        <p class="muted">استخدم بيانات حساب المعمل للمتابعة.</p>
+        <label for="email">البريد الإلكتروني</label>
+        <input id="email" type="email" autocomplete="username" required placeholder="name@example.com">
+        <label for="password">كلمة المرور</label>
+        <input id="password" type="password" autocomplete="current-password" required placeholder="أدخل كلمة المرور">
+        <button id="loginButton" class="button button-primary" type="submit">دخول إلى مساحة العمل <span aria-hidden="true">←</span></button>
+        <p id="configNotice" class="config-notice" hidden></p>
+        <div class="login-secure"><span aria-hidden="true">▣</span> اتصال آمن وبيانات مستقلة لكل معمل</div>
+      </form>
     </section>
-    <section id="workspace" hidden>
-      <section class="welcome panel"><div><span class="eyebrow">مساحة العمل</span><h1>أهلاً بك في Taiba Smart Lab</h1><p id="userLine" class="muted">تم تسجيل الدخول.</p></div><div class="selectors"><label>المعمل<select id="tenantSelect"></select></label><label>الفرع<select id="branchSelect"></select></label></div></section>
-      <div class="section-heading"><div><h2>اختار المهمة</h2><p>الشاشات المتاحة حسب صلاحيات حسابك.</p></div><span id="roleBadge" class="role-badge">—</span></div>
+
+    <section id="workspace" class="workspace" hidden>
+      <section class="workspace-heading">
+        <div class="welcome-copy">
+          <span class="eyebrow">مساحة العمل</span>
+          <h1>أهلاً بك، نورت المعمل</h1>
+          <p id="userLine" class="muted">تم تسجيل الدخول بنجاح.</p>
+        </div>
+        <div class="workspace-selectors">
+          <label>المعمل<select id="tenantSelect" aria-label="اختيار المعمل"></select></label>
+          <label>الفرع<select id="branchSelect" aria-label="اختيار الفرع"></select></label>
+        </div>
+      </section>
+
+      <section class="workday-overview" aria-live="polite">
+        <div class="overview-icon" aria-hidden="true">◷</div>
+        <div class="overview-copy"><span class="overview-label">حالة يوم العمل</span><strong id="workdayTitle">جارٍ التحقق من يوم العمل…</strong><small id="workdayDetail">سيتم عرض حالة الفرع المحدد هنا.</small></div>
+        <a class="overview-action" href="workday.html">إدارة يوم العمل <span aria-hidden="true">←</span></a>
+      </section>
+
+      <div class="section-heading">
+        <div><span class="eyebrow">التشغيل اليومي</span><h2>اختار المهمة</h2><p>كل أدوات التشغيل الأساسية في متناول فريق المعمل.</p></div>
+        <span id="roleBadge" class="role-badge">—</span>
+      </div>
       <section id="appsGrid" class="apps-grid" aria-live="polite"></section>
-      <section class="status-strip"><span class="status-dot"></span><div><strong id="connectionTitle">حالة الاتصال</strong><small id="connectionText">يتم التحقق من الاتصال…</small></div><a href="sync-center.html">فتح مركز المزامنة ←</a></section>
+
+      <section id="ownerArea" class="owner-area" hidden>
+        <div class="owner-heading"><div><span class="eyebrow">إدارة المالك</span><h2>إعدادات وإدارة المعمل</h2><p>الأدوات الإدارية الحساسة متاحة لمالك المعمل فقط.</p></div><span class="owner-lock" aria-hidden="true">⌑</span></div>
+        <div class="owner-links">
+          <a class="owner-link" href="settings.html"><span class="owner-link-icon">⚙</span><span><strong>إعدادات النظام</strong><small>هوية المعمل والفروع والموظفون والطباعة والنسخ وسجل المراجعة</small></span><b>←</b></a>
+          <a class="owner-link" href="cms-editor.html"><span class="owner-link-icon">▧</span><span><strong>إدارة موقع المعمل</strong><small>المحتوى المنشور والعروض والخدمات والفروع</small></span><b>←</b></a>
+          <a class="owner-link" href="../portal/index.html"><span class="owner-link-icon">▣</span><span><strong>معاينة بوابة المريض</strong><small>فتح واجهة الاستعلام عن التقارير المعتمدة كما يراها المريض</small></span><b>←</b></a>
+        </div>
+      </section>
+
+      <section class="system-status">
+        <div class="status-main"><span id="connectionDot" class="status-dot"></span><div><strong id="connectionTitle">حالة الاتصال</strong><small id="connectionText">يتم التحقق من الاتصال…</small></div></div>
+        <div class="status-divider"></div>
+        <div class="sync-summary"><span class="sync-symbol" aria-hidden="true">⟳</span><div><strong id="syncTitle">حالة المزامنة</strong><small id="syncText">جارٍ فحص العمليات المحلية…</small></div></div>
+        <a class="sync-link" href="sync-center.html">فتح مركز المزامنة <span aria-hidden="true">←</span></a>
+      </section>
     </section>
+
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
-    <footer>Taiba Smart Lab <span>·</span> نسخة تطوير متصلة بمشروع Supabase TEST فقط</footer>
+    <footer><span class="footer-mark">T</span><span>Taiba Smart Lab</span><i></i><span>إدارة ذكية.. ورعاية أدق</span><small>نسخة تطوير متصلة بمشروع الاختبار</small></footer>
   </main>
-  <script type="module" src="../assets/js/tenant-branding.js"></script><script type="module" src="../assets/js/app-home.js"></script>
-<script type="module" src="../modules/ui/keyboard-navigation.js"></script>
-</body></html>
+  <script type="module" src="../assets/js/tenant-branding.js"></script>
+  <script type="module" src="../assets/js/app-home.js"></script>
+  <script type="module" src="../modules/ui/keyboard-navigation.js"></script>
+</body>
+</html>
