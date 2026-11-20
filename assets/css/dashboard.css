@@ -3,3 +3,30 @@
 .history-panel{border-inline-start:4px solid #3c8192}.history-files{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.history-file{border:1px solid #dce6ea;border-radius:10px;padding:13px;min-width:0}.history-file>div:first-child b,.history-file>div:first-child small{display:block}.history-file>div:first-child small{color:#667681;margin-top:5px;line-height:1.6}.history-upload{display:inline-block;margin-top:12px;background:#e5f0f4;color:#164b5d;padding:9px 12px;border-radius:7px;cursor:pointer}.history-upload input{display:none}.history-saved,.history-empty{margin-top:10px;padding-top:10px;border-top:1px solid #edf1f3;font-size:12px}.history-saved b,.history-saved span,.history-saved small{display:block;margin-bottom:5px}.history-saved b{color:#167044}.history-saved button{margin-top:6px;border:1px solid #cbd7de;background:white;border-radius:6px;padding:6px 9px;cursor:pointer}.history-empty{color:#667681}.history-notice{margin-top:12px;padding:10px 12px;background:#f1f5f7;border-radius:8px;font-size:13px}.history-notice.error{background:#fff0ed;color:#a33}@media(max-width:700px){.history-files{grid-template-columns:1fr}}
 
 .history-analysis-results{margin-top:20px;padding-top:18px;border-top:1px solid #dce6ea}.history-analysis-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.history-analysis-head h3{margin:0}.history-analysis-head p{font-size:12px;color:#64748b;margin:5px 0 0}.history-analysis-results h4{margin:18px 0 8px}.history-analysis-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:14px 0}.history-analysis-kpis article{padding:12px;border:1px solid #dce6ea;border-radius:9px;background:#f8fafb}.history-analysis-kpis span,.history-analysis-kpis strong{display:block}.history-analysis-kpis span{font-size:12px;color:#64748b}.history-analysis-kpis strong{font-size:17px;margin-top:6px}.history-analysis-results .hint{margin-top:14px;line-height:1.8}
+
+/* Owner dashboard: 18 independent report screens */
+.owner-dashboard-home{margin-top:16px}
+.owner-dashboard-title,.owner-screen-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.owner-dashboard-title h2,.owner-screen-head h2{margin:0 0 6px}
+.owner-report-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:20px}
+.owner-report-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:9px;min-height:150px;padding:17px;text-align:right;border:1px solid #dce6eb;border-radius:13px;background:linear-gradient(145deg,#fff,#f7fafb);color:#173c4b;cursor:pointer;transition:transform .16s,border-color .16s,box-shadow .16s}
+.owner-report-card:hover,.owner-report-card:focus-visible{transform:translateY(-2px);border-color:#75a8b8;box-shadow:0 8px 22px #123d5012;outline:none}
+.owner-report-number{font-size:11px;font-weight:800;letter-spacing:.08em;color:#568493;background:#e7f1f4;padding:4px 8px;border-radius:20px}
+.owner-report-card strong{font-size:16px;line-height:1.45}
+.owner-report-card small{font-size:12px;line-height:1.6;color:#647681}
+.owner-report-open{margin-top:auto;font-size:12px;font-weight:700;color:#17647b}
+.owner-screen-head{padding:17px 18px;margin-bottom:15px;border:1px solid #dce6eb;border-radius:13px;background:#fff}
+.owner-screen-head h2{font-size:22px}
+.owner-screen-head .eyebrow{margin:0 0 5px;font-size:11px;color:#63808d;font-weight:700}
+.owner-screen-content{min-height:180px}
+.owner-screen-content>.panel{margin-bottom:14px}
+.owner-workday-link{display:inline-block;text-decoration:none;margin-bottom:14px}
+.security-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}
+.security-status-grid article{padding:14px;border:1px solid #e1e8ec;border-radius:10px;background:#f8fafb}
+.security-status-grid strong,.security-status-grid span{display:block}
+.security-status-grid strong{font-size:13px;margin-bottom:7px}
+.security-status-grid span{font-size:12px;color:#667681;line-height:1.6}
+.historical-report-card .history-analysis-head{margin-bottom:12px}
+.historical-report-card h4{margin-top:10px}
+@media(max-width:850px){.owner-report-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.owner-report-grid{grid-template-columns:1fr}.owner-report-card{min-height:120px}.owner-screen-head{align-items:flex-start}.security-status-grid{grid-template-columns:1fr}}
