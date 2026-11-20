@@ -114,6 +114,7 @@ async function prepareHistoricalSheet(sheet,button){
  const patientCol=mapping.filter(x=>x.fieldKey==='patient_name'),dateCol=mapping.filter(x=>x.fieldKey==='result_date');
  if(patientCol.length!==1||dateCol.length!==1)throw new Error('اربط اسم المريض وتاريخ النتيجة مرة واحدة لكل ورقة.');
  const analysis=analyzeArchiveSheet(sheet.rawRows,sheet.headerRowIndex,'historical_results',mapping);
+ if(analysis.duplicateHeaders)throw new Error('توجد عناوين أعمدة مكررة في هذه الورقة؛ صححها أو اختر صف عناوين مختلفًا قبل الاعتماد حتى لا تختلط البارامترات.');
  const prepared=[],rejected=[],seenContent=new Set();
  for(const row of analysis.records){
   const date=inspectLegacyDate(row.result_date),patientName=String(row.patient_name||'').trim();
