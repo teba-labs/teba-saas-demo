@@ -140,7 +140,7 @@ async function prepareHistoricalSheet(sheet,button){
   try{
    const records=prepared.map(row=>({...row,patient_id:state.patientLinks[row.patient_name_snapshot]||null}));
    const sheetSummary=[{sheet_name:sheet.name,rows_total:analysis.nonEmptyRows,rows_accepted:prepared.length,rows_rejected:rejected.length}];
-   const result=await importHistoricalResults({tenantId:state.tenantId,branchId:state.branchId,userId:state.userId,file:state.file,fileSha256:state.result.sha256,mappingSnapshot:{sheet_name:sheet.name,column_mapping:mapping},sheetSummary,records});
+   const result=await importHistoricalResults({tenantId:state.tenantId,branchId:state.branchId,userId:state.userId,file:state.file,fileSha256:state.result.sha256,sheetName:sheet.name,mappingSnapshot:{sheet_name:sheet.name,column_mapping:mapping},sheetSummary,records});
    note('تم حفظ الدفعة '+result.batchId+' — أضيف '+result.inserted+'، تكرر وتُخطّي '+result.skipped+'، فشل '+result.failed+'. الحالة: '+result.status,result.failed>0);
    approve.textContent='تم الاعتماد';
   }catch(error){note(error.message||'تعذر اعتماد النتائج التاريخية.',true);approve.disabled=false;approve.textContent='إعادة محاولة الاعتماد';}
