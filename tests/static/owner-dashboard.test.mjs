@@ -79,7 +79,8 @@ test('owner dashboard shell refresh includes the archived-branch selector update
 });
 
 test('owner dashboard presents exactly 18 independent report entries and separate screens',()=>{
-  const entries=script.match(/\['[A-Za-z]+','[^']+','[^']+'\]/g)||[];
+  const reportList=script.match(/const OWNER_REPORTS=\\[([\\s\\S]*?)\\n\\];/)?.[1]||'';
+  const entries=reportList.match(/^\\s*\\['[A-Za-z]+','[^']+','[^']+'\\]/gm)||[];
   assert.equal(entries.length,18);
   for(const id of ['dailyFinance','reconciliation','live','overview','financial','annual','cases','expenseBreakdown','bcg','testReport','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers','upload','security']){
     assert.match(script,new RegExp("'"+id+"'"));
