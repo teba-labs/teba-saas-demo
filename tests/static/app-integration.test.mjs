@@ -13,7 +13,7 @@ test('unified Arabic launcher exists and loads authenticated tenant context', ()
   assert.match(html, /id="loginForm"/);
   assert.match(html, /id="tenantSelect"/);
   assert.match(html, /id="branchSelect"/);
-  assert.match(html, /assets\\/js\\/tenant-branding\\.js/);
+  assert.match(html, /assets\/js\/tenant-branding\.js/);
   assert.match(js, /loadMyTenantContext/);
   assert.match(js, /getCurrentSession/);
 });
