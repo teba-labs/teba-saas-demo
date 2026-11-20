@@ -68,5 +68,5 @@ assert.match(h2,/تم ربط هذه الإعدادات بتقرير الزيار
 const tabbedSettings=fs.readFileSync(new URL("app/settings.html",root),"utf8");
 assert.match(tabbedSettings,/role="tablist"/);
 for(const key of ["identity","team","expenses","printing","data","audit","advanced"]){assert.ok(tabbedSettings.includes(`data-settings-panel="${key}"`));assert.ok(tabbedSettings.includes(`data-settings-tab="${key}"`));}
-assert.match(tabbedSettings,/ترحيل نتائج المرضى والزيارات ما زال يحتاج مسار اعتماد مستقل/);
+assert.match(tabbedSettings,/داتا المعمل القديمة/);
 console.log("PASS: settings center is organized into seven keyboard-accessible sections without replacing existing control IDs.");
