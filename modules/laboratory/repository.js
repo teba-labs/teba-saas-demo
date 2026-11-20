@@ -20,7 +20,7 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
   const safeSize = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 25)));
   const from = safePage * safeSize;
   let query = db().from(TABLES.visitTests)
-    .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number, phone, age_years, sex))', { count: 'exact' })
+    .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, tests_catalog(test_kind), visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number, phone, age_years, sex))', { count: 'exact' })
     .eq('tenant_id', tenantId).eq('branch_id', branchId)
     .neq('status', 'cancelled').neq('visits.status', 'cancelled').is('visits.workbench_hidden_at', null);
   const requestedVisitId = new URLSearchParams(globalThis.location?.search || '').get('visit_id');
@@ -35,7 +35,7 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
 export async function listVisitWorkForReport({ tenantId, branchId, visitId } = {}) {
   if (!tenantId || !branchId || !visitId) throw new Error('tenantId, branchId and visitId are required.');
   const { data, error } = await db().from(TABLES.visitTests)
-    .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number, age_years, sex))')
+    .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, tests_catalog(test_kind), visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number, age_years, sex))')
     .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('visit_id', visitId)
     .neq('status', 'cancelled').neq('visits.status', 'cancelled')
     .order('created_at').order('id');
