@@ -34,6 +34,7 @@ test('culture results are editable from the workbench and printed with isolate-l
 
 test('CBC, urine, stool and culture profiles are present with source references and local interval status',()=>{
  const sql=read('database/migrations/040_seed_core_medical_profiles.sql');
+ const js=read('assets/js/results-workbench.js');
  for(const code of ['HEM_CBC','UA_COMPLETE','STOOL_EXAM','CULTURE_URINE','CULTURE_STOOL']) assert.ok(sql.includes(code));
  for(const source of ['ICSH-PBS-2015','EFLM-UA-2023','WHO-PARASITOLOGY','IDSA-ASM-2024','CLSI-M100-36']) assert.ok(sql.includes(source));
  assert.match(sql,/local_verification_required/);
