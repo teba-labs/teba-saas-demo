@@ -1,8 +1,8 @@
-name: Reconciliation branch Netlify preview
+name: Development branch Netlify preview
 
 on:
   push:
-    branches: [integration/reconciled-release-2026-11-20]
+    branches: [integration/reconciled-release-2026-11-20, feature/results-workbench-final-2026-11-21]
     paths-ignore:
       - "docs/**"
       - ".github/workflows/**"
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: taiba-reconciled-preview
+  group: taiba-preview-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -50,5 +50,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes netlify-cli@27.20.0 deploy --dir=dist --no-build --alias=taiba-reconciled-preview --json > netlify-preview.json
+          npx --yes netlify-cli@27.20.0 deploy --dir=dist --no-build --alias=taiba-results-workbench-preview --json > netlify-preview.json
           cat netlify-preview.json
