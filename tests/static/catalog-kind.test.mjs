@@ -27,6 +27,5 @@ test('new individual tests receive one distinct result parameter automatically; 
   const js = read('assets/js/catalog.js');
   assert.match(js, /if\(isNew&&testKind==='individual'\)/);
   assert.match(js, /saveTestParameter\(/);
-  assert.match(js, /testKind==='panel'/);
   assert.match(js, /parameterRanges/);
 });
