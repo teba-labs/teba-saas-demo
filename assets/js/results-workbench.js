@@ -94,7 +94,7 @@ async function refreshWork() {
   $('contextStatus').textContent = 'جارٍ تحديث قائمة العمل…';
   const url = new URL(globalThis.location.href);
   const requestedVisitId = url.searchParams.get('visit_id');
-  if (requestedVisitId && globalThis.navigator?.onLine !== false) {
+  if (requestedVisitId) {
     const maps = await offlineDb.sync_meta.toArray();
     const resolved = maps.find(row => row.tenant_id === state.tenant.id && row.branch_id === state.branch.id && row.local_visit_id === requestedVisitId && row.server_visit_id);
     if (resolved) { url.searchParams.set('visit_id', resolved.server_visit_id); globalThis.history.replaceState({}, '', url); }
@@ -217,8 +217,11 @@ async function renderWork() {
     }
   }
   const pendingDraftBatches = await listPendingDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id });
+  const visitMaps = await offlineDb.sync_meta.toArray();
   for (const batch of pendingDraftBatches) {
-    const section = host.querySelector(`[data-test-id="${CSS.escape(batch.payload?.visit_test_id || '')}"]`);
+    let targetTestId = batch.payload?.visit_test_id || '';
+    for (const map of visitMaps) if (map.tenant_id === state.tenant.id && map.branch_id === state.branch.id && map.visit_test_ids?.[targetTestId]) { targetTestId = map.visit_test_ids[targetTestId]; break; }
+    const section = host.querySelector(`[data-test-id="${CSS.escape(targetTestId)}"]`);
     if (!section) continue;
     section.dataset.localPending = 'true';
     const pill = section.querySelector('.card-head .pill');
@@ -407,13 +410,18 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
   if (globalThis.navigator?.onLine === false || localOffline) {
     const pending = await listPendingDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id });
-    const pendingRows = pending.filter(batch => visitItems.some(item => item.id === batch.payload?.visit_test_id))
-      .flatMap(batch => (batch.payload?.results || []).map(result => ({
+    const maps = await offlineDb.sync_meta.toArray();
+    const pendingRows = pending.flatMap(batch => {
+      let targetTestId = batch.payload?.visit_test_id;
+      for (const map of maps) if (map.tenant_id === state.tenant.id && map.branch_id === state.branch.id && map.visit_test_ids?.[targetTestId]) { targetTestId = map.visit_test_ids[targetTestId]; break; }
+      if (!visitItems.some(item => item.id === targetTestId)) return [];
+      return (batch.payload?.results || []).map(result => ({
         id: 'local:' + batch.operation_id + ':' + result.parameter_code,
-        tenant_id: state.tenant.id, visit_test_id: batch.payload.visit_test_id,
+        tenant_id: state.tenant.id, visit_test_id: targetTestId,
         parameter_code: result.parameter_code, value_numeric: result.value_numeric,
         value_text: result.value_text, flag: result.flag, entered_at: batch.created_at,
-      })));
+      }));
+    });
     const byKey = new Map(rows.map(row => [row.visit_test_id + '|' + row.parameter_code, row]));
     for (const row of pendingRows) byKey.set(row.visit_test_id + '|' + row.parameter_code, row);
     rows.splice(0, rows.length, ...byKey.values());
