@@ -76,3 +76,22 @@ test('approved report publication and WhatsApp handoff use the private tenant re
   assert.match(layout, /portal\/index\.html/);
   assert.match(layout, /record\.published/);
 });
+
+
+test('appearance scope switching immediately applies the selected global or page theme', () => {
+  const script = read('assets/js/theme-controller.js');
+  assert.match(script, /scope\.value === 'global' \? globalTheme\(\) : currentTheme\(\)/);
+  assert.match(script, /clearPageOverrides\(\)/);
+});
+
+test('shared finish-pass styling defines readable semantic states in both themes and responsive action groups', () => {
+  const css = read('assets/css/theme-system.css');
+  assert.match(css, /--taiba-success-text/);
+  assert.match(css, /--taiba-danger-text/);
+  assert.match(css, /--taiba-warning-text/);
+  assert.match(css, /html\[data-theme="dark"\][\s\S]*--taiba-success-text/);
+  assert.match(css, /\.status\.good/);
+  assert.match(css, /\.actions/);
+  assert.match(css, /\[role="tablist"\]/);
+  assert.match(css, /max-width:420px/);
+});
