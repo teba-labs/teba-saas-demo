@@ -48,22 +48,22 @@ One integrated development cycle covering all 20 work items:
 |---|---|---|
 | 1. Full page/file inventory | In progress | Map all application, portal, owner and platform pages. |
 | 2. UI/cloud integration review | In progress | Trace repository/service imports and page entry points. |
-| 3. Results save validation | In progress | Confirm generic vs culture-only cases; add regression tests. |
+| 3. Results save validation | Code fix committed | Confirmed selector bug: `closest('[data-test-id]')` selected the save/correction button itself because it also carries `data-test-id`. Both actions now select `.parameter[data-test-id]`; regression test added. CI/browser retest pending. |
 | 4. Full report lifecycle | Pending | Verify preview/print/publish/WhatsApp gating and data source. |
 | 5. Persistence/sync | Pending | Inspect outbox, retry, idempotency and read-after-write. |
 | 6. Sync repair | Pending | Fix only demonstrated defects. |
-| 7. Global/per-page themes | Pending | Add persistent global default plus per-page override. |
-| 8. Keyboard navigation | Pending | Ensure Enter submit, Tab order, list arrows and native input behavior. |
-| 9. Design tokens | Pending | Define shared tokens and component states. |
+| 7. Global/per-page themes | Implemented in branch | Added persistent global default and page overrides, scope selector, dark/light stylesheet, and loaded controller on 12 product/platform/portal pages. CI and browser QA pending. |
+| 8. Keyboard navigation | Code updated | Final text/password field now submits with Enter; search/select native behavior preserved; arrow list navigation retained. Keyboard module loaded on all 12 pages. CI/manual QA pending. |
+| 9. Design tokens | Partial implementation | Added shared color tokens, card/control/focus/hover states, common header and page-frame styling. Page-by-page visual refinement remains. |
 | 10. Page-specific redesign | Pending | Apply shared visual language without changing clinical workflows. |
-| 11. Login/logout/navigation | Pending | Harmonize all entry points and sign-out behavior. |
-| 12. TAIBA TECH identity | Pending | Apply platform-company identity in platform-owned surfaces. |
-| 13. TAIBA SMART LAB identity | Pending | Apply product identity in tenant application surfaces. |
-| 14. Platform/tenant separation | Pending | Audit schema, settings and RLS before changing ownership model. |
+| 11. Login/logout/navigation | In progress | Keyboard submit and appearance controls added to all product/platform/portal entry points. Full logout/navigation audit remains. |
+| 12. TAIBA TECH identity | Implemented in platform entry | Platform admin header/title now identify TAIBA TECH with Software Development & Digital Solutions descriptor. |
+| 13. TAIBA SMART LAB identity | Implemented in tenant branding | Tenant branding now preserves TAIBA SMART LAB as product identity and shows laboratory name separately. |
+| 14. Platform/tenant separation | Existing UI boundary confirmed; RLS audit pending | Platform admin UI uses aggregate tenant metrics and does not render patient names, visit-level records, results or report files. No ownership schema changed. Verify RPC/RLS policies before completion. |
 | 15. Tenant/branch isolation | Pending | Preserve and test RLS boundaries. |
-| 16. Automated tests | Pending | Run repository CI and add targeted regressions. |
-| 17. Responsive/performance | Pending | Static review and CI; browser QA boundary recorded. |
-| 18. Integrated preview | Pending | Keep preview on the development branch. |
+| 16. Automated tests | Added; execution pending | Added regression coverage for result selector, page theme/keyboard loading, offline assets and brand separation. CI status had not reported when last queried. |
+| 17. Responsive/performance | Partial | Added responsive control/header rules; full responsive/performance review remains. |
+| 18. Integrated preview | Pending | Prepare after full page and workflow verification. |
 | 19. Final evidence report | Pending | Record exact CI run and manual-test limitations. |
 | 20. Review handoff | Pending | Open review PR only after implementation and checks; do not merge. |
 
@@ -79,3 +79,17 @@ One integrated development cycle covering all 20 work items:
 - Opened PR #30 to merge main into the new development branch; GitHub reported it as not mergeable. It was closed without merging.
 - This confirms the two branches have overlapping independent changes. Do not perform a blind merge or replace files wholesale. Keep the development baseline isolated while reconciling relevant main-only changes deliberately in later work.
 - PR #28 and PR #29 remain open and untouched; main remains unchanged.
+
+### 2026-11-21 — First implementation tranche
+- Confirmed and fixed the false-empty result selector in both `saveTest` and `correctTest`: `button.closest('[data-test-id]')` returned the button itself because the action button also had that attribute. Changed both to `button.closest('.parameter[data-test-id]')`.
+- Added a static regression test for the selector collision.
+- Updated shared keyboard handling so Enter advances between text fields and submits the form from the final text field; native search/select behavior is no longer intercepted. Added tests.
+- Added `assets/js/theme-controller.js` and `assets/css/theme-system.css`: persistent global light/dark preference plus page-specific override; per-page scope selection; common card, button, focus, header and dark-mode styling.
+- Loaded theme controls across app home, reception, results, catalog, workday, sync center, dashboard, system settings, CMS editor, historical data import, platform admin and patient portal.
+- Added keyboard module to patient portal; other app pages and platform admin already included it.
+- Bumped service-worker shell cache to v28 and precached the theme controller and stylesheet.
+- Separated product identity from tenant identity: tenant headers retain `TAIBA SMART LAB` and display the lab name separately. Platform admin title/header use `TAIBA TECH`.
+- Added static test file `tests/static/experience-unification.test.mjs`.
+- Added the working branch to the static-contract workflow push triggers.
+- Relevant commits: result fix `151ba0d`; result regression `884e507`; keyboard `f71fea3`; theme controller `8c978a6`; theme stylesheet `50ad72f`; product/tenant brand `0f5d98e`; service worker `3e3df1e`; platform brand `320c37b`; test suite `c7ead58`; workflow trigger `8290747`; latest shared style commit `86345fc`.
+- The static CI status query for the latest commit returned no checks yet. Do not claim tests passed until a run is confirmed.
