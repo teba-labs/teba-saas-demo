@@ -56,7 +56,7 @@ export async function createPatient({ tenantId, branchId, patient } = {}) {
   const queue = async () => {
     const operationId = uuid();
     await cacheScopedPatient(payload);
-    await enqueueOperation({ tenantId, branchId, entityType: 'patients', action: 'create', operationId, payload });
+    await enqueueOperation({ tenantId, branchId, entityType: 'patients', action: 'create', operationId, payload, priority: 1 });
     return { ...payload, pendingOperationId: operationId, offline_pending: true };
   };
   if (globalThis.navigator?.onLine === false) return queue();
@@ -155,7 +155,7 @@ export async function recordPayment({ tenantId, visitId, amount, paymentMethod =
 }
 
 /** Creates the visit, DB-priced test snapshots, invoice and optional first payment in one DB transaction. */
-export async function createVisitIntake({ tenantId, branchId, patientId, visitNumber, staffId, testIds, discountAmount = 0, initialPayment = 0, paymentMethod = 'cash', referredBy, notes, expectedPrices = [], dependsOn = [] } = {}) {
+export async function createVisitIntake({ tenantId, branchId, patientId, visitNumber, staffId, testIds, discountAmount = 0, initialPayment = 0, paymentMethod = 'cash', referredBy, notes, expectedPrices = [], dependsOn = [], localVisitId = null, localVisitTests = [] } = {}) {
   need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(patientId, 'patientId'); need(staffId, 'staffId');
   if (!Array.isArray(testIds) || testIds.length === 0) throw new Error('Select at least one test.');
   const discount = Number(discountAmount), payment = Number(initialPayment);
@@ -167,9 +167,11 @@ export async function createVisitIntake({ tenantId, branchId, patientId, visitNu
     test_ids: testIds, discount_amount: discount, initial_payment: payment, payment_method: paymentMethod,
     referred_by: referredBy ?? null, notes: notes ?? null,
     expected_prices: expectedPrices.map(p => ({ test_id: p.test_id, price_id: p.id, selling_price: Number(p.selling_price) })),
+    local_visit_id: localVisitId,
+    local_visit_test_ids: Array.isArray(localVisitTests) ? localVisitTests.map(row => ({ id: row.id, test_id: row.test_id })) : [],
   };
   const queue = async () => {
-    await enqueueOperation({ tenantId, branchId, entityType: 'visit_intake', action: 'create', operationId, payload, dependsOn });
+    await enqueueOperation({ tenantId, branchId, entityType: 'visit_intake', action: 'create', operationId, payload, dependsOn, priority: 2 });
     return { queued: true, operationId, visitNumber: payload.visit_number };
   };
   if (globalThis.navigator?.onLine === false || dependsOn.length > 0) return queue();
