@@ -87,10 +87,10 @@ export async function mountOwnerFinancialImport(currentTenant,tenantBranches=[])
  document.getElementById('historyMonth')?.addEventListener('change',()=>refreshArchive().catch(err=>note(err.message,true)));
  try{await Promise.all([refreshArchive(),loadSources()]);}catch(err){note(err.message||'تعذر تحميل الأرشيف المالي.',true);}
 }
-export async function applyOwnerFinancialSources(tenantId,liveReport){
+export async function applyOwnerFinancialSources(tenantId,liveReport,branchId=null){
  if(!tenantId||!liveReport)return liveReport;
  let choices;try{choices=await getOwnerDashboardSources(tenantId);}catch(error){if(error?.code==='42P01'||/does not exist|schema cache/i.test(error?.message||''))return liveReport;throw error;}if(!Object.values(choices).includes('excel'))return liveReport;
- const [rows]=await Promise.all([listOwnerFinancialRows({tenantId,from:liveReport.period.monthStart,to:(()=>{const d=new Date(liveReport.period.monthEnd+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})()})]);
+ const [rows]=await Promise.all([listOwnerFinancialRows({tenantId,branchId,from:liveReport.period.monthStart,to:(()=>{const d=new Date(liveReport.period.monthEnd+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})()})]);
  const historical=buildGenericHistoricalReport(rows,{from:liveReport.period.monthStart,to:liveReport.period.monthEnd});
  const t={...liveReport.totals};
  const map={revenue:'netBilled',collections:'collected',expenses:'expenses',cases:'visits',discounts:'discounts',tests:'tests'};
