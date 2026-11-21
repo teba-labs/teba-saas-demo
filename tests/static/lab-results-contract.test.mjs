@@ -9,7 +9,9 @@ assert.match(lab, /tenant_id/); assert.match(lab, /branch_id/);
 assert.match(results, /complete_visit_test_atomic/);
 assert.match(results, /approve_visit_atomic/);
 assert.match(results, /audited report-correction workflow/);
-assert.match(results, /save_draft_results_atomic/);
+assert.match(results, /save_draft_results_idempotent/);
+const offlineResultMigration = fs.readFileSync(path.join(root, 'database/migrations/074_offline_draft_results_idempotency.sql'), 'utf8');
+assert.match(offlineResultMigration, /save_draft_results_atomic\(/);
 assert.match(resultTransitions, /Required results are missing/);
 assert.match(resultTransitions, /approved_by_staff_id = p_staff_id/);
 for (const source of [lab, results]) {
