@@ -4,7 +4,7 @@ import { loadMyTenantContext } from '../core/tenant/context.js';
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeUrl=v=>{try{const u=new URL(String(v),location.href);return ['https:','http:'].includes(u.protocol)?u.href:''}catch{return ''}};
-function cards(id,items,html){const node=$(id);node.innerHTML=items.length?items.map(html).join(''):'<div class="empty">سيتم إضافة المحتوى قريبًا.</div>';}
+function cards(id,items,html){const node=$(id),section=node.closest('section');if(section)section.hidden=!items.length;node.innerHTML=items.map(html).join('');}
 function card(title,desc,extra=''){return '<article class="card"><h3>'+esc(title)+'</h3><p>'+esc(desc)+'</p>'+extra+'</article>'}
 export function renderPublicSite(data){
  const tenant=data.tenant||{},settings=data.settings||{},content=settings.public_content||{},theme=settings.theme_json||{};
