@@ -321,7 +321,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const signature = signaturePath ? getLabAssetPublicUrl(signaturePath) : '';
   const stamp = stampPath ? getLabAssetPublicUrl(stampPath) : '';
   const reviewerName = print.showReviewer ? String(print.reviewerName || '').trim() : '';
-  const headerSideText = String(print.headerSideText || '').trim().split(/\\r?\\n/).map(escapeHtml).join('<br>');
+  const headerSideText = String(print.headerSideText || '').trim() .split(/\r?\n/).map(escapeHtml).join('<br>');
   const labName = lab.laboratory_name || state.tenant?.name || 'Taiba Smart Lab';
   const doctor = print.showDoctor === false ? '' : (lab.doctor_name || '');
   const branchName = print.showBranch === false ? '' : (branch.name || '');
