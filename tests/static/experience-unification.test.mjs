@@ -59,7 +59,8 @@ test('clinical result entry queues draft saves safely while keeping completion a
   const repository = read('modules/results/repository.js');
   assert.doesNotMatch(ui, /requireCloudConnection\('حفظ النتائج'\)/);
   assert.match(ui, /requireCloudConnection\('اعتماد الزيارة'\)/);
-  assert.match(ui, /معاينة التقرير تحتاج اتصالًا بالإنترنت/);
+  assert.match(ui, /طباعة مسودة غير معتمدة/);
+  assert.match(ui, /لا تُسلّم باعتبارها تقريرًا نهائيًا/);
   assert.match(ui, /Save as PDF/);
   assert.match(ui, /ملف PDF النهائي للنشر/);
   assert.match(repository, /save_draft_results_idempotent/);
