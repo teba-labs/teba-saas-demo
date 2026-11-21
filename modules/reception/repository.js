@@ -22,7 +22,7 @@ export async function findPatients({ tenantId, branchId, search, limit = 30 } = 
   const safeTerm = term.replace(/[%,_*]/g, ' ').replace(/\\s+/g, ' ').trim();
   if (safeTerm.length < 2) return [];
   const safeLimit = Math.min(Math.max(Number(limit) || 30, 1), 100);
-  const columns = 'id, patient_number, full_name, phone, age_years, age_value, age_unit, sex, created_at';
+  const columns = 'id, tenant_id, branch_id, patient_number, full_name, phone, age_years, age_value, age_unit, sex, created_at';
   const [byName, byPhone, byNumber] = await Promise.all([
     db().from(TABLES.patients).select(columns).eq('tenant_id', tenantId).eq('branch_id', branchId).ilike('full_name', `%${safeTerm}%`).order('full_name').limit(safeLimit),
     db().from(TABLES.patients).select(columns).eq('tenant_id', tenantId).eq('branch_id', branchId).ilike('phone', `%${safeTerm}%`).order('full_name').limit(safeLimit),
