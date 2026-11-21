@@ -15,9 +15,15 @@ export function createSupabaseSyncHandlers() {
     culture_isolate: async operation => {
       const p=operation.payload;
       let visitTestId=p.visit_test_id;
+      let mappedVisitTest = false;
       for(const dependency of operation.depends_on||[]){
         const mapping=await offlineDb.sync_meta.get(`visit-map:${dependency}`);
-        if(mapping?.visit_test_ids?.[visitTestId]){visitTestId=mapping.visit_test_ids[visitTestId];break;}
+        if(mapping?.visit_test_ids?.[visitTestId]){visitTestId=mapping.visit_test_ids[visitTestId];mappedVisitTest=true;break;}
+      }
+      if(!mappedVisitTest){
+        const maps=await offlineDb.sync_meta.toArray();
+        const mapping=maps.find(row=>row.tenant_id===operation.tenant_id&&row.branch_id===operation.branch_id&&row.visit_test_ids?.[visitTestId]);
+        if(mapping){visitTestId=mapping.visit_test_ids[visitTestId];mappedVisitTest=true;}
       }
       if(visitTestId===p.visit_test_id && (operation.depends_on||[]).length){
         const found=await db().from('visit_tests').select('id').eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',visitTestId).maybeSingle();
@@ -43,13 +49,17 @@ export function createSupabaseSyncHandlers() {
     culture_susceptibility: async operation => {
       const p=operation.payload;
       let isolateId=p.local_isolate_id;
-      if(p.local_isolate_pending){
-        for(const dependency of operation.depends_on||[]){
-          const mapping=await offlineDb.sync_meta.get(`isolate-map:${dependency}`);
-          if(mapping?.local_isolate_id===isolateId){isolateId=mapping.server_isolate_id;break;}
-        }
-        if(isolateId===p.local_isolate_id)throw new Error('Susceptibility is waiting for its isolate to synchronize.');
+      let mappedIsolate = false;
+      for(const dependency of operation.depends_on||[]){
+        const mapping=await offlineDb.sync_meta.get(`isolate-map:${dependency}`);
+        if(mapping?.local_isolate_id===isolateId){isolateId=mapping.server_isolate_id;mappedIsolate=true;break;}
       }
+      if(!mappedIsolate){
+        const maps=await offlineDb.sync_meta.toArray();
+        const mapping=maps.find(row=>row.tenant_id===operation.tenant_id&&row.branch_id===operation.branch_id&&row.local_isolate_id===isolateId&&row.server_isolate_id);
+        if(mapping){isolateId=mapping.server_isolate_id;mappedIsolate=true;}
+      }
+      if(p.local_isolate_pending&&!mappedIsolate)throw new Error('Susceptibility is waiting for its isolate to synchronize.');
       const {data,error}=await db().rpc('save_culture_susceptibility_idempotent',{
         p_operation_id:operation.operation_id,p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
         p_isolate_id:isolateId,p_staff_id:p.staff_id,p_payload:p.values,
@@ -64,9 +74,15 @@ export function createSupabaseSyncHandlers() {
     draft_results: async operation => {
       const p = operation.payload;
       let visitTestId = p.visit_test_id;
+      let resolvedVisitTestId = false;
       for (const dependency of operation.depends_on || []) {
         const mapping = await offlineDb.sync_meta.get(`visit-map:${dependency}`);
-        if (mapping?.visit_test_ids?.[visitTestId]) { visitTestId = mapping.visit_test_ids[visitTestId]; break; }
+        if (mapping?.visit_test_ids?.[visitTestId]) { visitTestId = mapping.visit_test_ids[visitTestId]; resolvedVisitTestId = true; break; }
+      }
+      if (!resolvedVisitTestId) {
+        const maps = await offlineDb.sync_meta.toArray();
+        const mapping = maps.find(row => row.tenant_id === operation.tenant_id && row.branch_id === operation.branch_id && row.visit_test_ids?.[visitTestId]);
+        if (mapping) { visitTestId = mapping.visit_test_ids[visitTestId]; resolvedVisitTestId = true; }
       }
       if (visitTestId === p.visit_test_id && (operation.depends_on || []).length) {
         const found = await db().from('visit_tests').select('id').eq('tenant_id', operation.tenant_id)
