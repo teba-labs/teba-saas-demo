@@ -68,6 +68,6 @@ export function buildGenericHistoricalReport(rows,{from=null,to=null,branchId=nu
  const targetSeason=targetMonth?seasonal[Number(targetMonth.slice(5,7))-1]:null;
  const plan=targetSeason?{month:targetMonth,revenue:targetSeason.revenue,cases:targetSeason.cases,method:'متوسط الأشهر التاريخية المتاحة لنفس الشهر التقويمي',years:targetSeason.years}:null;
  const itemRows=[...items.values()].map(x=>({...x,profit:x.revenue-x.cost,unitProfit:x.count?(x.revenue-x.cost)/x.count:0})).sort((a,b)=>b.count-a.count);
- const profit=totals.revenue-totals.expenses;
+ const totalExpenses=totals.expenses+totals.payroll;const profit=totals.revenue-totalExpenses;
  return {source:'excel',scope:{from,to,branchId},totals:{...totals,profit,margin:totals.revenue?profit/totals.revenue*100:0},monthly:monthlyRows,seasonality:seasonal,monthlyPlan:plan,items:itemRows,expenseCategories:[...categories].map(([name,amount])=>({name,amount})).sort((a,b)=>b.amount-a.amount),periods:[...new Set(selected.map(r=>String(r.period_date||'').slice(0,7)).filter(Boolean))].sort()};
 }
