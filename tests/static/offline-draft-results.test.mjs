@@ -63,6 +63,20 @@ test('offline reception creates a locally linked visit/test worklist and chains 
   assert.match(report, /globalThis\.navigator\?\.onLine === false[\s\S]*getCachedRows\('visit_tests'/);
 });
 
+test('offline culture isolate and susceptibility writes are durable, dependency ordered and idempotent', () => {
+  const cultureMigration = read('database/migrations/075_offline_culture_idempotency.sql');
+  assert.match(culture, /entityType:'culture_isolate'/);
+  assert.match(culture, /entityType:'culture_susceptibility'/);
+  assert.match(culture, /local_isolate_operation_id/);
+  assert.match(adapters, /culture_isolate: async operation/);
+  assert.match(adapters, /culture_susceptibility: async operation/);
+  assert.match(adapters, /isolate-map:/);
+  assert.match(cultureMigration, /save_culture_isolate_idempotent/);
+  assert.match(cultureMigration, /save_culture_susceptibility_idempotent/);
+  assert.match(cultureMigration, /offline_operation_receipts/);
+  assert.match(cultureMigration, /Completed or approved culture results are locked/);
+});
+
 test('offline report printing is explicitly provisional and includes queued local draft values', () => {
   assert.match(ui, /طباعة مسودة غير معتمدة/);
   assert.match(ui, /لا تُسلّم باعتبارها تقريرًا نهائيًا/);
