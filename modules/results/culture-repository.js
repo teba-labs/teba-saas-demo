@@ -63,7 +63,7 @@ export async function saveCultureIsolate({tenantId,branchId,visitTestId,isolateN
     }
     throw error;
   }
-  const row={id:data,tenant_id:tenantId,branch_id:branchId,visit_test_id:visitTestId,...payload,created_by_staff_id:staffId,created_by:userId||null};
+  const row={id:data,tenant_id:tenantId,branch_id:branchId,visit_test_id:visitTestId,...payload,created_by_staff_id:staffId,created_by:userId||null,created_at:new Date().toISOString()};
   await cacheRows('culture_isolates',[row]);return row;
 }
 
@@ -98,11 +98,11 @@ export async function saveCultureSusceptibility({tenantId,branchId,isolateId,ant
       const row={id:localId,tenant_id:tenantId,branch_id:branchId,isolate_id:isolateId,...values,
         entered_by_staff_id:staffId,entered_by:userId||null,created_at:new Date().toISOString(),local_offline:true};
       await enqueueOperation({tenantId,branchId,entityType:'culture_susceptibility',action:'upsert',operationId,
-        payload:{local_isolate_id:isolateId,staff_id:staffId,values},dependsOn,priority:5});
+        payload:{local_isolate_id:isolateId,local_isolate_pending:Boolean(localIsolate?.local_isolate_operation_id),local_susceptibility_id:localId,staff_id:staffId,values},dependsOn,priority:5});
       await cacheRows('culture_susceptibilities',[row]);return row;
     }
     throw error;
   }
-  const row={id:data,tenant_id:tenantId,branch_id:branchId,isolate_id:isolateId,...values,entered_by_staff_id:staffId,entered_by:userId||null};
+  const row={id:data,tenant_id:tenantId,branch_id:branchId,isolate_id:isolateId,...values,entered_by_staff_id:staffId,entered_by:userId||null,created_at:new Date().toISOString()};
   await cacheRows('culture_susceptibilities',[row]);return row;
 }
