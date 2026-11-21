@@ -4,11 +4,18 @@ const normalize=value=>clean(value).toLocaleLowerCase('ar').replace(/[ـ\s]+/g,'
 const MONTH=/^(\d{4})[-/](\d{1,2})(?:[-/]\d{1,2})?$/;
 export const FINANCIAL_FIELDS=[
  {key:'period_date',label:'التاريخ / الشهر',required:true,aliases:['date','التاريخ','تاريخ','الشهر','الفترة','month','period']},
- {key:'metric_key',label:'نوع البند المالي',required:true,aliases:['metric','type','البيان','البند','نوع الحركة','الحركة','الوصف','item']},
- {key:'amount',label:'القيمة المالية',required:false,aliases:['amount','value','المبلغ','القيمة','الإيراد','الايراد','المصروف','المصروفات','التحصيل','revenue','expense']},
- {key:'quantity',label:'العدد / الحالات',required:false,aliases:['quantity','count','cases','العدد','عدد الحالات','الحالات','الزيارات','عدد الزيارات']},
- {key:'item_name',label:'اسم التحليل / العنصر',required:false,aliases:['test','test name','التحليل','اسم التحليل','الصنف','الخدمة']},
+ {key:'metric_key',label:'نوع البند المالي (للملفات ذات عمود بند)',required:false,aliases:['metric','type','نوع الحركة','الحركة','item type']},
+ {key:'amount',label:'القيمة المالية العامة',required:false,aliases:['amount','value','المبلغ','القيمة']},
+ {key:'revenue',label:'الإيرادات / المبيعات',required:false,aliases:['revenue','income','sales','الإيراد','الايراد','الإيرادات','الايرادات','المبيعات']},
+ {key:'collections',label:'التحصيل النقدي',required:false,aliases:['collections','cash received','تحصيل','التحصيل','المقبوضات']},
+ {key:'expenses',label:'المصروفات',required:false,aliases:['expense','expenses','المصروف','المصروفات','إجمالي المصروفات']},
+ {key:'cases',label:'عدد الحالات / الزيارات',required:false,aliases:['cases','visits','عدد الحالات','الحالات','الزيارات','عدد الزيارات']},
+ {key:'discounts',label:'الخصومات',required:false,aliases:['discount','discounts','الخصم','الخصومات']},
+ {key:'tests_count',label:'عدد التحاليل',required:false,aliases:['tests count','عدد التحاليل','حركة التحاليل','التحاليل']},
+ {key:'quantity',label:'العدد / الكمية',required:false,aliases:['quantity','count','العدد','الكمية']},
+ {key:'item_name',label:'اسم التحليل / العنصر',required:false,aliases:['test','test name','اسم التحليل','الصنف','الخدمة']},
  {key:'category_name',label:'التصنيف / بند المصروف',required:false,aliases:['category','التصنيف','بند المصروف','نوع المصروف']},
+ {key:'branch_name',label:'اسم الفرع',required:false,aliases:['branch','branch name','الفرع','اسم الفرع']},
  {key:'unit_cost',label:'تكلفة الوحدة',required:false,aliases:['cost','unit cost','التكلفة','تكلفة الوحدة','سعر التكلفة']},
  {key:'selling_price',label:'سعر البيع',required:false,aliases:['price','selling price','سعر البيع','السعر']},
  {key:'currency_code',label:'العملة',required:false,aliases:['currency','العملة','العملة المستخدمة']}
@@ -25,20 +32,25 @@ export function suggestFinancialMapping(headers){
 export function analyzeFinancialRows({headers=[],rows=[],mapping=[]}={}){
  const mapped=new Map(mapping.filter(x=>x.fieldKey).map(x=>[x.fieldKey,x.columnIndex]));
  const required=FINANCIAL_FIELDS.filter(x=>x.required).filter(x=>!mapped.has(x.key));
- const records=[],issues=[],seen=new Map();
- let blankRows=0,invalidNumbers=0,duplicateRows=0;
+ const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0;
+ const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];
  for(let i=0;i<rows.length;i++){
   const source=rows[i]||[];if(!source.some(v=>clean(v)!=='')){blankRows++;continue;}
-  const record={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);record[field.key]=index===undefined?null:source[index]??null;}
-  record.period_date=normalizeFinancialDate(record.period_date);
-  record.amount=finite(record.amount);record.quantity=finite(record.quantity);record.unit_cost=finite(record.unit_cost);record.selling_price=finite(record.selling_price);
-  if(record.period_date===null)issues.push({row:i+2,field:'period_date',message:'تاريخ أو فترة غير صالحة'});
-  if(!clean(record.metric_key))issues.push({row:i+2,field:'metric_key',message:'نوع البند غير محدد'});
-  if(record.amount===null&&record.quantity===null&&record.selling_price===null)issues.push({row:i+2,field:'amount',message:'لا توجد قيمة أو كمية قابلة للتحليل'});
-  for(const k of ['amount','quantity','unit_cost','selling_price'])if(record[k]===null&&clean(source[mapped.get(k)]??'')!=='')invalidNumbers++;
-  const fingerprint=JSON.stringify([record.period_date,normalize(record.metric_key),normalize(record.item_name),normalize(record.category_name),record.amount,record.quantity,record.unit_cost,record.selling_price]);
-  const duplicate=seen.has(fingerprint);if(duplicate)duplicateRows++;else seen.set(fingerprint,i+2);
-  records.push({...record,_rowNumber:i+2,_fingerprint:fingerprint,_duplicate:duplicate,_duplicateOf:duplicate?seen.get(fingerprint):null,_original:source});
+  const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
+  const period=normalizeFinancialDate(raw.period_date);
+  if(period===null)issues.push({row:i+2,field:'period_date',message:'تاريخ أو فترة غير صالحة'});
+  const metric=clean(raw.metric_key);
+  const wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!=='');
+  if(!metric&&!wide.length)issues.push({row:i+2,field:'metric_key',message:'اربط عمود نوع البند أو عمودًا ماليًا مستقلًا مثل الإيراد أو المصروفات'});
+  const outputs=metric?[{metric_key:metric,amount:finite(raw.amount),quantity:finite(raw.quantity)}]:wide.map(key=>({metric_key:key,amount:['cases','tests_count'].includes(key)?null:finite(raw[key]),quantity:['cases','tests_count'].includes(key)?finite(raw[key]):null}));
+  if(metric&&!outputs[0].amount&&!outputs[0].quantity&&raw.selling_price===null)issues.push({row:i+2,field:'amount',message:'لا توجد قيمة أو كمية قابلة للتحليل'});
+  for(const output of outputs){
+   const record={period_date:period,metric_key:output.metric_key,amount:output.amount,quantity:output.quantity,item_name:raw.item_name,category_name:raw.category_name,branch_name:raw.branch_name,unit_cost:finite(raw.unit_cost),selling_price:finite(raw.selling_price),currency_code:raw.currency_code};
+   for(const key of ['unit_cost','selling_price'])if(record[key]===null&&clean(raw[key])!=='')invalidNumbers++;
+   const fingerprint=JSON.stringify([record.period_date,normalize(record.metric_key),normalize(record.item_name),normalize(record.category_name),record.amount,record.quantity,record.unit_cost,record.selling_price,normalize(record.branch_name)]);
+   const duplicate=seen.has(fingerprint);if(duplicate)duplicateRows++;else seen.set(fingerprint,i+2);
+   records.push({...record,_rowNumber:i+2,_fingerprint:fingerprint,_duplicate:duplicate,_duplicateOf:duplicate?seen.get(fingerprint):null,_original:source});
+  }
  }
  return {records,issues,issueCount:issues.length,blankRows,invalidNumbers,duplicateRows,missingRequired:required.length,missingRequiredFields:required.map(x=>x.label),ready:required.length===0&&issues.length===0,headers};
 }
