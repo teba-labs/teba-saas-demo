@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
 import { TABLES } from '../../core/data/schema-contract.js';
+import { enqueueOperation } from '../../offline/outbox.js';
 const db = () => getSupabaseClient();
 
 export async function listResults({ tenantId, visitTestId } = {}) {
@@ -32,12 +33,23 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
   if (new Set(prepared.map(item => item.parameter_code)).size !== prepared.length) {
     throw new Error('لا يمكن إرسال البارامتر نفسه أكثر من مرة في عملية الحفظ.');
   }
-  const { data, error } = await db().rpc('save_draft_results_atomic', {
-    p_tenant_id: tenantId, p_branch_id: branchId, p_visit_test_id: visitTestId,
-    p_staff_id: staffId, p_results: prepared,
+  const operationId = crypto.randomUUID();
+  const payload = { visit_test_id: visitTestId, staff_id: staffId, results: prepared };
+  const queue = async () => {
+    await enqueueOperation({ tenantId, branchId, entityType: 'draft_results', action: 'save', operationId, payload, priority: 10 });
+    return { queued: true, operationId };
+  };
+  if (globalThis.navigator?.onLine === false) return queue();
+  const { data, error } = await db().rpc('save_draft_results_idempotent', {
+    p_operation_id: operationId, p_tenant_id: tenantId, p_branch_id: branchId,
+    p_visit_test_id: visitTestId, p_staff_id: staffId, p_results: prepared,
   });
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queue();
+    throw error;
+  }
   return data ?? [];
+
 }
 
 /** Compatibility wrapper for a single parameter; new UI code should use saveDraftResults. */
