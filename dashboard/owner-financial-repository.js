@@ -6,7 +6,7 @@ export async function listOwnerFinancialBatches(tenantId){requireValue(tenantId,
 export async function listOwnerFinancialRows({tenantId,from=null,to=null,branchId=null}={}){requireValue(tenantId,'tenantId');return pages(()=>{let q=db().from('owner_financial_import_rows').select('id,tenant_id,batch_id,branch_id,sheet_name,row_number,period_date,metric_key,amount,quantity,item_name,category_name,unit_cost,selling_price,currency_code,original_row,row_fingerprint').eq('tenant_id',tenantId).order('period_date').order('row_number');if(from)q=q.gte('period_date',from);if(to)q=q.lte('period_date',to);if(branchId)q=q.eq('branch_id',branchId);return q;});}
 export async function uploadOwnerFinancialSourceFile({tenantId,fileHash,file}={}){
  requireValue(tenantId,'tenantId');requireValue(fileHash,'fileHash');requireValue(file,'file');
- const safeName=String(file.name||'workbook.xlsx').replace(/[^\\p{L}\\p{N}._-]+/gu,'_');
+ const safeName=String(file.name||'workbook.xlsx').replace(/[^A-Za-z0-9._-]+/g,'_');
  const path=tenantId+'/owner-financial/'+fileHash+'/'+safeName;
  const {error}=await db().storage.from('tenant-backups').upload(path,file,{upsert:true,contentType:file.type||'application/octet-stream'});
  if(error)throw error;return path;
