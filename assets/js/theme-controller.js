@@ -50,7 +50,7 @@ function buildControl() {
   scope.innerHTML = '<option value="global">كل النظام</option><option value="page">هذه الصفحة فقط</option>';
   const savedScope = safeGet(scopeKey);
   scope.value = savedScope === 'page' ? 'page' : 'global';
-  scope.addEventListener('change', () => safeSet(scopeKey, scope.value));
+  scope.addEventListener('change', () => { safeSet(scopeKey, scope.value); applyTheme(currentTheme()); });
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'taiba-theme-toggle';
