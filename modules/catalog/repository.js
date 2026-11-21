@@ -49,6 +49,28 @@ export async function listCurrentPrices({ tenantId, branchId = null, testIds } =
   return selectEffective(data ?? []);
 }
 
+/** Warm all active test parameter snapshots before a branch goes offline. */
+export async function warmCatalogParameters({ tenantId, testIds = [] } = {}) {
+  required(tenantId, 'tenantId');
+  const ids = [...new Set(testIds.filter(Boolean))];
+  if (!ids.length || globalThis.navigator?.onLine === false) return 0;
+  const rows = [];
+  for (let start = 0; start < ids.length; start += 100) {
+    const chunk = ids.slice(start, start + 100);
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await db().from(TABLES.parameters)
+        .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status')
+        .eq('tenant_id', tenantId).in('test_id', chunk)
+        .order('test_id').order('display_order').range(offset, offset + 499);
+      if (error) throw error;
+      rows.push(...(data || []));
+      if ((data || []).length < 500) break;
+    }
+  }
+  await cacheRows('test_parameters', rows);
+  return rows.length;
+}
+
 export async function listTestParameters({ tenantId, testId, includeInactive = false } = {}) {
   required(tenantId, 'tenantId'); required(testId, 'testId');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order);
