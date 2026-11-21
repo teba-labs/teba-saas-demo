@@ -6,6 +6,7 @@ import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/labora
 import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
 import { listPendingDraftResults } from '../../offline/outbox.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
+import { cacheRows, getCachedRows } from '../../offline/cache.js';
 import { publishReportVersion, correctVisitResultWithFlag } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
@@ -57,14 +58,22 @@ async function loadBranch() {
   if (!state.branch) return;
   rememberWorkspaceSelection(state.tenant.id, state.branch.id);
   $('contextStatus').textContent = 'جارٍ تحميل بيانات الفرع…';
-  const db = getSupabaseClient();
-  let staffQuery = db.from('staff_directory')
-    .select('id, display_name, auth_user_id, is_active').eq('tenant_id', state.tenant.id)
-    .eq('branch_id', state.branch.id).eq('is_active', true);
-  if (state.tenant.accountType === 'employee') staffQuery = staffQuery.eq('auth_user_id', state.userId);
-  const { data, error } = await staffQuery.order('display_name');
-  if (error) throw error;
-  state.staff = data ?? [];
+  let staffRows;
+  if (globalThis.navigator?.onLine === false) {
+    staffRows = (await getCachedRows('staff_directory', { tenantId: state.tenant.id, branchId: state.branch.id }))
+      .filter(row => row.is_active);
+  } else {
+    const db = getSupabaseClient();
+    let staffQuery = db.from('staff_directory')
+      .select('id, tenant_id, branch_id, display_name, auth_user_id, is_active').eq('tenant_id', state.tenant.id)
+      .eq('branch_id', state.branch.id).eq('is_active', true);
+    if (state.tenant.accountType === 'employee') staffQuery = staffQuery.eq('auth_user_id', state.userId);
+    const { data, error } = await staffQuery.order('display_name');
+    if (error) throw error;
+    staffRows = data ?? [];
+    await cacheRows('staff_directory', staffRows);
+  }
+  state.staff = staffRows;
   if (state.tenant.accountType === 'employee') state.staff = state.staff.filter(row => row.auth_user_id === state.userId);
   $('staffSelect').disabled = state.tenant.accountType === 'employee';
   $('staffSelect').innerHTML = state.staff.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.display_name)}</option>`).join('');
