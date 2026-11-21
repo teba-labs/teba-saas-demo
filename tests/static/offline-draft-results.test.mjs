@@ -75,7 +75,7 @@ test('offline navigation reuses cached membership, catalog parameters, lab ident
   assert.match(reception, /warmCatalogParameters/);
   assert.match(settings, /lab-settings:/);
   assert.match(settings, /print-settings:/);
-  assert.match(reception, /tenant_id, branch_id, patient_number/);
+  assert.match(intake, /const columns = 'id, tenant_id, branch_id, patient_number/);
 });
 
 test('local backups include culture caches and continue restoring older backup formats', () => {
