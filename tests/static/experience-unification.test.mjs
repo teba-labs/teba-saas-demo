@@ -60,6 +60,8 @@ test('clinical result entry clearly identifies cloud-only save and approval boun
   assert.match(ui, /requireCloudConnection\('حفظ النتائج'\)/);
   assert.match(ui, /requireCloudConnection\('اعتماد الزيارة'\)/);
   assert.match(ui, /معاينة التقرير تحتاج اتصالًا بالإنترنت/);
+  assert.match(ui, /Save as PDF/);
+  assert.match(ui, /ملف PDF النهائي للنشر/);
   assert.match(repository, /save_draft_results_atomic/);
   assert.match(repository, /p_tenant_id: tenantId/);
   assert.doesNotMatch(repository, /enqueueOperation/);
