@@ -1,5 +1,5 @@
 import {FINANCIAL_FIELDS,suggestFinancialMapping,analyzeFinancialRows,buildGenericHistoricalReport} from '../../modules/dashboard/financial-import-engine.js';
-import {createOwnerFinancialBatch,listOwnerFinancialBatches,listOwnerFinancialRows,getOwnerDashboardSources,saveOwnerDashboardSources,saveOwnerMonthApproval,listOwnerMonthApprovals} from '../../dashboard/owner-financial-repository.js';
+import {createOwnerFinancialBatch,uploadOwnerFinancialSourceFile,listOwnerFinancialBatches,listOwnerFinancialRows,getOwnerDashboardSources,saveOwnerDashboardSources,saveOwnerMonthApproval,listOwnerMonthApprovals} from '../../dashboard/owner-financial-repository.js';
 const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:2})+' ج.م';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -39,7 +39,7 @@ async function importPrepared(mapping,headers,rawRows,branchId){
   rows.push({branch_id:resolvedBranch,sheet_name:activeSheet,row_number:x._rowNumber,period_date:x.period_date,metric_key:String(x.metric_key).trim(),amount:x.amount,quantity:x.quantity,item_name:x.item_name,category_name:x.category_name,unit_cost:x.unit_cost,selling_price:x.selling_price,currency_code:x.currency_code,original_row:Object.fromEntries(headers.map((h,i)=>[String(h||'عمود '+(i+1)),x._original[i]??''])),row_fingerprint:x._fingerprint});
  }
  if(!rows.length)throw new Error('لا توجد صفوف صالحة بعد استبعاد التكرارات والتعارضات.');
- const dates=rows.map(x=>x.period_date).sort();await createOwnerFinancialBatch({tenantId,fileName:file.name,fileSha256:(await digest(await file.arrayBuffer()))+':'+activeSheet,sourceLabel:'Excel مالي تاريخي',periodStart:dates[0],periodEnd:dates.at(-1),mappingSnapshot:{sheet:activeSheet,headers,mapping},sheetSummary:[{name:activeSheet,rows:rows.length}],rows});
+ const dates=rows.map(x=>x.period_date).sort();const fileHash=await digest(await file.arrayBuffer());const storagePath=await uploadOwnerFinancialSourceFile({tenantId,fileHash,file});await createOwnerFinancialBatch({tenantId,fileName:file.name,fileSha256:fileHash+':'+activeSheet,storagePath,sourceLabel:'Excel مالي تاريخي',periodStart:dates[0],periodEnd:dates.at(-1),mappingSnapshot:{sheet:activeSheet,headers,mapping},sheetSummary:[{name:activeSheet,rows:rows.length}],rows});
  note('تم حفظ '+rows.length+' صف مالي سحابيًا. تم استبعاد '+skipped.length+' صفًا بسبب نقص أو تكرار أو تعارض أو فرع غير مطابق.');await refreshArchive();
 }
 async function refreshArchive(){
