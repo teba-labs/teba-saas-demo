@@ -400,8 +400,9 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const visitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
   if (!visitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
   const visit = visitItems[0].visits || {};
-  const localOffline = Boolean(visit.local_offline) || visitItems.some(item => item.local_offline);
-  const canPrint = visit.status === 'approved' || Boolean(visit.is_published) || localOffline;
+  const serverApproved = visit.status === 'approved' || Boolean(visit.is_published);
+  const localOffline = !serverApproved && (globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || visitItems.some(item => item.local_offline));
+  const canPrint = serverApproved || localOffline;
   const patient = visit.patients || {};
   const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
   if (globalThis.navigator?.onLine === false || localOffline) {
