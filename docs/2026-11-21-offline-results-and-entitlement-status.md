@@ -24,7 +24,7 @@
 
 - Migrations `074_offline_draft_results_idempotency` and `075_offline_culture_idempotency` were applied to TEST.
 - The idempotent draft-result and culture/AST RPCs and private receipt table were verified on TEST; anon cannot execute these RPCs and authenticated can execute them.
-- GitHub Actions run 1234 passed the JavaScript module check, browser-only build, static/unit tests, packaging and artifact upload (283/283 tests). An earlier run 1228 found a stale culture test contract; it was updated before run 1234.
+- GitHub Actions run 1236 passed the JavaScript module check, browser-only build, static/unit tests, packaging and artifact upload (283/283 tests). The source artifact was uploaded successfully; SHA-256: `ed257afb029ee38ba18f68018cae4c10b3178c6c04bab08ba52ef157d9b99e82`.
 
 ## Still not complete — do not represent as production-ready
 
