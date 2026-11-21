@@ -1,6 +1,7 @@
 import { APP_ENV } from '../config/environment.js';
 
 let configLoadedFor = '';
+let portalDisabled = false;
 async function loadPortalConfig(slug) {
   slug = String(slug || '').trim().toLowerCase();
   if (!slug || slug === configLoadedFor) return;
@@ -26,7 +27,8 @@ async function loadPortalConfig(slug) {
     document.querySelector('.mark').style.color = accent;
     document.getElementById('portalSubmit').style.background = accent;
     const submit = form.querySelector('button[type="submit"]');
-    submit.disabled = x.enabled === false;
+    portalDisabled = x.enabled === false;
+    submit.disabled = portalDisabled;
     if (x.enabled === false) showMessage('بوابة النتائج متوقفة مؤقتًا من إدارة المعمل.', 'error');
   } catch (error) {
     console.warn('Patient portal presentation settings could not be loaded.', error);
