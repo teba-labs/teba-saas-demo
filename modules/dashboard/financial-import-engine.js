@@ -54,10 +54,10 @@ function metricClass(key){
 }
 export function buildGenericHistoricalReport(rows,{from=null,to=null,branchId=null}={}){
  const selected=(rows||[]).filter(r=>(!from||r.period_date>=from)&&(!to||r.period_date<=to)&&(!branchId||r.branch_id===branchId));
- const totals={revenue:0,expenses:0,cases:0,discounts:0,payroll:0,tests:0,other:0};
+ const totals={revenue:0,collections:0,expenses:0,cases:0,discounts:0,payroll:0,tests:0,other:0};
  const monthly=new Map(),items=new Map(),categories=new Map();
  for(const r of selected){const cls=metricClass(r.metric_key),amount=Number(r.amount||0),qty=Number(r.quantity||0),month=String(r.period_date||'').slice(0,7);totals[cls]=(totals[cls]||0)+(cls==='cases'||cls==='tests'?qty:amount);
-  if(month){const m=monthly.get(month)||{month,revenue:0,expenses:0,cases:0,discounts:0,tests:0};if(cls==='revenue')m.revenue+=amount;if(cls==='expenses'||cls==='payroll')m.expenses+=amount;if(cls==='cases')m.cases+=qty||amount;if(cls==='discounts')m.discounts+=amount;if(cls==='tests')m.tests+=qty||1;monthly.set(month,m);}
+  if(month){const m=monthly.get(month)||{month,revenue:0,collections:0,expenses:0,cases:0,discounts:0,tests:0};if(cls==='revenue')m.revenue+=amount;if(cls==='collections')m.collections+=amount;if(cls==='expenses'||cls==='payroll')m.expenses+=amount;if(cls==='cases')m.cases+=qty||amount;if(cls==='discounts')m.discounts+=amount;if(cls==='tests')m.tests+=qty||1;monthly.set(month,m);}
   if(r.item_name){const item=items.get(normalize(r.item_name))||{name:r.item_name,count:0,revenue:0,cost:0};item.count+=qty||1;item.revenue+=r.selling_price!==null?r.selling_price* (qty||1):amount;item.cost+=r.unit_cost!==null?r.unit_cost*(qty||1):0;items.set(normalize(r.item_name),item);}
   if(r.category_name){categories.set(r.category_name,(categories.get(r.category_name)||0)+amount);}
  }
