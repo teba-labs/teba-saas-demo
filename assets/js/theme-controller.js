@@ -22,10 +22,12 @@ function applyTheme(theme) {
   }
   meta.content = normalized;
   const button = document.querySelector('[data-taiba-theme-toggle]');
+  const scope = document.querySelector('.taiba-theme-scope');
+  const targetTheme = scope?.value === 'global' ? globalTheme() : normalized;
   if (button) {
-    button.textContent = normalized === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي';
-    button.setAttribute('aria-pressed', String(normalized === 'dark'));
-    button.title = normalized === 'dark' ? 'تغيير مظهر هذه الصفحة أو النظام إلى النهاري' : 'تغيير مظهر هذه الصفحة أو النظام إلى الليلي';
+    button.textContent = targetTheme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي';
+    button.setAttribute('aria-pressed', String(targetTheme === 'dark'));
+    button.title = scope?.value === 'global' ? 'تغيير الوضع الافتراضي لكل صفحات النظام' : 'تغيير مظهر هذه الصفحة فقط';
   }
 }
 function clearPageOverrides() {
@@ -54,13 +56,14 @@ function buildControl() {
   button.className = 'taiba-theme-toggle';
   button.dataset.taibaThemeToggle = 'true';
   button.addEventListener('click', () => {
-    const next = currentTheme() === 'dark' ? 'light' : 'dark';
+    const activeTarget = scope.value === 'page' ? currentTheme() : globalTheme();
+    const next = activeTarget === 'dark' ? 'light' : 'dark';
     if (scope.value === 'page') safeSet(pageKey, next);
     else {
       safeSet(GLOBAL_KEY, next);
       clearPageOverrides();
     }
-    applyTheme(next);
+    applyTheme(currentTheme());
   });
   wrap.append(scope, button);
   if (host === document.body) wrap.classList.add('taiba-theme-floating');
