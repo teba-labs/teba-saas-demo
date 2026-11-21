@@ -45,7 +45,7 @@ test('keyboard navigation submits the final login field and preserves native sea
 test('tenant branding keeps the product identity separate from the laboratory name', () => {
   const script = read('assets/js/tenant-branding.js');
   assert.match(script, /TAIBA SMART LAB/);
-  assert.match(script, /data-tenant-lab-name/);
+  assert.match(script, /tenantLabName/);
   const home = read('app/index.html');
   assert.match(home, /TAIBA TECH/);
   assert.match(home, /TAIBA SMART LAB/);
