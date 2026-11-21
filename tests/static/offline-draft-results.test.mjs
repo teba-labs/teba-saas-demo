@@ -16,6 +16,9 @@ const reception = read('assets/js/reception.js');
 const intake = read('modules/reception/repository.js');
 const adapters = read('offline/supabase-adapters.js');
 const report = read('modules/laboratory/repository.js');
+const backup = read('offline/backup.js');
+const settings = read('modules/settings/repository.js');
+const catalog = read('modules/catalog/repository.js');
 
 test('offline draft-result writes use a stable operation ID and server idempotency RPC', () => {
   assert.match(repository, /save_draft_results_idempotent/);
@@ -64,6 +67,28 @@ test('offline report printing is explicitly provisional and includes queued loca
   assert.match(ui, /طباعة مسودة غير معتمدة/);
   assert.match(ui, /لا تُسلّم باعتبارها تقريرًا نهائيًا/);
   assert.match(ui, /pendingRows/);
+});
+
+test('offline navigation reuses cached membership, catalog parameters, lab identity and print settings', () => {
+  assert.match(read('core/tenant/context.js'), /cachedContext\(\)/);
+  assert.match(catalog, /warmCatalogParameters/);
+  assert.match(reception, /warmCatalogParameters/);
+  assert.match(settings, /lab-settings:/);
+  assert.match(settings, /print-settings:/);
+  assert.match(reception, /tenant_id, branch_id, patient_number/);
+});
+
+test('local backups include culture caches and continue restoring older backup formats', () => {
+  assert.match(backup, /const VERSION = 3/);
+  assert.match(backup, /culture_isolates/);
+  assert.match(backup, /culture_susceptibilities/);
+  assert.match(backup, /V2_VERSION/);
+});
+
+test('offline derived results use the catalog formula AST for provisional display and print', () => {
+  assert.match(ui, /evaluateLocalFormula/);
+  assert.match(ui, /calculateLocalDerivedResults/);
+  assert.match(ui, /local-calculated:/);
 });
 
 test('previously loaded branch worklist, staff, result values and culture reads are cached for offline review', () => {
