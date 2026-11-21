@@ -1,14 +1,17 @@
 /**
- * Taiba Smart Lab — environment configuration (neutral template)
- * Target: TEST Supabase project only.
+ * Taiba Smart Lab — primary runtime environment.
+ * Target: the existing Taiba SaaS Supabase project.
+ * Keep the current URL and publishable key unchanged to preserve the live connection.
  * Never place service_role or other secret keys in browser code.
- * TEST project publishable key is configured below; never use a secret key here.
  */
+const PRIMARY_SUPABASE_URL = 'https://hgqwpykeazuzceeiumjg.supabase.co';
+const PRIMARY_PROJECT_REF = 'hgqwpykeazuzceeiumjg';
+
 export const APP_ENV = Object.freeze({
-  name: 'development',
+  name: 'primary',
   supabase: Object.freeze({
-    url: 'https://hgqwpykeazuzceeiumjg.supabase.co',
-    publishableKey: 'sb_publishable_7FzS_dDxTF7bObMLJfI_sQ_6ac410OO', // TEST project publishable key; public browser key only.
+    url: PRIMARY_SUPABASE_URL,
+    publishableKey: 'sb_publishable_7FzS_dDxTF7bObMLJfI_sQ_6ac410OO', // Existing primary project's publishable browser key.
   }),
   timezone: 'Africa/Cairo',
   currency: 'EGP',
@@ -21,11 +24,15 @@ export const APP_ENV = Object.freeze({
 
 export function validateEnvironment(config = APP_ENV) {
   const problems = [];
-  if (!config.supabase?.url?.startsWith('https://')) problems.push('Supabase URL must use HTTPS.');
-  if (!config.supabase?.url?.includes('hgqwpykeazuzceeiumjg.supabase.co')) {
-    problems.push('This development build must point to the approved TEST Supabase project.');
+  if (!config.supabase?.url?.startsWith('https://')) {
+    problems.push('Supabase URL must use HTTPS.');
   }
-  if (!config.supabase?.publishableKey?.trim()) problems.push('TEST Supabase publishable key has not been configured.');
+  if (config.supabase?.url !== PRIMARY_SUPABASE_URL) {
+    problems.push(`This runtime must point to the designated primary Supabase project (${PRIMARY_PROJECT_REF}).`);
+  }
+  if (!config.supabase?.publishableKey?.trim()) {
+    problems.push('Primary Supabase publishable key has not been configured.');
+  }
   if (/service_role|secret/i.test(config.supabase?.publishableKey || '')) {
     problems.push('A secret/service_role key must never be used in browser code.');
   }
