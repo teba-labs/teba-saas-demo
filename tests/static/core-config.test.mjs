@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { APP_ENV, validateEnvironment } from '../../config/environment.js';
 
 assert.equal(APP_ENV.name, 'primary');
@@ -29,3 +30,14 @@ const wrongHost = validateEnvironment({
 assert.equal(wrongHost.valid, false, 'Unrecognized Supabase projects must be rejected.');
 
 console.log('PASS: primary SaaS project URL and existing publishable browser key are configured; TEST project and unknown Supabase hosts are rejected.');
+
+
+const [launcherMarkup, launcherScript] = await Promise.all([
+  readFile(new URL('../../app/index.html', import.meta.url), 'utf8'),
+  readFile(new URL('../../assets/js/app-home.js', import.meta.url), 'utf8'),
+]);
+assert.match(launcherMarkup, /بيئة التشغيل الأساسية/);
+assert.doesNotMatch(launcherMarkup, /بيئة التطوير|نسخة تطوير متصلة بمشروع الاختبار/);
+assert.match(launcherScript, /env\.valid\s*\?\s*'بيئة التشغيل الأساسية'/);
+assert.doesNotMatch(launcherScript, /بيئة الاختبار|مشروع الاختبار/);
+console.log('PASS: the launcher consistently labels the SaaS primary runtime and never displays obsolete TEST labels.');
