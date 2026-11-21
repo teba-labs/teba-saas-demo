@@ -50,7 +50,7 @@ The approval snapshot compares revenue, collections, expenses, cases, discounts,
 - Source files use the existing private tenant-backups bucket and its owner-scoped first-folder policies. Upload uses INSERT only (no storage upsert requirement).
 
 ## Validation performed
-- GitHub Actions static contracts, browser build, and unit/static regression suite: final weighted-cost run pending.
+- GitHub Actions static contracts, browser build, and unit/static regression suite: 252 passed, 0 failed (run 44910544196).
 - Migration 069 applied to TEST project teba-lis-demo only; RLS/force-RLS confirmed on all four new tables.
 - TEST project is PostgreSQL 17.11; existing tenant-backups bucket and tenant-owner INSERT/SELECT/DELETE policies confirmed.
 - Security advisor scan returned no findings on these four new tables. Existing unrelated project-wide advisor findings remain unchanged.
