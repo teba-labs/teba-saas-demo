@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
 import { cacheRows, getCachedRows } from '../../offline/cache.js';
+import { enqueueOperation } from '../../offline/outbox.js';
 const db = () => getSupabaseClient();
 const need = (value,name) => { if (value === null || value === undefined || value === '') throw new Error(name+' is required.'); };
 
@@ -28,35 +29,80 @@ export async function listCultureResults({tenantId,branchId,visitTestIds}={}) {
 }
 
 export async function saveCultureIsolate({tenantId,branchId,visitTestId,isolateNumber,organismName,growthDescription='',colonyCount=null,colonyCountUnit='CFU/mL',identificationMethod='',notes='',staffId,userId}={}) {
-  if(globalThis.navigator?.onLine===false) throw new Error('حفظ العزلات يحتاج اتصالًا بالإنترنت حاليًا؛ البيانات المعروضة محفوظة للقراءة فقط.');
   for(const [v,n] of [[tenantId,'tenantId'],[branchId,'branchId'],[visitTestId,'visitTestId'],[organismName,'organismName'],[staffId,'staffId']]) need(v,n);
   const number=Number(isolateNumber);
   if(!Number.isInteger(number)||number<1||number>20) throw new Error('رقم العزلة يجب أن يكون من 1 إلى 20.');
   const count=colonyCount===''||colonyCount===null||colonyCount===undefined?null:Number(colonyCount);
   if(count!==null&&(!Number.isFinite(count)||count<0)) throw new Error('عدد المستعمرات غير صالح.');
-  const payload={tenant_id:tenantId,branch_id:branchId,visit_test_id:visitTestId,isolate_number:number,
-    organism_name:String(organismName).trim(),growth_description:String(growthDescription).trim()||null,
+  const operationId=crypto.randomUUID(),localId=crypto.randomUUID();
+  const payload={isolate_number:number,organism_name:String(organismName).trim(),growth_description:String(growthDescription).trim()||null,
     colony_count:count,colony_count_unit:String(colonyCountUnit||'CFU/mL').trim(),
-    identification_method:String(identificationMethod).trim()||null,notes:String(notes).trim()||null,
-    created_by_staff_id:staffId,created_by:userId||null};
-  const {data,error}=await db().from('visit_test_culture_isolates').upsert(payload,{onConflict:'visit_test_id,isolate_number'}).select().single();
-  if(error) throw error;
-  return data;
+    identification_method:String(identificationMethod).trim()||null,notes:String(notes).trim()||null};
+  const localTest=(await getCachedRows('visit_tests',{tenantId,branchId})).find(row=>row.id===visitTestId);
+  const dependsOn=localTest?.local_intake_operation_id?[localTest.local_intake_operation_id]:[];
+  if(globalThis.navigator?.onLine===false){
+    const row={id:localId,tenant_id:tenantId,branch_id:branchId,visit_test_id:visitTestId,...payload,
+      created_by_staff_id:staffId,created_by:userId||null,created_at:new Date().toISOString(),
+      local_isolate_operation_id:operationId,local_offline:true};
+    await enqueueOperation({tenantId,branchId,entityType:'culture_isolate',action:'upsert',operationId,
+      payload:{visit_test_id:visitTestId,local_isolate_id:localId,staff_id:staffId,values:payload},dependsOn,priority:4});
+    await cacheRows('culture_isolates',[row]);
+    return row;
+  }
+  const {data,error}=await db().rpc('save_culture_isolate_idempotent',{
+    p_operation_id:operationId,p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTestId,p_staff_id:staffId,p_payload:payload,
+  });
+  if(error){
+    if(/fetch|network|offline/i.test(error.message||'')){
+      const row={id:localId,tenant_id:tenantId,branch_id:branchId,visit_test_id:visitTestId,...payload,
+        created_by_staff_id:staffId,created_by:userId||null,created_at:new Date().toISOString(),
+        local_isolate_operation_id:operationId,local_offline:true};
+      await enqueueOperation({tenantId,branchId,entityType:'culture_isolate',action:'upsert',operationId,
+        payload:{visit_test_id:visitTestId,local_isolate_id:localId,staff_id:staffId,values:payload},dependsOn,priority:4});
+      await cacheRows('culture_isolates',[row]);return row;
+    }
+    throw error;
+  }
+  const row={id:data,tenant_id:tenantId,branch_id:branchId,visit_test_id:visitTestId,...payload,created_by_staff_id:staffId,created_by:userId||null};
+  await cacheRows('culture_isolates',[row]);return row;
 }
 
 export async function saveCultureSusceptibility({tenantId,branchId,isolateId,antimicrobialAgent,testMethod,measuredValue=null,measuredUnit='',interpretation,breakpointStandard,breakpointEdition,breakpointTable='',breakpointSourceUrl='',qcStatus='not_documented',notes='',staffId,userId}={}) {
-  if(globalThis.navigator?.onLine===false) throw new Error('حفظ اختبار الحساسية يحتاج اتصالًا بالإنترنت حاليًا؛ البيانات المعروضة محفوظة للقراءة فقط.');
   for(const [v,n] of [[tenantId,'tenantId'],[branchId,'branchId'],[isolateId,'isolateId'],[antimicrobialAgent,'antimicrobialAgent'],[testMethod,'testMethod'],[interpretation,'interpretation'],[breakpointStandard,'breakpointStandard'],[breakpointEdition,'breakpointEdition'],[staffId,'staffId']]) need(v,n);
   const value=measuredValue===''||measuredValue===null||measuredValue===undefined?null:Number(measuredValue);
   if(value!==null&&(!Number.isFinite(value)||value<0)) throw new Error('قيمة MIC/قطر التثبيط غير صالحة.');
   if((value===null)!==(!String(measuredUnit).trim())) throw new Error('أدخل القيمة ووحدتها معًا أو اتركهما فارغين.');
-  const payload={tenant_id:tenantId,branch_id:branchId,isolate_id:isolateId,
-    antimicrobial_agent:String(antimicrobialAgent).trim(),test_method:testMethod,
-    measured_value:value,measured_unit:value===null?null:String(measuredUnit).trim(),
-    interpretation,breakpoint_standard:breakpointStandard,breakpoint_edition:String(breakpointEdition).trim(),
-    breakpoint_table:String(breakpointTable).trim()||null,breakpoint_source_url:String(breakpointSourceUrl).trim()||null,
-    qc_status:qcStatus,notes:String(notes).trim()||null,entered_by_staff_id:staffId,entered_by:userId||null};
-  const {data,error}=await db().from('visit_test_culture_susceptibility').upsert(payload,{onConflict:'isolate_id,antimicrobial_agent'}).select().single();
-  if(error) throw error;
-  return data;
+  if(!['S','I','R','SDD','IE','NA','not_interpreted'].includes(interpretation))throw new Error('تفسير الحساسية غير صالح.');
+  if(!['CLSI','EUCAST','other'].includes(breakpointStandard))throw new Error('معيار الحساسية غير صالح.');
+  if(!['disk_diffusion','mic','automated','gradient_diffusion','other'].includes(testMethod))throw new Error('طريقة اختبار الحساسية غير صالحة.');
+  if(!['not_documented','passed','failed'].includes(qcStatus))throw new Error('حالة ضبط الجودة غير صالحة.');
+  const operationId=crypto.randomUUID(),localId=crypto.randomUUID();
+  const values={antimicrobial_agent:String(antimicrobialAgent).trim(),test_method:testMethod,measured_value:value,
+    measured_unit:value===null?null:String(measuredUnit).trim(),interpretation,breakpoint_standard:breakpointStandard,
+    breakpoint_edition:String(breakpointEdition).trim(),breakpoint_table:String(breakpointTable).trim()||null,
+    breakpoint_source_url:String(breakpointSourceUrl).trim()||null,qc_status:qcStatus,notes:String(notes).trim()||null};
+  const localIsolate=(await getCachedRows('culture_isolates',{tenantId,branchId})).find(row=>row.id===isolateId);
+  const dependsOn=localIsolate?.local_isolate_operation_id?[localIsolate.local_isolate_operation_id]:[];
+  if(globalThis.navigator?.onLine===false){
+    const row={id:localId,tenant_id:tenantId,branch_id:branchId,isolate_id:isolateId,...values,
+      entered_by_staff_id:staffId,entered_by:userId||null,created_at:new Date().toISOString(),local_offline:true};
+    await enqueueOperation({tenantId,branchId,entityType:'culture_susceptibility',action:'upsert',operationId,
+      payload:{local_isolate_id:isolateId,staff_id:staffId,values},dependsOn,priority:5});
+    await cacheRows('culture_susceptibilities',[row]);return row;
+  }
+  const {data,error}=await db().rpc('save_culture_susceptibility_idempotent',{
+    p_operation_id:operationId,p_tenant_id:tenantId,p_branch_id:branchId,p_isolate_id:isolateId,p_staff_id:staffId,p_payload:values,
+  });
+  if(error){
+    if(/fetch|network|offline/i.test(error.message||'')){
+      const row={id:localId,tenant_id:tenantId,branch_id:branchId,isolate_id:isolateId,...values,
+        entered_by_staff_id:staffId,entered_by:userId||null,created_at:new Date().toISOString(),local_offline:true};
+      await enqueueOperation({tenantId,branchId,entityType:'culture_susceptibility',action:'upsert',operationId,
+        payload:{local_isolate_id:isolateId,staff_id:staffId,values},dependsOn,priority:5});
+      await cacheRows('culture_susceptibilities',[row]);return row;
+    }
+    throw error;
+  }
+  const row={id:data,tenant_id:tenantId,branch_id:branchId,isolate_id:isolateId,...values,entered_by_staff_id:staffId,entered_by:userId||null};
+  await cacheRows('culture_susceptibilities',[row]);return row;
 }
