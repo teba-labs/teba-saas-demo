@@ -483,7 +483,6 @@ function classifyResultFlag(input) {
 
 async function saveTest(button) {
   try {
-    requireCloudConnection('حفظ النتائج');
     setBusy(button, true, 'جارٍ الحفظ…');
     const section = button.closest('.parameter[data-test-id]');
     const testId = button.dataset.testId;
@@ -497,9 +496,17 @@ async function saveTest(button) {
     if (!results.length) throw new Error('أدخل نتيجة واحدة على الأقل قبل الحفظ.');
     const savedRows = await saveDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id,
       visitTestId: testId, results, staffId: $('staffSelect').value });
-    for (const row of savedRows) { const input=section.querySelector(`[data-param-code="${CSS.escape(row.parameter_code)}"]`); if(input){input.value=row.value_numeric??row.value_text??'';input.dataset.resultId=row.id;input.dataset.originalValue=input.value;} }
+    if (savedRows?.queued) {
+      section.dataset.localPending = 'true';
+      for (const input of inputs) if (input.value.trim()) { input.dataset.originalValue = input.value; input.dataset.localPending = 'true'; }
+      const pill = section.querySelector('.card-head .pill'); if (pill) pill.textContent = 'محفوظ محليًا — بانتظار المزامنة';
+      showNotice('تم حفظ النتائج على هذا الجهاز بأمان. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ لا تعتمد التحليل قبل اكتمال المزامنة.');
+    } else {
+      for (const row of savedRows) { const input=section.querySelector(`[data-param-code="${CSS.escape(row.parameter_code)}"]`); if(input){input.value=row.value_numeric??row.value_text??'';input.dataset.resultId=row.id;input.dataset.originalValue=input.value;delete input.dataset.localPending;} }
+      delete section.dataset.localPending;
+      showNotice('تم حفظ النتائج اليدوية وحساب البارامترات المشتقة تلقائيًا على السحابة.');
+    }
     const affectedVisit=state.work.find(row=>row.id===testId)?.visit_id;if(affectedVisit)state.previewedVisits.delete(affectedVisit);
-    showNotice('تم حفظ النتائج اليدوية وحساب البارامترات المشتقة تلقائيًا على السحابة.');
   } catch (error) { showNotice(error.message || 'تعذر حفظ النتائج.', true); }
   finally { setBusy(button, false); }
 }
@@ -572,11 +579,11 @@ async function downloadAttachment(button) {
 }
 
 async function completeTest(button) {
-  try { requireCloudConnection('إنهاء التحليل'); const visitId=state.work.find(row=>row.id===button.dataset.testId)?.visit_id;if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها أولًا قبل إنهاء التحليل.'); setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, branchId: state.branch.id, visitTestId: button.dataset.testId, staffId: $('staffSelect').value }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
+  try { requireCloudConnection('إنهاء التحليل'); if (button.closest('.work-card')?.querySelector('[data-local-pending="true"]')) throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد. انتظر المزامنة ثم أعد إنهاء التحليل.'); const visitId=state.work.find(row=>row.id===button.dataset.testId)?.visit_id;if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها أولًا قبل إنهاء التحليل.'); setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, branchId: state.branch.id, visitTestId: button.dataset.testId, staffId: $('staffSelect').value }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
   catch (error) { showNotice(error.message || 'تعذر إنهاء التحليل.', true); } finally { setBusy(button, false); }
 }
 async function approve(button) {
-  try { requireCloudConnection('اعتماد الزيارة'); if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ كل النتائج التي أدخلتها قبل اعتماد الزيارة.'); setBusy(button, true, 'جارٍ الاعتماد…'); await approveVisit({ tenantId: state.tenant.id, branchId: state.branch.id, visitId: button.dataset.visitId, staffId: $('staffSelect').value }); showNotice('تم اعتماد الزيارة. يمكنك الآن رفع ملف PDF.'); await refreshWork(); }
+  try { requireCloudConnection('اعتماد الزيارة'); if (button.closest('.work-card')?.querySelector('[data-local-pending="true"]')) throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد. انتظر المزامنة ثم أعد اعتماد الزيارة.'); if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ كل النتائج التي أدخلتها قبل اعتماد الزيارة.'); setBusy(button, true, 'جارٍ الاعتماد…'); await approveVisit({ tenantId: state.tenant.id, branchId: state.branch.id, visitId: button.dataset.visitId, staffId: $('staffSelect').value }); showNotice('تم اعتماد الزيارة. يمكنك الآن رفع ملف PDF.'); await refreshWork(); }
   catch (error) { showNotice(error.message || 'تعذر اعتماد الزيارة.', true); } finally { setBusy(button, false); }
 }
 async function publish(button) {
