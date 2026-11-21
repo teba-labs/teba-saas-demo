@@ -6,6 +6,7 @@ create table if not exists public.owner_financial_import_batches (
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   file_name text not null,
   file_sha256 text not null,
+  storage_path text,
   source_label text,
   period_start date,
   period_end date,
