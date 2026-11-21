@@ -73,6 +73,16 @@ test('live expense details reconcile ledger outflows to tenant-scoped expense ca
 
 test('owner dashboard shell refresh includes the archived-branch selector update',()=>{
   const sw=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
-  assert.match(sw,/taiba-smart-lab-shell-v27/);
+  assert.match(sw,/taiba-smart-lab-shell-v29/);
   assert.match(sw,/\.\/assets\/js\/dashboard\.js/);
+});
+
+test('owner dashboard presents the 18 report sections as a card-based navigation with shared styles',()=>{
+  const css=fs.readFileSync(path.join(root,'assets/css/dashboard.css'),'utf8');
+  assert.match(script,/mountOwnerDashboardNavigation/);
+  assert.match(script,/18 تقريرًا/);
+  assert.match(script,/owner-report-grid/);
+  assert.match(css,/\.owner-report-grid/);
+  assert.match(css,/\.owner-report-card:hover/);
+  assert.match(page,/theme-controller\.js/);
 });
