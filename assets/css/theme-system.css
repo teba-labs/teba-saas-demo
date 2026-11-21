@@ -64,3 +64,104 @@ html[data-theme="dark"] .owner-report-open{color:#9bd7d7}
 html[data-theme="dark"] :is(.expense-bar-track,.history-empty){background:#203844!important;color:#a9bdc7}
 html[data-theme="dark"] :is(.history-saved,.history-analysis-results){border-color:#304754!important}
 html[data-theme="dark"] .history-saved button{background:#203844;color:#e7f0f4;border-color:#46616d}
+
+
+/* Finish pass: semantic contrast, calm action hierarchy and predictable responsive controls. */
+:root{
+  --taiba-success-text:#17613b;--taiba-success-bg:#e8f5ee;--taiba-success-border:#b9dfc9;
+  --taiba-warning-text:#79531c;--taiba-warning-bg:#fff7e8;--taiba-warning-border:#f1d9a9;
+  --taiba-danger-text:#9b3029;--taiba-danger-bg:#fff1ef;--taiba-danger-border:#f0c8c3;
+  --taiba-info-text:#164b5d;--taiba-info-bg:#eaf3f7;--taiba-info-border:#c9dfe8;
+  --taiba-action-radius:10px;--taiba-control-height:40px;
+}
+:where(.status.good,.status.success,.badge.online,.badge.open,.status.active,.role-notice,.workday-chip,.history-saved b,.mappingStatus.success){
+  color:var(--taiba-success-text);
+}
+:where(.status.good,.status.success,.badge.online,.badge.open,.status.active,.role-notice,.workday-chip){
+  background:var(--taiba-success-bg);border-color:var(--taiba-success-border);
+}
+:where(.status.bad,.status.error,.badge.offline,.badge.closed,.notice.error,.alert-error){
+  color:var(--taiba-danger-text);
+}
+:where(.status.bad,.status.error,.badge.offline,.badge.closed,.alert-error){
+  background:var(--taiba-danger-bg);border-color:var(--taiba-danger-border);
+}
+:where(.warning,.status.warning,.alert-warning){
+  color:var(--taiba-warning-text);background:var(--taiba-warning-bg);border-color:var(--taiba-warning-border);
+}
+:where(.status.info,.badge.info,.alert-info){
+  color:var(--taiba-info-text);background:var(--taiba-info-bg);border-color:var(--taiba-info-border);
+}
+/* Keep action clusters readable without changing DOM order or button behavior. */
+:where(.actions,.top-actions,.parameter-actions,.item-actions,.tenant-controls){
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+}
+:where(.actions,.parameter-actions,.item-actions) > :is(button,.button,.btn,a.button){
+  min-height:var(--taiba-control-height);border-radius:var(--taiba-action-radius);
+}
+:where(.actions,.parameter-actions,.item-actions) > :is(button,.button,.btn,a.button):disabled{
+  opacity:.48;filter:saturate(.55);box-shadow:none;transform:none;cursor:not-allowed;
+}
+:where(.actions,.parameter-actions,.item-actions) > :is(button[type="submit"],.button-primary,.btn-primary){
+  font-weight:800;letter-spacing:0;
+}
+:where(.parameter-actions,.item-actions){gap:6px}
+:where(.parameter-actions,.item-actions) > :is(button,.button,.btn){min-height:34px;padding:6px 10px}
+:where([role="tablist"],.settings-tabs,.tabs){
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+}
+:where([role="tablist"],.settings-tabs,.tabs) > [role="tab"]{
+  border-radius:10px;min-height:38px;padding:8px 13px;font-weight:700;
+}
+:where(.top-actions) > a, :where(.top-actions) > button{
+  min-height:36px;display:inline-flex;align-items:center;justify-content:center;
+}
+:where(button,.button,.btn,a.button) :is(svg,[data-icon]){
+  width:1.1em;height:1.1em;flex:0 0 auto;vertical-align:middle;
+}
+:where(.panel,.card,.work-card,.owner-area,.section-card,.settings-tab-panel){
+  scroll-margin-top:18px;
+}
+:where(input,select,textarea,button,.button,.btn){accent-color:#16877f}
+html[data-theme="dark"]{
+  --taiba-success-text:#a8e5bf;--taiba-success-bg:#173b31;--taiba-success-border:#326b55;
+  --taiba-warning-text:#f3d18b;--taiba-warning-bg:#40351f;--taiba-warning-border:#715b2e;
+  --taiba-danger-text:#ffb4aa;--taiba-danger-bg:#442725;--taiba-danger-border:#78423d;
+  --taiba-info-text:#a9d8e8;--taiba-info-bg:#183440;--taiba-info-border:#315c6d;
+}
+html[data-theme="dark"] :where(.status.good,.status.success,.badge.online,.badge.open,.status.active,.role-notice,.workday-chip,.history-saved b,.mappingStatus.success){
+  color:var(--taiba-success-text)!important;background:var(--taiba-success-bg)!important;border-color:var(--taiba-success-border)!important;
+}
+html[data-theme="dark"] :where(.status.bad,.status.error,.badge.offline,.badge.closed,.alert-error){
+  color:var(--taiba-danger-text)!important;background:var(--taiba-danger-bg)!important;border-color:var(--taiba-danger-border)!important;
+}
+html[data-theme="dark"] :where(.warning,.status.warning,.alert-warning){
+  color:var(--taiba-warning-text)!important;background:var(--taiba-warning-bg)!important;border-color:var(--taiba-warning-border)!important;
+}
+html[data-theme="dark"] :where(.status.info,.badge.info,.alert-info){
+  color:var(--taiba-info-text)!important;background:var(--taiba-info-bg)!important;border-color:var(--taiba-info-border)!important;
+}
+html[data-theme="dark"] :where(.notice.show,#notice.show){
+  color:#e8f4f5!important;background:#173b43!important;border:1px solid #326b70!important;
+}
+html[data-theme="dark"] :where(.notice.error,#notice.error,#notice.show.error){
+  color:var(--taiba-danger-text)!important;background:var(--taiba-danger-bg)!important;border-color:var(--taiba-danger-border)!important;
+}
+html[data-theme="dark"] :where(.empty,.history-empty,.empty-state){
+  color:#b2c2ca!important;background:#172a35!important;border-color:#405762!important;
+}
+html[data-theme="dark"] :where(.top-actions) > a:hover{background:#ffffff12;border-radius:8px}
+html[data-theme="dark"] :where(.actions,.parameter-actions,.item-actions) > :is(button,.button,.btn,a.button):focus-visible{
+  outline-color:#83d5d3;outline-offset:2px;
+}
+@media(max-width:760px){
+  body>.topbar{align-items:flex-start}
+  body>.topbar .top-actions{width:100%;justify-content:flex-start;gap:7px}
+  :where(.actions,.parameter-actions,.item-actions) > :is(button,.button,.btn,a.button){flex:0 1 auto}
+  :where([role="tablist"],.settings-tabs,.tabs){flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-inline:contain;padding:2px 1px 8px}
+  :where([role="tablist"],.settings-tabs,.tabs) > [role="tab"]{flex:0 0 auto;white-space:nowrap}
+}
+@media(max-width:420px){
+  :where(.actions) > :is(button,.button,.btn,a.button){flex:1 1 calc(50% - 8px)}
+  :where(.parameter-actions,.item-actions) > :is(button,.button,.btn){flex:1 1 auto}
+}
