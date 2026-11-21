@@ -191,6 +191,14 @@ async function renderWork() {
     if (!resultsByTest.has(result.visit_test_id)) resultsByTest.set(result.visit_test_id, []);
     resultsByTest.get(result.visit_test_id).push(result);
   }
+  for (const item of state.work) {
+    const section = host.querySelector(`[data-test-id="${CSS.escape(item.id)}"]`);
+    if (!section) continue;
+    for (const result of resultsByTest.get(item.id) ?? []) {
+      const input = section.querySelector(`[data-param-code="${CSS.escape(result.parameter_code)}"]`);
+      if (input) { input.value = result.value_numeric ?? result.value_text ?? ''; input.dataset.resultId = result.id; input.dataset.originalValue = input.value; }
+    }
+  }
   const pendingDraftBatches = await listPendingDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id });
   for (const batch of pendingDraftBatches) {
     const section = host.querySelector(`[data-test-id="${CSS.escape(batch.payload?.visit_test_id || '')}"]`);
@@ -204,14 +212,6 @@ async function renderWork() {
       input.value = result.value_numeric ?? result.value_text ?? '';
       input.dataset.originalValue = input.value;
       input.dataset.localPending = 'true';
-    }
-  }
-  for (const item of state.work) {
-    const section = host.querySelector(`[data-test-id="${CSS.escape(item.id)}"]`);
-    if (!section) continue;
-    for (const result of resultsByTest.get(item.id) ?? []) {
-      const input = section.querySelector(`[data-param-code="${CSS.escape(result.parameter_code)}"]`);
-      if (input) { input.value = result.value_numeric ?? result.value_text ?? ''; input.dataset.resultId = result.id; input.dataset.originalValue = input.value; }
     }
   }
 }
