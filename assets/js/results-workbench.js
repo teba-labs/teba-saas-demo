@@ -316,8 +316,12 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     .select('id,name,address,phone').eq('tenant_id', state.tenant.id).eq('is_active', true).order('name');
   const logoPath = print.showLogo === false ? '' : (print.logoSource === 'branch' ? (print.logoPath || lab.logo_path || '') : (lab.logo_path || print.logoPath || ''));
   const signaturePath = print.showSignature ? print.signaturePath || '' : '';
+  const stampPath = print.showStamp ? print.stampPath || '' : '';
   const logo = logoPath ? getLabAssetPublicUrl(logoPath) : '';
   const signature = signaturePath ? getLabAssetPublicUrl(signaturePath) : '';
+  const stamp = stampPath ? getLabAssetPublicUrl(stampPath) : '';
+  const reviewerName = print.showReviewer ? String(print.reviewerName || '').trim() : '';
+  const headerSideText = String(print.headerSideText || '').trim().split(/\\r?\\n/).map(escapeHtml).join('<br>');
   const labName = lab.laboratory_name || state.tenant?.name || 'Taiba Smart Lab';
   const doctor = print.showDoctor === false ? '' : (lab.doctor_name || '');
   const branchName = print.showBranch === false ? '' : (branch.name || '');
@@ -335,8 +339,9 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const watermarkText = watermarkMode === 'name' ? labName : '';
   const watermarkImage = watermarkMode === 'logo' ? (logo || (lab.logo_path ? getLabAssetPublicUrl(lab.logo_path) : '')) : '';
   const identityHtml = '<div class="identity-zone"><strong>' + escapeHtml(labName) + '</strong>' + (doctor ? '<span>' + escapeHtml(doctor) + '</span>' : '') + '</div>';
-  const headerRight = print.identitySide === 'left' ? '' : identityHtml;
-  const headerLeft = print.identitySide === 'left' ? identityHtml : '';
+  const sideContent = headerSideText ? '<div class="identity-extra">' + headerSideText + '</div>' : '';
+  const headerRight = print.identitySide === 'left' ? sideContent : identityHtml;
+  const headerLeft = print.identitySide === 'left' ? identityHtml : sideContent;
   const centerLogo = logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '';
   const qrHtml = print.footerCenterMode === 'qr' && websiteUrl ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="QR للموقع"><small>امسح لزيارة موقع المعمل</small></a>' : '';
   const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
@@ -396,7 +401,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">طباعة التقرير</button>' : '<button disabled>اعتمد الزيارة أولًا للطباعة</button>') + '<button onclick="window.close()">إغلاق المعاينة</button></div>' +
     '<header class="report-header"><div class="header-grid"><div class="header-right">' + headerRight + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-left">' + headerLeft + '</div></div><h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="meta"><span>اسم المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>تاريخ الزيارة: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></header>' +
     '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
-    (signature ? '<p style="text-align:left"><img class="signature" src="' + escapeHtml(signature) + '" alt="التوقيع"></p>' : '') +
+    ((signature || stamp || reviewerName) ? '<section class="report-approval" style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:14px 0 8px">' + (signature ? '<div style="display:grid;gap:4px"><img style="max-width:130px;max-height:65px;object-fit:contain" src="' + escapeHtml(signature) + '" alt="التوقيع"><small>التوقيع</small></div>' : '') + (stamp ? '<div style="display:grid;gap:4px"><img style="max-width:100px;max-height:100px;object-fit:contain" src="' + escapeHtml(stamp) + '" alt="الختم"><small>ختم المعمل</small></div>' : '') + (reviewerName ? '<div style="display:grid;gap:4px"><strong style="border-top:1px solid #667;padding-top:4px;min-width:120px">' + escapeHtml(reviewerName) + '</strong><small>المراجع / المعتمد</small></div>' : '') + '</section>' : '') +
     '<footer class="report-footer" style="grid-template-columns:' + footerGridColumns + '"><div class="footer-right">' + footerAddresses + '</div>' + footerCenterMarkup + '<div class="footer-left">' + footerContacts + '</div>' + (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</footer>' + '</body></html>';
   win.document.open(); win.document.write(html); win.document.close();
   const printWhenReady = () => { try { win.focus(); if (autoPrint) win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
