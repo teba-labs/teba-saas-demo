@@ -9,6 +9,9 @@ const adapter = read('offline/supabase-adapters.js');
 const outbox = read('offline/outbox.js');
 const ui = read('assets/js/results-workbench.js');
 const sync = read('offline/background-sync.js');
+const worklist = read('modules/laboratory/repository.js');
+const cacheSchema = read('offline/database.js');
+const culture = read('modules/results/culture-repository.js');
 
 test('offline draft-result writes use a stable operation ID and server idempotency RPC', () => {
   assert.match(repository, /save_draft_results_idempotent/);
@@ -39,4 +42,15 @@ test('unsynced draft results survive workbench rerender and cannot be completed 
 test('subscription expiry does not gate outbox acknowledgement or erase queued operations', () => {
   assert.doesNotMatch(outbox, /subscription|entitlement|expires_at/i);
   assert.match(outbox, /await offlineDb\.outbox\.delete\(item\.local_id\)/);
+});
+
+test('previously loaded branch worklist, staff, result values and culture reads are cached for offline review', () => {
+  assert.match(worklist, /getCachedRows\('visit_tests'/);
+  assert.match(worklist, /cacheRows\('visit_tests'/);
+  assert.match(repository, /getCachedRows\('test_results'/);
+  assert.match(repository, /cacheRows\('test_results'/);
+  assert.match(cacheSchema, /culture_isolates/);
+  assert.match(cacheSchema, /culture_susceptibilities/);
+  assert.match(culture, /getCachedRows\('culture_isolates'/);
+  assert.match(ui, /getCachedRows\('staff_directory'/);
 });
