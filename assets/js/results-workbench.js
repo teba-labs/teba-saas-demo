@@ -458,7 +458,7 @@ function classifyResultFlag(input) {
 async function saveTest(button) {
   try {
     setBusy(button, true, 'جارٍ الحفظ…');
-    const section = button.closest('[data-test-id]');
+    const section = button.closest('.parameter[data-test-id]');
     const testId = button.dataset.testId;
     const inputs = [...section.querySelectorAll('[data-param-code]')];
     const results = inputs.filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim()).map(input => ({
@@ -477,7 +477,7 @@ async function saveTest(button) {
   finally { setBusy(button, false); }
 }
 async function correctTest(button) {
-  const section=button.closest('[data-test-id]');
+  const section=button.closest('.parameter[data-test-id]');
   const isPublished=section?.dataset.published==='true';
   if(!section)return;
   if(button.dataset.correctionMode!=='true'){
