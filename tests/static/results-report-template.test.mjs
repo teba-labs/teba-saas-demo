@@ -33,6 +33,9 @@ test('print settings persist and reload the newly added options as structured JS
  assert.ok(settings.includes("assetKind:'stamp'"));
  assert.ok(assets.includes("['logo','signature','stamp']"));
  assert.ok(settings.includes("uploadPrintStamp"));
+ assert.ok(settings.includes('const approvals='));
+ assert.ok(settings.includes('printStampPreview'));
+ assert.ok(settings.includes('printReviewerName'));
  assert.ok(resultsHasHeaderText(settings));
  assert.ok(js.includes('computeReferenceFlag'));
  assert.ok(js.includes('result.reference_range_snapshot ?? parameter.reference_ranges'));
