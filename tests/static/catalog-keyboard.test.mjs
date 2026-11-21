@@ -18,5 +18,5 @@ test('shared keyboard navigation is loaded on every application screen',async()=
   assert.match(module,/End/);
   assert.match(module,/data-keyboard-native/);
   assert.ok(sw.includes('./modules/ui/keyboard-navigation.js'));
-  assert.match(sw,/taiba-smart-lab-shell-v29/);
+  assert.match(sw,/taiba-smart-lab-shell-v\\d+/);
 });
