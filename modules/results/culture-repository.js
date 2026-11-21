@@ -1,10 +1,17 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
+import { cacheRows, getCachedRows } from '../../offline/cache.js';
 const db = () => getSupabaseClient();
 const need = (value,name) => { if (value === null || value === undefined || value === '') throw new Error(name+' is required.'); };
 
 export async function listCultureResults({tenantId,branchId,visitTestIds}={}) {
   need(tenantId,'tenantId'); need(branchId,'branchId');
   if (!Array.isArray(visitTestIds) || !visitTestIds.length) return {isolates:[],susceptibilities:[]};
+  if (globalThis.navigator?.onLine === false) {
+    const isolates = (await getCachedRows('culture_isolates', { tenantId, branchId })).filter(row => visitTestIds.includes(row.visit_test_id));
+    const ids = new Set(isolates.map(row => row.id));
+    const susceptibilities = (await getCachedRows('culture_susceptibilities', { tenantId, branchId })).filter(row => ids.has(row.isolate_id));
+    return { isolates, susceptibilities };
+  }
   const {data:isolates,error:isoError}=await db().from('visit_test_culture_isolates')
     .select('id,tenant_id,branch_id,visit_test_id,isolate_number,organism_name,growth_description,colony_count,colony_count_unit,identification_method,notes,created_by_staff_id,created_at,updated_at')
     .eq('tenant_id',tenantId).eq('branch_id',branchId).in('visit_test_id',visitTestIds).order('isolate_number');
@@ -15,6 +22,8 @@ export async function listCultureResults({tenantId,branchId,visitTestIds}={}) {
     .select('id,tenant_id,branch_id,isolate_id,antimicrobial_agent,test_method,measured_value,measured_unit,interpretation,breakpoint_standard,breakpoint_edition,breakpoint_table,breakpoint_source_url,qc_status,notes,entered_by_staff_id,created_at,updated_at')
     .eq('tenant_id',tenantId).eq('branch_id',branchId).in('isolate_id',ids).order('antimicrobial_agent');
   if(astError) throw astError;
+  await cacheRows('culture_isolates', isolates || []);
+  await cacheRows('culture_susceptibilities', susceptibilities || []);
   return {isolates:isolates||[],susceptibilities:susceptibilities||[]};
 }
 
