@@ -374,12 +374,12 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     reportBranches = branchResult.data || [];
   }
   const logoPath = print.showLogo === false ? '' : (print.logoSource === 'branch' ? (print.logoPath || lab.logo_path || '') : (lab.logo_path || print.logoPath || ''));
-  const signaturePath = print.showSignature ? print.signaturePath || '' : '';
-  const stampPath = print.showStamp ? print.stampPath || '' : '';
+  const signaturePath = !localOffline && print.showSignature ? print.signaturePath || '' : '';
+  const stampPath = !localOffline && print.showStamp ? print.stampPath || '' : '';
   const logo = logoPath ? getLabAssetPublicUrl(logoPath) : '';
   const signature = signaturePath ? getLabAssetPublicUrl(signaturePath) : '';
   const stamp = stampPath ? getLabAssetPublicUrl(stampPath) : '';
-  const reviewerName = print.showReviewer ? String(print.reviewerName || '').trim() : '';
+  const reviewerName = !localOffline && print.showReviewer ? String(print.reviewerName || '').trim() : '';
   const headerSideText = String(print.headerSideText || '').trim() .split(/\r?\n/).map(escapeHtml).join('<br>');
   const labName = lab.laboratory_name || state.tenant?.name || 'Taiba Smart Lab';
   const doctor = print.showDoctor === false ? '' : (lab.doctor_name || '');
