@@ -73,3 +73,9 @@ One integrated development cycle covering all 20 work items:
 - Created `feature/experience-unification-2026-11-21` from the same baseline.
 - Inspected results UI, generic save repository, culture workflow, keyboard module, and home/reception page entry points.
 - No application code changed yet.
+
+### Baseline synchronization attempt
+- Compared the results-workbench baseline with `main`: histories are divergent (122 commits unique to the development baseline and 4 main-only commits).
+- Opened PR #30 to merge main into the new development branch; GitHub reported it as not mergeable. It was closed without merging.
+- This confirms the two branches have overlapping independent changes. Do not perform a blind merge or replace files wholesale. Keep the development baseline isolated while reconciling relevant main-only changes deliberately in later work.
+- PR #28 and PR #29 remain open and untouched; main remains unchanged.
