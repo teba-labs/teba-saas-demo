@@ -1,4 +1,4 @@
-import { mountHistoricalWorkbookPanel, renderLiveHistoricalReconciliation, refreshHistoricalDashboard } from './dashboard-history.js';
+import { mountHistoricalWorkbookPanel, renderLiveHistoricalReconciliation } from './dashboard-history.js';
 import { mountOwnerFinancialImport, applyOwnerFinancialSources } from './dashboard-financial-import.js';
 import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
@@ -75,7 +75,7 @@ function mountOwnerDashboardNavigation(){
   const notice=historyPanel.querySelector('#historyNotice');
   const uploadPanel=document.createElement('section');uploadPanel.className='panel history-upload-panel';
   uploadPanel.append(notice,files);
-  move('upload',uploadPanel);
+  uploadPanel.hidden=true;move('upload',uploadPanel);
   const controls=document.createElement('section');controls.id='historyPeriodPanel';controls.className='panel history-period-global';controls.hidden=true;controls.innerHTML='<h3>الفترة التاريخية المختارة</h3><p class="muted">يتغير معها تحليل BCG والربحية والخطة والموسمية التاريخية.</p>';
   if(period)controls.append(period.closest('label'));
   home.after(controls);
@@ -97,7 +97,7 @@ function mountOwnerDashboardNavigation(){
     sync();
    }
   }
-  move('upload',historyPanel);
+  move('upload',historyPanel);historyPanel.hidden=true;
  }
  const movement=document.createElement('section');movement.className='panel';movement.innerHTML='<h3>سجل الحركات المالية</h3><p class="muted">قراءة فقط من دفتر الحركات. تسجيل التحصيل والمصروفات يظل من شاشة يوم العمل لمنع تكرار الإدخال.</p><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الفرع</th><th>نوع الحركة</th><th>البيان</th><th>المبلغ</th></tr></thead><tbody id="ownerLedgerRows"><tr><td colspan="5">جارٍ تحميل الحركات…</td></tr></tbody></table></div>';
  content('dailyFinance').append(movement);
@@ -147,7 +147,7 @@ function filterHistoricalReport(source,target,needle){
 }
 function showOwnerReport(id){
  const home=$('ownerDashboardHome'),screens=$('ownerDashboardScreens');
- const historicalScreens=['annual','cases','bcg','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers','upload'];const historyPeriod=$('historyPeriodPanel');if(historyPeriod)historyPeriod.hidden=!historicalScreens.includes(id);
+ const historyPeriod=$('historyPeriodPanel');if(historyPeriod)historyPeriod.hidden=true;
  if(id==='home'){home.hidden=false;screens.hidden=true;return;}
  const screen=screens.querySelector('[data-owner-screen="'+id+'"]');if(!screen)return;
  home.hidden=true;screens.hidden=false;
@@ -207,6 +207,6 @@ window.__refreshOwnerDashboard=()=>refresh();
 async function refresh(){if(!state.tenant)return;const button=$('refresh');button.disabled=true;button.textContent='جارٍ التحديث…';$('status').textContent='جارٍ قراءة الفواتير والتحصيلات والمصروفات من قاعدة البيانات…';try{const range=monthRange($('month').value);const branchId=$('branchSelect').value==='all'?null:$('branchSelect').value;const previousRange=getPreviousMonthRange(range.monthStart),previousYearRange=getSameMonthPreviousYearRange(range.monthStart);[state.report,state.previousReport,state.previousYearReport]=await Promise.all([getOwnerMonthlyDashboard({tenantId:state.tenant.id,...range,branchId}),getOwnerMonthlyDashboard({tenantId:state.tenant.id,...previousRange,branchId}),getOwnerMonthlyDashboard({tenantId:state.tenant.id,...previousYearRange,branchId})]);[state.report,state.previousReport,state.previousYearReport]=await Promise.all([applyOwnerFinancialSources(state.tenant.id,state.report),applyOwnerFinancialSources(state.tenant.id,state.previousReport),applyOwnerFinancialSources(state.tenant.id,state.previousYearReport)]);window.__ownerLiveReport=state.report;render(state.report);await renderLiveHistoricalReconciliation(state.report,state.tenant.id,branchId);$('status').classList.remove('error');$('status').textContent=`تم تحديث البيانات. ${state.report.branches.length} فرع · ${state.report.ledger.length} حركة مالية. الأرقام حسب يوم العمل.`;}catch(error){$('status').textContent=error.message||'تعذر تحميل التقرير.';$('status').classList.add('error');throw error;}finally{button.disabled=false;button.textContent='تحديث البيانات';}}
 $('loginForm').addEventListener('submit',async event=>{event.preventDefault();const button=event.currentTarget.querySelector('button');button.disabled=true;try{await signInWithEmail($('email').value,$('password').value);await start();}catch(error){notify(error.message||'تعذر تسجيل الدخول.',true);}finally{button.disabled=false;}});
 $('signOut').addEventListener('click',async()=>{try{await signOut();await start();}catch(error){notify(error.message,true);}});
-$('refresh').addEventListener('click',()=>refresh().catch(error=>notify(error.message,true)));$('branchSelect').addEventListener('change',()=>{if($('branchSelect').value!=='all')rememberWorkspaceSelection(state.tenant.id,$('branchSelect').value);refresh().then(()=>refreshHistoricalDashboard()).catch(error=>notify(error.message,true));});$('month').addEventListener('change',()=>refresh().catch(error=>notify(error.message,true)));$('runTestRangeReport').addEventListener('click',()=>runTestRangeReport().catch(error=>notify(error.message,true)));
+$('refresh').addEventListener('click',()=>refresh().catch(error=>notify(error.message,true)));$('branchSelect').addEventListener('change',()=>{if($('branchSelect').value!=='all')rememberWorkspaceSelection(state.tenant.id,$('branchSelect').value);refresh().catch(error=>notify(error.message,true));});$('month').addEventListener('change',()=>refresh().catch(error=>notify(error.message,true)));$('runTestRangeReport').addEventListener('click',()=>runTestRangeReport().catch(error=>notify(error.message,true)));
 $('copySummary').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('summaryText').value);notify('تم نسخ ملخص الشهر.');}catch{ $('summaryText').select();notify('حدد النص وانسخه يدويًا.');}});
 try{await start();}catch(error){notify(error.message||'تعذر تهيئة لوحة الإدارة.',true);}
