@@ -5,7 +5,8 @@ const money=v=>Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:2})+' 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let tenantId=null,branches=[],file=null,workbook=null,activeSheet=null,preparedRows=[],sources={},analysis=null,pendingApproval=null;
 const metricChoices=[['revenue','الإيرادات / المبيعات'],['collections','التحصيل النقدي'],['expenses','المصروفات'],['cases','عدد الحالات / الزيارات'],['discounts','الخصومات'],['tests','حركة التحاليل'],['other','بنود أخرى']];
-function invalidateApproval(){pendingApproval=null;const button=$('ownerFinancialApprove');if(button)button.disabled=true;}\nfunction note(message,error=false){const n=$('ownerFinancialNotice');if(n){n.textContent=message;n.className='notice show'+(error?' error':'');}}
+function invalidateApproval(){pendingApproval=null;const button=$('ownerFinancialApprove');if(button)button.disabled=true;}
+function note(message,error=false){const n=$('ownerFinancialNotice');if(n){n.textContent=message;n.className='notice show'+(error?' error':'');}}
 function element(tag,txt){const n=document.createElement(tag);if(txt!==undefined)n.textContent=String(txt);return n;}
 function branchOptions(){return [{value:'',label:'غير محدد / إجمالي'} ,...branches.map(b=>({value:b.id,label:b.name}))];}
 function renderMapping(){
@@ -103,7 +104,8 @@ $('ownerFinancialApprove').onclick=async()=>{try{
  await saveOwnerMonthApproval({tenantId:pendingApproval.tenantId,month:pendingApproval.month,branchId:pendingApproval.branchId,sourceChoices:pendingApproval.sourceChoices,reconciliation:pendingApproval.reconciliation,notes:$('ownerFinancialApprovalNotes').value});
  pendingApproval=null;$('ownerFinancialApprove').disabled=true;note('تم حفظ اعتماد الشهر ولقطة الفروق ومصادر المؤشرات.');
  }catch(err){note(err.message,true);}};
- globalThis.__refreshOwnerFinancialArchive=()=>refreshOwnerFinancialArchive();\n const invalidate=()=>invalidateApproval();$('ownerFinancialApprovalMonth')?.addEventListener('change',invalidate);$('month')?.addEventListener('change',invalidate);$('branchSelect')?.addEventListener('change',invalidate);$('refresh')?.addEventListener('click',invalidate);
+ globalThis.__refreshOwnerFinancialArchive=()=>refreshOwnerFinancialArchive();
+ const invalidate=()=>invalidateApproval();$('ownerFinancialApprovalMonth')?.addEventListener('change',invalidate);$('month')?.addEventListener('change',invalidate);$('branchSelect')?.addEventListener('change',invalidate);$('refresh')?.addEventListener('click',invalidate);
  try{await Promise.all([refreshOwnerFinancialArchive(),loadSources()]);}catch(err){note(err.message||'تعذر تحميل الأرشيف المالي.',true);}
 }
 export async function applyOwnerFinancialSources(tenantId,liveReport,branchId=null){
