@@ -26,8 +26,13 @@ test('culture results are editable from the workbench and printed with isolate-l
  assert.ok(js.includes('cultureRows.susceptibilities'));
  assert.match(js,/resolveReferenceRange/);
  const repo=read('modules/results/culture-repository.js');
- assert.match(repo,/onConflict:'visit_test_id,isolate_number'/);
- assert.match(repo,/onConflict:'isolate_id,antimicrobial_agent'/);
+ assert.match(repo,/save_culture_isolate_idempotent/);
+ assert.match(repo,/save_culture_susceptibility_idempotent/);
+ assert.match(repo,/entityType:'culture_isolate'/);
+ assert.match(repo,/entityType:'culture_susceptibility'/);
+ const offline=read('database/migrations/075_offline_culture_idempotency.sql');
+ assert.match(offline,/private\.offline_operation_receipts/);
+ assert.match(offline,/revoke all on function public\.save_culture_isolate_idempotent[\s\S]*grant execute on function public\.save_culture_isolate_idempotent/);
  const sw=read('service-worker.js');
  assert.ok(sw.includes('modules/results/culture-repository.js'));
 });
