@@ -54,17 +54,19 @@ test('tenant branding keeps the product identity separate from the laboratory na
   assert.match(platform, /theme-controller\.js/);
 });
 
-test('clinical result entry clearly identifies cloud-only save and approval boundaries while keeping atomic tenant-scoped writes', () => {
+test('clinical result entry queues draft saves safely while keeping completion and approval online-only', () => {
   const ui = read('assets/js/results-workbench.js');
   const repository = read('modules/results/repository.js');
-  assert.match(ui, /requireCloudConnection\('حفظ النتائج'\)/);
+  assert.doesNotMatch(ui, /requireCloudConnection\('حفظ النتائج'\)/);
   assert.match(ui, /requireCloudConnection\('اعتماد الزيارة'\)/);
   assert.match(ui, /معاينة التقرير تحتاج اتصالًا بالإنترنت/);
   assert.match(ui, /Save as PDF/);
   assert.match(ui, /ملف PDF النهائي للنشر/);
-  assert.match(repository, /save_draft_results_atomic/);
+  assert.match(repository, /save_draft_results_idempotent/);
   assert.match(repository, /p_tenant_id: tenantId/);
-  assert.doesNotMatch(repository, /enqueueOperation/);
+  assert.match(repository, /enqueueOperation/);
+  assert.match(ui, /محفوظ محليًا — بانتظار المزامنة/);
+  assert.match(ui, /requireCloudConnection\('إنهاء التحليل'\)/);
 });
 
 test('approved report publication and WhatsApp handoff use the private tenant report path and patient portal', () => {
