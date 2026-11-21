@@ -11,6 +11,46 @@ const throwUnlessConflict = (error, pattern) => {
 /** Only operations backed by server-side idempotency RPCs are enabled here. */
 export function createSupabaseSyncHandlers() {
   return {
+    culture_isolate: async operation => {
+      const p=operation.payload;
+      let visitTestId=p.visit_test_id;
+      for(const dependency of operation.depends_on||[]){
+        const mapping=await offlineDb.sync_meta.get(`visit-map:${dependency}`);
+        if(mapping?.visit_test_ids?.[visitTestId]){visitTestId=mapping.visit_test_ids[visitTestId];break;}
+      }
+      if(visitTestId===p.visit_test_id && (operation.depends_on||[]).length){
+        const found=await db().from('visit_tests').select('id').eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',visitTestId).maybeSingle();
+        if(found.error)throw found.error;if(!found.data)throw new Error('Culture isolate is waiting for its visit/test mapping.');
+        visitTestId=found.data.id;
+      }
+      const {data,error}=await db().rpc('save_culture_isolate_idempotent',{
+        p_operation_id:operation.operation_id,p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
+        p_visit_test_id:visitTestId,p_staff_id:p.staff_id,p_payload:p.values,
+      });
+      if(error)return throwUnlessConflict(error,/Branch access denied|active staff identity|Visit test was not found|Completed or approved culture results are locked|Invalid isolate number|Organism name is required|idempotency key reused|Authentication required/i);
+      if(!data)throw new Error('Server did not acknowledge the culture isolate.');
+      await offlineDb.sync_meta.put({key:`isolate-map:${operation.operation_id}`,tenant_id:operation.tenant_id,branch_id:operation.branch_id,
+        local_isolate_id:p.local_isolate_id,server_isolate_id:data,acknowledged_at:new Date().toISOString()});
+      await offlineDb.culture_isolates.delete(p.local_isolate_id);
+      return {acknowledged:true,resultId:data};
+    },
+    culture_susceptibility: async operation => {
+      const p=operation.payload;
+      let isolateId=p.local_isolate_id;
+      for(const dependency of operation.depends_on||[]){
+        const mapping=await offlineDb.sync_meta.get(`isolate-map:${dependency}`);
+        if(mapping?.local_isolate_id===isolateId){isolateId=mapping.server_isolate_id;break;}
+      }
+      if(isolateId===p.local_isolate_id)throw new Error('Susceptibility is waiting for its isolate to synchronize.');
+      const {data,error}=await db().rpc('save_culture_susceptibility_idempotent',{
+        p_operation_id:operation.operation_id,p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
+        p_isolate_id:isolateId,p_staff_id:p.staff_id,p_payload:p.values,
+      });
+      if(error)return throwUnlessConflict(error,/Branch access denied|active staff identity|Culture isolate was not found|Completed or approved culture results are locked|Invalid measured value|Invalid susceptibility interpretation|Invalid breakpoint standard|Invalid susceptibility method|Invalid QC status|idempotency key reused|Authentication required/i);
+      if(!data)throw new Error('Server did not acknowledge the susceptibility result.');
+      await offlineDb.culture_susceptibilities.delete(operation.payload.local_susceptibility_id || '');
+      return {acknowledged:true,resultId:data};
+    },
     draft_results: async operation => {
       const p = operation.payload;
       let visitTestId = p.visit_test_id;
