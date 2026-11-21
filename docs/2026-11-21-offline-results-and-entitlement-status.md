@@ -1,49 +1,53 @@
 # Offline Results and Subscription Entitlement — Delivery Status
 
 **Working branch:** `feature/offline-entitlement-completion-2026-11-21`  
-**PR:** #35 (draft; do not merge)  
+**PR:** #35 (not merged; keep `main` protected)  
 **TEST project:** `teba-lis-demo`
 
-## Implemented in this tranche
+## Implemented
 
-- Draft-result batches can be saved to the local IndexedDB outbox when the browser is offline or a network request fails.
-- Every batch gets a stable UUID before the first request. If the server committed but the response was lost, retrying with the same UUID returns the original result rows rather than inserting duplicates.
-- The server receipt is scoped by tenant, branch and operation UUID, and bound to the authenticated user and exact payload. The receipt table is in the private schema and has no client grants.
-- The results workbench restores pending local values after rerender/reload, visibly marks them as waiting for sync, and blocks test completion and visit approval while a local draft write remains unsynced.
-- The results workbench starts branch-scoped background sync and refreshes after the server confirms queued writes.
-- Previously loaded worklist pages, staff identities, result values, culture-isolate reads and susceptibility reads are cached for offline review.
-- Culture isolate and susceptibility writes remain explicitly online-only; no fake local-save confirmation is shown.
-- Outbox acknowledgement contains no subscription/expiry gate. Pending operations are not discarded because a subscription expires.
+- Draft result batches are saved to IndexedDB when offline or when a request fails due to a transient network error.
+- Each draft batch has a stable UUID. The server receipt is scoped to tenant, branch, user and exact payload; retries after a lost response return the original saved rows instead of inserting duplicates.
+- Unsynced draft values are restored after navigation/reload and clearly marked as waiting for sync.
+- Completion and approval remain online-only and are blocked while local result writes are pending.
+- Reception can now create a local patient, a local visit and local visit-test snapshots while offline, then navigate directly to that visit in the results workbench.
+- New local intake records are projected into the same cached worklist shape used by the results page. Patient, visit and result operations are dependency-ordered.
+- After the intake RPC acknowledges the visit, the sync adapter stores a local-to-server visit/test ID map. Draft result operations wait for that mapping and then save against the server's real visit-test IDs.
+- Catalog, current prices, all active test-parameter snapshots, staff, open workday, patient search results, tenant/branch access context, lab identity and print settings are cached for offline use after an online preparation pass.
+- The results workbench restores queued values and evaluates supported catalog formula ASTs locally for display and provisional printing. Server-side calculation remains authoritative after synchronization.
+- Cached visit data can be previewed and printed offline as a clearly marked **unapproved working copy**. The printout explicitly says it is not a final report and suppresses reviewer signature/stamp. Already approved/published visits retain their server-approved status.
+- Culture isolate/susceptibility reads are cached for offline viewing. Local backup format v3 includes these caches and remains backward-compatible with v1/v2 backup restore.
+- The outbox contains no subscription-expiry gate. Already-created pending operations are retained and must be synchronized even if the subscription expires during an outage.
+- Service-worker shell cache was advanced to v32 to refresh the offline app files.
 
-## TEST and CI evidence
+## Database and CI evidence already established
 
 - Migration `074_offline_draft_results_idempotency` was applied to TEST.
-- Verified the RPC exists, the private receipt table exists, `anon` cannot execute the RPC, and `authenticated` can execute it.
-- GitHub Actions run 1154: JavaScript module check passed, browser-only build passed, static/unit tests **277/277 passed**, source packaging and artifact upload passed.
-- This is automated/static validation. It is not a live authenticated clinical write test.
+- The idempotent draft-result RPC and private receipt table were verified on TEST; anon cannot execute the RPC and authenticated can execute it.
+- Earlier GitHub Actions run 1157 passed the JavaScript module check, browser-only build, static/unit tests, packaging and artifact upload (277/277 tests at that earlier checkpoint).
 
-## Explicitly not complete
+## Still not complete — do not represent as production-ready
 
-- The seven-day signed offline entitlement has **not** been implemented or enforced. No subscription lock has been added to reception or result entry.
-- New offline visit registration is already queued by the reception workflow, but a newly queued visit is not yet projected into the results worklist until its intake operation has synchronized.
-- Offline culture isolate/AST writes, range corrections, result completion, visit approval, report correction/publication, attachments and portal operations remain online-only.
-- Worklist caching is limited to pages previously loaded online on that device; it is not a full offline mirror of all visits.
-- No browser-only mechanism can make clock rollback absolutely tamper-proof. A signed token plus local anti-rollback checks is a deterrent, not equivalent to secure hardware storage.
-- A private signing secret and pinned public key have not been provisioned. The current connected Supabase tools do not expose project-secret management, so a signing key must not be invented, committed, or placed in client code.
+1. **Seven-day signed offline entitlement:** not implemented or enforced. No offline lock is active. A secure asymmetric signing key must be provisioned as a private Supabase Edge Function secret and the matching public key pinned in the client. The available project tools do not expose secret provisioning, so no key was fabricated or embedded in browser code.
+2. **Official final report while offline:** the current offline print path is deliberately provisional. It does not create an approval, reviewer signature, publication record or patient-portal report. Official completion/approval/publication remains online-only until an auditable offline signing and conflict-resolution protocol is designed and tested.
+3. **Offline culture writes:** isolate and susceptibility writes remain online-only. Their read caches are available, but writes need server idempotency receipts and clinical audit semantics.
+4. **Offline correction workflows:** range overrides and result corrections remain online-only because they require an immutable reason/audit trail and must not overwrite a previously published version.
+5. **Attachments and portal operations:** uploads, report publication, patient portal lookup and WhatsApp publication remain online-only.
+6. **Live authenticated end-to-end validation:** no live clinical account test has yet demonstrated the full sequence: disconnect after login -> create patient/visit -> enter all results -> reload -> provisional preview/print -> reconnect -> sync patient -> sync intake -> map server visit/test IDs -> sync results exactly once -> online completion/approval -> final report publication.
+7. **Cross-device recovery:** IndexedDB is device-local. A local queue cannot appear on another device until synchronized. A local backup can preserve queued operations, but moving it to another device requires restore and subsequent authenticated synchronization.
 
-## Required entitlement behavior before launch
+## Required production behavior for entitlement
 
-1. The server issues a signed, tenant/user/branch-scoped offline token only after verifying membership and the current trial/subscription period.
-2. Token expiry is bounded by the earlier of the subscription end and the configured offline grace period (default 7 days).
-3. After token expiry, block only creation of new offline business operations. Keep local records readable/exportable and retain every queued operation.
-4. When connectivity returns, synchronize and obtain server acknowledgement for queued operations **before** applying any new-operation subscription restriction. Never reject or delete an already-created pending operation solely because the subscription expired while offline.
-5. Subscription expiry may restrict new online registration after reconnection, but must not prevent login for data export, access to historical records, recovery, or pending sync.
-6. Completion, approval, correction and publication remain server-validated online operations; do not queue clinical sign-off offline until their audit, locking and conflict semantics have a separately tested design.
+- The server issues a signed, tenant/user/branch-scoped offline token only after verifying membership and the current trial/subscription period.
+- Token expiry is bounded by the earlier of subscription end and the configured offline grace period (default seven days).
+- After token expiry, block only creation of new offline business operations. Keep local records readable/exportable and retain every queued operation.
+- On reconnection, synchronize and obtain server acknowledgement for pending operations before applying restrictions to new operations.
+- Subscription expiry must not prevent login for data export, access to historical records, recovery or pending sync.
+- Never gate `syncOutbox` on subscription state.
 
-## Next engineering tranche
+## Next gated engineering work
 
-- Implement and test the signed offline entitlement endpoint and client verifier after a secure private signing secret can be provisioned.
-- Add a narrow, explicit gate to new reception operations only; do not gate `syncOutbox` or read/export paths.
-- Add offline projection of newly queued intake records into the local worklist, with dependency ordering (patient -> visit intake -> draft results).
-- Extend offline queue semantics to culture isolate/AST writes only after server idempotency and clinical audit rules are in place.
-- Run authenticated TEST scenarios for: offline result save, browser reload, duplicate retry after lost response, sync after grace expiry, and subscription expiry with pending data.
+- Provision a private Ed25519 signing secret and pinned public key, then implement/deploy the signed entitlement endpoint and narrow new-operation gate.
+- Add idempotent server wrappers and dependency mapping for offline culture isolate/AST writes and audited correction requests.
+- Design an explicit offline sign-off protocol before allowing final approval or official report issuance without a server.
+- Run the full authenticated TEST scenario above, including lost-response retry, browser reload, expiry during outage, changed-price conflict and duplicate-sync checks.
