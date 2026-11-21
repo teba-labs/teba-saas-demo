@@ -50,3 +50,14 @@ test('tenant branding keeps the product identity separate from the laboratory na
   assert.match(platform, /TAIBA TECH/);
   assert.match(platform, /theme-controller\.js/);
 });
+
+test('clinical result entry clearly identifies cloud-only save and approval boundaries while keeping atomic tenant-scoped writes', () => {
+  const ui = read('assets/js/results-workbench.js');
+  const repository = read('modules/results/repository.js');
+  assert.match(ui, /requireCloudConnection\('حفظ النتائج'\)/);
+  assert.match(ui, /requireCloudConnection\('اعتماد الزيارة'\)/);
+  assert.match(ui, /معاينة التقرير تحتاج اتصالًا بالإنترنت/);
+  assert.match(repository, /save_draft_results_atomic/);
+  assert.match(repository, /p_tenant_id: tenantId/);
+  assert.doesNotMatch(repository, /enqueueOperation/);
+});
