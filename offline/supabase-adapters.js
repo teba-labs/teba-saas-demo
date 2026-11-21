@@ -1,4 +1,5 @@
 import { offlineDb } from './database.js';
+import { cacheRows } from './cache.js';
 import { getSupabaseClient } from '../core/supabase-client.js';
 
 const db = () => getSupabaseClient();
@@ -31,24 +32,33 @@ export function createSupabaseSyncHandlers() {
       if(!data)throw new Error('Server did not acknowledge the culture isolate.');
       await offlineDb.sync_meta.put({key:`isolate-map:${operation.operation_id}`,tenant_id:operation.tenant_id,branch_id:operation.branch_id,
         local_isolate_id:p.local_isolate_id,server_isolate_id:data,acknowledged_at:new Date().toISOString()});
+      await cacheRows('culture_isolates',[{id:data,tenant_id:operation.tenant_id,branch_id:operation.branch_id,visit_test_id:visitTestId,
+        isolate_number:p.values.isolate_number,organism_name:p.values.organism_name,growth_description:p.values.growth_description,
+        colony_count:p.values.colony_count,colony_count_unit:p.values.colony_count_unit,identification_method:p.values.identification_method,
+        notes:p.values.notes,created_by_staff_id:p.staff_id,created_at:new Date().toISOString()}]);
+      await offlineDb.culture_susceptibilities.where('isolate_id').equals(p.local_isolate_id).modify({isolate_id:data});
       await offlineDb.culture_isolates.delete(p.local_isolate_id);
       return {acknowledged:true,resultId:data};
     },
     culture_susceptibility: async operation => {
       const p=operation.payload;
       let isolateId=p.local_isolate_id;
-      for(const dependency of operation.depends_on||[]){
-        const mapping=await offlineDb.sync_meta.get(`isolate-map:${dependency}`);
-        if(mapping?.local_isolate_id===isolateId){isolateId=mapping.server_isolate_id;break;}
+      if(p.local_isolate_pending){
+        for(const dependency of operation.depends_on||[]){
+          const mapping=await offlineDb.sync_meta.get(`isolate-map:${dependency}`);
+          if(mapping?.local_isolate_id===isolateId){isolateId=mapping.server_isolate_id;break;}
+        }
+        if(isolateId===p.local_isolate_id)throw new Error('Susceptibility is waiting for its isolate to synchronize.');
       }
-      if(isolateId===p.local_isolate_id)throw new Error('Susceptibility is waiting for its isolate to synchronize.');
       const {data,error}=await db().rpc('save_culture_susceptibility_idempotent',{
         p_operation_id:operation.operation_id,p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
         p_isolate_id:isolateId,p_staff_id:p.staff_id,p_payload:p.values,
       });
       if(error)return throwUnlessConflict(error,/Branch access denied|active staff identity|Culture isolate was not found|Completed or approved culture results are locked|Invalid measured value|Invalid susceptibility interpretation|Invalid breakpoint standard|Invalid susceptibility method|Invalid QC status|idempotency key reused|Authentication required/i);
       if(!data)throw new Error('Server did not acknowledge the susceptibility result.');
-      await offlineDb.culture_susceptibilities.delete(operation.payload.local_susceptibility_id || '');
+      await cacheRows('culture_susceptibilities',[{id:data,tenant_id:operation.tenant_id,branch_id:operation.branch_id,isolate_id:isolateId,
+        ...p.values,entered_by_staff_id:p.staff_id,created_at:new Date().toISOString()}]);
+      await offlineDb.culture_susceptibilities.delete(p.local_susceptibility_id || '');
       return {acknowledged:true,resultId:data};
     },
     draft_results: async operation => {
@@ -122,9 +132,10 @@ export function createSupabaseSyncHandlers() {
       if (error) return throwUnlessConflict(error, /OFFLINE_PRICE_CONFLICT|open the branch workday|registering visits|active staff|patient not found|valid visit number|select at least one test|invalid test selection|duplicate test selection|discount exceeds|payment exceeds|unsupported payment method|idempotency key reused|branch not accessible/i);
       if (!data) throw new Error('Server returned no visit ID.');
       const { data: serverTests, error: testsError } = await db().from('visit_tests')
-        .select('id,test_id,visit_id,tenant_id,branch_id,status,test_code_snapshot,test_name_snapshot,technical_snapshot,created_at')
+        .select('id,tenant_id,branch_id,test_id,visit_id,status,test_code_snapshot,test_name_snapshot,technical_snapshot,created_at,tests_catalog(test_kind),visits!inner(visit_number,visit_work_date,status,is_published,workbench_hidden_at,patients!inner(full_name,patient_number,phone,age_years,sex))')
         .eq('tenant_id', operation.tenant_id).eq('branch_id', operation.branch_id).eq('visit_id', data);
       if (testsError) throw testsError;
+      await cacheRows('visit_tests', serverTests || []);
       const localRows = Array.isArray(p.local_visit_test_ids) ? p.local_visit_test_ids : [];
       const mapping = {};
       for (const local of localRows) {
@@ -137,8 +148,6 @@ export function createSupabaseSyncHandlers() {
         branch_id: operation.branch_id, local_visit_id: p.local_visit_id || null,
         server_visit_id: data, visit_test_ids: mapping, acknowledged_at: new Date().toISOString(),
       });
-      if (p.local_visit_id) await offlineDb.visits.delete(p.local_visit_id);
-      for (const local of localRows) await offlineDb.visit_tests.delete(local.id);
       return { acknowledged: true, resultId: data };
     },
     payment: async operation => {
