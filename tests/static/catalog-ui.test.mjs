@@ -90,7 +90,8 @@ test('catalog edits flow through reception, immutable visit snapshots, results a
   // Results are rendered from the visit's frozen technical snapshot and saved atomically to Supabase.
   assert.match(resultJs, /technical_snapshot\?\.parameters/);
   assert.match(resultJs, /saveDraftResults/);
-  assert.match(resultRepo, /save_draft_results_atomic/);
+  assert.match(resultRepo, /save_draft_results_idempotent/);
+  assert.match(read('database/migrations/074_offline_draft_results_idempotency.sql'), /save_draft_results_atomic\(/);
   assert.match(resultJs, /printVisitReport/);
   assert.match(resultJs, /test_name_snapshot/);
 });
