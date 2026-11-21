@@ -1,3 +1,5 @@
+import { APP_ENV } from '../config/environment.js';
+
 let configLoadedFor = '';
 async function loadPortalConfig(slug) {
   slug = String(slug || '').trim().toLowerCase();
@@ -30,8 +32,6 @@ async function loadPortalConfig(slug) {
     console.warn('Patient portal presentation settings could not be loaded.', error);
   }
 }
-import { APP_ENV } from '../config/environment.js';
-
 const form = document.querySelector('[data-portal-form]');
 const status = document.querySelector('[data-portal-status]');
 const result = document.querySelector('[data-portal-result]');
@@ -57,7 +57,8 @@ form?.addEventListener('submit', async (event) => {
     const formData = new FormData(form);
     const slug = String(formData.get('slug') ?? '').trim().toLowerCase();
     const patientName = String(formData.get('patientName') ?? '').trim();
-    const visitNumber = String(formData.get('visitNumber') ?? '').trim();\n    await loadPortalConfig(slug);
+    const visitNumber = String(formData.get('visitNumber') ?? '').trim();
+    await loadPortalConfig(slug);
     const endpoint = `${APP_ENV.supabase.url}/functions/v1/patient-portal-lookup`;
     const response = await fetch(endpoint, {
       method: 'POST',
