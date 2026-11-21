@@ -22,7 +22,7 @@ export async function loadMyTenantContext() {
     .select('tenant_id, account_type, is_active')
     .eq('user_id', session.user.id)
     .eq('is_active', true);
-  if (membershipError) throw membershipError;
+  if (membershipError) { if (/fetch|network|offline/i.test(membershipError.message || '')) return cachedContext(); throw membershipError; }
   if (!memberships?.length) return { user: session.user, memberships: [], tenants: [] };
 
   const tenantIds = [...new Set(memberships.map(row => row.tenant_id))];
@@ -30,7 +30,7 @@ export async function loadMyTenantContext() {
     .from('tenants')
     .select('id, name, slug, status, timezone, currency_code')
     .in('id', tenantIds);
-  if (tenantError) throw tenantError;
+  if (tenantError) { if (/fetch|network|offline/i.test(tenantError.message || '')) return cachedContext(); throw tenantError; }
 
   // Owners need inactive branches for history and controlled reactivation.
   // Employee visibility is filtered below and enforced again by RLS.
@@ -38,14 +38,14 @@ export async function loadMyTenantContext() {
     .from('branches')
     .select('id, tenant_id, name, address, phone, map_link, is_active')
     .in('tenant_id', tenantIds);
-  if (branchError) throw branchError;
+  if (branchError) { if (/fetch|network|offline/i.test(branchError.message || '')) return cachedContext(); throw branchError; }
 
   const { data: branchMemberships, error: branchMembershipError } = await db
     .from('branch_memberships')
     .select('tenant_id, branch_id, is_active')
     .eq('user_id', session.user.id)
     .eq('is_active', true);
-  if (branchMembershipError) throw branchMembershipError;
+  if (branchMembershipError) { if (/fetch|network|offline/i.test(branchMembershipError.message || '')) return cachedContext(); throw branchMembershipError; }
 
   const tenantsWithAccess = (tenants ?? []).map(tenant => {
     const membership = memberships.find(m => m.tenant_id === tenant.id);
