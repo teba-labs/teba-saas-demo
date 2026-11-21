@@ -73,7 +73,7 @@ create table if not exists public.owner_dashboard_month_approvals (
   approved_at timestamptz not null default now(),
   constraint owner_dashboard_month_approvals_branch_fk foreign key (tenant_id,branch_id)
     references public.branches(tenant_id,id) on delete restrict,
-  constraint owner_dashboard_month_approvals_unique unique (tenant_id,period_month,branch_id)
+  constraint owner_dashboard_month_approvals_unique unique nulls not distinct (tenant_id,period_month,branch_id)
 );
 
 alter table public.owner_financial_import_batches enable row level security;
