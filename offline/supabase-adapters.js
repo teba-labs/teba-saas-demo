@@ -1,3 +1,4 @@
+import { offlineDb } from './database.js';
 import { getSupabaseClient } from '../core/supabase-client.js';
 
 const db = () => getSupabaseClient();
@@ -67,6 +68,24 @@ export function createSupabaseSyncHandlers() {
       });
       if (error) return throwUnlessConflict(error, /OFFLINE_PRICE_CONFLICT|open the branch workday|registering visits|active staff|patient not found|valid visit number|select at least one test|invalid test selection|duplicate test selection|discount exceeds|payment exceeds|unsupported payment method|idempotency key reused|branch not accessible/i);
       if (!data) throw new Error('Server returned no visit ID.');
+      const { data: serverTests, error: testsError } = await db().from('visit_tests')
+        .select('id,test_id,visit_id,tenant_id,branch_id,status,test_code_snapshot,test_name_snapshot,technical_snapshot,created_at')
+        .eq('tenant_id', operation.tenant_id).eq('branch_id', operation.branch_id).eq('visit_id', data);
+      if (testsError) throw testsError;
+      const localRows = Array.isArray(p.local_visit_test_ids) ? p.local_visit_test_ids : [];
+      const mapping = {};
+      for (const local of localRows) {
+        const actual = (serverTests || []).find(row => row.test_id === local.test_id);
+        if (!actual) throw new Error('Server visit was created, but a requested test mapping is missing; operation retained for safe recovery.');
+        mapping[local.id] = actual.id;
+      }
+      await offlineDb.sync_meta.put({
+        key: `visit-map:${operation.operation_id}`, tenant_id: operation.tenant_id,
+        branch_id: operation.branch_id, local_visit_id: p.local_visit_id || null,
+        server_visit_id: data, visit_test_ids: mapping, acknowledged_at: new Date().toISOString(),
+      });
+      if (p.local_visit_id) await offlineDb.visits.delete(p.local_visit_id);
+      for (const local of localRows) await offlineDb.visit_tests.delete(local.id);
       return { acknowledged: true, resultId: data };
     },
     payment: async operation => {
