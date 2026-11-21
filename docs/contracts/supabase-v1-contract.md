@@ -1,10 +1,14 @@
-# Supabase v1 contract — development target
+# Supabase v1 contract — primary runtime target
 
-- Project URL: `https://hgqwpykeazuzceeiumjg.supabase.co`
-- Project ref: `hgqwpykeazuzceeiumjg`
-- This is the TEST project. The production project `khjzoleiuiipyodpkieg` is not used by this workspace.
-- Browser code must use only the TEST project's publishable/anon key. Never use `service_role` or any secret key in frontend files.
-- The publishable key was not present in the source package or supplied project files. It must be copied from the TEST project's Supabase API settings into `config/environment.js` before browser connection tests.
+## Project roles (authoritative mapping, 21 November 2026)
+
+- **Primary runtime / existing Taiba SaaS project:** `https://hgqwpykeazuzceeiumjg.supabase.co`, ref `hgqwpykeazuzceeiumjg`, dashboard name `teba-lis-demo`.
+- **Reserved TEST project:** ref `khjzoleiuiipyodpkieg`, dashboard name `teba-lab`. This project has a different, older schema and is not the live application's database.
+- The earlier documentation incorrectly described the SaaS project as TEST and the other project as production. This mapping supersedes those labels.
+- The deployed app must remain connected to the existing primary SaaS project. Keep its current project URL and publishable browser key unchanged unless a separately reviewed connection change is explicitly planned.
+- This repository's browser code must use only the primary project's publishable key. Never use `service_role` or any secret key in frontend files.
+- The reserved TEST project is not yet verified as schema-compatible with the current SaaS app. Do not point the app at it, apply the full SaaS migration chain to it, or assume it is ready for testing until its schema, policies, functions, storage and test identities are deliberately prepared.
+- This role correction does not migrate data, apply database migrations, deploy Edge Functions, change secrets, or change Storage configuration. Cloud-function URLs/secrets remain a separate follow-up task.
 
 ## Authorization contract
 
