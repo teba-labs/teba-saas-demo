@@ -88,7 +88,7 @@ form?.addEventListener('submit', async (event) => {
     console.error('Patient portal request failed.', error);
     showMessage('تعذر الاتصال بالخدمة الآن. تأكد من الإنترنت وحاول مرة أخرى.', 'error');
   } finally {
-    submit.disabled = false;
+    submit.disabled = portalDisabled;
     submit.textContent = 'عرض التقرير';
   }
 });
