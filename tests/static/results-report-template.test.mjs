@@ -43,3 +43,12 @@ test('print settings persist and reload the newly added options as structured JS
  assert.ok(js.includes('taibaGetDirtyResultInputs'));
  assert.ok(js.includes('قبل نشر التقرير'));
 });
+
+ 
+test('preprinted letterhead settings independently suppress lab header and footer while preserving report body',()=>{
+ for(const id of ['printShowHeader','printShowFooter']) assert.ok(html.includes('id="'+id+'"'),id);
+ for(const key of ['showHeader','showFooter']) assert.ok(settings.includes(key),key);
+ for(const value of ['showPrintHeader','showPrintFooter','pageTopMargin','pageBottomMargin']) assert.ok(js.includes(value),value);
+ assert.ok(settings.includes('هيدر المعمل مخفي'));
+ assert.ok(settings.includes('فوتر المعمل مخفي'));
+});
