@@ -74,22 +74,22 @@ html[data-theme="dark"] .history-saved button{background:#203844;color:#e7f0f4;b
   --taiba-info-text:#164b5d;--taiba-info-bg:#eaf3f7;--taiba-info-border:#c9dfe8;
   --taiba-action-radius:10px;--taiba-control-height:40px;
 }
-:where(.status.good,.status.success,.badge.online,.badge.open,.status.active,.role-notice,.workday-chip,.history-saved b,.mappingStatus.success){
+:is(.status.good,.status.success,.badge.online,.badge.open,.status.active,.role-notice,.workday-chip,.history-saved b,.mappingStatus.success){
   color:var(--taiba-success-text);
 }
-:where(.status.good,.status.success,.badge.online,.badge.open,.status.active,.role-notice,.workday-chip){
+:is(.status.good,.status.success,.badge.online,.badge.open,.status.active,.role-notice,.workday-chip){
   background:var(--taiba-success-bg);border-color:var(--taiba-success-border);
 }
-:where(.status.bad,.status.error,.badge.offline,.badge.closed,.notice.error,.alert-error){
+:is(.status.bad,.status.error,.badge.offline,.badge.closed,.notice.error,.alert-error){
   color:var(--taiba-danger-text);
 }
-:where(.status.bad,.status.error,.badge.offline,.badge.closed,.alert-error){
+:is(.status.bad,.status.error,.badge.offline,.badge.closed,.alert-error){
   background:var(--taiba-danger-bg);border-color:var(--taiba-danger-border);
 }
-:where(.warning,.status.warning,.alert-warning){
+:is(.warning,.status.warning,.alert-warning){
   color:var(--taiba-warning-text);background:var(--taiba-warning-bg);border-color:var(--taiba-warning-border);
 }
-:where(.status.info,.badge.info,.alert-info){
+:is(.status.info,.badge.info,.alert-info){
   color:var(--taiba-info-text);background:var(--taiba-info-bg);border-color:var(--taiba-info-border);
 }
 /* Keep action clusters readable without changing DOM order or button behavior. */
@@ -129,16 +129,16 @@ html[data-theme="dark"]{
   --taiba-danger-text:#ffb4aa;--taiba-danger-bg:#442725;--taiba-danger-border:#78423d;
   --taiba-info-text:#a9d8e8;--taiba-info-bg:#183440;--taiba-info-border:#315c6d;
 }
-html[data-theme="dark"] :where(.status.good,.status.success,.badge.online,.badge.open,.status.active,.role-notice,.workday-chip,.history-saved b,.mappingStatus.success){
+html[data-theme="dark"] :is(.status.good,.status.success,.badge.online,.badge.open,.status.active,.role-notice,.workday-chip,.history-saved b,.mappingStatus.success){
   color:var(--taiba-success-text)!important;background:var(--taiba-success-bg)!important;border-color:var(--taiba-success-border)!important;
 }
-html[data-theme="dark"] :where(.status.bad,.status.error,.badge.offline,.badge.closed,.alert-error){
+html[data-theme="dark"] :is(.status.bad,.status.error,.badge.offline,.badge.closed,.alert-error){
   color:var(--taiba-danger-text)!important;background:var(--taiba-danger-bg)!important;border-color:var(--taiba-danger-border)!important;
 }
-html[data-theme="dark"] :where(.warning,.status.warning,.alert-warning){
+html[data-theme="dark"] :is(.warning,.status.warning,.alert-warning){
   color:var(--taiba-warning-text)!important;background:var(--taiba-warning-bg)!important;border-color:var(--taiba-warning-border)!important;
 }
-html[data-theme="dark"] :where(.status.info,.badge.info,.alert-info){
+html[data-theme="dark"] :is(.status.info,.badge.info,.alert-info){
   color:var(--taiba-info-text)!important;background:var(--taiba-info-bg)!important;border-color:var(--taiba-info-border)!important;
 }
 html[data-theme="dark"] :where(.notice.show,#notice.show){
