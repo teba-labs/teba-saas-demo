@@ -55,7 +55,7 @@ One integrated development cycle covering all 20 work items:
 | 7. Global/per-page themes | Implemented in branch | Added persistent global default and page overrides, scope selector, dark/light stylesheet, and loaded controller on 12 product/platform/portal pages. CI and browser QA pending. |
 | 8. Keyboard navigation | Code updated | Final text/password field now submits with Enter; search/select native behavior preserved; arrow list navigation retained. Keyboard module loaded on all 12 pages. CI/manual QA pending. |
 | 9. Design tokens | Partial implementation | Added shared color tokens, card/control/focus/hover states, common header and page-frame styling. Page-by-page visual refinement remains. |
-| 10. Page-specific redesign | Pending | Apply shared visual language without changing clinical workflows. |
+| 10. Page-specific redesign | Partial implementation | Ported the 18-report owner dashboard card navigation and its responsive card/screen styles; added dark-mode styling for owner reports and financial import. Other pages still need visual review. |
 | 11. Login/logout/navigation | In progress | Keyboard submit and appearance controls added to all product/platform/portal entry points. Full logout/navigation audit remains. |
 | 12. TAIBA TECH identity | Implemented in platform entry | Platform admin header/title now identify TAIBA TECH with Software Development & Digital Solutions descriptor. |
 | 13. TAIBA SMART LAB identity | Implemented in tenant branding | Tenant branding now preserves TAIBA SMART LAB as product identity and shows laboratory name separately. |
@@ -115,3 +115,11 @@ One integrated development cycle covering all 20 work items:
 - The upload field now explains the required `Save as PDF` handoff instead of implying that preview and publication are one automatic step.
 - Added a static contract test for the private report-storage and WhatsApp-to-portal wiring.
 - Additional commits: PDF handoff clarification `3f60f4e`; PDF workflow test `8656e9e`; identity footer `13047b8`; identity test `4bea0b7`; appearance assertion correction `402aac9`; tenant branding test correction `92ec0f2`; report/WhatsApp wiring test `96408db`.
+
+### Owner dashboard integration
+- Ported the open PR #29 owner dashboard work into this development branch: 18 independent report screens/card navigation, live-today KPIs, financial-source selection, generic Excel financial import, historical archive integration, and associated repository/engine code.
+- Added migrations 069–071 and their static/unit tests to the development branch. These migrations have **not** been applied to any Supabase project in this cycle.
+- Added the owner report card/screen CSS and dark-mode styling. Service-worker shell is now v29 and precaches the dashboard import modules.
+- Updated the owner-dashboard static contract to expect shell v29 and to verify the 18-report card navigation.
+- PR #29 itself remains open and untouched. Its code has been ported into this development branch, not merged into main.
+- Key port commits: dashboard screen code `0ae712c`; dashboard history integration `823afcf`; financial import UI `584135e`; owner financial repository `c8b4352`; migrations 069/070/071 `4829bbe`, `dd16a21`, `0b3b2c1`; import engine `978821d`; financial tests `70ff3e3`, `9b97b24`; dashboard page `9a051d8`; dashboard CSS `3910247`; owner dashboard test `d5671c0`; dark dashboard styling `9d2d210`.
