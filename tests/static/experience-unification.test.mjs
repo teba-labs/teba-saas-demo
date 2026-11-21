@@ -31,7 +31,7 @@ test('theme controller supports a global default and independent page overrides'
   assert.match(script, /clearPageOverrides/);
   assert.match(script, /data-theme/);
   assert.match(script, /theme-system\.css/);
-  assert.ok(script.includes(String.raw`location.pathname.replace(/\\/+$/, '')`));
+  assert.ok(script.includes("location.pathname.replace(/\/+$/, '')"));
 });
 
 test('keyboard navigation submits the final login field and preserves native search and select behavior', () => {
