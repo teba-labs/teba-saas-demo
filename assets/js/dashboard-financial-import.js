@@ -4,7 +4,7 @@ const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:2})+' ج.م';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let tenantId=null,branches=[],file=null,workbook=null,activeSheet=null,preparedRows=[],sources={},analysis=null;
-const metricChoices=[['revenue','الإيرادات / المبيعات'],['expenses','المصروفات'],['cases','عدد الحالات / الزيارات'],['discounts','الخصومات'],['payroll','المرتبات'],['tests','حركة التحاليل'],['other','بنود أخرى']];
+const metricChoices=[['revenue','الإيرادات / المبيعات'],['collections','التحصيل النقدي'],['expenses','المصروفات'],['cases','عدد الحالات / الزيارات'],['discounts','الخصومات'],['payroll','المرتبات'],['tests','حركة التحاليل'],['other','بنود أخرى']];
 function note(message,error=false){const n=$('ownerFinancialNotice');if(n){n.textContent=message;n.className='notice show'+(error?' error':'');}}
 function element(tag,txt){const n=document.createElement(tag);if(txt!==undefined)n.textContent=String(txt);return n;}
 function branchOptions(){return [{value:'',label:'غير محدد / إجمالي'} ,...branches.map(b=>({value:b.id,label:b.name}))];}
@@ -51,11 +51,11 @@ export async function mountOwnerFinancialImport(currentTenant,tenantBranches=[])
 export async function applyOwnerFinancialSources(tenantId,liveReport){
  if(!tenantId||!liveReport)return liveReport;
  const choices=await getOwnerDashboardSources(tenantId);if(!Object.values(choices).includes('excel'))return liveReport;
- const [rows]=await Promise.all([listOwnerFinancialRows({tenantId,from:liveReport.period.monthStart,to:liveReport.period.monthEnd})]);
+ const [rows]=await Promise.all([listOwnerFinancialRows({tenantId,from:liveReport.period.monthStart,to:(()=>{const d=new Date(liveReport.period.monthEnd+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})()})]);
  const historical=buildGenericHistoricalReport(rows,{from:liveReport.period.monthStart,to:liveReport.period.monthEnd});
  const t={...liveReport.totals};
- const map={revenue:'collected',expenses:'expenses',cases:'visits',discounts:'discounts',tests:'tests'};
- for(const [metric,field] of Object.entries(map)){if(choices[metric]==='excel'){if(metric==='revenue')t[field]=historical.totals.revenue;else if(metric==='expenses')t[field]=historical.totals.expenses;else if(metric==='cases')t[field]=historical.totals.cases;else if(metric==='discounts')t[field]=historical.totals.discounts;else t[field]=historical.totals.tests;}}
+ const map={revenue:'netBilled',collections:'collected',expenses:'expenses',cases:'visits',discounts:'discounts',tests:'tests'};
+ for(const [metric,field] of Object.entries(map)){if(choices[metric]==='excel'){if(metric==='revenue'){t[field]=historical.totals.revenue;t.grossBilled=historical.totals.revenue+t.discounts;}else if(metric==='collections')t[field]=historical.totals.collections;else if(metric==='expenses')t[field]=historical.totals.expenses;else if(metric==='cases')t[field]=historical.totals.cases;else if(metric==='discounts')t[field]=historical.totals.discounts;else t[field]=historical.totals.tests;}}
  t.netCash=Number(t.collected||0)-Number(t.expenses||0);t.netBilled=t.netBilled??0;
  return {...liveReport,totals:t,selectedSources:choices,historicalSourceSummary:historical};
 }
