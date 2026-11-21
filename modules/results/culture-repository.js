@@ -28,6 +28,7 @@ export async function listCultureResults({tenantId,branchId,visitTestIds}={}) {
 }
 
 export async function saveCultureIsolate({tenantId,branchId,visitTestId,isolateNumber,organismName,growthDescription='',colonyCount=null,colonyCountUnit='CFU/mL',identificationMethod='',notes='',staffId,userId}={}) {
+  if(globalThis.navigator?.onLine===false) throw new Error('حفظ العزلات يحتاج اتصالًا بالإنترنت حاليًا؛ البيانات المعروضة محفوظة للقراءة فقط.');
   for(const [v,n] of [[tenantId,'tenantId'],[branchId,'branchId'],[visitTestId,'visitTestId'],[organismName,'organismName'],[staffId,'staffId']]) need(v,n);
   const number=Number(isolateNumber);
   if(!Number.isInteger(number)||number<1||number>20) throw new Error('رقم العزلة يجب أن يكون من 1 إلى 20.');
@@ -44,6 +45,7 @@ export async function saveCultureIsolate({tenantId,branchId,visitTestId,isolateN
 }
 
 export async function saveCultureSusceptibility({tenantId,branchId,isolateId,antimicrobialAgent,testMethod,measuredValue=null,measuredUnit='',interpretation,breakpointStandard,breakpointEdition,breakpointTable='',breakpointSourceUrl='',qcStatus='not_documented',notes='',staffId,userId}={}) {
+  if(globalThis.navigator?.onLine===false) throw new Error('حفظ اختبار الحساسية يحتاج اتصالًا بالإنترنت حاليًا؛ البيانات المعروضة محفوظة للقراءة فقط.');
   for(const [v,n] of [[tenantId,'tenantId'],[branchId,'branchId'],[isolateId,'isolateId'],[antimicrobialAgent,'antimicrobialAgent'],[testMethod,'testMethod'],[interpretation,'interpretation'],[breakpointStandard,'breakpointStandard'],[breakpointEdition,'breakpointEdition'],[staffId,'staffId']]) need(v,n);
   const value=measuredValue===''||measuredValue===null||measuredValue===undefined?null:Number(measuredValue);
   if(value!==null&&(!Number.isFinite(value)||value<0)) throw new Error('قيمة MIC/قطر التثبيط غير صالحة.');
