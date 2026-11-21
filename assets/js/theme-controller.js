@@ -50,7 +50,7 @@ function buildControl() {
   scope.innerHTML = '<option value="global">كل النظام</option><option value="page">هذه الصفحة فقط</option>';
   const savedScope = safeGet(scopeKey);
   scope.value = savedScope === 'page' ? 'page' : 'global';
-  scope.addEventListener('change', () => { safeSet(scopeKey, scope.value); applyTheme(currentTheme()); });
+  scope.addEventListener('change', () => {\n    safeSet(scopeKey, scope.value);\n    // Switching to the global scope must immediately discard the visual effect of a page override.\n    applyTheme(scope.value === 'global' ? globalTheme() : currentTheme());\n  });
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'taiba-theme-toggle';
