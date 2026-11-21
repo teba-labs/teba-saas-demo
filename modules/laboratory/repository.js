@@ -44,6 +44,10 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
 /** Complete, branch-scoped test list for a single approved visit report. */
 export async function listVisitWorkForReport({ tenantId, branchId, visitId } = {}) {
   if (!tenantId || !branchId || !visitId) throw new Error('tenantId, branchId and visitId are required.');
+  if (globalThis.navigator?.onLine === false) {
+    const cached = await getCachedRows('visit_tests', { tenantId, branchId });
+    return cached.filter(row => row.visit_id === visitId && row.status !== 'cancelled' && row.visits?.status !== 'cancelled');
+  }
   const { data, error } = await db().from(TABLES.visitTests)
     .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, tests_catalog(test_kind), visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number, age_years, sex))')
     .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('visit_id', visitId)
