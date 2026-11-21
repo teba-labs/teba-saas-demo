@@ -11,7 +11,7 @@ export async function uploadOwnerFinancialSourceFile({tenantId,fileHash,file}={}
  const {error}=await db().storage.from('tenant-backups').upload(path,file,{upsert:true,contentType:file.type||'application/octet-stream'});
  if(error)throw error;return path;
 }
-export async function createOwnerFinancialBatch({tenantId,fileName,fileSha256,storagePath,sourceLabel,periodStart,periodEnd,mappingSnapshot,sheetSummary,rows}={}){{tenantId,fileName,fileSha256,sourceLabel,periodStart,periodEnd,mappingSnapshot,sheetSummary,rows}={}){
+export async function createOwnerFinancialBatch({tenantId,fileName,fileSha256,storagePath,sourceLabel,periodStart,periodEnd,mappingSnapshot,sheetSummary,rows}={}){
  requireValue(tenantId,'tenantId');requireValue(fileName,'اسم الملف');requireValue(fileSha256,'بصمة الملف');if(!Array.isArray(rows)||!rows.length)throw new Error('لا توجد صفوف صالحة للاستيراد.');
  const existing=await db().from('owner_financial_import_batches').select('id').eq('tenant_id',tenantId).eq('file_sha256',fileSha256).maybeSingle();if(existing.error)throw existing.error;if(existing.data)throw new Error('هذا الملف سبق استيراده إلى هذا المعمل. لم نكرر بياناته.');
  const session=await db().auth.getUser();if(session.error)throw session.error;
