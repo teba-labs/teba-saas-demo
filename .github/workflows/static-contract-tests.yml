@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, integration/reconciled-release-2026-11-20, integration/unified-test-2026-11-19]
   push:
-    branches: [main, feature/reception-complete-workflow-2026-11-20, integration/reconciled-release-2026-11-20, integration/unified-test-2026-11-19, feature/experience-unification-2026-11-21, feature/ui-polish-full-system-2026-11-21, feature/platform-admin-patient-portal-2026-11-21]
+    branches: [main, feature/reception-complete-workflow-2026-11-20, integration/reconciled-release-2026-11-20, integration/unified-test-2026-11-19, feature/experience-unification-2026-11-21, feature/ui-polish-full-system-2026-11-21, feature/platform-admin-patient-portal-2026-11-21, feature/offline-entitlement-completion-2026-11-21]
 
 permissions:
   contents: read
