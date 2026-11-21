@@ -4,6 +4,7 @@ import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/laboratory/repository.js';
 import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
+import { listPendingDraftResults } from '../../offline/outbox.js';
 import { publishReportVersion, correctVisitResultWithFlag } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
@@ -184,6 +185,21 @@ async function renderWork() {
   for (const result of resultRows) {
     if (!resultsByTest.has(result.visit_test_id)) resultsByTest.set(result.visit_test_id, []);
     resultsByTest.get(result.visit_test_id).push(result);
+  }
+  const pendingDraftBatches = await listPendingDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id });
+  for (const batch of pendingDraftBatches) {
+    const section = host.querySelector(`[data-test-id="${CSS.escape(batch.payload?.visit_test_id || '')}"]`);
+    if (!section) continue;
+    section.dataset.localPending = 'true';
+    const pill = section.querySelector('.card-head .pill');
+    if (pill) pill.textContent = batch.status === 'conflict' ? 'تعارض مزامنة — يحتاج مراجعة' : 'محفوظ محليًا — بانتظار المزامنة';
+    for (const result of batch.payload?.results || []) {
+      const input = section.querySelector(`[data-param-code="${CSS.escape(result.parameter_code)}"]`);
+      if (!input) continue;
+      input.value = result.value_numeric ?? result.value_text ?? '';
+      input.dataset.originalValue = input.value;
+      input.dataset.localPending = 'true';
+    }
   }
   for (const item of state.work) {
     const section = host.querySelector(`[data-test-id="${CSS.escape(item.id)}"]`);
