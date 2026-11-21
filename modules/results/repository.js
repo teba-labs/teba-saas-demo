@@ -1,5 +1,7 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
 import { TABLES } from '../../core/data/schema-contract.js';
+import { enqueueOperation } from '../../offline/outbox.js';
+import { cacheRows, getCachedRows } from '../../offline/cache.js';
 const db = () => getSupabaseClient();
 
 export async function listResults({ tenantId, visitTestId } = {}) {
@@ -12,7 +14,7 @@ export async function listResults({ tenantId, visitTestId } = {}) {
 }
 
 /** Draft-only batch save. Published visits must use the audited report-correction workflow. The database RPC commits every supplied parameter or none. */
-export async function saveDraftResults({ tenantId, branchId, visitTestId, results, staffId } = {}) {
+export async function saveDraftResults({ tenantId, branchId, visitTestId, results, staffId, dependsOn = [] } = {}) {
   if (!tenantId || !branchId || !visitTestId || !staffId || !Array.isArray(results) || !results.length) {
     throw new Error('tenantId, branchId, visitTestId, staffId and at least one result are required.');
   }
@@ -32,12 +34,23 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
   if (new Set(prepared.map(item => item.parameter_code)).size !== prepared.length) {
     throw new Error('لا يمكن إرسال البارامتر نفسه أكثر من مرة في عملية الحفظ.');
   }
-  const { data, error } = await db().rpc('save_draft_results_atomic', {
-    p_tenant_id: tenantId, p_branch_id: branchId, p_visit_test_id: visitTestId,
-    p_staff_id: staffId, p_results: prepared,
+  const operationId = crypto.randomUUID();
+  const payload = { visit_test_id: visitTestId, staff_id: staffId, results: prepared };
+  const queue = async () => {
+    await enqueueOperation({ tenantId, branchId, entityType: 'draft_results', action: 'save', operationId, payload, dependsOn, priority: 3 });
+    return { queued: true, operationId };
+  };
+  if (globalThis.navigator?.onLine === false) return queue();
+  const { data, error } = await db().rpc('save_draft_results_idempotent', {
+    p_operation_id: operationId, p_tenant_id: tenantId, p_branch_id: branchId,
+    p_visit_test_id: visitTestId, p_staff_id: staffId, p_results: prepared,
   });
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queue();
+    throw error;
+  }
   return data ?? [];
+
 }
 
 /** Compatibility wrapper for a single parameter; new UI code should use saveDraftResults. */
@@ -78,28 +91,41 @@ export async function listResultsForVisitTests({ tenantId, visitTestIds } = {}) 
   if (!tenantId || !Array.isArray(visitTestIds)) throw new Error('tenantId and visitTestIds are required.');
   const ids = [...new Set(visitTestIds.filter(Boolean))];
   if (!ids.length) return [];
+  if (globalThis.navigator?.onLine === false) {
+    const cached = await getCachedRows('test_results', { tenantId });
+    return cached.filter(row => ids.includes(row.visit_test_id));
+  }
   const rows = [];
   // Chunk IDs and paginate each result set so large parameter panels never hit PostgREST's row cap.
   for (let start = 0; start < ids.length; start += 100) {
     const chunk = ids.slice(start, start + 100);
     for (let offset = 0; ; offset += 500) {
       const { data, error } = await db().from(TABLES.results)
-        .select('id, visit_test_id, parameter_code, parameter_name_snapshot, value_numeric, value_text, unit_snapshot, reference_range_snapshot, flag, entered_at')
+        .select('id, tenant_id, visit_test_id, parameter_code, parameter_name_snapshot, value_numeric, value_text, unit_snapshot, reference_range_snapshot, flag, entered_at')
         .eq('tenant_id', tenantId).in('visit_test_id', chunk)
         .order('entered_at').order('id').range(offset, offset + 499);
-      if (error) throw error;
+      if (error) {
+        if (/fetch|network|offline/i.test(error.message || '')) {
+          const cached = await getCachedRows('test_results', { tenantId });
+          return cached.filter(row => ids.includes(row.visit_test_id));
+        }
+        throw error;
+      }
       const page = data ?? [];
-      rows.push(...page);
+      const cachedTests = await getCachedRows('visit_tests', { tenantId });
+      const branchByVisitTest = new Map(cachedTests.map(test => [test.id, test.branch_id]));
+      rows.push(...page.map(row => ({ ...row, branch_id: branchByVisitTest.get(row.visit_test_id) ?? null })));
       if (page.length < 500) break;
     }
   }
+  await cacheRows('test_results', rows);
   return rows;
 }
 
 /** Visit-only reference range overrides; the master catalog and frozen visit identity remain untouched. */
 export async function listVisitParameterRangeOverrides({ tenantId, visitTestIds } = {}) {
   if (!tenantId || !Array.isArray(visitTestIds)) throw new Error('tenantId and visitTestIds are required.');
-  const ids=[...new Set(visitTestIds.filter(Boolean))];if(!ids.length)return [];
+  const ids=[...new Set(visitTestIds.filter(Boolean))];if(!ids.length||globalThis.navigator?.onLine===false)return [];
   const rows=[];
   for(let start=0;start<ids.length;start+=100){
     const chunk=ids.slice(start,start+100);

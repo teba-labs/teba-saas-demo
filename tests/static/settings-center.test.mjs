@@ -17,7 +17,7 @@ assert.match(h,/النسخة السحابية هنا تحفظ نسخة من بي
 const backup=fs.readFileSync(new URL('offline/backup.js',root),'utf8');
 const archiveStore=fs.readFileSync(new URL('modules/dashboard/historical-workbooks.js',root),'utf8');
 const sync=fs.readFileSync(new URL('assets/js/sync-center.js',root),'utf8');
-assert.match(backup,/const VERSION = 2/);
+assert.match(backup,/const VERSION = 3/);assert.match(backup,/V2_VERSION = 2/);
 assert.match(backup,/LEGACY_VERSION = 1/);
 assert.match(backup,/exportHistoricalWorkbooks/);
 assert.match(backup,/restoreHistoricalWorkbooks/);

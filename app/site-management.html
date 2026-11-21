@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102b3a">
+<title>Taiba Smart Lab | إدارة موقع المعمل</title>
+<link rel="stylesheet" href="../assets/css/site-management.css">
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('../service-worker.js',{updateViaCache:'none'}).catch(()=>{}));}</script>
+</head>
+<body>
+<header class="topbar"><a href="index.html"><strong>Taiba Smart Lab</strong><small>إدارة موقع المعمل</small></a><button id="signOut" hidden>تسجيل الخروج</button></header>
+<main class="shell">
+<section id="loginPanel" class="panel login"><h1>دخول مدير المعمل</h1><p>هذا المركز متاح لمالك المعمل فقط.</p><form id="loginForm"><label>البريد الإلكتروني<input id="email" type="email" required autocomplete="username"></label><label>كلمة المرور<input id="password" type="password" required autocomplete="current-password"></label><button class="primary">دخول</button></form></section>
+<section id="workspace" hidden>
+<section class="hero panel"><div><span class="eyebrow">مركز التحكم</span><h1>إدارة موقع المعمل</h1><p>إدارة محتوى الموقع، معاينة بوابة المريض، ومتابعة نشر نتائج الزيارات من مكان واحد.</p></div><label>المعمل<select id="tenantSelect"></select></label></section>
+<nav class="tabs" aria-label="أقسام إدارة الموقع"><a href="#overview" class="active">نظرة عامة</a><a href="#website">محتوى الموقع</a><a href="#portal">بوابة المرضى</a><a href="#publication">نشر النتائج</a></nav>
+<section id="overview" class="panel"><div class="section-head"><div><h2>حالة الخدمات</h2><p>ملخص إداري للمعمل المحدد.</p></div><button id="refresh" class="secondary">تحديث</button></div><div id="metrics" class="metrics"></div><p id="siteStatus" class="status" aria-live="polite">جارٍ التحميل…</p></section>
+<section id="website" class="panel"><div class="section-head"><div><h2>محتوى الموقع الإلكتروني</h2><p>المحرر الحالي بكل أقسامه وصوره وعروضه محفوظ كما هو.</p></div><a class="primary link-button" href="cms-editor.html">فتح محرر محتوى الموقع</a></div><p class="hint">هذا المركز لا يستبدل محرر المحتوى الحالي ولا ينشئ نسخة ثانية منه؛ يفتح نفس المحرر المرتبط ببيانات المعمل.</p></section>
+<section id="portal" class="panel"><div class="section-head"><div><h2>بوابة المرضى</h2><a class="secondary link-button" href="../portal/index.html" target="_blank" rel="noopener">فتح المعاينة في نافذة جديدة</a></div></div><form id="portalSettingsForm" class="portal-settings"><label class="toggle"><input id="portalEnabled" type="checkbox"> تفعيل بوابة المرضى</label><label>عنوان البوابة<input id="portalTitle" maxlength="100" required></label><label>النص التعريفي<textarea id="portalIntro" rows="2" maxlength="500"></textarea></label><label>عنوان حقل اسم المريض<input id="portalNameLabel" maxlength="80" required></label><label>عنوان حقل رقم الزيارة<input id="portalVisitLabel" maxlength="80" required></label><label>نص زر البحث<input id="portalSubmitLabel" maxlength="50" required></label><label>رسالة الخصوصية أسفل الصفحة<textarea id="portalHelpText" rows="2" maxlength="500"></textarea></label><label>اللون الرئيسي<input id="portalAccent" type="color" value="#147c72"></label><button class="primary" type="submit">حفظ إعدادات بوابة المرضى</button></form><div class="portal-preview"><iframe id="portalFrame" title="معاينة بوابة نتائج المرضى" src="../portal/index.html" loading="lazy"></iframe></div><p class="hint">المعاينة تعرض واجهة الاستعلام الفعلية. إعدادات تجربة البوابة التفصيلية ستُقرأ وتُحفظ من مصدر إعدادات موحد بعد توثيق مفاتيح الإعدادات الحالية؛ لم يتم اختراع حقول أو تغيير بيانات JSON غير موثقة في هذه المرحلة.</p></section>
+<section id="publication" class="panel"><div class="section-head"><div><h2>متابعة نشر نتائج الزيارات</h2><p>آخر 100 زيارة للمعمل، عبر جميع فروعه.</p></div><select id="publicationFilter" aria-label="تصفية حالة النشر"><option value="all">كل الزيارات</option><option value="published">منشورة</option><option value="unpublished">غير منشورة</option></select></div><div id="visitsList" class="visits"><p>جارٍ تحميل الزيارات…</p></div></section>
+</section>
+<div id="notice" class="notice" role="status" aria-live="polite"></div>
+</main>
+<script type="module" src="../assets/js/site-management.js"></script>
+<script type="module" src="../modules/ui/keyboard-navigation.js"></script>
+<script type="module" src="../assets/js/theme-controller.js"></script>
+</body></html>

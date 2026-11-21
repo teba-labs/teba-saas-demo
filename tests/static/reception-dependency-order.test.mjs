@@ -8,7 +8,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 test('visit intake stays queued while its patient creation dependency is pending, even after reconnect', () => {
   const repo = read('modules/reception/repository.js');
   assert.match(repo, /globalThis\.navigator\?\.onLine === false \|\| dependsOn\.length > 0\) return queue\(\)/);
-  assert.match(repo, /dependsOn\s*\}\s*\);/);
+  assert.match(repo, /dependsOn, priority: 2/);
 });
 
 test('patient replay verifies the full identity payload before acknowledging a duplicate ID', () => {

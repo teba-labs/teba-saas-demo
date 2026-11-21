@@ -6,7 +6,10 @@ export function startBackgroundSync({ tenantId, branchId } = {}) {
   let stopped = false;
   const run = async () => {
     if (stopped || globalThis.navigator?.onLine === false) return;
-    try { await syncOutbox({ handlers: createSupabaseSyncHandlers(), tenantId, branchId }); } catch { /* retained operations remain visible in Sync Center */ }
+    try {
+      const report = await syncOutbox({ handlers: createSupabaseSyncHandlers(), tenantId, branchId });
+      if (report.acknowledged > 0) globalThis.dispatchEvent?.(new CustomEvent('taiba:offline-sync-complete', { detail: report }));
+    } catch { /* retained operations remain visible in Sync Center */ }
   };
   const onOnline = () => run();
   const onVisible = () => { if (document.visibilityState === 'visible') run(); };

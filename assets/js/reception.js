@@ -3,7 +3,7 @@ import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/ses
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { findPatients, createPatient, getOpenWorkday, createVisitIntake, recordPayment, listBranchOutstandingBalances } from '../../modules/reception/repository.js';
-import { listCatalog, listCurrentPrices, listTestParameters } from '../../modules/catalog/repository.js';
+import { listCatalog, listCurrentPrices, listTestParameters, warmCatalogParameters } from '../../modules/catalog/repository.js';
 import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
@@ -113,6 +113,7 @@ async function loadBranch(){
   const catalog=await listCatalog({tenantId:state.tenant.id});state.catalog=catalog;
   const prices=await listCurrentPrices({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});
   state.prices=new Map(prices.map(p=>[p.test_id,p]));state.parameters.clear();
+  if(navigator.onLine!==false){try{await warmCatalogParameters({tenantId:state.tenant.id,testIds:catalog.map(t=>t.id)});}catch(error){notice('تعذر استكمال تجهيز بيانات التحاليل للعمل دون اتصال: '+(error.message||''),true);}}
   $('intakePanel').hidden=false;newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();
 }
 function renderCatalog(){
@@ -189,17 +190,41 @@ async function submitVisit(button){
   if(!Number.isFinite(discount)||discount<0||discount>gross||!Number.isFinite(paid)||paid<0||paid>gross-discount){notice('راجع قيمة الخصم والمدفوع؛ المدفوع لا يجوز أن يتجاوز صافي الفاتورة.',true);return;}
   const visitNumber=$('visitNumber').value||makeCode('V');state.busy=true;updateTotals();busy(button,true,'جارٍ حفظ الزيارة والفاتورة…');
   try{
+    const localVisitId=crypto.randomUUID();
+    const patientSnapshot={...state.patient};
+    const localVisit={
+      id:localVisitId,tenant_id:state.tenant.id,branch_id:state.branch.id,patient_id:state.patient.id,
+      workday_id:state.workday.id,visit_number:visitNumber,visit_work_date:state.workday.work_date,
+      status:'open',is_published:false,created_at:new Date().toISOString(),patient_name:patientSnapshot.full_name,patients:patientSnapshot,
+    };
+    const localVisitTests=[...state.selected].map(testId=>{
+      const test=state.catalog.find(row=>row.id===testId),price=state.prices.get(testId);
+      const parameters=(state.parameters.get(testId)||[]).filter(row=>row.is_active).map(row=>({
+        ...row,code:row.parameter_code,name:row.parameter_name,value_type:row.value_type,
+        reference_ranges:row.reference_ranges,choices:row.choices||[],is_required:row.is_required,
+        result_source:row.result_source||'manual',formula:row.formula,
+      }));
+      return {
+        id:crypto.randomUUID(),visit_id:localVisitId,test_id:testId,test_code_snapshot:test?.code||'',
+        test_name_snapshot:test?.name||'تحليل',price_snapshot:Number(price?.selling_price||0),
+        technical_snapshot:{test_kind:test?.test_kind||'individual',parameters},
+        status:'pending',created_at:new Date().toISOString(),visits:{...localVisit,patients:patientSnapshot},
+        tests_catalog:{test_kind:test?.test_kind||'individual'},
+      };
+    });
     const result=await createVisitIntake({
       tenantId:state.tenant.id,branchId:state.branch.id,patientId:state.patient.id,visitNumber,staffId:currentStaff(),
       testIds:[...state.selected],discountAmount:discount,initialPayment:paid,paymentMethod:$('initialPaymentMethod').value,
       referredBy:$('referredBy').value.trim()||null,notes:$('visitNotes').value.trim()||null,
       expectedPrices:[...state.selected].map(id=>({test_id:id,id:state.prices.get(id).id,selling_price:Number(state.prices.get(id).selling_price)})),
-      dependsOn:state.patient.pendingOperationId?[state.patient.pendingOperationId]:[]
+      dependsOn:state.patient.pendingOperationId?[state.patient.pendingOperationId]:[],
+      localVisit,localVisitTests
     });
     if(result?.queued){
-      $('pendingSyncNotice').hidden=false;$('postSaveTitle').textContent='تم حفظ الزيارة محليًا';$('postSaveDetail').textContent='الزيارة تنتظر المزامنة مع الخادم. لا يمكن فتح النتائج قبل تأكيد المزامنة.';
-      $('goToResults').hidden=true;$('newPatientAfterSave').textContent='تسجيل مريض جديد';$('postSaveActions').hidden=false;
-      notice(`تم حفظ الزيارة ${visitNumber} محليًا، وستتم مزامنتها تلقائيًا عند عودة الاتصال.`);
+      state.lastVisit={visitId:result.localVisitId||localVisit.id,visitNumber,patientId:state.patient.id,patientName:state.patient.full_name,local:true,operationId:result.operationId};
+      $('pendingSyncNotice').hidden=false;$('postSaveTitle').textContent='تم حفظ الزيارة محليًا — جاهزة لتسجيل النتائج';$('postSaveDetail').textContent='تم ربط المريض والزيارة والتحاليل محليًا. يمكنك الانتقال لشاشة النتائج والحفظ والطباعة كمسودة دون اتصال.';
+      $('goToResults').hidden=false;$('goToResults').textContent='فتح النتائج دون اتصال';$('newPatientAfterSave').textContent='تسجيل مريض جديد';$('postSaveActions').hidden=false;
+      notice(`تم حفظ الزيارة ${visitNumber} محليًا مع ${localVisitTests.length} تحليل. انتقل الآن لتسجيل النتائج.`);
     }else{
       const visitId=result.visitId||result;
       state.lastVisit={visitId,visitNumber,patientId:state.patient.id,patientName:state.patient.full_name};

@@ -25,7 +25,7 @@ test('platform admin can update tenant and subscription states through guarded R
  assert.match(sql,/platform_update_tenant_status/);assert.match(sql,/platform_update_subscription/);assert.match(sql,/grant execute on function public\.platform_update_subscription/);
 });
 test('plan editor and tenant console are wired to platform RPCs and plan metadata only',()=>{
- assert.match(html,/id="tenantForm"/);assert.match(html,/id="planForm"/);assert.match(js,/platform_list_tenants/);assert.match(js,/platform_create_tenant_for_email/);assert.match(js,/platform_update_tenant_and_subscription/);assert.match(js,/from\('subscription_plans'\)/);
+ assert.match(html,/id="tenantForm"/);assert.match(html,/id="planForm"/);assert.match(js,/platform_list_tenants/);assert.match(js,/platform_create_tenant_for_email/);assert.match(js,/platform_update_tenant_subscription_period/);assert.match(js,/from\('subscription_plans'\)/);
  for(const forbidden of ["from('patients')","from('visits')","from('test_results')","from('financial_ledger')"])assert.doesNotMatch(js,new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 });
 test('migration locks down platform RPCs from anonymous and public roles',()=>{

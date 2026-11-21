@@ -1,3 +1,5 @@
+import { offlineDb } from './database.js';
+import { cacheRows } from './cache.js';
 import { getSupabaseClient } from '../core/supabase-client.js';
 
 const db = () => getSupabaseClient();
@@ -10,6 +12,98 @@ const throwUnlessConflict = (error, pattern) => {
 /** Only operations backed by server-side idempotency RPCs are enabled here. */
 export function createSupabaseSyncHandlers() {
   return {
+    culture_isolate: async operation => {
+      const p=operation.payload;
+      let visitTestId=p.visit_test_id;
+      let mappedVisitTest = false;
+      for(const dependency of operation.depends_on||[]){
+        const mapping=await offlineDb.sync_meta.get(`visit-map:${dependency}`);
+        if(mapping?.visit_test_ids?.[visitTestId]){visitTestId=mapping.visit_test_ids[visitTestId];mappedVisitTest=true;break;}
+      }
+      if(!mappedVisitTest){
+        const maps=await offlineDb.sync_meta.toArray();
+        const mapping=maps.find(row=>row.tenant_id===operation.tenant_id&&row.branch_id===operation.branch_id&&row.visit_test_ids?.[visitTestId]);
+        if(mapping){visitTestId=mapping.visit_test_ids[visitTestId];mappedVisitTest=true;}
+      }
+      if(visitTestId===p.visit_test_id && (operation.depends_on||[]).length){
+        const found=await db().from('visit_tests').select('id').eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',visitTestId).maybeSingle();
+        if(found.error)throw found.error;if(!found.data)throw new Error('Culture isolate is waiting for its visit/test mapping.');
+        visitTestId=found.data.id;
+      }
+      const {data,error}=await db().rpc('save_culture_isolate_idempotent',{
+        p_operation_id:operation.operation_id,p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
+        p_visit_test_id:visitTestId,p_staff_id:p.staff_id,p_payload:p.values,
+      });
+      if(error)return throwUnlessConflict(error,/Branch access denied|active staff identity|Visit test was not found|Completed or approved culture results are locked|Invalid isolate number|Organism name is required|idempotency key reused|Authentication required/i);
+      if(!data)throw new Error('Server did not acknowledge the culture isolate.');
+      await offlineDb.sync_meta.put({key:`isolate-map:${operation.operation_id}`,tenant_id:operation.tenant_id,branch_id:operation.branch_id,
+        local_isolate_id:p.local_isolate_id,server_isolate_id:data,acknowledged_at:new Date().toISOString()});
+      await cacheRows('culture_isolates',[{id:data,tenant_id:operation.tenant_id,branch_id:operation.branch_id,visit_test_id:visitTestId,
+        isolate_number:p.values.isolate_number,organism_name:p.values.organism_name,growth_description:p.values.growth_description,
+        colony_count:p.values.colony_count,colony_count_unit:p.values.colony_count_unit,identification_method:p.values.identification_method,
+        notes:p.values.notes,created_by_staff_id:p.staff_id,created_at:new Date().toISOString()}]);
+      await offlineDb.culture_susceptibilities.where('isolate_id').equals(p.local_isolate_id).modify({isolate_id:data});
+      await offlineDb.culture_isolates.delete(p.local_isolate_id);
+      return {acknowledged:true,resultId:data};
+    },
+    culture_susceptibility: async operation => {
+      const p=operation.payload;
+      let isolateId=p.local_isolate_id;
+      let mappedIsolate = false;
+      for(const dependency of operation.depends_on||[]){
+        const mapping=await offlineDb.sync_meta.get(`isolate-map:${dependency}`);
+        if(mapping?.local_isolate_id===isolateId){isolateId=mapping.server_isolate_id;mappedIsolate=true;break;}
+      }
+      if(!mappedIsolate){
+        const maps=await offlineDb.sync_meta.toArray();
+        const mapping=maps.find(row=>row.tenant_id===operation.tenant_id&&row.branch_id===operation.branch_id&&row.local_isolate_id===isolateId&&row.server_isolate_id);
+        if(mapping){isolateId=mapping.server_isolate_id;mappedIsolate=true;}
+      }
+      if(p.local_isolate_pending&&!mappedIsolate)throw new Error('Susceptibility is waiting for its isolate to synchronize.');
+      const {data,error}=await db().rpc('save_culture_susceptibility_idempotent',{
+        p_operation_id:operation.operation_id,p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
+        p_isolate_id:isolateId,p_staff_id:p.staff_id,p_payload:p.values,
+      });
+      if(error)return throwUnlessConflict(error,/Branch access denied|active staff identity|Culture isolate was not found|Completed or approved culture results are locked|Invalid measured value|Invalid susceptibility interpretation|Invalid breakpoint standard|Invalid susceptibility method|Invalid QC status|idempotency key reused|Authentication required/i);
+      if(!data)throw new Error('Server did not acknowledge the susceptibility result.');
+      await cacheRows('culture_susceptibilities',[{id:data,tenant_id:operation.tenant_id,branch_id:operation.branch_id,isolate_id:isolateId,
+        ...p.values,entered_by_staff_id:p.staff_id,created_at:new Date().toISOString()}]);
+      await offlineDb.culture_susceptibilities.delete(p.local_susceptibility_id || '');
+      return {acknowledged:true,resultId:data};
+    },
+    draft_results: async operation => {
+      const p = operation.payload;
+      let visitTestId = p.visit_test_id;
+      let resolvedVisitTestId = false;
+      for (const dependency of operation.depends_on || []) {
+        const mapping = await offlineDb.sync_meta.get(`visit-map:${dependency}`);
+        if (mapping?.visit_test_ids?.[visitTestId]) { visitTestId = mapping.visit_test_ids[visitTestId]; resolvedVisitTestId = true; break; }
+      }
+      if (!resolvedVisitTestId) {
+        const maps = await offlineDb.sync_meta.toArray();
+        const mapping = maps.find(row => row.tenant_id === operation.tenant_id && row.branch_id === operation.branch_id && row.visit_test_ids?.[visitTestId]);
+        if (mapping) { visitTestId = mapping.visit_test_ids[visitTestId]; resolvedVisitTestId = true; }
+      }
+      if (visitTestId === p.visit_test_id && (operation.depends_on || []).length) {
+        const found = await db().from('visit_tests').select('id').eq('tenant_id', operation.tenant_id)
+          .eq('branch_id', operation.branch_id).eq('id', p.visit_test_id).maybeSingle();
+        if (found.error) throw found.error;
+        if (!found.data) throw new Error('The queued result is waiting for its visit/test mapping; it has been retained.');
+        visitTestId = found.data.id;
+      }
+      const { data, error } = await db().rpc('save_draft_results_idempotent', {
+        p_operation_id: operation.operation_id,
+        p_tenant_id: operation.tenant_id,
+        p_branch_id: operation.branch_id,
+        p_visit_test_id: visitTestId,
+        p_staff_id: p.staff_id,
+        p_results: p.results,
+      });
+      if (error) return throwUnlessConflict(error, /Branch access denied|active staff identity|Visit test was not found|Completed test results are locked|Approved or published visit results are locked|Cancelled test results cannot be changed|idempotency key reused|Authentication required/i);
+      if (!Array.isArray(data) || !data.length) throw new Error('Server did not confirm the saved draft results.');
+      await offlineDb.test_results.where('visit_test_id').equals(p.visit_test_id).delete();
+      return { acknowledged: true, resultId: operation.operation_id };
+    },
     patients: async operation => {
       const p = operation.payload;
       const { data, error } = await db().from('patients').upsert({
@@ -53,6 +147,31 @@ export function createSupabaseSyncHandlers() {
       });
       if (error) return throwUnlessConflict(error, /OFFLINE_PRICE_CONFLICT|open the branch workday|registering visits|active staff|patient not found|valid visit number|select at least one test|invalid test selection|duplicate test selection|discount exceeds|payment exceeds|unsupported payment method|idempotency key reused|branch not accessible/i);
       if (!data) throw new Error('Server returned no visit ID.');
+      const { data: serverTests, error: testsError } = await db().from('visit_tests')
+        .select('id,tenant_id,branch_id,test_id,visit_id,status,test_code_snapshot,test_name_snapshot,technical_snapshot,created_at,tests_catalog(test_kind),visits!inner(visit_number,visit_work_date,status,is_published,workbench_hidden_at,patients!inner(full_name,patient_number,phone,age_years,sex))')
+        .eq('tenant_id', operation.tenant_id).eq('branch_id', operation.branch_id).eq('visit_id', data);
+      if (testsError) throw testsError;
+      await cacheRows('visit_tests', serverTests || []);
+      const localRows = Array.isArray(p.local_visit_test_ids) ? p.local_visit_test_ids : [];
+      const mapping = {};
+      for (const local of localRows) {
+        const actual = (serverTests || []).find(row => row.test_id === local.test_id);
+        if (!actual) throw new Error('Server visit was created, but a requested test mapping is missing; operation retained for safe recovery.');
+        mapping[local.id] = actual.id;
+      }
+      await offlineDb.sync_meta.put({
+        key: `visit-map:${operation.operation_id}`, tenant_id: operation.tenant_id,
+        branch_id: operation.branch_id, local_visit_id: p.local_visit_id || null,
+        server_visit_id: data, visit_test_ids: mapping, acknowledged_at: new Date().toISOString(),
+      });
+      // Remap dependent culture drafts before removing local visit/test aliases.
+      for (const local of localRows) {
+        const serverTestId = mapping[local.id];
+        if (serverTestId) await offlineDb.culture_isolates.where('visit_test_id').equals(local.id).modify({ visit_test_id: serverTestId });
+      }
+      // The full server worklist rows were cached above; local aliases can now be removed safely.
+      if (p.local_visit_id) await offlineDb.visits.delete(p.local_visit_id);
+      for (const local of localRows) await offlineDb.visit_tests.delete(local.id);
       return { acknowledged: true, resultId: data };
     },
     payment: async operation => {
