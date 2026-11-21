@@ -165,6 +165,16 @@ export async function getOutboxSummary({ tenantId, branchId } = {}) {
   }, { pending: 0, syncing: 0, failed: 0, conflict: 0, invalid: 0, total: 0 });
 }
 
+/** Return queued draft-result batches for the selected branch so the workbench can restore unsynced values after navigation/reload. */
+export async function listPendingDraftResults({ tenantId, branchId, visitTestId } = {}) {
+  if (!tenantId || !branchId) throw new Error('Tenant and branch are required to read pending draft results.');
+  const rows = await offlineDb.outbox.where('entity_type').equals('draft_results').toArray();
+  return rows.filter(row => row.tenant_id === tenantId && row.branch_id === branchId
+    && (!visitTestId || row.payload?.visit_test_id === visitTestId)
+    && ['pending', 'syncing', 'failed', 'conflict'].includes(row.status))
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
 export async function listOpenConflicts({ tenantId, branchId } = {}) {
   if (!tenantId || !branchId) throw new Error('Tenant and branch are required to view offline conflicts.');
   let rows = await offlineDb.conflicts.where('status').equals('open').toArray();
