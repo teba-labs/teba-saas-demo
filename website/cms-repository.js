@@ -72,11 +72,11 @@ export async function setCmsItemVisibility({ tenantId, collection: name, id, vis
   if (typeof visible !== 'boolean') throw new Error('visible must be boolean.');
   const spec = collection(name);
   const patch = name === 'sections' || name === 'tests'
-    ? { is_visible: visible }
+    ? { is_visible: visible, is_published: visible }
     : name === 'packages' || name === 'offers'
-      ? { is_active: visible }
+      ? { is_active: visible, is_published: visible }
       : name === 'branches'
-        ? { show_on_site: visible }
+        ? { show_on_site: visible, is_published: visible }
         : { is_published: visible };
   const { data, error } = await db().from(spec.table).update(patch)
     .eq('tenant_id', tenantId).eq('id', id).select().single();
