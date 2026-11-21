@@ -6,6 +6,7 @@ async function loadPortalConfig(slug) {
   slug = String(slug || '').trim().toLowerCase();
   if (!slug || slug === configLoadedFor) return;
   configLoadedFor = slug;
+  portalDisabled = false;
   try {
     const endpoint = APP_ENV.supabase.url + '/functions/v1/patient-portal-config';
     const response = await fetch(endpoint, {
