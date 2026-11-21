@@ -248,3 +248,15 @@ A receiving chat/developer must start from this branch and PR #24, read this doc
 - Validation on a merge candidate based on the current main: workflow run **44906382244** succeeded; JavaScript checks, browser-only deployment build, and **250/250 static/unit tests passed** (0 failed).
 - Browser/device visual inspection of actual printed paper output remains a manual acceptance item; CI validates source contracts and build, not physical printer rendering.
 - Recovery branch retained: `backup/pre-print-settings-main-2026-11-21`.
+
+
+---
+
+## 15. Preprinted letterhead print mode — 2026-11-21
+
+- Added independent owner-controlled switches for printing the laboratory identity header and laboratory footer. Both default to enabled, preserving the existing report appearance.
+- When disabled, the lab identity header (logo and configurable identity-side content) and/or lab footer (branch addresses, contacts, links, QR/message and configured footer text) are omitted from both settings preview and final visit report.
+- Patient identity, visit metadata, report title, branch-performed line, test results, signature/stamp/reviewer area, and report grouping remain available. Disabling the lab header does not remove patient/report information.
+- Top and bottom print margins adapt to the selected mode to use preprinted stationery without duplicating the laboratory letterhead.
+- Settings are persisted in the existing print-settings JSON; no database migration is required. Legacy settings default to showing both header and footer.
+- Automated regression coverage added. Actual printer/paper alignment still requires manual acceptance.
