@@ -35,7 +35,14 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
   const requestedVisitId = new URLSearchParams(globalThis.location?.search || '').get('visit_id');
   if (requestedVisitId) query = query.eq('visit_id', requestedVisitId);
   const { data, error, count } = await query.order('created_at').order('id').range(from, from + safeSize - 1);
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '')) {
+      const cached = await getCachedRows('visit_tests', { tenantId, branchId });
+      const visible = cached.filter(row => row.status !== 'cancelled' && row.visits?.status !== 'cancelled' && !row.visits?.workbench_hidden_at && (!requestedVisitId || row.visit_id === requestedVisitId));
+      return { rows: visible.slice(from, from + safeSize), count: visible.length, page: safePage, pageSize: safeSize, cached: true };
+    }
+    throw error;
+  }
   await cacheRows('visit_tests', data ?? []);
   return { rows: data ?? [], count: count ?? 0, page: safePage, pageSize: safeSize };
 }
@@ -53,7 +60,8 @@ export async function listVisitWorkForReport({ tenantId, branchId, visitId } = {
     .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('visit_id', visitId)
     .neq('status', 'cancelled').neq('visits.status', 'cancelled')
     .order('created_at').order('id');
-  if (error) throw error;
+  if (error) { if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('visit_tests', { tenantId, branchId })).filter(row => row.visit_id === visitId && row.status !== 'cancelled'); throw error; }
+  await cacheRows('visit_tests', data ?? []);
   return data ?? [];
 }
 
