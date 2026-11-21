@@ -19,6 +19,7 @@ assert.equal((migration.match(/force row level security/g)||[]).length,4);
 assert.match(migration,/private\.is_tenant_owner\(tenant_id\)/);
 assert.match(migration,/foreign key \(batch_id,tenant_id\)/);
 assert.match(repository,/\.eq\('tenant_id',tenantId\)/);
+assert.match(repository,/period_date\.is\.null/);
 assert.match(ui,/XLSX\.read/);
 assert.match(ui,/SHA-256/);
 assert.match(ui,/تعارض مع صف سابق/);
