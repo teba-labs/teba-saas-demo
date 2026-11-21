@@ -118,8 +118,21 @@ One integrated development cycle covering all 20 work items:
 
 ### Owner dashboard integration
 - Ported the open PR #29 owner dashboard work into this development branch: 18 independent report screens/card navigation, live-today KPIs, financial-source selection, generic Excel financial import, historical archive integration, and associated repository/engine code.
-- Added migrations 069–071 and their static/unit tests to the development branch. These migrations have **not** been applied to any Supabase project in this cycle.
+- Added migrations 069–071 and their static/unit tests to the development branch. These migrations were previously applied to the TEST project only during PR #29 validation; no migration was applied by this current cycle, and production was not modified.
 - Added the owner report card/screen CSS and dark-mode styling. Service-worker shell is now v29 and precaches the dashboard import modules.
 - Updated the owner-dashboard static contract to expect shell v29 and to verify the 18-report card navigation.
 - PR #29 itself remains open and untouched. Its code has been ported into this development branch, not merged into main.
 - Key port commits: dashboard screen code `0ae712c`; dashboard history integration `823afcf`; financial import UI `584135e`; owner financial repository `c8b4352`; migrations 069/070/071 `4829bbe`, `dd16a21`, `0b3b2c1`; import engine `978821d`; financial tests `70ff3e3`, `9b97b24`; dashboard page `9a051d8`; dashboard CSS `3910247`; owner dashboard test `d5671c0`; dark dashboard styling `9d2d210`.
+
+### Final integrated CI validation
+- PR #32: `https://github.com/teba-labs/teba-saas-demo/pull/32`
+- GitHub Actions run #1056 / run ID `44912980621`: **success**.
+- JavaScript module syntax checks: passed.
+- Browser-only deployment artifact build: passed.
+- Static and unit regression suite: **261 passed, 0 failed**.
+- Source archive artifact ID: `14710452028`.
+- Source ZIP SHA-256: `044a49eec5c6026f131b5de4238fd755aeaeadfc404042f67540ad76539b43d1`.
+- Artifact: `https://github.com/teba-labs/teba-saas-demo/actions/runs/44912980621/artifacts/14710452028`.
+- The first CI run exposed five test failures: four stale v27 cache expectations and one incorrect theme-property assertion. Those were corrected; the successful run above is after the corrections.
+- PR #32 is the clean main-based review branch. No merge into main has occurred.
+- The original working branch and pre-cycle backup branches remain preserved.
