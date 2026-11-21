@@ -91,7 +91,7 @@ export async function applyOwnerFinancialSources(tenantId,liveReport,branchId=nu
  if(!tenantId||!liveReport)return liveReport;
  let choices;try{choices=await getOwnerDashboardSources(tenantId);}catch(error){if(error?.code==='42P01'||/does not exist|schema cache/i.test(error?.message||''))return liveReport;throw error;}if(!Object.values(choices).includes('excel'))return liveReport;
  const [rows]=await Promise.all([listOwnerFinancialRows({tenantId,branchId,from:liveReport.period.monthStart,to:(()=>{const d=new Date(liveReport.period.monthEnd+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})()})]);
- const historical=buildGenericHistoricalReport(rows,{from:liveReport.period.monthStart,to:liveReport.period.monthEnd});
+ const historical=buildGenericHistoricalReport(rows,{from:liveReport.period.monthStart,to:liveReport.period.monthEnd,branchId});
  const t={...liveReport.totals};
  const map={revenue:'netBilled',collections:'collected',expenses:'expenses',cases:'visits',discounts:'discounts',tests:'tests'};
  for(const [metric,field] of Object.entries(map)){if(choices[metric]==='excel'){if(metric==='revenue')t[field]=historical.totals.revenue;else if(metric==='collections')t[field]=historical.totals.collections;else if(metric==='expenses')t[field]=historical.totals.expenses;else if(metric==='cases')t[field]=historical.totals.cases;else if(metric==='discounts')t[field]=historical.totals.discounts;else t[field]=historical.totals.tests;}}
