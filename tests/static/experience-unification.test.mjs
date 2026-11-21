@@ -89,7 +89,7 @@ test('shared finish-pass styling defines readable semantic states in both themes
   assert.match(css, /--taiba-success-text/);
   assert.match(css, /--taiba-danger-text/);
   assert.match(css, /--taiba-warning-text/);
-  assert.match(css, /html\[data-theme="dark"\][\\s\\S]*--taiba-success-text/);
+  assert.match(css, /html\[data-theme="dark"\][\s\S]*--taiba-success-text/);
   assert.match(css, /\.status\.good/);
   assert.match(css, /\.actions/);
   assert.match(css, /\[role="tablist"\]/);
