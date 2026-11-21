@@ -219,3 +219,44 @@ No production database was modified.
 ## 12. Handoff instruction
 
 A receiving chat/developer must start from this branch and PR #24, read this document, inspect the current implementation and successful CI run, and continue from the latest commit. Do not ask the owner to repeat the three-column layout, individual/profile grouping, print design, range/history rules, archive behavior, or agreed print-settings options.
+
+
+---
+
+## 13. Main preview integration — 2026-11-21
+
+- PR #24 (results workbench rebuild) was merged to `main` using a squash merge for the owner's requested preview. Merge commit: `90508602bb1d8eb80815bf39bd5f22526231eca2`.
+- PR #26 (owner dashboard 18 screens) was then merged onto that main baseline. Merge commit: `727cd43df1604b56c170e02c9fdc4aaed101d1cc`.
+- The original feature branches and recovery branches were retained; no branch was deleted and no tracked file was deleted by these integrations.
+- The Service Worker keeps both `results-workbench-layout.js` and `modules/dashboard/live-status.js` in APP_SHELL under cache v27.
+- PR #24's migrations 056–068 remain repository source and were applied only to TEST. They were **not** run against production as part of this preview merge. Database-dependent new results-workbench operations must not be considered operational against a database missing those migrations.
+- PR #26 CI run 44835297244 passed JavaScript syntax checks, browser-only build, packaging, and **250/250 static/unit tests**.
+- The GitHub Pages URL was not independently verified by the assistant after merge. Owner visual review in the live browser remains required; no browser end-to-end acceptance is claimed.
+- This main merge is for preview and owner review, not final clinical/production acceptance.
+
+
+---
+
+## 14. Print settings completion — 2026-11-21
+
+- Reviewed the existing System Settings > Printing tab against the agreed report-print requirements. Existing controls already covered paper size/orientation/margins, report title/footer, lab/branch logo selection, identity-side switching, branch addresses, contact visibility, website/support links, optional footer QR/message, and watermark type/opacity/size/position.
+- Completed the previously missing configurable content for the opposite header zone. The multiline text is escaped and moves to the opposite side when the lab identity side is switched.
+- Added an independent stamp upload/visibility setting and reviewer/approver name/visibility setting. Both are persisted in the existing print-settings JSON and rendered in the final visit report alongside the existing signature.
+- Extended the existing tenant asset upload allow-list to support the `stamp` asset kind under the same tenant system-assets path. No database migration was needed; existing tenant storage and print-settings JSON are reused.
+- Added regression coverage for the new settings fields, save/load wiring, stamp asset upload support, settings preview, and final report markup.
+- PR #27: https://github.com/teba-labs/teba-saas-demo/pull/27
+- Validation on a merge candidate based on the current main: workflow run **44906382244** succeeded; JavaScript checks, browser-only deployment build, and **250/250 static/unit tests passed** (0 failed).
+- Browser/device visual inspection of actual printed paper output remains a manual acceptance item; CI validates source contracts and build, not physical printer rendering.
+- Recovery branch retained: `backup/pre-print-settings-main-2026-11-21`.
+
+
+---
+
+## 15. Preprinted letterhead print mode — 2026-11-21
+
+- Added independent owner-controlled switches for printing the laboratory identity header and laboratory footer. Both default to enabled, preserving the existing report appearance.
+- When disabled, the lab identity header (logo and configurable identity-side content) and/or lab footer (branch addresses, contacts, links, QR/message and configured footer text) are omitted from both settings preview and final visit report.
+- Patient identity, visit metadata, report title, branch-performed line, test results, signature/stamp/reviewer area, and report grouping remain available. Disabling the lab header does not remove patient/report information.
+- Top and bottom print margins adapt to the selected mode to use preprinted stationery without duplicating the laboratory letterhead.
+- Settings are persisted in the existing print-settings JSON; no database migration is required. Legacy settings default to showing both header and footer.
+- Automated regression coverage added. Actual printer/paper alignment still requires manual acceptance.
