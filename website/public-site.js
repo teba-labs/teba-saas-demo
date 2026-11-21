@@ -30,6 +30,7 @@ export async function loadPublishedSite(slug) {
   ];
   const results = await Promise.all(queries.map(async ([key, table, columns]) => {
     let query = db().from(table).select(columns).eq('tenant_id', tenantId);
+    if (key === 'settings') query = query.maybeSingle();
     if (key !== 'settings') {
       const order = ['sections','tests','packages','faqs','testimonials','branches'].includes(key) ? 'display_order' : 'created_at';
       query = query.order(order, { ascending: true });
