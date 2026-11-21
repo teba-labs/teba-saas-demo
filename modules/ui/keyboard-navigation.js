@@ -16,15 +16,25 @@ document.addEventListener('keydown', event => {
   if (!(target instanceof HTMLElement) || target.closest('[data-keyboard-native]')) return;
   const form = target.closest('form');
   if (event.key === 'Enter' && form &&
-      target.matches('input:not([type="search"]):not([type="submit"]):not([type="button"]), select')) {
-    const controls = formControls(form);
+      target.matches('input:not([type="search"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"])')) {
+    const controls = formControls(form).filter(control =>
+      !control.matches('button, input[type="submit"], input[type="button"]')
+    );
     const index = controls.indexOf(target);
-    const next = controls[index + 1] || form.querySelector('button[type="submit"], input[type="submit"]');
-    if (next && isVisible(next)) { event.preventDefault(); next.focus(); }
+    const next = index >= 0 ? controls[index + 1] : null;
+    const submit = form.querySelector('button[type="submit"], input[type="submit"]');
+    if (next && isVisible(next)) {
+      event.preventDefault();
+      next.focus();
+    } else if (submit && isVisible(submit)) {
+      event.preventDefault();
+      if (typeof form.requestSubmit === 'function') form.requestSubmit(submit);
+      else submit.click();
+    }
     return;
   }
   if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') &&
-      target.matches('input[type="text"], input[type="email"], input[type="tel"], input[type="search"]') && form) {
+      target.matches('input[type="text"], input[type="email"], input[type="tel"]') && form) {
     const controls = formControls(form);
     const index = controls.indexOf(target);
     if (index >= 0 && controls.length > 1) {
