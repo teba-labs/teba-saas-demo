@@ -2,8 +2,8 @@
 const GLOBAL_KEY = 'taiba.appearance.global';
 const PAGE_PREFIX = 'taiba.appearance.page:';
 const SCOPE_PREFIX = 'taiba.appearance.scope:';
-const pageKey = PAGE_PREFIX + location.pathname.replace(/\\/+$/, '') ;
-const scopeKey = SCOPE_PREFIX + location.pathname.replace(/\\/+$/, '');
+const pageKey = PAGE_PREFIX + location.pathname.replace(/\/+$/, '') ;
+const scopeKey = SCOPE_PREFIX + location.pathname.replace(/\/+$/, '');
 const safeGet = key => { try { return localStorage.getItem(key); } catch { return null; } };
 const safeSet = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
 const globalTheme = () => safeGet(GLOBAL_KEY) === 'dark' ? 'dark' : 'light';
