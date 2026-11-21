@@ -47,11 +47,11 @@ One integrated development cycle covering all 20 work items:
 | Item | Status | Evidence / next action |
 |---|---|---|
 | 1. Full page/file inventory | In progress | Map all application, portal, owner and platform pages. |
-| 2. UI/cloud integration review | In progress | Trace repository/service imports and page entry points. |
+| 2. UI/cloud integration review | In progress | Confirmed results save uses atomic Supabase RPC; preview/publish use cloud repositories/storage. Broader all-page audit remains. |
 | 3. Results save validation | Code fix committed | Confirmed selector bug: `closest('[data-test-id]')` selected the save/correction button itself because it also carries `data-test-id`. Both actions now select `.parameter[data-test-id]`; regression test added. CI/browser retest pending. |
-| 4. Full report lifecycle | Pending | Verify preview/print/publish/WhatsApp gating and data source. |
+| 4. Full report lifecycle | Partially traced | Preview reads cloud-backed report data; publish requires approved visit, prior preview and PDF upload; WhatsApp opens a prefilled patient-portal link only after publication. Browser/PDF/WhatsApp acceptance still pending. |
 | 5. Persistence/sync | Pending | Inspect outbox, retry, idempotency and read-after-write. |
-| 6. Sync repair | Pending | Fix only demonstrated defects. |
+| 6. Sync repair | UX guard added | Results screen now clearly rejects cloud-only actions while offline; do not queue clinical results until a safe server-side idempotent/atomic sync design exists. Broader sync defects remain to audit. |
 | 7. Global/per-page themes | Implemented in branch | Added persistent global default and page overrides, scope selector, dark/light stylesheet, and loaded controller on 12 product/platform/portal pages. CI and browser QA pending. |
 | 8. Keyboard navigation | Code updated | Final text/password field now submits with Enter; search/select native behavior preserved; arrow list navigation retained. Keyboard module loaded on all 12 pages. CI/manual QA pending. |
 | 9. Design tokens | Partial implementation | Added shared color tokens, card/control/focus/hover states, common header and page-frame styling. Page-by-page visual refinement remains. |
@@ -60,10 +60,10 @@ One integrated development cycle covering all 20 work items:
 | 12. TAIBA TECH identity | Implemented in platform entry | Platform admin header/title now identify TAIBA TECH with Software Development & Digital Solutions descriptor. |
 | 13. TAIBA SMART LAB identity | Implemented in tenant branding | Tenant branding now preserves TAIBA SMART LAB as product identity and shows laboratory name separately. |
 | 14. Platform/tenant separation | Existing UI boundary confirmed; RLS audit pending | Platform admin UI uses aggregate tenant metrics and does not render patient names, visit-level records, results or report files. No ownership schema changed. Verify RPC/RLS policies before completion. |
-| 15. Tenant/branch isolation | Pending | Preserve and test RLS boundaries. |
+| 15. Tenant/branch isolation | Pending verification | Existing outbox filters and result RPC inputs are tenant/branch scoped; RLS policy review and isolated-tenant tests remain mandatory. |
 | 16. Automated tests | Added; execution pending | Added regression coverage for result selector, page theme/keyboard loading, offline assets and brand separation. CI status had not reported when last queried. |
 | 17. Responsive/performance | Partial | Added responsive control/header rules; full responsive/performance review remains. |
-| 18. Integrated preview | Pending | Prepare after full page and workflow verification. |
+| 18. Integrated preview | Draft review target only | Draft PR #31 created; GitHub reports it is not mergeable because the development baseline diverges from main. It is not a deployable preview. |
 | 19. Final evidence report | Pending | Record exact CI run and manual-test limitations. |
 | 20. Review handoff | Pending | Open review PR only after implementation and checks; do not merge. |
 
@@ -93,3 +93,16 @@ One integrated development cycle covering all 20 work items:
 - Added the working branch to the static-contract workflow push triggers.
 - Relevant commits: result fix `151ba0d`; result regression `884e507`; keyboard `f71fea3`; theme controller `8c978a6`; theme stylesheet `50ad72f`; product/tenant brand `0f5d98e`; service worker `3e3df1e`; platform brand `320c37b`; test suite `c7ead58`; workflow trigger `8290747`; latest shared style commit `86345fc`.
 - The static CI status query for the latest commit returned no checks yet. Do not claim tests passed until a run is confirmed.
+
+### Cloud and offline boundary audit
+- `saveDraftResults` calls the Supabase RPC `save_draft_results_atomic` with tenant, branch, visit-test and staff identifiers. It is a direct cloud write and is not added to the offline outbox.
+- The outbox has handlers for `patients`, `visit_intake`, `payment`, and `expense`. It scopes candidate operations and lease recovery to the selected tenant and branch, uses operation UUIDs, dependency acknowledgements, retry limits and explicit conflict records.
+- Result completion, approval, correction, preview and report publication are online/cloud-dependent. The UI now shows an explicit offline warning for the main clinical save/approval/preview/publication actions. This cycle does not pretend those clinical writes are safely queued offline.
+- The report lifecycle is wired through separate modules: result repository → report preview builder → report publication/storage → patient portal. WhatsApp is a prefilled external handoff link; the app does not send a message autonomously.
+- These are code-path findings only. They do not prove actual cloud permissions, RLS behavior, storage policies or browser acceptance.
+
+### Draft review target
+- PR #31: `https://github.com/teba-labs/teba-saas-demo/pull/31` (draft; base `main`; head `feature/experience-unification-2026-11-21`).
+- GitHub reports PR #31 as not mergeable because the development branch and main have diverged. No merge was attempted.
+- The last queried commit status returned no checks; CI is not yet confirmed. Do not mark the test suite as passing.
+- PR #30 (main-to-development synchronization attempt) was closed without merge after GitHub reported conflicts.
