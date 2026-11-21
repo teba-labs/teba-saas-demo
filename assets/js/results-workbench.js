@@ -5,6 +5,7 @@ import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection 
 import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/laboratory/repository.js';
 import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
 import { listPendingDraftResults } from '../../offline/outbox.js';
+import { startBackgroundSync } from '../../offline/background-sync.js';
 import { publishReportVersion, correctVisitResultWithFlag } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
@@ -12,7 +13,7 @@ import { listHistoricalResults } from '../../modules/migration/historical-result
 import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } from '../../modules/results/culture-repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set() };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), stopBackgroundSync: null };
 window.taibaGetResultsContext=()=>({tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug});
 window.taibaGetDirtyResultInputs=()=>[...document.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultSource!=='calculated'&&input.value.trim()!==(input.dataset.originalValue??'').trim());
 window.addEventListener('taiba:results-work-refresh',()=>refreshWork().catch(error=>showNotice(error.message||'تعذر تحديث قائمة النتائج.',true)));
@@ -70,8 +71,12 @@ async function loadBranch() {
   if (!state.staff.length) { $('workList').innerHTML = '<div class="empty">لا يوجد موظف نشط مسجل لهذا الفرع. أضف الموظفين من إعدادات المعمل أولًا.</div>'; $('contextStatus').textContent = ''; return; }
   state.workPage = 0;
   window.dispatchEvent(new CustomEvent('taiba:results-context',{detail:{tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug}}));
+  state.stopBackgroundSync?.();
+  state.stopBackgroundSync = startBackgroundSync({ tenantId: state.tenant.id, branchId: state.branch.id });
   await refreshWork();
 }
+
+window.addEventListener('taiba:offline-sync-complete', () => refreshWork().catch(error => showNotice(error.message || 'تعذر تحديث النتائج بعد المزامنة.', true)));
 
 async function refreshWork() {
   if(window.taibaGetDirtyResultInputs?.().length){showNotice('هناك نتائج غير محفوظة. احفظها أولًا قبل تحديث القائمة أو تغيير الفرع أو الحالة.',true);return;}
