@@ -66,3 +66,13 @@ test('clinical result entry clearly identifies cloud-only save and approval boun
   assert.match(repository, /p_tenant_id: tenantId/);
   assert.doesNotMatch(repository, /enqueueOperation/);
 });
+
+test('approved report publication and WhatsApp handoff use the private tenant report path and patient portal', () => {
+  const reports = read('modules/reports/repository.js');
+  const layout = read('assets/js/results-workbench-layout.js');
+  assert.match(reports, /functions\.invoke\('publish-report'/);
+  assert.match(reports, /storage\.from\('tenant-reports'\)/);
+  assert.match(layout, /wa\.me\//);
+  assert.match(layout, /portal\/index\.html/);
+  assert.match(layout, /record\.published/);
+});
