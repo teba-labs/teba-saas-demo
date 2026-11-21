@@ -19,6 +19,7 @@ export const FINANCIAL_FIELDS=[
  {key:'category_name',label:'التصنيف / بند المصروف',required:false,aliases:['category','التصنيف','بند المصروف','نوع المصروف']},
  {key:'branch_name',label:'اسم الفرع',required:false,aliases:['branch','branch name','الفرع','اسم الفرع']},
  {key:'unit_cost',label:'تكلفة الوحدة',required:false,aliases:['cost','unit cost','التكلفة','تكلفة الوحدة','سعر التكلفة']},
+ {key:'weight',label:'وزن / نقاط تحميل التكلفة الثابتة',required:false,aliases:['weight','allocation weight','points','النقاط','الوزن','وزن التحميل']},
  {key:'selling_price',label:'سعر البيع',required:false,aliases:['price','selling price','سعر البيع','السعر']},
  {key:'currency_code',label:'العملة',required:false,aliases:['currency','العملة','العملة المستخدمة']}
 ];
@@ -34,7 +35,7 @@ export function suggestFinancialMapping(headers){
 }
 export function analyzeFinancialRows({headers=[],rows=[],mapping=[]}={}){
  const mapped=new Map(mapping.filter(x=>x.fieldKey).map(x=>[x.fieldKey,x.columnIndex]));
- const required=(mapped.has('period_date')||(mapped.has('year')&&mapped.has('month')))?[]:[{label:'التاريخ أو ربط السنة والشهر معًا'}];
+ const hasDate=mapped.has('period_date')||(mapped.has('year')&&mapped.has('month'));const hasTimelessPrice=mapped.has('item_name')&&(mapped.has('unit_cost')||mapped.has('selling_price'));const required=hasDate||hasTimelessPrice?[]:[{label:'التاريخ أو ربط السنة والشهر معًا'}];
  const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0;
  const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];
  for(let i=0;i<rows.length;i++){
@@ -48,9 +49,9 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[]}={}){
   const outputs=metric?[{metric_key:metric,amount:finite(raw.amount),quantity:finite(raw.quantity)}]:wide.map(key=>({metric_key:key,amount:['cases','tests_count'].includes(key)?null:finite(raw[key]),quantity:['cases','tests_count'].includes(key)?finite(raw[key]):null}));
   if(metric&&!outputs[0].amount&&!outputs[0].quantity&&raw.selling_price===null)issues.push({row:i+2,field:'amount',message:'لا توجد قيمة أو كمية قابلة للتحليل'});
   for(const output of outputs){
-   const record={period_date:period,metric_key:output.metric_key,amount:output.amount,quantity:output.quantity,item_name:raw.item_name,category_name:raw.category_name,branch_name:raw.branch_name,unit_cost:finite(raw.unit_cost),selling_price:finite(raw.selling_price),currency_code:raw.currency_code};
+   const record={period_date:period,metric_key:output.metric_key,amount:output.amount,quantity:output.quantity,item_name:raw.item_name,category_name:raw.category_name,branch_name:raw.branch_name,unit_cost:finite(raw.unit_cost),selling_price:finite(raw.selling_price),weight:finite(raw.weight),currency_code:raw.currency_code};
    for(const key of ['unit_cost','selling_price'])if(record[key]===null&&clean(raw[key])!=='')invalidNumbers++;
-   const fingerprint=JSON.stringify([record.period_date,normalize(record.metric_key),normalize(record.item_name),normalize(record.category_name),record.amount,record.quantity,record.unit_cost,record.selling_price,normalize(record.branch_name)]);
+   const fingerprint=JSON.stringify([record.period_date,normalize(record.metric_key),normalize(record.item_name),normalize(record.category_name),record.amount,record.quantity,record.unit_cost,record.selling_price,record.weight,normalize(record.branch_name)]);
    const duplicate=seen.has(fingerprint);if(duplicate)duplicateRows++;else seen.set(fingerprint,i+2);
    records.push({...record,_rowNumber:i+2,_fingerprint:fingerprint,_duplicate:duplicate,_duplicateOf:duplicate?seen.get(fingerprint):null,_original:source});
   }
@@ -60,6 +61,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[]}={}){
 function metricClass(key){
  const k=normalize(key);
  if(/تحصيل|قبض|collection|cash received/.test(k))return 'collections';
+ if(/test_price|price list|قائمة اسعار|قائمة أسعار/.test(k))return 'price';
  if(/مصروف|expense|تكلف/.test(k))return 'expenses';
  if(/تحليل|test/.test(k))return 'tests';
  if(/إيراد|ايراد|مبيعات|revenue|income/.test(k))return 'revenue';
@@ -69,21 +71,35 @@ function metricClass(key){
  return 'other';
 }
 export function buildGenericHistoricalReport(rows,{from=null,to=null,branchId=null}={}){
- const selected=(rows||[]).filter(r=>(!from||r.period_date>=from)&&(!to||r.period_date<=to)&&(!branchId||r.branch_id===branchId));
+ const selected=(rows||[]).filter(r=>(r.period_date===null||r.period_date===undefined||((!from||r.period_date>=from)&&(!to||r.period_date<=to)))&&(!branchId||r.branch_id===branchId));
  const totals={revenue:0,collections:0,expenses:0,cases:0,discounts:0,payroll:0,tests:0,other:0};
- const monthly=new Map(),items=new Map(),categories=new Map();
- for(const r of selected){const cls=metricClass(r.metric_key),amount=Number(r.amount||0),qty=Number(r.quantity||0),month=String(r.period_date||'').slice(0,7);totals[cls]=(totals[cls]||0)+(cls==='cases'||cls==='tests'?qty:amount);
+ const monthly=new Map(),items=new Map(),categories=new Map(),priceMap=new Map();
+ for(const r of selected){if(metricClass(r.metric_key)==='price'&&r.item_name){priceMap.set(normalize(r.item_name),{unitCost:r.unit_cost,sellingPrice:r.selling_price,weight:r.weight??1});}}
+ for(const r of selected){
+  const cls=metricClass(r.metric_key);if(cls==='price')continue;
+  const amount=Number(r.amount||0),qty=Number(r.quantity||0),month=String(r.period_date||'').slice(0,7);
+  totals[cls]=(totals[cls]||0)+(cls==='cases'||cls==='tests'?qty:amount);
   if(month){const m=monthly.get(month)||{month,revenue:0,collections:0,expenses:0,cases:0,discounts:0,tests:0};if(cls==='revenue')m.revenue+=amount;if(cls==='collections')m.collections+=amount;if(cls==='expenses'||cls==='payroll')m.expenses+=amount;if(cls==='cases')m.cases+=qty||amount;if(cls==='discounts')m.discounts+=amount;if(cls==='tests')m.tests+=qty||1;monthly.set(month,m);}
-  if(r.item_name){const item=items.get(normalize(r.item_name))||{name:r.item_name,count:0,revenue:0,cost:0};item.count+=qty||1;item.revenue+=r.selling_price!==null?r.selling_price* (qty||1):amount;item.cost+=r.unit_cost!==null?r.unit_cost*(qty||1):0;items.set(normalize(r.item_name),item);}
-  if(r.category_name){categories.set(r.category_name,(categories.get(r.category_name)||0)+amount);}
+  if(r.item_name){const price=priceMap.get(normalize(r.item_name))||{},item=items.get(normalize(r.item_name))||{name:r.item_name,count:0,revenue:0,cost:0,weightPoints:0,unitCost:0,sellingPrice:0};
+   const count=qty||1,unitSell=r.selling_price??price.sellingPrice,unitCost=r.unit_cost??price.unitCost,weight=r.weight??price.weight??1;
+   item.count+=count;item.revenue+=unitSell!==null&&unitSell!==undefined?Number(unitSell)*count:amount;item.cost+=unitCost!==null&&unitCost!==undefined?Number(unitCost)*count:0;item.weightPoints+=Number(weight||1)*count;
+   if(unitSell!==null&&unitSell!==undefined)item.sellingPrice+=Number(unitSell)*count;
+   if(unitCost!==null&&unitCost!==undefined)item.unitCost+=Number(unitCost)*count;
+   items.set(normalize(r.item_name),item);
+  }
+  if(r.category_name)categories.set(r.category_name,(categories.get(r.category_name)||0)+amount);
  }
  const monthlyRows=[...monthly.values()].sort((a,b)=>a.month.localeCompare(b.month)).map(m=>({...m,profit:m.revenue-m.expenses,margin:m.revenue?(m.revenue-m.expenses)/m.revenue*100:0}));
  const seasonal=Array.from({length:12},(_,i)=>{const months=monthlyRows.filter(m=>Number(m.month.slice(5,7))===i+1);return {month:i+1,revenue:months.length?months.reduce((s,x)=>s+x.revenue,0)/months.length:0,cases:months.length?months.reduce((s,x)=>s+x.cases,0)/months.length:0,years:months.length};});
  const active=monthlyRows.filter(m=>m.revenue||m.cases),latest=active.at(-1);
- const targetMonth=latest?(()=>{const d=new Date(latest.month+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);return d.toISOString().slice(0,7);})():null;
- const targetSeason=targetMonth?seasonal[Number(targetMonth.slice(5,7))-1]:null;
- const outlook=latest?[1,2,3].map(offset=>{const d=new Date(latest.month+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+offset);const month=d.toISOString().slice(0,7),season=seasonal[Number(month.slice(5,7))-1];return {month,revenue:season.revenue,cases:season.cases,years:season.years,method:season.years?'متوسط الأشهر التاريخية المتاحة لنفس الشهر التقويمي':'لا توجد بيانات سابقة لهذا الشهر'};}):[];const plan=targetSeason?{month:targetMonth,revenue:targetSeason.revenue,cases:targetSeason.cases,method:'متوسط الأشهر التاريخية المتاحة لنفس الشهر التقويمي',years:targetSeason.years,outlook}:null;
- const itemRows=[...items.values()].map(x=>({...x,profit:x.revenue-x.cost,unitProfit:x.count?(x.revenue-x.cost)/x.count:0})).sort((a,b)=>b.count-a.count);
- const totalExpenses=totals.expenses+totals.payroll;totals.expenses=totalExpenses;const profit=totals.revenue-totalExpenses;
- return {source:'excel',scope:{from,to,branchId},totals:{...totals,profit,margin:totals.revenue?profit/totals.revenue*100:0},monthly:monthlyRows,seasonality:seasonal,monthlyPlan:plan,items:itemRows,expenseCategories:[...categories].map(([name,amount])=>({name,amount})).sort((a,b)=>b.amount-a.amount),periods:[...new Set(selected.map(r=>String(r.period_date||'').slice(0,7)).filter(Boolean))].sort()};
+ const outlook=latest?[1,2,3].map(offset=>{const d=new Date(latest.month+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+offset);const month=d.toISOString().slice(0,7),season=seasonal[Number(month.slice(5,7))-1];return {month,revenue:season.revenue,cases:season.cases,years:season.years,method:season.years?'متوسط الأشهر التاريخية المتاحة لنفس الشهر التقويمي':'لا توجد بيانات سابقة لهذا الشهر'};}):[];
+ const targetMonth=outlook[0]?.month||null,targetSeason=targetMonth?seasonal[Number(targetMonth.slice(5,7))-1]:null;
+ const plan=targetSeason?{month:targetMonth,revenue:targetSeason.revenue,cases:targetSeason.cases,method:'متوسط الأشهر التاريخية المتاحة لنفس الشهر التقويمي',years:targetSeason.years,outlook}:null;
+ const totalExpenses=totals.expenses+totals.payroll;totals.expenses=totalExpenses;
+ const itemValues=[...items.values()],variableCost=itemValues.reduce((s,x)=>s+x.cost,0),totalPoints=itemValues.reduce((s,x)=>s+x.weightPoints,0),fixedCost=Math.max(0,totalExpenses-variableCost),pointValue=totalPoints?fixedCost/totalPoints:0;
+ const itemRows=itemValues.map(x=>{const count=x.count||0,unitCost=count?x.unitCost/count:0,sellingPrice=count&&x.sellingPrice?x.sellingPrice/count:(count?x.revenue/count:0),weight=count?x.weightPoints/count:1,trueCost=unitCost+weight*pointValue,trueProfitUnit=sellingPrice-trueCost;return {...x,unitCost,sellingPrice,weight,trueCost,trueProfitUnit,trueTotalProfit:trueProfitUnit*count,profit:trueProfitUnit*count,unitProfit:trueProfitUnit};}).sort((a,b)=>b.count-a.count);
+ const profit=totals.revenue-totalExpenses,median=values=>{const a=[...values].sort((x,y)=>x-y);if(!a.length)return 0;const i=Math.floor(a.length/2);return a.length%2?a[i]:(a[i-1]+a[i])/2;};
+ const medianCount=median(itemRows.map(x=>x.count)),medianProfit=median(itemRows.map(x=>x.trueProfitUnit));
+ const portfolio=itemRows.map(x=>({...x,segment:x.count>=medianCount&&x.trueProfitUnit>=medianProfit?'star':x.count>=medianCount?'cash-cow':x.trueProfitUnit>=medianProfit?'question':'dog'}));
+ return {source:'excel',scope:{from,to,branchId},totals:{...totals,variableCost,fixedCost,totalPoints,pointValue,profit,margin:totals.revenue?profit/totals.revenue*100:0},monthly:monthlyRows,seasonality:seasonal,monthlyPlan:plan,items:itemRows,portfolio:{stars:portfolio.filter(x=>x.segment==='star'),cashCows:portfolio.filter(x=>x.segment==='cash-cow'),questions:portfolio.filter(x=>x.segment==='question'),dogs:portfolio.filter(x=>x.segment==='dog'),medianCount,medianProfit},topSellers:[...itemRows].sort((a,b)=>b.count-a.count).slice(0,20),topProfitable:[...itemRows].sort((a,b)=>b.trueTotalProfit-a.trueTotalProfit).slice(0,20),lossMakers:itemRows.filter(x=>x.trueProfitUnit<0).sort((a,b)=>a.trueProfitUnit-b.trueProfitUnit),needOffers:itemRows.filter(x=>x.count<5).sort((a,b)=>a.count-b.count),expenseCategories:[...categories].map(([name,amount])=>({name,amount})).sort((a,b)=>b.amount-a.amount),periods:[...new Set(selected.map(r=>String(r.period_date||'').slice(0,7)).filter(Boolean))].sort()};
 }
