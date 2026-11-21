@@ -233,3 +233,18 @@ A receiving chat/developer must start from this branch and PR #24, read this doc
 - PR #26 CI run 44835297244 passed JavaScript syntax checks, browser-only build, packaging, and **250/250 static/unit tests**.
 - The GitHub Pages URL was not independently verified by the assistant after merge. Owner visual review in the live browser remains required; no browser end-to-end acceptance is claimed.
 - This main merge is for preview and owner review, not final clinical/production acceptance.
+
+
+---
+
+## 14. Print settings completion — 2026-11-21
+
+- Reviewed the existing System Settings > Printing tab against the agreed report-print requirements. Existing controls already covered paper size/orientation/margins, report title/footer, lab/branch logo selection, identity-side switching, branch addresses, contact visibility, website/support links, optional footer QR/message, and watermark type/opacity/size/position.
+- Completed the previously missing configurable content for the opposite header zone. The multiline text is escaped and moves to the opposite side when the lab identity side is switched.
+- Added an independent stamp upload/visibility setting and reviewer/approver name/visibility setting. Both are persisted in the existing print-settings JSON and rendered in the final visit report alongside the existing signature.
+- Extended the existing tenant asset upload allow-list to support the `stamp` asset kind under the same tenant system-assets path. No database migration was needed; existing tenant storage and print-settings JSON are reused.
+- Added regression coverage for the new settings fields, save/load wiring, stamp asset upload support, settings preview, and final report markup.
+- PR #27: https://github.com/teba-labs/teba-saas-demo/pull/27
+- Validation on a merge candidate based on the current main: workflow run **44906382244** succeeded; JavaScript checks, browser-only deployment build, and **250/250 static/unit tests passed** (0 failed).
+- Browser/device visual inspection of actual printed paper output remains a manual acceptance item; CI validates source contracts and build, not physical printer rendering.
+- Recovery branch retained: `backup/pre-print-settings-main-2026-11-21`.
