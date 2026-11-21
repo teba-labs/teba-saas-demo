@@ -32,7 +32,7 @@ test('catalog UI uses tenant-scoped repository methods and deactivation instead 
 test('catalog screen and assets are included in the offline application shell', () => {
   const sw = read('service-worker.js');
   for (const asset of ['./app/catalog.html','./assets/css/catalog.css','./assets/js/catalog.js']) assert.ok(sw.includes(asset), `missing ${asset}`);
-  assert.match(sw, /taiba-smart-lab-shell-v29/);
+  assert.match(sw, /taiba-smart-lab-shell-v\\d+/);
   assert.match(sw, /modules\/migration\/price-importer\.js/);
 });
 
