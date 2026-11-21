@@ -1,4 +1,6 @@
 import { loadPublishedSite } from './public-site.js';
+import { getCmsSettings, listCmsItems, cmsCollectionNames } from './cms-repository.js';
+import { loadMyTenantContext } from '../core/tenant/context.js';
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeUrl=v=>{try{const u=new URL(String(v),location.href);return ['https:','http:'].includes(u.protocol)?u.href:''}catch{return ''}};
@@ -24,5 +26,19 @@ export function renderPublicSite(data){
  const branches=(data.branches||[]).filter(x=>x.show_on_site!==false&&x.is_published!==false);cards('branchCards',branches,x=>{const map=safeUrl(x.public_map_link);return '<article class="card branch"><h3>'+esc(x.public_name||'فرع المعمل')+'</h3><p>'+esc(x.public_address||'')+'</p><p>'+esc(x.public_phone||'')+'</p>'+(map?'<a href="'+esc(map)+'" target="_blank" rel="noopener">عرض الموقع على الخريطة</a>':'')+'</article>'});
  $('loading').hidden=true;$('site').hidden=false;document.title=name+' | الموقع الرسمي';
 }
-const slug=new URLSearchParams(location.search).get('lab');
-try{if(!slug)throw new Error('لم يتم تحديد رمز المعمل في رابط الموقع.');const data=await loadPublishedSite(slug);if(!data)throw new Error('الموقع غير منشور أو رمز المعمل غير صحيح.');renderPublicSite(data);}catch(e){$('loading').hidden=true;$('error').style.display='block';$('error').textContent=e.message||'تعذر تحميل الموقع.';}
+const params=new URLSearchParams(location.search),slug=params.get('lab');
+try{
+ if(!slug)throw new Error('لم يتم تحديد رمز المعمل في رابط الموقع.');
+ let data;
+ if(params.get('preview')==='1'){
+  const context=await loadMyTenantContext();
+  const tenant=(context.tenants||[]).find(x=>x.slug===slug&&x.accountType==='owner');
+  if(!tenant)throw new Error('المعاينة الخاصة متاحة لمالك المعمل فقط.');
+  const [settings,...collections]=await Promise.all([getCmsSettings({tenantId:tenant.id}),...cmsCollectionNames.map(collection=>listCmsItems({tenantId:tenant.id,collection}))]);
+  data={tenant,settings,...Object.fromEntries(cmsCollectionNames.map((key,i)=>[key,collections[i]]))};
+ }else{
+  data=await loadPublishedSite(slug);
+  if(!data)throw new Error('الموقع غير منشور أو رمز المعمل غير صحيح.');
+ }
+ renderPublicSite(data);
+}catch(e){$('loading').hidden=true;$('error').style.display='block';$('error').textContent=e.message||'تعذر تحميل الموقع.';}
