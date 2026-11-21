@@ -1,7 +1,8 @@
 import { APP_ENV } from '../config/environment.js';
 
 let configLoadedFor = '';
-let portalDisabled = false;\nlet portalSubmitLabel = 'عرض التقرير';
+let portalDisabled = false;
+let portalSubmitLabel = 'عرض التقرير';
 async function loadPortalConfig(slug) {
   slug = String(slug || '').trim().toLowerCase();
   if (!slug || slug === configLoadedFor) return;
@@ -21,7 +22,8 @@ async function loadPortalConfig(slug) {
     document.getElementById('portalIntro').textContent = x.intro || '';
     document.getElementById('portalNameLabel').textContent = x.patient_name_label || 'اسم المريض بالكامل';
     document.getElementById('portalVisitLabel').textContent = x.visit_number_label || 'رقم الزيارة';
-    portalSubmitLabel = x.submit_label || 'عرض التقرير';\n    document.getElementById('portalSubmit').textContent = portalSubmitLabel;
+    portalSubmitLabel = x.submit_label || 'عرض التقرير';
+    document.getElementById('portalSubmit').textContent = portalSubmitLabel;
     document.getElementById('portalHelpText').textContent = x.help_text || '';
     const accent = x.accent_color || '#147c72';
     document.querySelector('.mark').style.background = accent + '18';
