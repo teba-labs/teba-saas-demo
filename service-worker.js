@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v29';
+const CACHE_NAME = 'taiba-smart-lab-shell-v30';
 const APP_SHELL = [
   './app/index.html', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/sync-center.html',
   './app/dashboard.html', './portal/index.html', './app/cms-editor.html', './app/platform-admin.html', './app/settings.html', './app/data-import.html',
@@ -35,35 +35,22 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.hostname.endsWith('.supabase.co')) return; // Never cache authenticated API or patient data responses.
 
-  if (url.hostname === 'esm.sh') {
+  if (url.hostname === 'esm.sh' || url.origin === self.location.origin) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(request);
-      if (cached) {
-        event.waitUntil(fetch(request).then(response => { if (response.ok) return cache.put(request, response.clone()); }).catch(() => {}));
-        return cached;
-      }
-      const response = await fetch(request);
-      if (response.ok) await cache.put(request, response.clone());
-      return response;
-    })());
-    return;
-  }
-
-  if (url.origin === self.location.origin) {
-    event.respondWith((async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(request);
-      if (cached) {
-        event.waitUntil(fetch(request).then(response => { if (response.ok) return cache.put(request, response.clone()); }).catch(() => {}));
-        return cached;
-      }
+      // Network-first prevents a stale cached login/auth module or page from
+      // overriding a newly deployed release. The cache is an offline fallback.
       try {
         const response = await fetch(request);
-        if (response.ok && (request.destination === 'document' || request.destination === 'script' || request.destination === 'style')) await cache.put(request, response.clone());
+        if (response.ok) await cache.put(request, response.clone());
         return response;
       } catch (error) {
-        if (request.mode === 'navigate') return cache.match('./app/index.html');
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        if (request.mode === 'navigate') {
+          const appShell = await cache.match('./app/index.html');
+          if (appShell) return appShell;
+        }
         throw error;
       }
     })());
