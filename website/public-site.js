@@ -9,7 +9,7 @@ export async function resolvePublishedSite(slug) {
   if (error) throw error;
   const tenant = Array.isArray(data) ? data[0] : data;
   if (!tenant?.tenant_id) return null;
-  return tenant;
+  return { ...tenant, slug: cleanSlug };
 }
 
 /** Public content only. Database RLS additionally filters every collection to published rows. */
