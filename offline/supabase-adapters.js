@@ -13,16 +13,29 @@ export function createSupabaseSyncHandlers() {
   return {
     draft_results: async operation => {
       const p = operation.payload;
+      let visitTestId = p.visit_test_id;
+      for (const dependency of operation.depends_on || []) {
+        const mapping = await offlineDb.sync_meta.get(`visit-map:${dependency}`);
+        if (mapping?.visit_test_ids?.[visitTestId]) { visitTestId = mapping.visit_test_ids[visitTestId]; break; }
+      }
+      if (visitTestId === p.visit_test_id && (operation.depends_on || []).length) {
+        const found = await db().from('visit_tests').select('id').eq('tenant_id', operation.tenant_id)
+          .eq('branch_id', operation.branch_id).eq('id', p.visit_test_id).maybeSingle();
+        if (found.error) throw found.error;
+        if (!found.data) throw new Error('The queued result is waiting for its visit/test mapping; it has been retained.');
+        visitTestId = found.data.id;
+      }
       const { data, error } = await db().rpc('save_draft_results_idempotent', {
         p_operation_id: operation.operation_id,
         p_tenant_id: operation.tenant_id,
         p_branch_id: operation.branch_id,
-        p_visit_test_id: p.visit_test_id,
+        p_visit_test_id: visitTestId,
         p_staff_id: p.staff_id,
         p_results: p.results,
       });
       if (error) return throwUnlessConflict(error, /Branch access denied|active staff identity|Visit test was not found|Completed test results are locked|Approved or published visit results are locked|Cancelled test results cannot be changed|idempotency key reused|Authentication required/i);
       if (!Array.isArray(data) || !data.length) throw new Error('Server did not confirm the saved draft results.');
+      await offlineDb.test_results.where('visit_test_id').equals(p.visit_test_id).delete();
       return { acknowledged: true, resultId: operation.operation_id };
     },
     patients: async operation => {
