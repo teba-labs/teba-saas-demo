@@ -14,3 +14,6 @@ verify_jwt = true
 # Authenticated branch-scoped attachment upload.
 [functions.upload-attachment]
 verify_jwt = true
+
+[functions.patient-portal-config]
+verify_jwt = false
