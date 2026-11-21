@@ -16,23 +16,23 @@
 - Catalog, current prices, all active test-parameter snapshots, staff, open workday, patient search results, tenant/branch access context, lab identity and print settings are cached for offline use after an online preparation pass.
 - The results workbench restores queued values and evaluates supported catalog formula ASTs locally for display and provisional printing. Server-side calculation remains authoritative after synchronization.
 - Cached visit data can be previewed and printed offline as a clearly marked **unapproved working copy**. The printout explicitly says it is not a final report and suppresses reviewer signature/stamp. Already approved/published visits retain their server-approved status.
-- Culture isolate/susceptibility reads are cached for offline viewing. Local backup format v3 includes these caches and remains backward-compatible with v1/v2 backup restore.
+- Culture isolate and susceptibility writes can be queued offline. They use tenant/branch/user/payload-bound idempotency receipts, dependency ordering (visit/test -> isolate -> susceptibility), and local-to-server ID mapping. Cached culture/AST rows remain readable during partial synchronization. Local backup format v3 includes these caches and remains backward-compatible with v1/v2 backup restore.
 - The outbox contains no subscription-expiry gate. Already-created pending operations are retained and must be synchronized even if the subscription expires during an outage.
 - Service-worker shell cache was advanced to v32 to refresh the offline app files.
 
 ## Database and CI evidence already established
 
-- Migration `074_offline_draft_results_idempotency` was applied to TEST.
-- The idempotent draft-result RPC and private receipt table were verified on TEST; anon cannot execute the RPC and authenticated can execute it.
-- Earlier GitHub Actions run 1157 passed the JavaScript module check, browser-only build, static/unit tests, packaging and artifact upload (277/277 tests at that earlier checkpoint).
+- Migrations `074_offline_draft_results_idempotency` and `075_offline_culture_idempotency` were applied to TEST.
+- The idempotent draft-result and culture/AST RPCs and private receipt table were verified on TEST; anon cannot execute these RPCs and authenticated can execute them.
+- GitHub Actions run 1208 passed the JavaScript module check, browser-only build, static/unit tests, packaging and artifact upload (282/282 tests). A later run after the culture write changes found one stale test contract; that contract was updated, and the newest run is pending confirmation.
 
 ## Still not complete — do not represent as production-ready
 
 1. **Seven-day signed offline entitlement:** not implemented or enforced. No offline lock is active. A secure asymmetric signing key must be provisioned as a private Supabase Edge Function secret and the matching public key pinned in the client. The available project tools do not expose secret provisioning, so no key was fabricated or embedded in browser code.
 2. **Official final report while offline:** the current offline print path is deliberately provisional. It does not create an approval, reviewer signature, publication record or patient-portal report. Official completion/approval/publication remains online-only until an auditable offline signing and conflict-resolution protocol is designed and tested.
-3. **Offline culture writes:** isolate and susceptibility writes remain online-only. Their read caches are available, but writes need server idempotency receipts and clinical audit semantics.
-4. **Offline correction workflows:** range overrides and result corrections remain online-only because they require an immutable reason/audit trail and must not overwrite a previously published version.
-5. **Attachments and portal operations:** uploads, report publication, patient portal lookup and WhatsApp publication remain online-only.
+3. **Offline corrections and status transitions:** range overrides, result corrections, test completion, visit approval and report publication remain online-only because they require immutable audit history, sign-off and conflict handling.
+4. **Attachments and portal operations:** uploads, report publication, patient portal lookup and WhatsApp publication remain online-only.
+
 6. **Live authenticated end-to-end validation:** no live clinical account test has yet demonstrated the full sequence: disconnect after login -> create patient/visit -> enter all results -> reload -> provisional preview/print -> reconnect -> sync patient -> sync intake -> map server visit/test IDs -> sync results exactly once -> online completion/approval -> final report publication.
 7. **Cross-device recovery:** IndexedDB is device-local. A local queue cannot appear on another device until synchronized. A local backup can preserve queued operations, but moving it to another device requires restore and subsequent authenticated synchronization.
 
