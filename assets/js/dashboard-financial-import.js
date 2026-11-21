@@ -89,12 +89,26 @@ export async function mountOwnerFinancialImport(currentTenant,tenantBranches=[])
 }
 export async function applyOwnerFinancialSources(tenantId,liveReport,branchId=null){
  if(!tenantId||!liveReport)return liveReport;
- let choices;try{choices=await getOwnerDashboardSources(tenantId);}catch(error){if(error?.code==='42P01'||/does not exist|schema cache/i.test(error?.message||''))return liveReport;throw error;}if(!Object.values(choices).includes('excel'))return liveReport;
- const [rows]=await Promise.all([listOwnerFinancialRows({tenantId,branchId,from:liveReport.period.monthStart,to:(()=>{const d=new Date(liveReport.period.monthEnd+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})()})]);
- const historical=buildGenericHistoricalReport(rows,{from:liveReport.period.monthStart,to:liveReport.period.monthEnd,branchId});
- const t={...liveReport.totals};
- const map={revenue:'netBilled',collections:'collected',expenses:'expenses',cases:'visits',discounts:'discounts',tests:'tests'};
- for(const [metric,field] of Object.entries(map)){if(choices[metric]==='excel'){if(metric==='revenue')t[field]=historical.totals.revenue;else if(metric==='collections')t[field]=historical.totals.collections;else if(metric==='expenses')t[field]=historical.totals.expenses;else if(metric==='cases')t[field]=historical.totals.cases;else if(metric==='discounts')t[field]=historical.totals.discounts;else t[field]=historical.totals.tests;}}
- if(choices.revenue==='excel')t.grossBilled=Number(t.netBilled||0)+Number(t.discounts||0);t.netCash=Number(t.collected||0)-Number(t.expenses||0);t.netBilled=t.netBilled??0;
- return {...liveReport,totals:t,selectedSources:choices,historicalSourceSummary:historical};
+ let choices;try{choices=await getOwnerDashboardSources(tenantId);}catch(error){if(error?.code==='42P01'||/does not exist|schema cache/i.test(error?.message||''))return liveReport;throw error;}
+ if(!Object.values(choices).includes('excel'))return liveReport;
+ const monthEnd=(()=>{const d=new Date(liveReport.period.monthEnd+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})();
+ const rows=await listOwnerFinancialRows({tenantId,from:liveReport.period.monthStart,to:monthEnd});
+ const historical=buildGenericHistoricalReport(rows,{from:liveReport.period.monthStart,to:monthEnd,branchId});
+ const t={...liveReport.totals},metricMap={revenue:'netBilled',collections:'collected',expenses:'expenses',cases:'visits',discounts:'discounts',tests:'tests'};
+ for(const [metric,field] of Object.entries(metricMap)){if(choices[metric]==='excel'){if(metric==='revenue')t[field]=historical.totals.revenue;else if(metric==='collections')t[field]=historical.totals.collections;else if(metric==='expenses')t[field]=historical.totals.expenses;else if(metric==='cases')t[field]=historical.totals.cases;else if(metric==='discounts')t[field]=historical.totals.discounts;else t[field]=historical.totals.tests;}}
+ if(choices.revenue==='excel')t.grossBilled=Number(t.netBilled||0)+Number(t.discounts||0);
+ t.netCash=Number(t.collected||0)-Number(t.expenses||0);
+ const branchReports=(liveReport.branches||[]).map(branch=>{const h=buildGenericHistoricalReport(rows,{from:liveReport.period.monthStart,to:monthEnd,branchId:branch.id});const b={...branch};
+  if(choices.revenue==='excel'){b.netBilled=h.totals.revenue;b.grossBilled=h.totals.revenue+(choices.discounts==='excel'?h.totals.discounts:b.discounts||0);}
+  if(choices.collections==='excel')b.collected=h.totals.collections;
+  if(choices.expenses==='excel')b.expenses=h.totals.expenses;
+  if(choices.cases==='excel')b.visits=h.totals.cases;
+  if(choices.discounts==='excel')b.discounts=h.totals.discounts;
+  if(choices.tests==='excel')b.tests=h.totals.tests;
+  b.netCash=Number(b.collected||0)-Number(b.expenses||0);return b;
+ });
+ const next={...liveReport,totals:t,branches:branchReports,selectedSources:choices,historicalSourceSummary:historical};
+ if(choices.expenses==='excel')next.expenseBreakdown=historical.expenseCategories.map(item=>({branchName:branchId?(liveReport.branches.find(b=>b.id===branchId)?.name||'الفرع المحدد'):'كل الفروع',categoryName:item.name,count:0,amount:item.amount}));
+ if(choices.tests==='excel')next.topTests=historical.items.map(item=>({name:item.name,count:item.count,billed:item.revenue})).sort((a,b)=>b.count-a.count);
+ return next;
 }
