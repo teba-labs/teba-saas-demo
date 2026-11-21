@@ -231,6 +231,22 @@ async function renderWork() {
       input.dataset.localPending = 'true';
     }
   }
+  if (globalThis.navigator?.onLine === false || state.work.some(item => item.local_offline)) {
+    for (const item of state.work) {
+      const section = host.querySelector(`[data-test-id="${CSS.escape(item.id)}"]`);
+      if (!section) continue;
+      const localRows = [];
+      for (const input of section.querySelectorAll('[data-param-code]')) {
+        if (input.dataset.resultSource !== 'calculated' && input.dataset.valueType === 'numeric' && input.value.trim() && Number.isFinite(Number(input.value))) {
+          localRows.push({ visit_test_id: item.id, parameter_code: input.dataset.paramCode, value_numeric: Number(input.value) });
+        }
+      }
+      for (const derived of calculateLocalDerivedResults(item, localRows)) {
+        const input = section.querySelector(`[data-param-code="${CSS.escape(derived.parameter_code)}"]`);
+        if (input) { input.value = derived.value_numeric; input.dataset.originalValue = input.value; input.dataset.localCalculated = 'true'; }
+      }
+    }
+  }
 }
 
 
@@ -288,6 +304,58 @@ function resolveReferenceRange(value, patient = {}, status = 'local_verification
   }
   const formatted = formatReferenceRange(value);
   return localPending && formatted !== '—' ? 'مقترح من المصدر — غير معتمد محليًا: ' + formatted : formatted;
+}
+
+function evaluateLocalFormula(node, values) {
+  if (!node || typeof node !== 'object') return null;
+  if (node.const !== undefined) return Number.isFinite(Number(node.const)) ? Number(node.const) : null;
+  if (node.param) return values.has(node.param) ? values.get(node.param) : null;
+  const args = (node.args || []).map(arg => evaluateLocalFormula(arg, values));
+  if (args.some(value => value === null || !Number.isFinite(value))) return null;
+  let result;
+  switch (node.op) {
+    case 'add': result = args[0] + args[1]; break;
+    case 'subtract': result = args[0] - args[1]; break;
+    case 'multiply': result = args[0] * args[1]; break;
+    case 'divide': if (args[1] === 0) return null; result = args[0] / args[1]; break;
+    case 'abs': result = Math.abs(args[0]); break;
+    case 'round': { const places = Math.max(0, Math.min(6, Math.trunc(args[1] ?? 0))); result = Number(args[0].toFixed(places)); break; }
+    case 'min': result = Math.min(...args); break;
+    case 'max': result = Math.max(...args); break;
+    default: return null;
+  }
+  return Number.isFinite(result) ? result : null;
+}
+
+function calculateLocalDerivedResults(item, rows) {
+  const parameters = item.technical_snapshot?.parameters || [];
+  const values = new Map();
+  for (const row of rows) {
+    if (row.visit_test_id !== item.id || row.value_numeric == null) continue;
+    values.set(row.parameter_code, Number(row.value_numeric));
+  }
+  const derived = [];
+  for (let pass = 0; pass < parameters.length; pass++) {
+    let progress = false;
+    for (const parameter of parameters) {
+      if (parameter.result_source !== 'calculated' || values.has(parameter.code)) continue;
+      const raw = evaluateLocalFormula(parameter.formula, values);
+      if (raw === null) continue;
+      const places = Math.max(0, Math.min(6, Number(parameter.decimal_places ?? 2)));
+      const value = Number(raw.toFixed(places));
+      values.set(parameter.code, value);
+      derived.push({
+        id: 'local-calculated:' + item.id + ':' + parameter.code,
+        tenant_id: item.tenant_id, visit_test_id: item.id, parameter_code: parameter.code,
+        parameter_name_snapshot: parameter.name || parameter.parameter_name || parameter.code,
+        value_numeric: value, value_text: null, unit_snapshot: parameter.unit || null,
+        reference_range_snapshot: parameter.reference_ranges || {}, entered_at: new Date().toISOString(),
+      });
+      progress = true;
+    }
+    if (!progress) break;
+  }
+  return derived;
 }
 
 function formatReferenceRange(value) {
@@ -348,6 +416,11 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     const byKey = new Map(rows.map(row => [row.visit_test_id + '|' + row.parameter_code, row]));
     for (const row of pendingRows) byKey.set(row.visit_test_id + '|' + row.parameter_code, row);
     rows.splice(0, rows.length, ...byKey.values());
+    for (const item of visitItems) {
+      for (const derived of calculateLocalDerivedResults(item, rows)) {
+        if (!rows.some(row => row.visit_test_id === item.id && row.parameter_code === derived.parameter_code)) rows.push(derived);
+      }
+    }
   }
   const cultureRows = await listCultureResults({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:visitItems.filter(item=>String(item.test_code_snapshot || '').startsWith('CULTURE_')).map(item=>item.id)});
   // Preview may be opened before approval so incomplete work can be spotted; printing remains gated.
