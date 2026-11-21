@@ -50,3 +50,17 @@ body>.topbar .taiba-theme-control{margin-inline-start:auto}
 body>.shell,main.shell{width:min(1480px,calc(100% - 28px));margin-inline:auto}
 html[data-theme="dark"] body>.topbar{background:linear-gradient(110deg,#091923,#102e38)!important;border-bottom-color:#368d8e;box-shadow:0 5px 20px #00000035}
 @media(max-width:680px){body>.topbar{padding:10px 12px;gap:8px}body>.shell,main.shell{width:calc(100% - 18px)}}
+
+/* Owner reports and financial-import cards. */
+.owner-report-card{border-radius:14px}
+.owner-screen-head,.history-file-card,.validationPanel{border:1px solid var(--taiba-border);border-radius:13px;padding:14px;background:var(--taiba-surface)}
+.validationPanel{margin-top:14px;line-height:1.75}
+.history-file-card{margin:12px 0}
+html[data-theme="dark"] :is(.owner-report-card,.owner-screen-head,.security-status-grid article,.history-file,.history-file-card,.history-analysis-kpis article,.validationPanel,.history-panel,.history-period-global){background:#142530!important;color:#e4edf2!important;border-color:#304754!important}
+html[data-theme="dark"] .owner-report-card strong{color:#e7f0f4!important}
+html[data-theme="dark"] .owner-report-card small{color:#a9bdc7!important}
+html[data-theme="dark"] .owner-report-number{background:#294b56;color:#c7e5e5}
+html[data-theme="dark"] .owner-report-open{color:#9bd7d7}
+html[data-theme="dark"] :is(.expense-bar-track,.history-empty){background:#203844!important;color:#a9bdc7}
+html[data-theme="dark"] :is(.history-saved,.history-analysis-results){border-color:#304754!important}
+html[data-theme="dark"] .history-saved button{background:#203844;color:#e7f0f4;border-color:#46616d}
