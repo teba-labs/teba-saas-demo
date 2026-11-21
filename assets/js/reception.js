@@ -195,7 +195,7 @@ async function submitVisit(button){
     const localVisit={
       id:localVisitId,tenant_id:state.tenant.id,branch_id:state.branch.id,patient_id:state.patient.id,
       workday_id:state.workday.id,visit_number:visitNumber,visit_work_date:state.workday.work_date,
-      status:'open',is_published:false,created_at:new Date().toISOString(),patients:patientSnapshot,
+      status:'open',is_published:false,created_at:new Date().toISOString(),patient_name:patientSnapshot.full_name,patients:patientSnapshot,
     };
     const localVisitTests=[...state.selected].map(testId=>{
       const test=state.catalog.find(row=>row.id===testId),price=state.prices.get(testId);
