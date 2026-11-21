@@ -1,3 +1,35 @@
+let configLoadedFor = '';
+async function loadPortalConfig(slug) {
+  slug = String(slug || '').trim().toLowerCase();
+  if (!slug || slug === configLoadedFor) return;
+  configLoadedFor = slug;
+  try {
+    const endpoint = APP_ENV.supabase.url + '/functions/v1/patient-portal-config';
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: APP_ENV.supabase.publishableKey },
+      body: JSON.stringify({ slug }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok || !data.settings) return;
+    const x = data.settings;
+    document.getElementById('portalTitle').textContent = x.title || 'بوابة نتائج التحاليل';
+    document.getElementById('portalIntro').textContent = x.intro || '';
+    document.getElementById('portalNameLabel').textContent = x.patient_name_label || 'اسم المريض بالكامل';
+    document.getElementById('portalVisitLabel').textContent = x.visit_number_label || 'رقم الزيارة';
+    document.getElementById('portalSubmit').textContent = x.submit_label || 'عرض التقرير';
+    document.getElementById('portalHelpText').textContent = x.help_text || '';
+    const accent = x.accent_color || '#147c72';
+    document.querySelector('.mark').style.background = accent + '18';
+    document.querySelector('.mark').style.color = accent;
+    document.getElementById('portalSubmit').style.background = accent;
+    const submit = form.querySelector('button[type="submit"]');
+    submit.disabled = x.enabled === false;
+    if (x.enabled === false) showMessage('بوابة النتائج متوقفة مؤقتًا من إدارة المعمل.', 'error');
+  } catch (error) {
+    console.warn('Patient portal presentation settings could not be loaded.', error);
+  }
+}
 import { APP_ENV } from '../config/environment.js';
 
 const form = document.querySelector('[data-portal-form]');
@@ -25,7 +57,7 @@ form?.addEventListener('submit', async (event) => {
     const formData = new FormData(form);
     const slug = String(formData.get('slug') ?? '').trim().toLowerCase();
     const patientName = String(formData.get('patientName') ?? '').trim();
-    const visitNumber = String(formData.get('visitNumber') ?? '').trim();
+    const visitNumber = String(formData.get('visitNumber') ?? '').trim();\n    await loadPortalConfig(slug);
     const endpoint = `${APP_ENV.supabase.url}/functions/v1/patient-portal-lookup`;
     const response = await fetch(endpoint, {
       method: 'POST',
