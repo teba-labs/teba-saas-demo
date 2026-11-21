@@ -12,6 +12,10 @@ const sync = read('offline/background-sync.js');
 const worklist = read('modules/laboratory/repository.js');
 const cacheSchema = read('offline/database.js');
 const culture = read('modules/results/culture-repository.js');
+const reception = read('assets/js/reception.js');
+const intake = read('modules/reception/repository.js');
+const adapters = read('offline/supabase-adapters.js');
+const report = read('modules/laboratory/repository.js');
 
 test('offline draft-result writes use a stable operation ID and server idempotency RPC', () => {
   assert.match(repository, /save_draft_results_idempotent/);
@@ -42,6 +46,24 @@ test('unsynced draft results survive workbench rerender and cannot be completed 
 test('subscription expiry does not gate outbox acknowledgement or erase queued operations', () => {
   assert.doesNotMatch(outbox, /subscription|entitlement|expires_at/i);
   assert.match(outbox, /await offlineDb\.outbox\.delete\(item\.local_id\)/);
+});
+
+test('offline reception creates a locally linked visit/test worklist and chains result saves behind intake', () => {
+  assert.match(reception, /localVisitTests/);
+  assert.match(reception, /فتح النتائج دون اتصال/);
+  assert.match(intake, /cacheRows\('visits'/);
+  assert.match(intake, /cacheRows\('visit_tests'/);
+  assert.match(repository, /dependsOn, priority: 3/);
+  assert.match(adapters, /visit-map:/);
+  assert.match(adapters, /local_visit_test_ids/);
+  assert.match(adapters, /save_draft_results_idempotent/);
+  assert.match(report, /globalThis\.navigator\?\.onLine === false[\s\S]*getCachedRows\('visit_tests'/);
+});
+
+test('offline report printing is explicitly provisional and includes queued local draft values', () => {
+  assert.match(ui, /طباعة مسودة غير معتمدة/);
+  assert.match(ui, /لا تُسلّم باعتبارها تقريرًا نهائيًا/);
+  assert.match(ui, /pendingRows/);
 });
 
 test('previously loaded branch worklist, staff, result values and culture reads are cached for offline review', () => {
