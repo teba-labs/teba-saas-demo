@@ -40,7 +40,7 @@ async function importPrepared(mapping,headers,rawRows,branchId){
  }
  if(!rows.length)throw new Error('لا توجد صفوف صالحة بعد استبعاد التكرارات والتعارضات.');
  const dates=rows.map(x=>x.period_date).sort();const fileHash=await digest(await file.arrayBuffer());await createOwnerFinancialBatch({tenantId,fileName:file.name,fileSha256:fileHash+':'+activeSheet,file,sourceLabel:'Excel مالي تاريخي',periodStart:dates[0],periodEnd:dates.at(-1),mappingSnapshot:{sheet:activeSheet,headers,mapping},sheetSummary:[{name:activeSheet,rows:rows.length}],rows});
- note('تم حفظ '+rows.length+' صف مالي سحابيًا. تم استبعاد '+skipped.length+' صفًا بسبب نقص أو تكرار أو تعارض أو فرع غير مطابق.');await refreshArchive();
+ note('تم حفظ '+rows.length+' صف مالي سحابيًا. تم استبعاد '+skipped.length+' صفًا بسبب نقص أو تكرار أو تعارض أو فرع غير مطابق.');await refreshOwnerFinancialArchive();
 }
 function renderGenericHistoricalCards(report){
  const source=$('historyAnalysisResults');if(!source)return;
