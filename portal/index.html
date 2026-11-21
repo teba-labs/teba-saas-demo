@@ -22,23 +22,23 @@
 <body>
   <main>
     <div class="mark" aria-hidden="true">✚</div>
-    <h1>بوابة نتائج التحاليل</h1>
-    <p>أدخل اسم المريض ورقم الزيارة كما هو موضح في إيصال المعمل لعرض أحدث تقرير معتمد.</p>
+    <h1 id="portalTitle">بوابة نتائج التحاليل</h1>
+    <p id="portalIntro">أدخل اسم المريض ورقم الزيارة كما هو موضح في إيصال المعمل لعرض أحدث تقرير معتمد.</p>
     <form data-portal-form>
       <label for="slug">رمز المعمل</label>
       <input id="slug" name="slug" autocomplete="organization" required minlength="3" maxlength="64" pattern="[a-zA-Z0-9-]+" placeholder="مثال: teba-labs">
-      <label for="patientName">اسم المريض بالكامل</label>
+      <label id="portalNameLabel" for="patientName">اسم المريض بالكامل</label>
       <input id="patientName" name="patientName" autocomplete="name" required minlength="2" maxlength="160" placeholder="الاسم كما هو مسجل بالمعمل">
-      <label for="visitNumber">رقم الزيارة</label>
+      <label id="portalVisitLabel" for="visitNumber">رقم الزيارة</label>
       <input id="visitNumber" name="visitNumber" required maxlength="40" placeholder="رقم الزيارة على الإيصال">
-      <button type="submit">عرض التقرير</button>
+      <button id="portalSubmit" type="submit">عرض التقرير</button>
     </form>
     <div id="portal-status" data-portal-status role="status" aria-live="polite" hidden></div>
     <section data-portal-result hidden>
       <p>التقرير صادر من <strong data-portal-lab></strong></p>
       <a class="download" data-portal-download target="_blank" rel="noopener noreferrer">فتح / تحميل PDF</a>
     </section>
-    <p class="small">لا تشارك رابط التقرير مع أي شخص آخر. رابط التحميل مؤقت.</p>
+    <p id="portalHelpText" class="small">لا تشارك رابط التقرير مع أي شخص آخر. رابط التحميل مؤقت.</p>
   </main>
   <script type="module" src="./lookup.js"></script>
 <script type="module" src="../assets/js/theme-controller.js"></script>
