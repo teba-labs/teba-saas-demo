@@ -46,6 +46,9 @@ test('tenant branding keeps the product identity separate from the laboratory na
   const script = read('assets/js/tenant-branding.js');
   assert.match(script, /TAIBA SMART LAB/);
   assert.match(script, /data-tenant-lab-name/);
+  const home = read('app/index.html');
+  assert.match(home, /TAIBA TECH/);
+  assert.match(home, /TAIBA SMART LAB/);
   const platform = read('app/platform-admin.html');
   assert.match(platform, /TAIBA TECH/);
   assert.match(platform, /theme-controller\.js/);
