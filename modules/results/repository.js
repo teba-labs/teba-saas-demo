@@ -104,7 +104,13 @@ export async function listResultsForVisitTests({ tenantId, visitTestIds } = {}) 
         .select('id, tenant_id, visit_test_id, parameter_code, parameter_name_snapshot, value_numeric, value_text, unit_snapshot, reference_range_snapshot, flag, entered_at')
         .eq('tenant_id', tenantId).in('visit_test_id', chunk)
         .order('entered_at').order('id').range(offset, offset + 499);
-      if (error) throw error;
+      if (error) {
+        if (/fetch|network|offline/i.test(error.message || '')) {
+          const cached = await getCachedRows('test_results', { tenantId });
+          return cached.filter(row => ids.includes(row.visit_test_id));
+        }
+        throw error;
+      }
       const page = data ?? [];
       rows.push(...page.map(row => ({ ...row, branch_id: null })));
       if (page.length < 500) break;
