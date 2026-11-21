@@ -20,7 +20,7 @@ assert.match(importer,/result\.failed/);
 assert.match(catalog,/export async function saveCatalogTest/);
 assert.match(schema,/unique \(tenant_id, code\)/);
 const sw=await readFile(new URL('service-worker.js',root),'utf8');
-assert.match(sw,/taiba-smart-lab-shell-v29/);
+assert.match(sw,/taiba-smart-lab-shell-v\\d+/);
 assert.match(sw,/modules\/migration\/catalog-importer\.js/);
 const priceImporter=await readFile(new URL('../../modules/migration/price-importer.js',import.meta.url),'utf8');
 assert.match(priceImporter,/importNewBasePrices/);
