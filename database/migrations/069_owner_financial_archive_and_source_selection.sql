@@ -44,7 +44,7 @@ create table if not exists public.owner_financial_import_rows (
     references public.branches(tenant_id,id) on delete restrict,
   constraint owner_financial_import_rows_batch_scope_fk foreign key (batch_id,tenant_id)
     references public.owner_financial_import_batches(id,tenant_id) on delete restrict,
-  constraint owner_financial_import_rows_source_unique unique (batch_id,sheet_name,row_number)
+  constraint owner_financial_import_rows_source_unique unique (batch_id,sheet_name,row_number,metric_key)
 );
 
 create index if not exists owner_financial_import_rows_scope_period_idx
