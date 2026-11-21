@@ -16,7 +16,7 @@ test('result repository sends one tenant, branch, visit-test and staff scoped RP
   assert.match(repo, /db\(\)\.rpc\('save_draft_results_idempotent'/);
   assert.match(repo, /operationId = crypto\.randomUUID\(\)/);
   assert.match(repo, /entityType: 'draft_results'/);
-  assert.match(repo, /p_tenant_id: tenantId, p_branch_id: branchId, p_visit_test_id: visitTestId/);
+  assert.match(repo, /p_tenant_id: tenantId, p_branch_id: branchId,\s*p_visit_test_id: visitTestId/);
   assert.match(repo, /new Set\(prepared\.map\(item => item\.parameter_code\)\)/);
 });
 
