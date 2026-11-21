@@ -29,7 +29,7 @@ test('theme controller supports a global default and independent page overrides'
   assert.match(script, /taiba\.appearance\.page:/);
   assert.match(script, /taiba\.appearance\.scope:/);
   assert.match(script, /clearPageOverrides/);
-  assert.match(script, /data-theme/);
+  assert.match(script, /document\.documentElement\.dataset\.theme/);
   assert.match(script, /theme-system\.css/);
   assert.ok(script.includes("location.pathname.replace(/\\/+$/, '')"));
 });
