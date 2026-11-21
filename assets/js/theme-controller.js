@@ -50,7 +50,11 @@ function buildControl() {
   scope.innerHTML = '<option value="global">كل النظام</option><option value="page">هذه الصفحة فقط</option>';
   const savedScope = safeGet(scopeKey);
   scope.value = savedScope === 'page' ? 'page' : 'global';
-  scope.addEventListener('change', () => {\n    safeSet(scopeKey, scope.value);\n    // Switching to the global scope must immediately discard the visual effect of a page override.\n    applyTheme(scope.value === 'global' ? globalTheme() : currentTheme());\n  });
+  scope.addEventListener('change', () => {
+    safeSet(scopeKey, scope.value);
+    // Switching to the global scope must immediately discard the visual effect of a page override.
+    applyTheme(scope.value === 'global' ? globalTheme() : currentTheme());
+  });
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'taiba-theme-toggle';
@@ -63,7 +67,7 @@ function buildControl() {
       safeSet(GLOBAL_KEY, next);
       clearPageOverrides();
     }
-    applyTheme(currentTheme());
+    applyTheme(scope.value === 'global' ? globalTheme() : currentTheme());
   });
   wrap.append(scope, button);
   if (host === document.body) wrap.classList.add('taiba-theme-floating');
