@@ -109,11 +109,11 @@ async function start() {
   await selectTenant(preferredTenantId);
 }
 const env = validateEnvironment(APP_ENV);
-$('environment').textContent = env.valid ? 'بيئة الاختبار' : 'إعداد الاتصال غير مكتمل';
+$('environment').textContent = env.valid ? 'بيئة التشغيل الأساسية' : 'إعداد الاتصال غير مكتمل';
 if (!env.valid) {
   $('loginButton').disabled = true;
   $('configNotice').hidden = false;
-  $('configNotice').textContent = env.problems?.join(' ') || 'راجع إعدادات الاتصال بمشروع الاختبار.';
+  $('configNotice').textContent = env.problems?.join(' ') || 'راجع إعدادات الاتصال بالسحابة الأساسية.';
 }
 $('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
