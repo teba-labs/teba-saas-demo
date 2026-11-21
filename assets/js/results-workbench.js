@@ -508,8 +508,10 @@ async function saveTest(button) {
       value: input.value, flag: classifyResultFlag(input),
     }));
     if (!results.length) throw new Error('أدخل نتيجة واحدة على الأقل قبل الحفظ.');
+    const workItem=state.work.find(row=>row.id===testId);
     const savedRows = await saveDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id,
-      visitTestId: testId, results, staffId: $('staffSelect').value });
+      visitTestId: testId, results, staffId: $('staffSelect').value,
+      dependsOn: workItem?.local_intake_operation_id ? [workItem.local_intake_operation_id] : [] });
     if (savedRows?.queued) {
       section.dataset.localPending = 'true';
       for (const input of inputs) if (input.value.trim()) { input.dataset.originalValue = input.value; input.dataset.localPending = 'true'; }
