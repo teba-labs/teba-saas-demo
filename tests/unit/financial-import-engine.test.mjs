@@ -52,6 +52,12 @@ const priceList=engine.analyzeFinancialRows({headers:priceHeaders,mapping:priceM
 assert.equal(priceList.ready,true);
 assert.equal(priceList.records[0].metric_key,'test_price');
 assert.equal(priceList.records[0].period_date,null);
+const datedPriceHeaders=['تاريخ','اسم التحليل','تكلفة الوحدة','سعر البيع'];
+const datedPriceMapping=engine.suggestFinancialMapping(datedPriceHeaders);
+const datedPrice=engine.analyzeFinancialRows({headers:datedPriceHeaders,mapping:datedPriceMapping,rows:[['2024-01-01','CBC',22,110]]});
+assert.equal(datedPrice.ready,true);
+assert.equal(datedPrice.records[0].metric_key,'test_price');
+assert.equal(datedPrice.records[0].period_date,'2024-01-01');
 const activityHeaders=['التاريخ','نوع الحركة','المبلغ','العدد','اسم التحليل'];
 const activityMapping=engine.suggestFinancialMapping(activityHeaders);
 const activity=engine.analyzeFinancialRows({headers:activityHeaders,mapping:activityMapping,rows:[['2024-01-15','tests_count','',10,'CBC'],['2024-01-15','expenses',500,'','']]});
