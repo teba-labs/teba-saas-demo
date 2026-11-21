@@ -1,0 +1,66 @@
+/* Shared light/dark appearance layer for all Taiba Smart Lab pages. */
+.taiba-theme-control{display:inline-flex;align-items:center;gap:6px;margin-inline-start:10px;flex-wrap:wrap}
+.taiba-theme-scope,.taiba-theme-toggle{min-height:34px;border:1px solid #91a9b2;border-radius:9px;padding:6px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.taiba-theme-scope{background:#fff;color:#183b49;max-width:118px}
+.taiba-theme-toggle{background:#eaf4f4;color:#174b55;transition:background .18s ease,border-color .18s ease,transform .18s ease}
+.taiba-theme-toggle:hover{background:#d8eceb;border-color:#5b9b9c;transform:translateY(-1px)}
+.taiba-theme-floating{position:fixed;z-index:9999;top:12px;inset-inline-end:12px;padding:6px;background:#fff;border:1px solid #d8e3e7;border-radius:12px;box-shadow:0 5px 20px #102b3a20}
+html[data-theme="dark"]{color-scheme:dark}
+html[data-theme="dark"] body{background:#0c1720!important;color:#e4edf2!important}
+html[data-theme="dark"] :is(h1,h2,h3,h4,h5,strong,b,label,legend,th){color:#e7f0f4}
+html[data-theme="dark"] :is(p,small,.muted,.eyebrow,.step-kicker,.section-heading p,.overview-label){color:#a9bdc7}
+html[data-theme="dark"] :is(.panel,.card,.login-card,.work-card,.results-column,.owner-area,.owner-link,.app-card,.settings-tab-panel,.print-preview,.profile-entry-view,.results-actionbar,.parameter-group,.visit-select-button,.profile-open-button,.status-strip,.system-status,.workday-overview,.workspace-context,.receipt-panel,.matches,.catalog-list,.visit-list,.historical-result-card,.historical-report-picker,.culture-workflow,.owner-links,.section-card,.dashboard-card,.stat-card,.module-card){background:#142530!important;color:#e4edf2!important;border-color:#304754!important;box-shadow:0 4px 16px #00000020}
+html[data-theme="dark"] :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea){background:#0e1d27!important;color:#e7f0f4!important;border-color:#405965!important}
+html[data-theme="dark"] :is(input,select,textarea)::placeholder{color:#839aa5}
+html[data-theme="dark"] :is(.app-card strong,.owner-link strong,.results-column-head h2,.results-actionbar-title strong,.parameter-group legend){color:#eaf3f6!important}
+html[data-theme="dark"] :is(.app-card small,.owner-link small,.attachment-item span,.attachment-item small){color:#a9bdc7!important}
+html[data-theme="dark"] :is(.app-card:hover,.owner-link:hover,.visit-select-button:hover,.profile-open-button:hover){background:#1b3441!important;border-color:#4d8990!important}
+html[data-theme="dark"] :is(.button-secondary,.button-ghost,.button-outline,.button-light){background:#203844!important;color:#e7f1f4!important;border-color:#46616d!important}
+html[data-theme="dark"] :is(.button-secondary,.button-ghost,.button-outline,.button-light):hover{background:#2b4a57!important;border-color:#6da8aa!important}
+html[data-theme="dark"] :is(table,th,td){border-color:#344d59!important}
+html[data-theme="dark"] :is(th,td){color:#dce8ed}
+html[data-theme="dark"] :is(hr,.divider,.section-divider){border-color:#304754!important}
+html[data-theme="dark"] a:not(.button){color:#86c8cb}
+html[data-theme="dark"] footer{color:#9eb2bc}
+html[data-theme="dark"] .taiba-theme-scope{background:#142530;color:#e7f0f4;border-color:#48616c}
+html[data-theme="dark"] .taiba-theme-toggle{background:#294b56;color:#f1f7f8;border-color:#5b8f96}
+html[data-theme="dark"] .taiba-theme-toggle:hover{background:#365e69}
+html[data-theme="dark"] .taiba-theme-floating{background:#142530;border-color:#405965}
+html[data-theme="dark"] :is(.notice,.config-notice){color:#f1f6f8}
+@media(max-width:680px){.taiba-theme-control{margin-inline-start:0}.taiba-theme-scope{max-width:100px;font-size:11px}.taiba-theme-toggle{font-size:11px;padding:6px 8px}.taiba-theme-floating{top:8px;inset-inline-end:8px}}
+
+/* Shared interaction and component rhythm. Page-specific layout remains intact. */
+:root{--taiba-ink:#183b49;--taiba-muted:#6e838d;--taiba-border:#dce6e9;--taiba-surface:#fff;--taiba-accent:#16877f;--taiba-focus:#62b7b4}
+:where(button,.button,.btn,a.button){transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
+:where(button,.button,.btn):not(:disabled):hover{transform:translateY(-1px);box-shadow:0 5px 14px #17374718}
+:where(button,.button,.btn):focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #62b7b488;outline-offset:2px}
+:where(input:not([type="checkbox"]):not([type="radio"]),select,textarea){font:inherit}
+:where(.panel,.card,.work-card,.results-column,.owner-area,.app-card,.settings-tab-panel){border-radius:15px}
+:where(.actions,.toolbar,.top-actions){gap:9px}
+html[data-theme="dark"]{--taiba-ink:#e7f0f4;--taiba-muted:#a9bdc7;--taiba-border:#304754;--taiba-surface:#142530}
+html[data-theme="dark"] :where(button,.button,.btn,a.button):not(:disabled):hover{box-shadow:0 7px 18px #00000040}
+html[data-theme="dark"] :where(button,.button,.btn):focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline-color:#70c5c8}
+
+/* Shared application chrome: consistent header and page rhythm across workflows. */
+body>.topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;min-height:64px;padding:12px clamp(14px,3vw,30px);background:linear-gradient(110deg,#102b3a,#174d57)!important;color:#f4fafb!important;border-bottom:3px solid #2a9b91;box-shadow:0 5px 18px #102b3a20}
+body>.topbar :is(strong,h1,h2,a,span,small){color:#f4fafb}
+body>.topbar :is(a,button){transition:background-color .18s ease,border-color .18s ease,transform .18s ease}
+body>.topbar a:hover{color:#bde8e5!important}
+body>.topbar .taiba-theme-control{margin-inline-start:auto}
+body>.shell,main.shell{width:min(1480px,calc(100% - 28px));margin-inline:auto}
+html[data-theme="dark"] body>.topbar{background:linear-gradient(110deg,#091923,#102e38)!important;border-bottom-color:#368d8e;box-shadow:0 5px 20px #00000035}
+@media(max-width:680px){body>.topbar{padding:10px 12px;gap:8px}body>.shell,main.shell{width:calc(100% - 18px)}}
+
+/* Owner reports and financial-import cards. */
+.owner-report-card{border-radius:14px}
+.owner-screen-head,.history-file-card,.validationPanel{border:1px solid var(--taiba-border);border-radius:13px;padding:14px;background:var(--taiba-surface)}
+.validationPanel{margin-top:14px;line-height:1.75}
+.history-file-card{margin:12px 0}
+html[data-theme="dark"] :is(.owner-report-card,.owner-screen-head,.security-status-grid article,.history-file,.history-file-card,.history-analysis-kpis article,.validationPanel,.history-panel,.history-period-global){background:#142530!important;color:#e4edf2!important;border-color:#304754!important}
+html[data-theme="dark"] .owner-report-card strong{color:#e7f0f4!important}
+html[data-theme="dark"] .owner-report-card small{color:#a9bdc7!important}
+html[data-theme="dark"] .owner-report-number{background:#294b56;color:#c7e5e5}
+html[data-theme="dark"] .owner-report-open{color:#9bd7d7}
+html[data-theme="dark"] :is(.expense-bar-track,.history-empty){background:#203844!important;color:#a9bdc7}
+html[data-theme="dark"] :is(.history-saved,.history-analysis-results){border-color:#304754!important}
+html[data-theme="dark"] .history-saved button{background:#203844;color:#e7f0f4;border-color:#46616d}
