@@ -29,7 +29,8 @@ export function normalizeFinancialDate(value){
  const d=new Date(s);return s&& !Number.isNaN(d.getTime())?d.toISOString().slice(0,10):null;
 }
 export function suggestFinancialMapping(headers){
- return (headers||[]).map((header,columnIndex)=>{const h=normalize(header);let best=null;for(const field of FINANCIAL_FIELDS){if(field.aliases.some(alias=>normalize(alias)===h)){best=field;break;}}return {columnIndex,header:String(header??''),fieldKey:best?.key||'',confidence:best?'suggested':'unmapped'};});
+ const normalized=(headers||[]).map(normalize),hasYear=normalized.some(h=>['year','السنة','عام'].includes(h)),hasDate=normalized.some(h=>FINANCIAL_FIELDS.find(f=>f.key==='period_date').aliases.some(a=>normalize(a)===h));
+ return (headers||[]).map((header,columnIndex)=>{const h=normalize(header);let best=null;if(!hasYear&&!hasDate&&['month','الشهر'].includes(h))best=FINANCIAL_FIELDS.find(f=>f.key==='period_date');else for(const field of FINANCIAL_FIELDS){if(field.aliases.some(alias=>normalize(alias)===h)){best=field;break;}}return {columnIndex,header:String(header??''),fieldKey:best?.key||'',confidence:best?'suggested':'unmapped'};});
 }
 export function analyzeFinancialRows({headers=[],rows=[],mapping=[]}={}){
  const mapped=new Map(mapping.filter(x=>x.fieldKey).map(x=>[x.fieldKey,x.columnIndex]));
