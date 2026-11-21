@@ -106,3 +106,12 @@ One integrated development cycle covering all 20 work items:
 - GitHub reports PR #31 as not mergeable because the development branch and main have diverged. No merge was attempted.
 - The last queried commit status returned no checks; CI is not yet confirmed. Do not mark the test suite as passing.
 - PR #30 (main-to-development synchronization attempt) was closed without merge after GitHub reported conflicts.
+
+### Report-to-portal handoff clarification
+- The report preview is rendered in a separate browser window and has its own `طباعة التقرير` control.
+- The publish action does not upload the preview window automatically. The user must print/save that preview as PDF, select the saved PDF in the report upload field, then publish it.
+- Publication calls the `publish-report` Edge Function; the report repository uses the private `tenant-reports` storage bucket and creates signed URLs for authorized downloads.
+- After publication, the results workspace enables a WhatsApp handoff only when the report is published, a valid Egyptian phone is available, and the tenant slug exists. It opens a prefilled `wa.me` draft pointing to the patient portal; the employee still reviews and sends the message in WhatsApp.
+- The upload field now explains the required `Save as PDF` handoff instead of implying that preview and publication are one automatic step.
+- Added a static contract test for the private report-storage and WhatsApp-to-portal wiring.
+- Additional commits: PDF handoff clarification `3f60f4e`; PDF workflow test `8656e9e`; identity footer `13047b8`; identity test `4bea0b7`; appearance assertion correction `402aac9`; tenant branding test correction `92ec0f2`; report/WhatsApp wiring test `96408db`.
