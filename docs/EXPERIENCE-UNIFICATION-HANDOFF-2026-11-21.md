@@ -46,8 +46,8 @@ One integrated development cycle covering all 20 work items:
 ## Work ledger
 | Item | Status | Evidence / next action |
 |---|---|---|
-| 1. Full page/file inventory | In progress | Map all application, portal, owner and platform pages. |
-| 2. UI/cloud integration review | In progress | Confirmed results save uses atomic Supabase RPC; preview/publish use cloud repositories/storage. Broader all-page audit remains. |
+| 1. Full page/file inventory | Main entry points inventoried | 12 application/platform/portal pages are covered by shared appearance and keyboard controls; deeper module-by-module review remains. |
+| 2. UI/cloud integration review | Core paths traced | Results, reception/outbox, report publication, portal, dashboard and platform-owner repositories reviewed; remaining low-level modules still need targeted review. |
 | 3. Results save validation | Code fix committed | Confirmed selector bug: `closest('[data-test-id]')` selected the save/correction button itself because it also carries `data-test-id`. Both actions now select `.parameter[data-test-id]`; regression test added. CI/browser retest pending. |
 | 4. Full report lifecycle | Partially traced | Preview reads cloud-backed report data; publish requires approved visit, prior preview and PDF upload; WhatsApp opens a prefilled patient-portal link only after publication. Browser/PDF/WhatsApp acceptance still pending. |
 | 5. Persistence/sync | Pending | Inspect outbox, retry, idempotency and read-after-write. |
@@ -59,13 +59,13 @@ One integrated development cycle covering all 20 work items:
 | 11. Login/logout/navigation | In progress | Keyboard submit and appearance controls added to all product/platform/portal entry points. Full logout/navigation audit remains. |
 | 12. TAIBA TECH identity | Implemented in platform entry | Platform admin header/title now identify TAIBA TECH with Software Development & Digital Solutions descriptor. |
 | 13. TAIBA SMART LAB identity | Implemented in tenant branding | Tenant branding now preserves TAIBA SMART LAB as product identity and shows laboratory name separately. |
-| 14. Platform/tenant separation | Existing UI boundary confirmed; RLS audit pending | Platform admin UI uses aggregate tenant metrics and does not render patient names, visit-level records, results or report files. No ownership schema changed. Verify RPC/RLS policies before completion. |
-| 15. Tenant/branch isolation | Pending verification | Existing outbox filters and result RPC inputs are tenant/branch scoped; RLS policy review and isolated-tenant tests remain mandatory. |
-| 16. Automated tests | Added; execution pending | Added regression coverage for result selector, page theme/keyboard loading, offline assets and brand separation. CI status had not reported when last queried. |
-| 17. Responsive/performance | Partial | Added responsive control/header rules; full responsive/performance review remains. |
-| 18. Integrated preview | Draft review target only | Draft PR #31 created; GitHub reports it is not mergeable because the development baseline diverges from main. It is not a deployable preview. |
-| 19. Final evidence report | Pending | Record exact CI run and manual-test limitations. |
-| 20. Review handoff | Pending | Open review PR only after implementation and checks; do not merge. |
+| 14. Platform/tenant separation | Partial verification | Platform admin UI uses aggregate tenant metrics only. New owner-financial tables were previously verified in TEST with RLS/FORCE RLS and owner-only tenant policies; broader existing-table RLS review remains. |
+| 15. Tenant/branch isolation | Core boundaries verified; full audit pending | Outbox, result repository, report path and owner-financial tables are tenant/branch scoped in code; prior TEST validation verified the four new financial tables. Broader legacy-table RLS review remains. |
+| 16. Automated tests | Passed | Latest CI run #1068: JS checks and browser-only build passed; 261 static/unit tests passed, 0 failed. |
+| 17. Responsive/performance | Partial | Responsive controls/header rules and build validation passed; real device/browser visual QA remains. |
+| 18. Integrated preview | Prepared | Clean main-based review branch and PR #32 are open and mergeable; browser-only source artifact generated. Not deployed as a live authenticated preview. |
+| 19. Final evidence report | Completed | This handoff records exact CI, artifact, SHA-256, migration evidence and remaining manual acceptance boundaries. |
+| 20. Review handoff | Completed | PR #32 is open, mergeable and not merged. PRs #28/#29/#31 were closed as superseded; PR #30 was closed without merge. |
 
 ## Change log
 ### 2026-11-21 — Cycle initialization
@@ -136,3 +136,10 @@ One integrated development cycle covering all 20 work items:
 - The first CI run exposed five test failures: four stale v27 cache expectations and one incorrect theme-property assertion. Those were corrected; the successful run above is after the corrections.
 - PR #32 is the clean main-based review branch. No merge into main has occurred.
 - The original working branch and pre-cycle backup branches remain preserved.
+
+### Final handoff state
+- Clean review branch: `feature/experience-unification-release-2026-11-21`.
+- Working branch: `feature/experience-unification-2026-11-21`.
+- Safety branches: `backup/pre-experience-unification-2026-11-21` and `backup/pre-experience-release-2026-11-21`.
+- Consolidated review PR #32 is open and mergeable; `main` remains unchanged at its existing baseline.
+- Latest successful CI at the time of this entry: run #1068, 261/261 tests passed, 0 failed. Physical browser/printer/WhatsApp acceptance remains outside automated CI.
