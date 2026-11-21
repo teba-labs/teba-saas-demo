@@ -1,0 +1,30 @@
+/* Shared light/dark appearance layer for all Taiba Smart Lab pages. */
+.taiba-theme-control{display:inline-flex;align-items:center;gap:6px;margin-inline-start:10px;flex-wrap:wrap}
+.taiba-theme-scope,.taiba-theme-toggle{min-height:34px;border:1px solid #91a9b2;border-radius:9px;padding:6px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.taiba-theme-scope{background:#fff;color:#183b49;max-width:118px}
+.taiba-theme-toggle{background:#eaf4f4;color:#174b55;transition:background .18s ease,border-color .18s ease,transform .18s ease}
+.taiba-theme-toggle:hover{background:#d8eceb;border-color:#5b9b9c;transform:translateY(-1px)}
+.taiba-theme-floating{position:fixed;z-index:9999;top:12px;inset-inline-end:12px;padding:6px;background:#fff;border:1px solid #d8e3e7;border-radius:12px;box-shadow:0 5px 20px #102b3a20}
+html[data-theme="dark"]{color-scheme:dark}
+html[data-theme="dark"] body{background:#0c1720!important;color:#e4edf2!important}
+html[data-theme="dark"] :is(h1,h2,h3,h4,h5,strong,b,label,legend,th){color:#e7f0f4}
+html[data-theme="dark"] :is(p,small,.muted,.eyebrow,.step-kicker,.section-heading p,.overview-label){color:#a9bdc7}
+html[data-theme="dark"] :is(.panel,.card,.login-card,.work-card,.results-column,.owner-area,.owner-link,.app-card,.settings-tab-panel,.print-preview,.profile-entry-view,.results-actionbar,.parameter-group,.visit-select-button,.profile-open-button,.status-strip,.system-status,.workday-overview,.workspace-context,.receipt-panel,.matches,.catalog-list,.visit-list,.historical-result-card,.historical-report-picker,.culture-workflow,.owner-links,.section-card,.dashboard-card,.stat-card,.module-card){background:#142530!important;color:#e4edf2!important;border-color:#304754!important;box-shadow:0 4px 16px #00000020}
+html[data-theme="dark"] :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea){background:#0e1d27!important;color:#e7f0f4!important;border-color:#405965!important}
+html[data-theme="dark"] :is(input,select,textarea)::placeholder{color:#839aa5}
+html[data-theme="dark"] :is(.app-card strong,.owner-link strong,.results-column-head h2,.results-actionbar-title strong,.parameter-group legend){color:#eaf3f6!important}
+html[data-theme="dark"] :is(.app-card small,.owner-link small,.attachment-item span,.attachment-item small){color:#a9bdc7!important}
+html[data-theme="dark"] :is(.app-card:hover,.owner-link:hover,.visit-select-button:hover,.profile-open-button:hover){background:#1b3441!important;border-color:#4d8990!important}
+html[data-theme="dark"] :is(.button-secondary,.button-ghost,.button-outline,.button-light){background:#203844!important;color:#e7f1f4!important;border-color:#46616d!important}
+html[data-theme="dark"] :is(.button-secondary,.button-ghost,.button-outline,.button-light):hover{background:#2b4a57!important;border-color:#6da8aa!important}
+html[data-theme="dark"] :is(table,th,td){border-color:#344d59!important}
+html[data-theme="dark"] :is(th,td){color:#dce8ed}
+html[data-theme="dark"] :is(hr,.divider,.section-divider){border-color:#304754!important}
+html[data-theme="dark"] a:not(.button){color:#86c8cb}
+html[data-theme="dark"] footer{color:#9eb2bc}
+html[data-theme="dark"] .taiba-theme-scope{background:#142530;color:#e7f0f4;border-color:#48616c}
+html[data-theme="dark"] .taiba-theme-toggle{background:#294b56;color:#f1f7f8;border-color:#5b8f96}
+html[data-theme="dark"] .taiba-theme-toggle:hover{background:#365e69}
+html[data-theme="dark"] .taiba-theme-floating{background:#142530;border-color:#405965}
+html[data-theme="dark"] :is(.notice,.config-notice){color:#f1f6f8}
+@media(max-width:680px){.taiba-theme-control{margin-inline-start:0}.taiba-theme-scope{max-width:100px;font-size:11px}.taiba-theme-toggle{font-size:11px;padding:6px 8px}.taiba-theme-floating{top:8px;inset-inline-end:8px}}
