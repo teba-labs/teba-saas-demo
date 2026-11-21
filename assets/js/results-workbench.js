@@ -5,6 +5,7 @@ import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection 
 import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/laboratory/repository.js';
 import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
 import { listPendingDraftResults } from '../../offline/outbox.js';
+import { offlineDb } from '../../offline/database.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
 import { cacheRows, getCachedRows } from '../../offline/cache.js';
 import { publishReportVersion, correctVisitResultWithFlag } from '../../modules/reports/repository.js';
@@ -91,6 +92,13 @@ async function refreshWork() {
   if(window.taibaGetDirtyResultInputs?.().length){showNotice('هناك نتائج غير محفوظة. احفظها أولًا قبل تحديث القائمة أو تغيير الفرع أو الحالة.',true);return;}
   state.previewedVisits.clear();
   $('contextStatus').textContent = 'جارٍ تحديث قائمة العمل…';
+  const url = new URL(globalThis.location.href);
+  const requestedVisitId = url.searchParams.get('visit_id');
+  if (requestedVisitId && globalThis.navigator?.onLine !== false) {
+    const maps = await offlineDb.sync_meta.toArray();
+    const resolved = maps.find(row => row.tenant_id === state.tenant.id && row.branch_id === state.branch.id && row.local_visit_id === requestedVisitId && row.server_visit_id);
+    if (resolved) { url.searchParams.set('visit_id', resolved.server_visit_id); globalThis.history.replaceState({}, '', url); }
+  }
   let result = await listBranchWorkPage({ tenantId: state.tenant.id, branchId: state.branch.id, page: state.workPage, pageSize: state.workPageSize });
   const lastPage = Math.max(0, Math.ceil(result.count / state.workPageSize) - 1);
   if (state.workPage > lastPage) {
@@ -324,9 +332,23 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const visitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
   if (!visitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
   const visit = visitItems[0].visits || {};
-  const canPrint = visit.status === 'approved' || Boolean(visit.is_published);
+  const localOffline = Boolean(visit.local_offline) || visitItems.some(item => item.local_offline);
+  const canPrint = visit.status === 'approved' || Boolean(visit.is_published) || localOffline;
   const patient = visit.patients || {};
   const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
+  if (globalThis.navigator?.onLine === false || localOffline) {
+    const pending = await listPendingDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id });
+    const pendingRows = pending.filter(batch => visitItems.some(item => item.id === batch.payload?.visit_test_id))
+      .flatMap(batch => (batch.payload?.results || []).map(result => ({
+        id: 'local:' + batch.operation_id + ':' + result.parameter_code,
+        tenant_id: state.tenant.id, visit_test_id: batch.payload.visit_test_id,
+        parameter_code: result.parameter_code, value_numeric: result.value_numeric,
+        value_text: result.value_text, flag: result.flag, entered_at: batch.created_at,
+      })));
+    const byKey = new Map(rows.map(row => [row.visit_test_id + '|' + row.parameter_code, row]));
+    for (const row of pendingRows) byKey.set(row.visit_test_id + '|' + row.parameter_code, row);
+    rows.splice(0, rows.length, ...byKey.values());
+  }
   const cultureRows = await listCultureResults({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:visitItems.filter(item=>String(item.test_code_snapshot || '').startsWith('CULTURE_')).map(item=>item.id)});
   // Preview may be opened before approval so incomplete work can be spotted; printing remains gated.
   const selectedHistoricalIds=state.historicalSelections.get(visitId)||new Set();
@@ -343,8 +365,14 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const lab = brand.settings || {};
   const print = brand.printSettings || {};
   const branch = state.branch || brand.branch || {};
-  const { data: reportBranches = [] } = await getSupabaseClient().from('branches')
-    .select('id,name,address,phone').eq('tenant_id', state.tenant.id).eq('is_active', true).order('name');
+  let reportBranches = [];
+  if (globalThis.navigator?.onLine === false) reportBranches = [state.branch].filter(Boolean);
+  else {
+    const branchResult = await getSupabaseClient().from('branches')
+      .select('id,name,address,phone').eq('tenant_id', state.tenant.id).eq('is_active', true).order('name');
+    if (branchResult.error) throw branchResult.error;
+    reportBranches = branchResult.data || [];
+  }
   const logoPath = print.showLogo === false ? '' : (print.logoSource === 'branch' ? (print.logoPath || lab.logo_path || '') : (lab.logo_path || print.logoPath || ''));
   const signaturePath = print.showSignature ? print.signaturePath || '' : '';
   const stampPath = print.showStamp ? print.stampPath || '' : '';
@@ -433,7 +461,8 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     '@page{size:' + paper + ' ' + orientation + ';margin:' + pageTopMargin + 'mm ' + margin + 'mm ' + pageBottomMargin + 'mm ' + margin + 'mm}' +
     'body{position:relative;font-family:Tahoma,Arial,sans-serif;color:#1d2e3a;font-size:12px;line-height:1.65;background:#fff}body>*:not(.watermark-image):not(.watermark-text){position:relative;z-index:1}.watermark-image{position:fixed;top:28%;left:0;right:0;z-index:0;text-align:center;pointer-events:none;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + '}.watermark-image img{width:' + (print.watermarkSize==='large'?'62%':print.watermarkSize==='small'?'28%':'42%') + ';max-height:48vh;object-fit:contain}.watermark-text{position:fixed;top:42%;left:8%;right:8%;z-index:0;text-align:center;font-size:' + (print.watermarkSize==='large'?'76px':print.watermarkSize==='small'?'38px':'56px') + ';font-weight:800;color:#173f58;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + ';pointer-events:none}header.report-header{border-bottom:2px solid #168f9a;padding:0 0 8px;margin-bottom:14px;background:#fff}.header-grid{display:grid;grid-template-columns:1fr 120px 1fr;align-items:center;gap:10px}.identity-zone{display:grid;gap:3px;font-size:13px}.identity-zone strong{font-size:17px;color:#173f58}.identity-zone span{color:#435864}.header-right{text-align:right}.header-left{text-align:left}.logo-zone{text-align:center}.lab-logo{max-width:110px;max-height:72px;object-fit:contain}.logo-placeholder{font-weight:800;color:#173f58;font-size:12px}h1{font-size:19px;margin:10px 0 4px;text-align:center;color:#173f58}h2{font-size:15px;margin:12px 0 6px;color:#173f58}.report-title{text-align:center;font-weight:700;color:#16818b;font-size:13px}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;margin:10px 0 18px}.meta span{padding:6px 8px;background:#f3f7f8;border-radius:5px}.report-group{margin-top:8px}.profile-report{break-before:page}.test{break-inside:avoid;margin:0 0 10px}.individual-report>.test{break-inside:avoid}.historical-test{border:2px dashed #8a6d3b;padding:8px;margin-top:18px}.historical-test h2{color:#765a27}table{width:100%;border-collapse:collapse;margin-bottom:12px;direction:ltr}th,td{border:1px solid #cbd5dc;padding:6px;text-align:left}th{background:#eaf2f4;color:#173f58}td{background:#fff}.branch-performed{font-weight:700;color:#315c66;margin-top:7px;padding:5px 0;border-top:1px solid #dce5e8;font-size:11px}.report-footer{display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;border-top:1px solid #168f9a;margin-top:20px;padding-top:10px;align-items:start;font-size:10px;line-height:1.35}.footer-right,.footer-left{display:grid;gap:4px}.footer-center{text-align:center}.footer-qr{display:grid;justify-items:center;gap:3px;color:#173f58;text-decoration:none}.footer-qr img{width:76px;height:76px;object-fit:contain}.footer-center-message{font-size:11px;font-weight:700}.signature{max-width:130px;max-height:65px;object-fit:contain}.preview-controls{display:flex;gap:8px;justify-content:center;padding:10px;margin-bottom:12px}.preview-controls button{border:0;border-radius:7px;padding:8px 14px;background:#173f58;color:#fff;font:inherit;cursor:pointer}.preview-controls button+button{background:#e7f1f2;color:#173f58}.report-pages{display:block}.report-extra-footer{grid-column:1/-1;text-align:center;border-top:1px solid #e1e8eb;padding-top:4px;margin-top:4px;font-size:9px}@media print{.preview-controls{display:none}'+(showPrintHeader?'header.report-header{position:fixed;top:-50mm;left:0;right:0;z-index:2;background:#fff}':'header.report-header{position:static;top:auto;border:0;padding:0;margin-bottom:14px}')+(showPrintFooter?'.report-footer{position:fixed;bottom:-38mm;left:0;right:0;z-index:2;background:#fff}':'.report-footer{display:none}')+'.profile-report{break-before:page}.report-pages>.profile-report:first-child{break-before:auto}.report-footer{break-inside:avoid}}' +
     '</style></head><body>' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
-    '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">طباعة التقرير</button>' : '<button disabled>اعتمد الزيارة أولًا للطباعة</button>') + '<button onclick="window.close()">إغلاق المعاينة</button></div>' +
+    '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">' + (localOffline ? 'طباعة مسودة غير معتمدة' : 'طباعة التقرير') + '</button>' : '<button disabled>اعتمد الزيارة أولًا للطباعة</button>') + '<button onclick="window.close()">إغلاق المعاينة</button></div>' +
+    (localOffline ? '<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">نسخة عمل غير معتمدة — محفوظة على هذا الجهاز — تنتظر المزامنة والمراجعة والاعتماد. لا تُسلّم باعتبارها تقريرًا نهائيًا.</div>' : '') +
     '<header class="report-header">' + (showPrintHeader ? '<div class="header-grid"><div class="header-right">' + headerRight + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-left">' + headerLeft + '</div></div>' : '') + '<h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="meta"><span>اسم المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>تاريخ الزيارة: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></header>' +
     '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
     ((signature || stamp || reviewerName) ? '<section class="report-approval" style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:14px 0 8px">' + (signature ? '<div style="display:grid;gap:4px"><img style="max-width:130px;max-height:65px;object-fit:contain" src="' + escapeHtml(signature) + '" alt="التوقيع"><small>التوقيع</small></div>' : '') + (stamp ? '<div style="display:grid;gap:4px"><img style="max-width:100px;max-height:100px;object-fit:contain" src="' + escapeHtml(stamp) + '" alt="الختم"><small>ختم المعمل</small></div>' : '') + (reviewerName ? '<div style="display:grid;gap:4px"><strong style="border-top:1px solid #667;padding-top:4px;min-width:120px">' + escapeHtml(reviewerName) + '</strong><small>المراجع / المعتمد</small></div>' : '') + '</section>' : '') +
@@ -655,7 +684,7 @@ $('signOut').addEventListener('click', async () => { try { await signOut(); awai
 $('refreshButton').addEventListener('click', async () => { try { await refreshWork(); } catch (error) { showNotice(error.message, true); } });
 
 try { await startWorkspace(); window.dispatchEvent(new CustomEvent('taiba:results-context',{detail:{tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug}})); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
-window.taibaPreviewVisitReport = async visitId => { if(globalThis.navigator?.onLine===false){showNotice('معاينة التقرير تحتاج اتصالًا بالإنترنت؛ لم يتم تحميل التقرير من السحابة.',true);return;} const dirty=window.taibaGetDirtyResultInputs?.()||[];if(dirty.length){showNotice('هناك نتائج تم تغييرها ولم تُحفظ بعد. احفظها أولًا ثم أعد المعاينة.',true);return;} const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});state.previewedVisits.add(visitId);window.dispatchEvent(new CustomEvent('taiba:visit-report-previewed',{detail:{visitId}}));showNotice('تم تجهيز معاينة التقرير. راجعها قبل الطباعة أو النشر.');}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
+window.taibaPreviewVisitReport = async visitId => { const dirty=window.taibaGetDirtyResultInputs?.()||[];if(dirty.length){showNotice('هناك نتائج تم تغييرها ولم تُحفظ بعد. احفظها أولًا ثم أعد المعاينة.',true);return;} const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});state.previewedVisits.add(visitId);window.dispatchEvent(new CustomEvent('taiba:visit-report-previewed',{detail:{visitId}}));showNotice('تم تجهيز معاينة التقرير. راجعها قبل الطباعة أو النشر.');}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
 
 $('prevWorkPage').addEventListener('click', async () => {
   if (state.workPage <= 0) return;
