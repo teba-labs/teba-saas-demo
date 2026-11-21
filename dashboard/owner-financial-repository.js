@@ -1,4 +1,4 @@
-import {getSupabaseClient} from '../../core/supabase-client.js';
+import {getSupabaseClient} from '../core/supabase-client.js';
 const db=()=>getSupabaseClient();
 const requireValue=(v,n)=>{if(!v)throw new Error(n+' مطلوب.');};
 async function pages(query,pageSize=500){const out=[];for(let offset=0;;offset+=pageSize){const {data,error}=await query().range(offset,offset+pageSize-1);if(error)throw error;const batch=data||[];out.push(...batch);if(batch.length<pageSize)return out;}}
