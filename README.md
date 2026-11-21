@@ -1,49 +1,14 @@
-> **الحالة الحالية — 20 نوفمبر 2026:** تم دمج تاريخ `main` ذي الـ13 commit داخل فرع التطوير، مع الحفاظ على شجرة التطوير الأحدث ونقاط الرجوع. فرع التطوير الحالي هو `integration/unified-test-2026-11-19`. `main` لم يتغير بعد؛ PR #3 ما زال مسودة بانتظار بوابات الأمان والنشر.
->
-> **سجل الدمج:** [تقرير تسوية التحديثات الـ13 والاختبارات](docs/MAIN-13-COMMITS-RECONCILIATION-AR-2026-11-20.md). Commit الدمج الأول `b8fc0cc4b590df821d9d113199b3cf62c2a47aa8`. نقطتا الرجوع: `backup/pre-unification-dev-2026-11-20` و`backup/pre-unification-main-2026-11-20`.
->
-> **حالة قاعدة البيانات:** Supabase TEST يسجل migrations القياسية 012–023. الجدول المخصص `public.schema_migrations` يحتفظ بالـbaseline `1.0.0` بشكل منفصل. إعادة بناء محلية مؤقتة للسلسلة 001–023 نجحت، وبصمة المخطط طابقت المتوقع بالكامل. لا تستخدم `db push` أو `migration repair` تلقائيًا.
->
-> **الاختبارات:** 189/189 اختبار static/unit ناجح، وفحص JavaScript ناجح. اختبار RLS لمستأجرين وفرعين وأرشفة فرع نجح داخل معاملة `ROLLBACK` على TEST، وتم التحقق من عدم بقاء أي بيانات اصطناعية. كما نجحت إعادة بناء Supabase المحلية للسلسلة 001–023.
->
-> **حدود النشر:** تم إصلاح إعداد Netlify ليُنشر `dist` فقط بدل جذر المستودع، مع استبعاد migrations والتوثيق والاختبارات والمصدر المرجعي. لكن معاينة Netlify لم تُنشر لأن `NETLIFY_AUTH_TOKEN` و`NETLIFY_SITE_ID` غير موجودين في GitHub Secrets. لا يوجد اختبار متصفح حي بعد، ولا إثبات لإعداد أسرار/Origins الخاصة بوظائف Edge؛ لذلك لا تدمج إلى `main` أو تنقل تشغيل المعمل الحقيقي بعد.
->
-> **اقرأ قبل أي تنفيذ:** [سجل الحالة الرئيسي](docs/MASTER-STATUS-AND-CONTINUATION-AR.md)، [المراجعة الوظيفية والتقنية](docs/FUNCTIONAL-AUDIT-CONSOLIDATED-AR-2026-11-18.md)، ثم [تقرير تسوية الدمج](docs/MAIN-13-COMMITS-RECONCILIATION-AR-2026-11-20.md).
->
-> ---
->
-# Taiba Smart Lab — Neutral Development Workspace
+# Taiba Smart Lab — Primary SaaS Runtime
 
-This is a separate development copy. `source_original/teba-lab-main/` is immutable reference material; do not edit it. The production Supabase project is not used.
+> **تصحيح توزيع البيئات — 21 نوفمبر 2026**
+>
+> - **السحابة الأساسية:** مشروع Taiba SaaS الحالي `hgqwpykeazuzceeiumjg` (اسم لوحة التحكم: `teba-lis-demo`). هي قاعدة التطبيق الحالية، ويجب أن يظل موقع GitHub Pages متصلًا بها.
+> - **سحابة الاختبار المحجوزة:** المشروع `khjzoleiuiipyodpkieg` (اسم لوحة التحكم: `teba-lab`). مخططها أقدم ومختلف؛ لا تُوجَّه إليها ملفات الموقع ولا تُطبّق عليها سلسلة SaaS قبل تجهيزها واختبارها بشكل مستقل.
+> - **الاتصال:** يظل عنوان Supabase والمفتاح العام الحاليان في `config/environment.js` كما هما، وهما يخصان السحابة الأساسية. تم تصحيح وصف البيئة والتحقق الآلي فقط؛ لم يتم تدوير المفتاح أو تبديل عنوان الاتصال.
+> - **نطاق هذا التصحيح:** توثيق الأدوار واختبار منع توجيه التطبيق إلى مشروع TEST أو مشروع غير معتمد. لا يتضمن نقل بيانات أو ترحيلات قاعدة بيانات أو تغيير مستخدمين أو نشر/تعديل Edge Functions أو إعداد الأسرار وStorage.
+> - **روابط/أسرار الوظائف السحابية:** مؤجلة لجلسة مستقلة كما اتفقنا.
 
-## Current target
-- Supabase TEST URL: `https://hgqwpykeazuzceeiumjg.supabase.co`
-- Project ref: `hgqwpykeazuzceeiumjg`
-- Frontend key: TEST project publishable browser key is configured in `config/environment.js` (never use a service_role key in browser code).
-- Never put a `service_role` key or any secret in browser code.
-
-## Implemented
-- Full source inventory and static audit are in `docs/`.
-- Core environment configuration, Supabase client factory, Auth helpers, tenant/branch context resolver and schema contract are in place.
-- The new core validates the TEST project URL and publishable browser key before startup.
-- The legacy source remains unchanged.
-
-## Current verification boundary
-- اختبار RLS على TEST شمل مستأجرين مختلفين، وفرعين، وموظفين، وبيانات سريرية ومالية اصطناعية؛ انتهى بـROLLBACK وتأكدنا أن عدد السجلات الاصطناعية المتبقية صفر.
-- إعادة بناء Supabase محلية مؤقتة طبقت baseline 001–011 ثم migrations 012–023، ونجحت اختبارات ما بعد التثبيت وعزل المستأجرين. بصمة المخطط المحلية مطابقة للبصمة المتوقعة من TEST.
-- لم يُجرَ اختبار متصفح حي أو رحلة استقبال/نتائج/تقرير كاملة، ولم يُختبر Offline على أجهزة متعددة أو استعادة نسخة تشغيل حقيقية.
-- معاينة Netlify متوقفة بسبب غياب GitHub Secrets الخاصة بـNETLIFY_AUTH_TOKEN وNETLIFY_SITE_ID. تم تأمين إعداد النشر ليستخدم dist فقط.
-- إعداد أسرار/Origins لوظائف Edge لم يتم إثباته؛ الوظائف مصممة لتفشل بشكل مغلق إذا كانت القيم المطلوبة ناقصة.
-- راجع [تقرير تسوية الدمج والاختبارات](docs/MAIN-13-COMMITS-RECONCILIATION-AR-2026-11-20.md) لمعرفة ما ثبت وما لم يثبت.
-
-## Run the static config test
-From this folder, with Node.js installed:
-
-```bash
-node --experimental-default-type=module tests/static/core-config.test.mjs
-```
-
-هذه نسخة تطوير وليست إصدارًا تجاريًا. لا تنشر ولا تشغّل migrations قبل مطابقة حالة TEST والمصدر المنشور ونتائج الاختبارات والموافقة.
+This repository's current browser runtime uses the existing primary Taiba SaaS Supabase project. Historical development notes below are retained as an archive and may contain the former, incorrect TEST/production labels; the environment mapping above and `docs/contracts/supabase-v1-contract.md` are authoritative.
 
 ## Historical development batches (not a current status register)
 
