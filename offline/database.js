@@ -15,6 +15,8 @@ const stores = {
   expense_categories: 'id, tenant_id, is_active',
   financial_ledger: 'id, tenant_id, branch_id, work_date, movement_at',
   daily_closings: 'id, tenant_id, branch_id, work_date',
+  culture_isolates: 'id, tenant_id, branch_id, visit_test_id, isolate_number',
+  culture_susceptibilities: 'id, tenant_id, branch_id, isolate_id, antimicrobial_agent',
   outbox: '++local_id, &operation_id, [tenant_id+branch_id], status, created_at, next_attempt_at, entity_type',
   sync_meta: '&key',
   conflicts: '++local_id, &conflict_id, tenant_id, branch_id, created_at, status',
@@ -25,6 +27,7 @@ offlineDb.version(3).stores({
   ...stores,
   test_prices: 'id, tenant_id, test_id, branch_id, is_current, effective_from',
 });
+offlineDb.version(4).stores({ ...stores });
 
 export async function assertOfflineDatabaseReady() {
   await offlineDb.open();
