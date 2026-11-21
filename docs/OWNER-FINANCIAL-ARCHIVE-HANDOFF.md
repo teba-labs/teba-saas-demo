@@ -44,6 +44,7 @@ The approval snapshot compares revenue, collections, expenses, cases, discounts,
 ## Database and security
 - Migration 069: archive batches, archive rows, per-metric source choices, and monthly approval snapshots.
 - Migration 070: weighted cost-allocation field for test price lists.
+- Migration 071: covering indexes for tenant-scoped archive foreign keys.
 - All four new public tables have RLS enabled and forced.
 - All policies require private.is_tenant_owner(tenant_id).
 - Archive rows carry tenant scope and a composite tenant/branch foreign key.
@@ -51,9 +52,9 @@ The approval snapshot compares revenue, collections, expenses, cases, discounts,
 
 ## Validation performed
 - GitHub Actions static contracts, browser build, and unit/static regression suite: 252 passed, 0 failed (run 44910544196).
-- Migration 069 applied to TEST project teba-lis-demo only; RLS/force-RLS confirmed on all four new tables.
+- Migrations 069–071 applied to TEST project teba-lis-demo only; RLS/force-RLS confirmed on all four new tables.
 - TEST project is PostgreSQL 17.11; existing tenant-backups bucket and tenant-owner INSERT/SELECT/DELETE policies confirmed.
-- Security advisor scan returned no findings on these four new tables. Existing unrelated project-wide advisor findings remain unchanged.
+- Security advisor scan returned no findings on these four new tables. Performance advisor no longer reports unindexed foreign keys on these new tables; the remaining unused-index notices are expected before any workbook rows are imported. Existing unrelated project-wide advisor findings remain unchanged.
 - Production database has not been modified.
 - main has not been modified or merged.
 
