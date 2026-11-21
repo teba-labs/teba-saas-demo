@@ -17,7 +17,8 @@ create table if not exists public.owner_financial_import_batches (
   rows_skipped integer not null default 0 check (rows_skipped >= 0),
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
-  constraint owner_financial_import_batch_file_unique unique (tenant_id,file_sha256)
+  constraint owner_financial_import_batch_file_unique unique (tenant_id,file_sha256),
+  constraint owner_financial_import_batches_tenant_id_unique unique (tenant_id,id)
 );
 
 create table if not exists public.owner_financial_import_rows (
@@ -46,8 +47,6 @@ create table if not exists public.owner_financial_import_rows (
   constraint owner_financial_import_rows_source_unique unique (batch_id,sheet_name,row_number)
 );
 
-create unique index if not exists owner_financial_import_batches_tenant_id_id
-  on public.owner_financial_import_batches(tenant_id,id);
 create index if not exists owner_financial_import_rows_scope_period_idx
   on public.owner_financial_import_rows(tenant_id,period_date,metric_key,branch_id);
 create index if not exists owner_financial_import_rows_fingerprint_idx
