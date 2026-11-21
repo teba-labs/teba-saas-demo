@@ -2,12 +2,14 @@ import { offlineDb } from './database.js';
 import { exportHistoricalWorkbooks, restoreHistoricalWorkbooks } from '../modules/dashboard/historical-workbooks.js';
 
 const FORMAT = 'taiba-smart-lab-local-backup';
-const VERSION = 2;
+const VERSION = 3;
+const V2_VERSION = 2;
 const LEGACY_VERSION = 1;
 const MAX_HISTORICAL_ARCHIVE_BYTES = 40 * 1024 * 1024;
 const V1_COVERAGE = 'local-device-cache-and-pending-operations-only';
 const V2_COVERAGE = 'local-device-cache-pending-operations-and-historical-workbooks';
-const TABLES = ['patients', 'visits', 'visit_tests', 'test_results', 'catalog', 'test_prices', 'test_parameters', 'staff_directory', 'workdays', 'expense_categories', 'financial_ledger', 'daily_closings', 'outbox', 'conflicts', 'sync_meta'];
+const V3_COVERAGE = 'local-device-cache-pending-operations-culture-and-historical-workbooks';
+const TABLES = ['patients', 'visits', 'visit_tests', 'test_results', 'catalog', 'test_prices', 'test_parameters', 'staff_directory', 'workdays', 'expense_categories', 'financial_ledger', 'daily_closings', 'culture_isolates', 'culture_susceptibilities', 'outbox', 'conflicts', 'sync_meta'];
 
 async function sha256(text) {
   if (!globalThis.crypto?.subtle) throw new Error('Secure checksum is unavailable in this browser context.');
@@ -38,19 +40,19 @@ export async function exportLocalBackup({ tenantId, branchId, tenantName = '', b
   const document = {
     format: FORMAT, version: VERSION, exported_at: new Date().toISOString(),
     scope: { tenant_id: tenantId, branch_id: branchId, tenant_name: tenantName, branch_name: branchName },
-    coverage: V2_COVERAGE, tables, historical_workbooks,
+    coverage: V3_COVERAGE, tables, historical_workbooks,
   };
   const canonical = JSON.stringify(document);
   return { ...document, checksum_sha256: await sha256(canonical) };
 }
 
 export async function restoreLocalBackup(document, { tenantId, branchId } = {}) {
-  if (!document || document.format !== FORMAT || ![LEGACY_VERSION,VERSION].includes(document.version)) throw new Error('Unsupported backup file format or version.');
+  if (!document || document.format !== FORMAT || ![LEGACY_VERSION,V2_VERSION,VERSION].includes(document.version)) throw new Error('Unsupported backup file format or version.');
   if (document.scope?.tenant_id !== tenantId || document.scope?.branch_id !== branchId) throw new Error('Backup belongs to a different tenant or branch. Restore was blocked.');
-  const expectedCoverage=document.version===LEGACY_VERSION?V1_COVERAGE:V2_COVERAGE;
+  const expectedCoverage=document.version===LEGACY_VERSION?V1_COVERAGE:document.version===V2_VERSION?V2_COVERAGE:V3_COVERAGE;
   if (document.coverage !== expectedCoverage) throw new Error('Backup coverage marker is invalid.');
   let historicalRows=[];
-  if(document.version===VERSION){
+  if(document.version>=V2_VERSION){
     if(!Array.isArray(document.historical_workbooks)||document.historical_workbooks.length>4)throw new Error('Historical archive section is missing or invalid.');
     let totalBytes=0;
     historicalRows=document.historical_workbooks.map(row=>{if(row?.tenantId!==tenantId||typeof row.data_base64!=='string')throw new Error('Historical archive belongs to another tenant or is invalid.');const data=base64ToArrayBuffer(row.data_base64);totalBytes+=data.byteLength;if(totalBytes>MAX_HISTORICAL_ARCHIVE_BYTES||data.byteLength>20*1024*1024)throw new Error('Historical archive exceeds the supported backup size.');const {data_base64,...metadata}=row;return {...metadata,data};});
@@ -60,7 +62,7 @@ export async function restoreLocalBackup(document, { tenantId, branchId } = {}) 
   if (!supplied || actual !== supplied) throw new Error('Backup checksum does not match. File may be damaged or modified.');
   const writes = [];
   for (const name of TABLES) {
-    const rows = document.tables?.[name];
+    const rows = document.tables?.[name] ?? (document.version < VERSION && ['culture_isolates','culture_susceptibilities'].includes(name) ? [] : undefined);
     if (!Array.isArray(rows)) throw new Error(`Backup table ${name} is missing or invalid.`);
     for (const row of rows) {
       if (!(name === 'sync_meta' ? row.tenant_id === tenantId && row.branch_id === branchId : belongsToScope(row, tenantId, branchId))) throw new Error(`Backup contains a row outside the selected tenant/branch (${name}).`);
@@ -70,7 +72,7 @@ export async function restoreLocalBackup(document, { tenantId, branchId } = {}) 
   // Restore is a merge, never a replacement: existing local rows may be newer.
   // Historical workbooks are tenant-scoped and remain in their own IndexedDB store.
   // Auto-increment keys are device-local and must not be copied between browsers.
-  const historicalRestore = document.version===VERSION ? await restoreHistoricalWorkbooks(tenantId,historicalRows) : {restored:0,skipped:0};
+  const historicalRestore = document.version>=V2_VERSION ? await restoreHistoricalWorkbooks(tenantId,historicalRows) : {restored:0,skipped:0};
   await offlineDb.transaction('rw', ...writes.map(([table]) => table), async () => {
     for (const [table, rows] of writes) {
       if (!rows.length) continue;
