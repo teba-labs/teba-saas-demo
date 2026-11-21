@@ -14,7 +14,7 @@ export async function listResults({ tenantId, visitTestId } = {}) {
 }
 
 /** Draft-only batch save. Published visits must use the audited report-correction workflow. The database RPC commits every supplied parameter or none. */
-export async function saveDraftResults({ tenantId, branchId, visitTestId, results, staffId } = {}) {
+export async function saveDraftResults({ tenantId, branchId, visitTestId, results, staffId, dependsOn = [] } = {}) {
   if (!tenantId || !branchId || !visitTestId || !staffId || !Array.isArray(results) || !results.length) {
     throw new Error('tenantId, branchId, visitTestId, staffId and at least one result are required.');
   }
@@ -37,7 +37,7 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
   const operationId = crypto.randomUUID();
   const payload = { visit_test_id: visitTestId, staff_id: staffId, results: prepared };
   const queue = async () => {
-    await enqueueOperation({ tenantId, branchId, entityType: 'draft_results', action: 'save', operationId, payload, priority: 10 });
+    await enqueueOperation({ tenantId, branchId, entityType: 'draft_results', action: 'save', operationId, payload, dependsOn, priority: 3 });
     return { queued: true, operationId };
   };
   if (globalThis.navigator?.onLine === false) return queue();
