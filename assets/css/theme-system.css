@@ -28,3 +28,15 @@ html[data-theme="dark"] .taiba-theme-toggle:hover{background:#365e69}
 html[data-theme="dark"] .taiba-theme-floating{background:#142530;border-color:#405965}
 html[data-theme="dark"] :is(.notice,.config-notice){color:#f1f6f8}
 @media(max-width:680px){.taiba-theme-control{margin-inline-start:0}.taiba-theme-scope{max-width:100px;font-size:11px}.taiba-theme-toggle{font-size:11px;padding:6px 8px}.taiba-theme-floating{top:8px;inset-inline-end:8px}}
+
+/* Shared interaction and component rhythm. Page-specific layout remains intact. */
+:root{--taiba-ink:#183b49;--taiba-muted:#6e838d;--taiba-border:#dce6e9;--taiba-surface:#fff;--taiba-accent:#16877f;--taiba-focus:#62b7b4}
+:where(button,.button,.btn,a.button){transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
+:where(button,.button,.btn):not(:disabled):hover{transform:translateY(-1px);box-shadow:0 5px 14px #17374718}
+:where(button,.button,.btn):focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #62b7b488;outline-offset:2px}
+:where(input:not([type="checkbox"]):not([type="radio"]),select,textarea){font:inherit}
+:where(.panel,.card,.work-card,.results-column,.owner-area,.app-card,.settings-tab-panel){border-radius:15px}
+:where(.actions,.toolbar,.top-actions){gap:9px}
+html[data-theme="dark"]{--taiba-ink:#e7f0f4;--taiba-muted:#a9bdc7;--taiba-border:#304754;--taiba-surface:#142530}
+html[data-theme="dark"] :where(button,.button,.btn,a.button):not(:disabled):hover{box-shadow:0 7px 18px #00000040}
+html[data-theme="dark"] :where(button,.button,.btn):focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline-color:#70c5c8}
