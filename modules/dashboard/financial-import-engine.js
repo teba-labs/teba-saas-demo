@@ -45,12 +45,12 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[]}={}){
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
   const splitPeriod=Number(raw.year)>0&&Number(raw.month)>0?String(Number(raw.year))+'-'+String(Number(raw.month)).padStart(2,'0'):null;
   const period=normalizeFinancialDate(raw.period_date)||normalizeFinancialDate(splitPeriod);
-  const priceOnly=period===null&&clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
+  const metric=clean(raw.metric_key),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
+  const priceOnly=!metric&&!wide.length&&hasPriceFields;
   if(period===null&&!priceOnly)issues.push({row:i+2,field:'period_date',message:'تاريخ أو فترة غير صالحة'});
-  const metric=clean(raw.metric_key),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!=='');
   if(!metric&&!wide.length&&!priceOnly)issues.push({row:i+2,field:'metric_key',message:'اربط نوع البند أو بندًا ماليًا مستقلًا أو اسم تحليل مع سعر/تكلفة'});
   const outputs=metric?[{metric_key:metric,amount:finite(raw.amount),quantity:finite(raw.quantity)}]:wide.map(key=>({metric_key:key,amount:['cases','tests_count'].includes(key)?null:finite(raw[key]),quantity:['cases','tests_count'].includes(key)?finite(raw[key]):null}));
-  if(priceOnly&&!outputs.length)outputs.push({metric_key:'test_price',amount:null,quantity:null});
+  if(priceOnly)outputs.push({metric_key:'test_price',amount:null,quantity:null});
   if(metric&&!outputs[0].amount&&!outputs[0].quantity&&raw.selling_price===null&&raw.unit_cost===null)issues.push({row:i+2,field:'amount',message:'لا توجد قيمة أو كمية أو سعر/تكلفة قابلة للتحليل'});
   for(const output of outputs){
    const record={period_date:period,metric_key:output.metric_key,amount:output.amount,quantity:output.quantity,item_name:raw.item_name,category_name:raw.category_name,branch_name:raw.branch_name,unit_cost:finite(raw.unit_cost),selling_price:finite(raw.selling_price),weight:finite(raw.weight),currency_code:raw.currency_code};
