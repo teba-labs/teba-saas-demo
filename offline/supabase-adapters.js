@@ -148,6 +148,11 @@ export function createSupabaseSyncHandlers() {
         branch_id: operation.branch_id, local_visit_id: p.local_visit_id || null,
         server_visit_id: data, visit_test_ids: mapping, acknowledged_at: new Date().toISOString(),
       });
+      // Remap dependent culture drafts before removing local visit/test aliases.
+      for (const local of localRows) {
+        const serverTestId = mapping[local.id];
+        if (serverTestId) await offlineDb.culture_isolates.where('visit_test_id').equals(local.id).modify({ visit_test_id: serverTestId });
+      }
       // The full server worklist rows were cached above; local aliases can now be removed safely.
       if (p.local_visit_id) await offlineDb.visits.delete(p.local_visit_id);
       for (const local of localRows) await offlineDb.visit_tests.delete(local.id);
