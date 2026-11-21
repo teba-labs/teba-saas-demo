@@ -33,7 +33,8 @@ test('launcher exposes core operations to staff and reserves owner controls', ()
   assert.match(js, /\$\('ownerArea'\)\.hidden = role !== 'owner'/);
   const html = read('app/index.html');
   assert.match(html, /إعدادات النظام/);
-  assert.match(html, /إدارة موقع المعمل/);
+  assert.match(html, /استوديو موقع المعمل/);
+  assert.match(html, /href="cms-editor\.html"/);
   assert.match(html, /href="\.\.\/portal\/index\.html"/);
   assert.match(html, /معاينة بوابة المريض/);
 });
