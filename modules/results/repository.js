@@ -112,7 +112,9 @@ export async function listResultsForVisitTests({ tenantId, visitTestIds } = {}) 
         throw error;
       }
       const page = data ?? [];
-      rows.push(...page.map(row => ({ ...row, branch_id: null })));
+      const cachedTests = await getCachedRows('visit_tests', { tenantId });
+      const branchByVisitTest = new Map(cachedTests.map(test => [test.id, test.branch_id]));
+      rows.push(...page.map(row => ({ ...row, branch_id: branchByVisitTest.get(row.visit_test_id) ?? null })));
       if (page.length < 500) break;
     }
   }
