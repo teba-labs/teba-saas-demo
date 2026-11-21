@@ -44,6 +44,10 @@ function showMessage(message, kind = 'info') {
   status.hidden = false;
 }
 
+form?.querySelector('[name="slug"]')?.addEventListener('blur', event => loadPortalConfig(event.target.value));
+const initialSlug = new URLSearchParams(window.location.search).get('lab');
+if (initialSlug) { const slugInput = form?.querySelector('[name="slug"]'); if (slugInput) slugInput.value = initialSlug; loadPortalConfig(initialSlug); }
+
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
   result.hidden = true;
