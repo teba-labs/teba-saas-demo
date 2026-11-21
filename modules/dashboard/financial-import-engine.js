@@ -75,7 +75,7 @@ function metricClass(key){
  return 'other';
 }
 export function buildGenericHistoricalReport(rows,{from=null,to=null,branchId=null}={}){
- const selected=(rows||[]).filter(r=>(r.period_date===null||r.period_date===undefined||((!from||r.period_date>=from)&&(!to||r.period_date<=to)))&&(!branchId||r.branch_id===branchId));
+ const selected=(rows||[]).filter(r=>(r.period_date===null||r.period_date===undefined||((!from||r.period_date>=from)&&(!to||r.period_date<=to)))&&(!branchId||r.branch_id===branchId||(r.branch_id==null&&metricClass(r.metric_key)==='price')));
  const totals={revenue:0,collections:0,expenses:0,cases:0,discounts:0,payroll:0,tests:0,other:0};
  const monthly=new Map(),items=new Map(),categories=new Map(),priceMap=new Map();
  for(const r of selected){if(metricClass(r.metric_key)==='price'&&r.item_name){priceMap.set(normalize(r.item_name),{unitCost:r.unit_cost,sellingPrice:r.selling_price,weight:r.weight??1});}}
