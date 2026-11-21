@@ -35,7 +35,7 @@ async function importPrepared(mapping,headers,rawRows,branchId){
   if(x.branch_name&&!matchedBranch){skipped.push({row:x._rowNumber,reason:'اسم الفرع غير مطابق لفروع المعمل'});continue;}
   if(fingerprints.has(x._fingerprint)){skipped.push({row:x._rowNumber,reason:'هذا الصف مستورد سابقًا'});continue;}
   const candidate={...x,branch_id:resolvedBranch},existingMatch=existingByKey.get(keyOf(candidate));
-  if(existingMatch&&(Number(existingMatch.amount||0)!==Number(x.amount||0)||Number(existingMatch.quantity||0)!==Number(x.quantity||0))){skipped.push({row:x._rowNumber,reason:'تعارض مع صف سابق في نفس التاريخ والبند والتحليل والفرع'});continue;}
+  if(existingMatch&&(Number(existingMatch.amount||0)!==Number(x.amount||0)||Number(existingMatch.quantity||0)!==Number(x.quantity||0)||Number(existingMatch.unit_cost||0)!==Number(x.unit_cost||0)||Number(existingMatch.selling_price||0)!==Number(x.selling_price||0)||Number(existingMatch.weight||0)!==Number(x.weight||0))){skipped.push({row:x._rowNumber,reason:'تعارض مع صف سابق في نفس التاريخ والبند والتحليل والفرع'});continue;}
   rows.push({branch_id:resolvedBranch,sheet_name:activeSheet,row_number:x._rowNumber,period_date:x.period_date,metric_key:String(x.metric_key).trim(),amount:x.amount,quantity:x.quantity,item_name:x.item_name,category_name:x.category_name,unit_cost:x.unit_cost,selling_price:x.selling_price,weight:x.weight,currency_code:x.currency_code,original_row:Object.fromEntries(headers.map((h,i)=>[String(h||'عمود '+(i+1)),x._original[i]??''])),row_fingerprint:x._fingerprint});
  }
  if(!rows.length)throw new Error('لا توجد صفوف صالحة بعد استبعاد التكرارات والتعارضات.');
