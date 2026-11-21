@@ -31,8 +31,8 @@
 1. **Seven-day signed offline entitlement:** not implemented or enforced. No offline lock is active. A secure asymmetric signing key must be provisioned as a private Supabase Edge Function secret and the matching public key pinned in the client. The available project tools do not expose secret provisioning, so no key was fabricated or embedded in browser code.
 2. **Official final report while offline:** the current offline print path is deliberately provisional. It does not create an approval, reviewer signature, publication record or patient-portal report. Official completion/approval/publication remains online-only until an auditable offline signing and conflict-resolution protocol is designed and tested.
 3. **Offline corrections and status transitions:** range overrides, result corrections, test completion, visit approval and report publication remain online-only because they require immutable audit history, sign-off and conflict handling.
-4. **Attachments and portal operations:** uploads, report publication, patient portal lookup and WhatsApp publication remain online-only.
-
+4. **Attachments and portal operations:** uploads, patient portal lookup and WhatsApp publication remain online-only.
+5. **Seven-day entitlement and local signing:** the client currently has no enforced grace window; the signed license and offline approval key are not provisioned.
 6. **Live authenticated end-to-end validation:** no live clinical account test has yet demonstrated the full sequence: disconnect after login -> create patient/visit -> enter all results -> reload -> provisional preview/print -> reconnect -> sync patient -> sync intake -> map server visit/test IDs -> sync results exactly once -> online completion/approval -> final report publication.
 7. **Cross-device recovery:** IndexedDB is device-local. A local queue cannot appear on another device until synchronized. A local backup can preserve queued operations, but moving it to another device requires restore and subsequent authenticated synchronization.
 
@@ -48,6 +48,6 @@
 ## Next gated engineering work
 
 - Provision a private Ed25519 signing secret and pinned public key, then implement/deploy the signed entitlement endpoint and narrow new-operation gate.
-- Add idempotent server wrappers and dependency mapping for offline culture isolate/AST writes and audited correction requests.
+- Add idempotent server wrappers and dependency mapping for audited result corrections and range overrides.
 - Design an explicit offline sign-off protocol before allowing final approval or official report issuance without a server.
 - Run the full authenticated TEST scenario above, including lost-response retry, browser reload, expiry during outage, changed-price conflict and duplicate-sync checks.
