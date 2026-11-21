@@ -3,7 +3,9 @@ const finite=value=>{if(value===null||value===undefined||clean(value)==='')retur
 const normalize=value=>clean(value).toLocaleLowerCase('ar').replace(/[ـ\s]+/g,' ');
 const MONTH=/^(\d{4})[-/](\d{1,2})(?:[-/]\d{1,2})?$/;
 export const FINANCIAL_FIELDS=[
- {key:'period_date',label:'التاريخ / الشهر',required:true,aliases:['date','التاريخ','تاريخ','الشهر','الفترة','month','period']},
+ {key:'period_date',label:'التاريخ / الفترة',required:false,aliases:['date','التاريخ','تاريخ','الفترة','period','التاريخ الكامل']},
+ {key:'year',label:'السنة',required:false,aliases:['year','السنة','عام']},
+ {key:'month',label:'الشهر',required:false,aliases:['month','الشهر','رقم الشهر']},
  {key:'metric_key',label:'نوع البند المالي (للملفات ذات عمود بند)',required:false,aliases:['metric','type','نوع الحركة','الحركة','item type']},
  {key:'amount',label:'القيمة المالية العامة',required:false,aliases:['amount','value','المبلغ','القيمة']},
  {key:'revenue',label:'الإيرادات / المبيعات',required:false,aliases:['revenue','income','sales','الإيراد','الايراد','الإيرادات','الايرادات','المبيعات']},
@@ -31,13 +33,13 @@ export function suggestFinancialMapping(headers){
 }
 export function analyzeFinancialRows({headers=[],rows=[],mapping=[]}={}){
  const mapped=new Map(mapping.filter(x=>x.fieldKey).map(x=>[x.fieldKey,x.columnIndex]));
- const required=FINANCIAL_FIELDS.filter(x=>x.required).filter(x=>!mapped.has(x.key));
+ const required=(mapped.has('period_date')||(mapped.has('year')&&mapped.has('month')))?[]:[{label:'التاريخ أو ربط السنة والشهر معًا'}];
  const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0;
  const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];
  for(let i=0;i<rows.length;i++){
   const source=rows[i]||[];if(!source.some(v=>clean(v)!=='')){blankRows++;continue;}
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
-  const period=normalizeFinancialDate(raw.period_date);
+  const splitPeriod=Number(raw.year)>0&&Number(raw.month)>0?String(Number(raw.year))+'-'+String(Number(raw.month)).padStart(2,'0'):null;const period=normalizeFinancialDate(raw.period_date)||normalizeFinancialDate(splitPeriod);
   if(period===null)issues.push({row:i+2,field:'period_date',message:'تاريخ أو فترة غير صالحة'});
   const metric=clean(raw.metric_key);
   const wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!=='');
