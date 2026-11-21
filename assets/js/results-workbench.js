@@ -426,7 +426,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   // Preview may be opened before approval so incomplete work can be spotted; printing remains gated.
   const selectedHistoricalIds=state.historicalSelections.get(visitId)||new Set();
   let selectedHistoricalRows=[];
-  if(selectedHistoricalIds.size){
+  if(selectedHistoricalIds.size && globalThis.navigator?.onLine !== false){
     const [linked,unlinked]=await Promise.all([
       patient.id?listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,patientId:patient.id,limit:200}):Promise.resolve([]),
       listHistoricalResults({tenantId:state.tenant.id,branchId:state.branch.id,search:patient.full_name||'',limit:200})
@@ -443,8 +443,10 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   else {
     const branchResult = await getSupabaseClient().from('branches')
       .select('id,name,address,phone').eq('tenant_id', state.tenant.id).eq('is_active', true).order('name');
-    if (branchResult.error) throw branchResult.error;
-    reportBranches = branchResult.data || [];
+    if (branchResult.error) {
+      if (/fetch|network|offline/i.test(branchResult.error.message || '')) reportBranches = [state.branch].filter(Boolean);
+      else throw branchResult.error;
+    } else reportBranches = branchResult.data || [];
   }
   const logoPath = print.showLogo === false ? '' : (print.logoSource === 'branch' ? (print.logoPath || lab.logo_path || '') : (lab.logo_path || print.logoPath || ''));
   const signaturePath = !localOffline && print.showSignature ? print.signaturePath || '' : '';
