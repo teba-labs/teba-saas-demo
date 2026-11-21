@@ -25,11 +25,22 @@ function renderMapping(){
 }
 async function digest(buffer){const bytes=await crypto.subtle.digest('SHA-256',buffer);return [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 async function importPrepared(mapping,headers,rawRows,branchId){
- const bad=preparedRows.filter(x=>!x.period_date||!String(x.metric_key||'').trim()||(x.amount===null&&x.quantity===null&&x.selling_price===null)||x._duplicate);
- const rows=preparedRows.filter(x=>!bad.includes(x)).map(x=>({branch_id:branchId||null,sheet_name:activeSheet,row_number:x._rowNumber,period_date:x.period_date,metric_key:String(x.metric_key).trim(),amount:x.amount,quantity:x.quantity,item_name:x.item_name,category_name:x.category_name,unit_cost:x.unit_cost,selling_price:x.selling_price,currency_code:x.currency_code,original_row:Object.fromEntries(headers.map((h,i)=>[String(h||'عمود '+(i+1)),x._original[i]??''])),row_fingerprint:x._fingerprint}));
- if(!rows.length)throw new Error('لا توجد صفوف صالحة بعد استبعاد التكرارات والأخطاء.');
- const dates=rows.map(x=>x.period_date).sort();await createOwnerFinancialBatch({tenantId,fileName:file.name,fileSha256:await digest(await file.arrayBuffer()),sourceLabel:'Excel مالي تاريخي',periodStart:dates[0],periodEnd:dates.at(-1),mappingSnapshot:{sheet:activeSheet,headers,mapping},sheetSummary:[{name:activeSheet,rows:rows.length}],rows});
- note('تم حفظ '+rows.length+' صف مالي سحابيًا. تم استبعاد '+bad.length+' صفًا يحتاج مراجعة أو مكررًا.');await refreshArchive();
+ const existing=await listOwnerFinancialRows({tenantId}),fingerprints=new Set(existing.map(x=>x.row_fingerprint));
+ const keyOf=x=>[x.period_date,String(x.metric_key||'').trim().toLocaleLowerCase('ar'),String(x.item_name||'').trim().toLocaleLowerCase('ar'),String(x.category_name||'').trim().toLocaleLowerCase('ar'),x.branch_id||''].join('|');
+ const existingByKey=new Map(existing.map(x=>[keyOf(x),x])),skipped=[],rows=[];
+ for(const x of preparedRows){
+  const matchedBranch=x.branch_name?branches.find(b=>String(b.name).trim().toLocaleLowerCase('ar')===String(x.branch_name).trim().toLocaleLowerCase('ar')):null;
+  const resolvedBranch=x.branch_name?(matchedBranch?.id||null):(branchId||null);
+  if(!x.period_date||!String(x.metric_key||'').trim()||(x.amount===null&&x.quantity===null&&x.selling_price===null)||x._duplicate){skipped.push({row:x._rowNumber,reason:'صف غير مكتمل أو مكرر داخل الملف'});continue;}
+  if(x.branch_name&&!matchedBranch){skipped.push({row:x._rowNumber,reason:'اسم الفرع غير مطابق لفروع المعمل'});continue;}
+  if(fingerprints.has(x._fingerprint)){skipped.push({row:x._rowNumber,reason:'هذا الصف مستورد سابقًا'});continue;}
+  const candidate={...x,branch_id:resolvedBranch},existingMatch=existingByKey.get(keyOf(candidate));
+  if(existingMatch&&(Number(existingMatch.amount||0)!==Number(x.amount||0)||Number(existingMatch.quantity||0)!==Number(x.quantity||0))){skipped.push({row:x._rowNumber,reason:'تعارض مع صف سابق في نفس التاريخ والبند والتحليل والفرع'});continue;}
+  rows.push({branch_id:resolvedBranch,sheet_name:activeSheet,row_number:x._rowNumber,period_date:x.period_date,metric_key:String(x.metric_key).trim(),amount:x.amount,quantity:x.quantity,item_name:x.item_name,category_name:x.category_name,unit_cost:x.unit_cost,selling_price:x.selling_price,currency_code:x.currency_code,original_row:Object.fromEntries(headers.map((h,i)=>[String(h||'عمود '+(i+1)),x._original[i]??''])),row_fingerprint:x._fingerprint});
+ }
+ if(!rows.length)throw new Error('لا توجد صفوف صالحة بعد استبعاد التكرارات والتعارضات.');
+ const dates=rows.map(x=>x.period_date).sort();await createOwnerFinancialBatch({tenantId,fileName:file.name,fileSha256:(await digest(await file.arrayBuffer()))+':'+activeSheet,sourceLabel:'Excel مالي تاريخي',periodStart:dates[0],periodEnd:dates.at(-1),mappingSnapshot:{sheet:activeSheet,headers,mapping},sheetSummary:[{name:activeSheet,rows:rows.length}],rows});
+ note('تم حفظ '+rows.length+' صف مالي سحابيًا. تم استبعاد '+skipped.length+' صفًا بسبب نقص أو تكرار أو تعارض أو فرع غير مطابق.');await refreshArchive();
 }
 async function refreshArchive(){
  const batches=await listOwnerFinancialBatches(tenantId),root=$('ownerFinancialBatches');root.replaceChildren();if(!batches.length)root.append(element('p','لم يتم استيراد ملفات مالية بعد.'));
