@@ -17,8 +17,17 @@ function renderHeader(settings) {
     header.querySelector('.topbar > div') || header.querySelector(':scope > div');
   if (!root) return;
   const title = root.querySelector('strong');
-  if (title && state.originalTitle === null) state.originalTitle = title.textContent;
-  if (title) title.textContent = name || state.originalTitle || 'Taiba Smart Lab';
+  if (title) title.textContent = 'TAIBA SMART LAB';
+  let labLabel = root.querySelector('[data-tenant-lab-name]');
+  if (name) {
+    if (!labLabel) {
+      labLabel = document.createElement('small');
+      labLabel.dataset.tenantLabName = 'true';
+      labLabel.style.cssText = 'display:block;font-size:10px;opacity:.82;line-height:1.5;';
+      (title?.parentElement || root).append(labLabel);
+    }
+    labLabel.textContent = name;
+  } else labLabel?.remove();
   let branchBadge = root.querySelector('[data-tenant-branch-label]');
   const branchName = state.branchName || '';
   if (branchName) {
