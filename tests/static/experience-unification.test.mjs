@@ -13,7 +13,14 @@ test('shared appearance controller is loaded by all main product and platform pa
     'app/dashboard.html', 'app/settings.html', 'app/cms-editor.html',
     'app/data-import.html', 'app/platform-admin.html', 'portal/index.html'
   ];
-  for (const file of pages) assert.match(read(file), /theme-controller\.js/, file);
+  for (const file of pages) {
+    const html = read(file);
+    assert.match(html, /theme-controller\.js/, file);
+    assert.match(html, /keyboard-navigation\.js/, file);
+  }
+  const worker = read('service-worker.js');
+  assert.match(worker, /theme-controller\.js/);
+  assert.match(worker, /theme-system\.css/);
 });
 
 test('theme controller supports a global default and independent page overrides', () => {
@@ -24,6 +31,7 @@ test('theme controller supports a global default and independent page overrides'
   assert.match(script, /clearPageOverrides/);
   assert.match(script, /data-theme/);
   assert.match(script, /theme-system\.css/);
+  assert.ok(script.includes(String.raw`location.pathname.replace(/\\/+$/, '')`));
 });
 
 test('keyboard navigation submits the final login field and preserves native search and select behavior', () => {
