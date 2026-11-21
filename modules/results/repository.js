@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
 import { TABLES } from '../../core/data/schema-contract.js';
 import { enqueueOperation } from '../../offline/outbox.js';
+import { cacheRows, getCachedRows } from '../../offline/cache.js';
 const db = () => getSupabaseClient();
 
 export async function listResults({ tenantId, visitTestId } = {}) {
@@ -90,28 +91,33 @@ export async function listResultsForVisitTests({ tenantId, visitTestIds } = {}) 
   if (!tenantId || !Array.isArray(visitTestIds)) throw new Error('tenantId and visitTestIds are required.');
   const ids = [...new Set(visitTestIds.filter(Boolean))];
   if (!ids.length) return [];
+  if (globalThis.navigator?.onLine === false) {
+    const cached = await getCachedRows('test_results', { tenantId });
+    return cached.filter(row => ids.includes(row.visit_test_id));
+  }
   const rows = [];
   // Chunk IDs and paginate each result set so large parameter panels never hit PostgREST's row cap.
   for (let start = 0; start < ids.length; start += 100) {
     const chunk = ids.slice(start, start + 100);
     for (let offset = 0; ; offset += 500) {
       const { data, error } = await db().from(TABLES.results)
-        .select('id, visit_test_id, parameter_code, parameter_name_snapshot, value_numeric, value_text, unit_snapshot, reference_range_snapshot, flag, entered_at')
+        .select('id, tenant_id, visit_test_id, parameter_code, parameter_name_snapshot, value_numeric, value_text, unit_snapshot, reference_range_snapshot, flag, entered_at')
         .eq('tenant_id', tenantId).in('visit_test_id', chunk)
         .order('entered_at').order('id').range(offset, offset + 499);
       if (error) throw error;
       const page = data ?? [];
-      rows.push(...page);
+      rows.push(...page.map(row => ({ ...row, branch_id: null })));
       if (page.length < 500) break;
     }
   }
+  await cacheRows('test_results', rows);
   return rows;
 }
 
 /** Visit-only reference range overrides; the master catalog and frozen visit identity remain untouched. */
 export async function listVisitParameterRangeOverrides({ tenantId, visitTestIds } = {}) {
   if (!tenantId || !Array.isArray(visitTestIds)) throw new Error('tenantId and visitTestIds are required.');
-  const ids=[...new Set(visitTestIds.filter(Boolean))];if(!ids.length)return [];
+  const ids=[...new Set(visitTestIds.filter(Boolean))];if(!ids.length||globalThis.navigator?.onLine===false)return [];
   const rows=[];
   for(let start=0;start<ids.length;start+=100){
     const chunk=ids.slice(start,start+100);
