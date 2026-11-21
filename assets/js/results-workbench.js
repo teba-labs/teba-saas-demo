@@ -20,6 +20,7 @@ const showNotice = (message, error = false) => {
   window.clearTimeout(showNotice.timer); showNotice.timer = window.setTimeout(() => el.className = 'notice', 5000);
 };
 const setBusy = (button, busy, label) => { button.disabled = busy; if (busy) { button.dataset.oldLabel = button.textContent; button.textContent = label || 'جارٍ التنفيذ…'; } else if (button.dataset.oldLabel) { button.textContent = button.dataset.oldLabel; delete button.dataset.oldLabel; } };
+const requireCloudConnection = operation => { if (globalThis.navigator?.onLine === false) throw new Error(`${operation} يتطلب اتصالًا بالإنترنت. لم تُحفظ التغييرات محليًا أو في السحابة.`); };
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 async function startWorkspace() {
@@ -457,6 +458,7 @@ function classifyResultFlag(input) {
 
 async function saveTest(button) {
   try {
+    requireCloudConnection('حفظ النتائج');
     setBusy(button, true, 'جارٍ الحفظ…');
     const section = button.closest('.parameter[data-test-id]');
     const testId = button.dataset.testId;
@@ -494,6 +496,7 @@ async function correctTest(button) {
     if(!visitId)throw new Error('تعذر تحديد الزيارة المرتبطة بالنتيجة.');
     const reason=window.prompt(isPublished?'سبب تصحيح النتيجة المنشورة:':'سبب تصحيح النتيجة المحفوظة:')?.trim()??'';
     if(!reason)throw new Error('سبب التصحيح إلزامي.');
+    requireCloudConnection('تصحيح النتائج');
     setBusy(button,true,'جارٍ حفظ التصحيح…');
     for(const input of changed){
       const raw=input.value.trim(),numeric=input.dataset.valueType==='numeric'?raw:null,text=input.dataset.valueType==='numeric'?null:raw;
@@ -520,6 +523,7 @@ async function loadAttachments(visitId) {
 }
 async function uploadAttachment(button) {
   try {
+    requireCloudConnection('رفع المرفق');
     const visitId=button.dataset.visitId;
     const input=document.querySelector(`[data-attachment-file="${CSS.escape(visitId)}"]`);
     const file=input?.files?.[0];
@@ -534,6 +538,7 @@ async function uploadAttachment(button) {
 }
 async function downloadAttachment(button) {
   try {
+    requireCloudConnection('فتح المرفق');
     setBusy(button,true,'جارٍ تجهيز الرابط…');
     const url=await createAttachmentDownloadUrl({tenantId:state.tenant.id,branchId:state.branch.id,fileId:button.dataset.fileId,expiresIn:90});
     window.open(url,'_blank','noopener');
@@ -542,15 +547,16 @@ async function downloadAttachment(button) {
 }
 
 async function completeTest(button) {
-  try { const visitId=state.work.find(row=>row.id===button.dataset.testId)?.visit_id;if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها أولًا قبل إنهاء التحليل.'); setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, branchId: state.branch.id, visitTestId: button.dataset.testId, staffId: $('staffSelect').value }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
+  try { requireCloudConnection('إنهاء التحليل'); const visitId=state.work.find(row=>row.id===button.dataset.testId)?.visit_id;if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها أولًا قبل إنهاء التحليل.'); setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, branchId: state.branch.id, visitTestId: button.dataset.testId, staffId: $('staffSelect').value }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
   catch (error) { showNotice(error.message || 'تعذر إنهاء التحليل.', true); } finally { setBusy(button, false); }
 }
 async function approve(button) {
-  try { if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ كل النتائج التي أدخلتها قبل اعتماد الزيارة.'); setBusy(button, true, 'جارٍ الاعتماد…'); await approveVisit({ tenantId: state.tenant.id, branchId: state.branch.id, visitId: button.dataset.visitId, staffId: $('staffSelect').value }); showNotice('تم اعتماد الزيارة. يمكنك الآن رفع ملف PDF.'); await refreshWork(); }
+  try { requireCloudConnection('اعتماد الزيارة'); if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ كل النتائج التي أدخلتها قبل اعتماد الزيارة.'); setBusy(button, true, 'جارٍ الاعتماد…'); await approveVisit({ tenantId: state.tenant.id, branchId: state.branch.id, visitId: button.dataset.visitId, staffId: $('staffSelect').value }); showNotice('تم اعتماد الزيارة. يمكنك الآن رفع ملف PDF.'); await refreshWork(); }
   catch (error) { showNotice(error.message || 'تعذر اعتماد الزيارة.', true); } finally { setBusy(button, false); }
 }
 async function publish(button) {
   try {
+    requireCloudConnection('نشر التقرير');
     if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها قبل نشر التقرير.');
     const visitId = button.dataset.visitId;
     const visitState = state.work.find(item=>item.visit_id===visitId)?.visits;
@@ -601,7 +607,7 @@ $('signOut').addEventListener('click', async () => { try { await signOut(); awai
 $('refreshButton').addEventListener('click', async () => { try { await refreshWork(); } catch (error) { showNotice(error.message, true); } });
 
 try { await startWorkspace(); window.dispatchEvent(new CustomEvent('taiba:results-context',{detail:{tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug}})); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
-window.taibaPreviewVisitReport = async visitId => { const dirty=window.taibaGetDirtyResultInputs?.()||[];if(dirty.length){showNotice('هناك نتائج تم تغييرها ولم تُحفظ بعد. احفظها أولًا ثم أعد المعاينة.',true);return;} const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});state.previewedVisits.add(visitId);window.dispatchEvent(new CustomEvent('taiba:visit-report-previewed',{detail:{visitId}}));showNotice('تم تجهيز معاينة التقرير. راجعها قبل الطباعة أو النشر.');}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
+window.taibaPreviewVisitReport = async visitId => { if(globalThis.navigator?.onLine===false){showNotice('معاينة التقرير تحتاج اتصالًا بالإنترنت؛ لم يتم تحميل التقرير من السحابة.',true);return;} const dirty=window.taibaGetDirtyResultInputs?.()||[];if(dirty.length){showNotice('هناك نتائج تم تغييرها ولم تُحفظ بعد. احفظها أولًا ثم أعد المعاينة.',true);return;} const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});state.previewedVisits.add(visitId);window.dispatchEvent(new CustomEvent('taiba:visit-report-previewed',{detail:{visitId}}));showNotice('تم تجهيز معاينة التقرير. راجعها قبل الطباعة أو النشر.');}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
 
 $('prevWorkPage').addEventListener('click', async () => {
   if (state.workPage <= 0) return;
