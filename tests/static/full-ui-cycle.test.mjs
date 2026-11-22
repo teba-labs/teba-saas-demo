@@ -9,7 +9,7 @@ test('visit numbers are reserved atomically per laboratory across branches with 
  const sql=read('database/migrations/076_branch_visit_number_sequences.sql');
  const js=read('assets/js/reception.js');
  assert.match(sql,/create table if not exists private\.tenant_visit_sequences/);
- assert.match(sql,/primary key \(tenant_id\)/);
+ assert.match(sql,/tenant_id uuid primary key/);
  assert.match(sql,/private\.can_access_branch\(p_tenant_id, p_branch_id\)/);
  assert.match(sql,/on conflict \(tenant_id\)[\s\S]*last_value = private\.tenant_visit_sequences\.last_value \+ 1/i);
  assert.match(sql,/lpad\(v_next::text, 5, '0'\)/);
