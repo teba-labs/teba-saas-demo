@@ -64,10 +64,13 @@ export async function refreshHistoricalDashboard(){
 async function hydrateCloudArchive(tenantId){
  if(globalThis.navigator?.onLine===false)return;
  const remote=await listCloudHistoricalWorkbooks(tenantId);cloudFiles=remote;
- const local=await listHistoricalWorkbooks(tenantId),localMap=new Map(local.map(row=>[row.type,row]));
  for(const item of remote){
-  const cached=localMap.get(item.workbook_type);
-  if(cached&&cached.fileName===item.file_name&&Number(cached.size)===Number(item.file_size))continue;
+  const cached=await getHistoricalWorkbook({tenantId,type:item.workbook_type});
+  if(cached?.data instanceof ArrayBuffer){
+   const digest=await crypto.subtle.digest('SHA-256',cached.data);
+   const localHash=[...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
+   if(localHash===item.file_sha256)continue;
+  }
   const downloaded=await downloadCloudHistoricalWorkbook({tenantId,type:item.workbook_type});
   if(downloaded?.data)await saveHistoricalWorkbook({tenantId,type:item.workbook_type,fileName:downloaded.file_name,size:downloaded.file_size,sheets:downloaded.sheet_summary,data:downloaded.data});
  }
