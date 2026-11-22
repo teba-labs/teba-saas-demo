@@ -16,6 +16,10 @@ test('master medical catalog has read-only global definitions and tenant-owned i
  assert.match(sql,/revoke all on function public\.import_master_catalog_test/);
  assert.match(read('database/migrations/036_master_catalog_import_invoker.sql'),/security invoker/);
  assert.match(read('database/migrations/037_guard_master_catalog_import.sql'),/must be clinically verified/);
+ const importPolicy=read('database/migrations/077_allow_incomplete_master_catalog_import.sql');
+ assert.match(importPolicy,/Importability is not clinical approval/);
+ assert.doesNotMatch(importPolicy,/clinical_review_status.*verified/);
+ assert.match(importPolicy,/v_parameter_count = 0/);
  assert.match(read('database/migrations/038_master_catalog_import_formula_order.sql'),/result_source='calculated'/);
  assert.match(read('database/migrations/039_master_parameter_alternate_units.sql'),/alternate_units/);
 });
@@ -41,4 +45,8 @@ test('catalog UI exposes the master library and structured medical metadata edit
  assert.match(js,/clinicalReviewStatus/);
  assert.match(js,/parseJsonObjectField/);
  assert.match(js,/importMasterCatalogTest/);
+ assert.match(html,/id="openMasterLibrary"/);
+ assert.match(html,/id="closeMasterLibrary"/);
+ assert.match(js,/masterLibraryOpen/);
+ assert.match(js,/استيراد للمعمل/);
 });
