@@ -1,18 +1,16 @@
--- Migration 076: branch-scoped, concurrency-safe human-readable visit numbers.
+-- Migration 076: tenant-wide, concurrency-safe human-readable visit numbers.
+-- The serial is global within one laboratory so codes cannot collide across branches.
 -- Apply only after review on the intended SaaS primary database.
 begin;
 
-create table if not exists private.branch_visit_sequences (
-  tenant_id uuid not null,
-  branch_id uuid not null,
+create table if not exists private.tenant_visit_sequences (
+  tenant_id uuid primary key references public.tenants(id) on delete restrict,
   last_value bigint not null default 0 check (last_value >= 0),
-  updated_at timestamptz not null default now(),
-  primary key (tenant_id, branch_id),
-  foreign key (tenant_id, branch_id) references public.branches(tenant_id, id) on delete restrict
+  updated_at timestamptz not null default now()
 );
 
-alter table private.branch_visit_sequences enable row level security;
-revoke all on table private.branch_visit_sequences from public, anon, authenticated;
+alter table private.tenant_visit_sequences enable row level security;
+revoke all on table private.tenant_visit_sequences from public, anon, authenticated;
 
 create or replace function public.reserve_branch_visit_number(
   p_tenant_id uuid,
@@ -35,10 +33,10 @@ begin
     raise exception 'Valid laboratory and branch codes are required';
   end if;
 
-  insert into private.branch_visit_sequences(tenant_id, branch_id, last_value)
-  values (p_tenant_id, p_branch_id, 1)
-  on conflict (tenant_id, branch_id)
-  do update set last_value = private.branch_visit_sequences.last_value + 1,
+  insert into private.tenant_visit_sequences(tenant_id, last_value)
+  values (p_tenant_id, 1)
+  on conflict (tenant_id)
+  do update set last_value = private.tenant_visit_sequences.last_value + 1,
                 updated_at = now()
   returning last_value into v_next;
 
