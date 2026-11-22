@@ -36,3 +36,23 @@ assert.match(engine,/suggestFinancialMapping/);
 assert.match(engine,/branch_name/);
 assert.doesNotMatch(engine,/2025|2026|detail2025|detail2026|الشهرية|السنوية/);
 console.log('PASS generic owner financial archive contract, RLS, source selection, conflict checks and no fixed-year/file-type coupling');
+
+assert.match(ui,/ownerFinancialAnalysisResults/);
+assert.match(ui,/owner-source-chart/);
+assert.match(ui,/مسار المحاسب المالي/);
+assert.match(ui,/المصدر الافتراضي للمؤشرات/);
+assert.match(dashboard,/ownerFinancialApprovalPanel/);
+assert.match(dashboard,/ownerFinancialSourcePanel/);
+assert.match(dashboard,/مسار المحاسب المستقل/);
+const reconciliation=await readFile(new URL('assets/js/dashboard-history.js',root),'utf8');
+assert.match(reconciliation,/buildGenericHistoricalReport/);
+assert.match(reconciliation,/المبيعات \/ الإيرادات/);
+assert.match(reconciliation,/التحصيل النقدي/);
+console.log('PASS accountant stream is distinct from local reference workbooks; reconciliation uses like-for-like metrics and dashboard analysis charts');
+
+assert.match(dashboard,/function mountAccountantReportCards/);
+assert.match(dashboard,/ownerFinancialAnalysisResults/);
+assert.match(dashboard,/\['annual','الرسم السنوي'\]/);
+assert.match(dashboard,/\['bcg','مصفوفة BCG'\]/);
+assert.match(dashboard,/const historicalScreens=\['upload'\]/);
+console.log('PASS accountant-derived BCG, annual, seasonality, demand and profitability panels are mounted in their dedicated report screens');

@@ -133,9 +133,9 @@ test('CSV export includes live KPI cards and historical reconciliation KPI cards
   assert.match(script,/const csv='\\uFEFF'/);
 });
 
-test('historical period selector remains available on archive report screens and hides on menu return',()=>{
+test('optional local reference period selector appears only on upload and hides on menu return',()=>{
   assert.match(script,/id='historyPeriodPanel'/);
-  assert.match(script,/historicalScreens=\['annual','cases','bcg','monthlyPlan'/);
+  assert.match(script,/historicalScreens=\['upload'\]/);
   assert.match(script,/historyPeriod\.hidden=!historicalScreens\.includes\(id\)/);
   assert.match(script,/\$\('historyPeriodPanel'\)\.hidden=true/);
 });

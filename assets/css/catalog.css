@@ -9,3 +9,12 @@
 .master-item strong{display:block;font-size:13px}
 .master-item small{display:block;color:#657580;font-size:11px;margin-top:4px}
 @media(max-width:560px){.advanced-fields{grid-column:auto}.master-item{align-items:flex-start;flex-direction:column}}
+
+/* Catalog: searchable library and editor adapt to tablet and phone */
+.layout{grid-template-columns:minmax(250px,.82fr) minmax(0,1.5fr);gap:18px}
+.test-list,.parameter-list{max-height:70vh;overflow:auto;padding-inline-end:3px}
+.test-item,.parameter-item{min-height:58px;border-radius:12px}
+.editor-panel .form-grid{gap:12px}
+.editor-panel input,.editor-panel select,.editor-panel textarea{min-height:44px}
+@media(max-width:900px){.layout{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)}.context{grid-template-columns:1fr 1fr}.context>div:first-child{grid-column:1/-1}}
+@media(max-width:680px){.layout{grid-template-columns:1fr}.test-list,.parameter-list{max-height:38vh}.context{grid-template-columns:1fr}.context>div:first-child{grid-column:auto}.section-head{align-items:flex-start;flex-wrap:wrap}.editor-panel .form-grid{grid-template-columns:1fr}.editor-panel .wide{grid-column:auto}}

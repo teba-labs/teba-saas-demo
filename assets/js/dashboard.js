@@ -16,21 +16,21 @@ function notify(message,error=false){$('notice').textContent=message;$('notice')
 
 const OWNER_REPORTS=[
  ['dailyFinance','الحركة المالية اليومية','التحصيل والمصروفات المسجلة وسجل الحركات'],
- ['reconciliation','المطابقة الشهرية','مطابقة التشغيل الحي مع أرشيف Excel دون دمج المصدرين'],
+ ['reconciliation','المطابقة الشهرية','مقارنة التشغيل الحي مع مسار المحاسب المستقل بندًا ببند'],
  ['live','الإحصائيات المباشرة','ملخص الحالات والتحاليل والتحصيل والمصروفات'],
  ['overview','نظرة عامة','مؤشرات المعمل ومقارنة الفروع'],
  ['financial','التقرير الشهري','أداء الشهر ومقارنته بالشهر السابق'],
  ['annual','التقرير السنوي','مقارنة الشهر نفسه بالعام السابق واتجاه الأداء'],
  ['cases','تحليل أعداد الحالات','الحركة اليومية وعدد الزيارات والتحاليل'],
  ['expenseBreakdown','تفصيل المصروفات','المصروفات حسب الفرع وبند الصرف'],
- ['bcg','تصنيف BCG','المحفظة التاريخية وتصنيف التحاليل'],
+ ['bcg','تصنيف BCG','تصنيف محفظة التحاليل من بيانات المحاسب المستوردة'],
  ['testReport','تقرير التحاليل التفصيلي','بحث التحاليل خلال فترة محددة'],
- ['monthlyPlan','خطة الشهر','الخطة الاسترشادية المبنية على الموسمية التاريخية'],
+ ['monthlyPlan','خطة الشهر','خطة استرشادية مبنية على موسمية بيانات المحاسب'],
  ['topSellers','الأكثر طلبًا','ترتيب التحاليل حسب عدد الطلبات'],
- ['mostProfitable','الأكثر ربحًا','التحاليل الأعلى ربحًا وفق تكلفة Excel التاريخية'],
- ['leastProfitable','الأقل ربحية','التحاليل ذات هامش الربح الضعيف'],
- ['needOffers','تحاليل تحتاج عروضًا','فرص تنشيط الطلب وفق الأرشيف التاريخي'],
- ['lossMakers','التحاليل الخاسرة','التحاليل ذات ربح الوحدة السالب تاريخيًا'],
+ ['mostProfitable','الأكثر ربحًا','التحاليل الأعلى ربحًا وفق تكلفة ملف المحاسب'],
+ ['leastProfitable','الأقل ربحية','التحاليل ذات هامش الربح الأضعف وفق تكلفة المحاسب'],
+ ['needOffers','تحاليل تحتاج عروضًا','فرص تنشيط الطلب وفق حركة ملف المحاسب'],
+ ['lossMakers','التحاليل الخاسرة','التحاليل ذات ربح الوحدة السالب وفق بيانات المحاسب'],
  ['upload','رفع ملفات Excel','إدارة ملفات الأرشيف التاريخي المحلي'],
  ['security','الأمان والنسخ الاحتياطي','حالة النسخ والمزامنة وحدود النسخ المحلية']
 ];
@@ -55,7 +55,7 @@ function mountOwnerDashboardNavigation(){
  const financialSummary=document.createElement('section');financialSummary.className='panel';financialSummary.innerHTML='<h3>ملخص الشهر المحدد</h3><div class="kpis"><article class="kpi"><span>الفواتير قبل الخصم</span><strong id="monthGross">—</strong></article><article class="kpi"><span>الخصومات</span><strong id="monthDiscounts">—</strong></article><article class="kpi"><span>صافي الفواتير</span><strong id="monthNetBilled">—</strong></article><article class="kpi"><span>التحصيل</span><strong id="monthCollected">—</strong></article><article class="kpi"><span>المصروفات</span><strong id="monthExpenses">—</strong></article><article class="kpi"><span>صافي النقدية</span><strong id="monthNetCash">—</strong></article><article class="kpi"><span>المديونيات</span><strong id="monthReceivables">—</strong></article><article class="kpi"><span>الزيارات / المرضى</span><strong id="monthVisitsPatients">—</strong></article></div>';
  content('financial').prepend(financialSummary);
  move('annual',panelByHeading('مقارنة نفس الشهر بالعام السابق'));
- move('reconciliation',panelByHeading('مطابقة التشغيل مع أرشيف Excel التاريخي'));
+ move('reconciliation',panelByHeading('مطابقة التشغيل مع مسار المحاسب المستقل'));
  move('cases',panelByHeading('الحركة اليومية'));
  move('expenseBreakdown',panelByHeading('تفصيل المصروفات حسب البند'));
  move('overview',panelByHeading('مقارنة الفروع'));
@@ -103,12 +103,12 @@ function mountOwnerDashboardNavigation(){
  content('dailyFinance').append(movement);
  const financeLink=document.createElement('a');financeLink.href='workday.html';financeLink.className='btn secondary owner-workday-link';financeLink.textContent='فتح شاشة يوم العمل لتسجيل حركة جديدة';content('dailyFinance').prepend(financeLink);
  const liveNote=document.createElement('p');liveNote.className='hint';liveNote.textContent='تُعرض أعداد التحاليل المعلقة وقيد التنفيذ والمكتملة، والزيارات المنشور تقريرها وغير المنشور، من بيانات التشغيل الحية للفترة والفرع المحددين.';content('live').append(liveNote);
- const annualNote=document.createElement('p');annualNote.className='hint';annualNote.textContent='المقارنة أعلى الشاشة تقارن الشهر نفسه بالعام السابق، والجداول التاريخية أدناه تعرض السنة الكاملة من أرشيف Excel عند توفره.';content('annual').append(annualNote);
+ const annualNote=document.createElement('p');annualNote.className='hint';annualNote.textContent='المقارنة أعلى الشاشة تقارن الشهر نفسه بالعام السابق، والجداول التحليلية أدناه تعتمد على بيانات مسار المحاسب المستوردة عند توفرها.';content('annual').append(annualNote);
  const security=document.createElement('section');security.className='panel';security.innerHTML='<h3>حالة الأمان والنسخ</h3><p class="muted">عزل بيانات المعمل والصلاحيات تُطبّق من طبقة الحساب وقاعدة البيانات. الأرشيف التاريخي في هذه اللوحة محفوظ محليًا على هذا المتصفح فقط، وليس نسخة سحابية.</p><div class="security-status-grid"><article><strong>أرشيف Excel</strong><span>محلي على الجهاز</span></article><article><strong>النسخ السحابي</strong><span>يحفظ نسخة من بيانات هذا الجهاز فقط، وليس قاعدة بيانات الخادم كاملة</span></article><article><strong>إدارة المزامنة</strong><span>راجع مركز المزامنة والنسخ المحلي</span></article></div><div class="actions"><a class="btn secondary" href="settings.html">إدارة النسخ المحلية والسحابية</a><a class="btn secondary" href="sync-center.html">فتح مركز المزامنة</a></div><p class="hint">النسخة السحابية المتاحة تحفظ نسخة من بيانات هذا الجهاز فقط، وليست Backup كاملًا لقاعدة بيانات الخادم؛ الاستعادة تدمج البيانات محليًا ولا تكتب تلقائيًا إلى Supabase.</p>';
  content('security').append(security);
  const summary=panelByHeading('ملخص قابل للنسخ');move('overview',summary);
  const note=document.createElement('p');note.className='hint';note.textContent='صافي النقدية ليس صافي ربح محاسبيًا؛ لا تتوفر في التشغيل الحي تكلفة موثوقة لكل تحليل ضمن هذا التقرير.';content('overview').append(note);
- const historyHint=document.createElement('p');historyHint.className='hint';historyHint.textContent='يعرض كل تقرير تاريخي بيانات ملف Excel فقط. فلتر الفرع يطابق الاسم حرفيًا؛ عند اختلاف الاسم لا نعرض فرعًا بديلًا. لا تخلط هذه النتائج مع التشغيل الحي.';for(const id of ['bcg','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers'])content(id).prepend(historyHint.cloneNode(true));
+ const historyHint=document.createElement('p');historyHint.className='hint';historyHint.textContent='تعتمد تحليلات المحفظة على مسار المحاسب المستورد فقط، ولا تمثل ربحية التشغيل الحي ما لم تتوفر تكلفة تشغيل موثوقة. عند اختلاف اسم الفرع لا نخمن الربط ولا نعرض فرعًا بديلًا.';for(const id of ['bcg','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers'])content(id).prepend(historyHint.cloneNode(true));
  showOwnerReport('home');
 }
 
@@ -143,11 +143,29 @@ function filterHistoricalReport(source,target,needle){
   if(capture)target.append(node.cloneNode(true));
   if(node.tagName==='H4'&&capture&&children[i+1]?.tagName==='DIV'){}
  }
- if(!target.querySelector('h4'))target.insertAdjacentHTML('beforeend','<p class="muted">سيظهر هذا التقرير بعد تحميل ملفات Excel التاريخية المطلوبة واختيار الفترة.</p>');
+ if(!target.querySelector('h4'))target.insertAdjacentHTML('beforeend','<p class="muted">سيظهر هذا التقرير بعد استيراد بيانات المحاسب المتوافقة.</p>');
+}
+function mountAccountantReportCards(){
+ const source=$('ownerFinancialAnalysisResults');if(!source||source.dataset.reportCardsMounted==='true')return;
+ source.dataset.reportCardsMounted='true';
+ const specs=[
+  ['annual','الرسم السنوي'],['annual','الملخص السنوي'],['annual','اتجاه الأداء المالي السنوي'],
+  ['bcg','مصفوفة BCG'],['monthlyPlan','خطة الشهر التالي'],['monthlyPlan','خطة الأشهر الثلاثة التالية'],
+  ['cases','موسمية الحالات حسب الشهر'],['topSellers','الأكثر طلبًا'],['mostProfitable','الأكثر ربحية'],
+  ['leastProfitable','الأقل ربحية'],['needOffers','تحاليل تحتاج تنشيطًا'],['lossMakers','التحاليل الخاسرة']
+ ];
+ const observers=[];
+ for(const [reportId,needle] of specs){
+  const root=$('ownerContent-'+reportId);if(!root)continue;
+  if(!observers.some(x=>x.reportId===reportId))root.querySelectorAll('.historical-report-card').forEach(node=>node.remove());
+  const card=document.createElement('section');card.className='panel historical-report-card';card.dataset.accountantSource=needle;root.append(card);
+  const sync=()=>filterHistoricalReport(source,card,needle);
+  const observer=new MutationObserver(sync);observer.observe(source,{childList:true,subtree:true,characterData:true});observers.push({reportId,observer});sync();
+ }
 }
 function showOwnerReport(id){
  const home=$('ownerDashboardHome'),screens=$('ownerDashboardScreens');
- const historicalScreens=['annual','cases','bcg','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers','upload'];const historyPeriod=$('historyPeriodPanel');if(historyPeriod)historyPeriod.hidden=!historicalScreens.includes(id);
+ const historicalScreens=['upload'];const historyPeriod=$('historyPeriodPanel');if(historyPeriod)historyPeriod.hidden=!historicalScreens.includes(id);
  if(id==='home'){home.hidden=false;screens.hidden=true;return;}
  const screen=screens.querySelector('[data-owner-screen="'+id+'"]');if(!screen)return;
  home.hidden=true;screens.hidden=false;
@@ -155,7 +173,7 @@ function showOwnerReport(id){
  window.scrollTo({top:screens.offsetTop-12,behavior:'smooth'});
 }
 async function start(){mountOwnerDashboardNavigation();const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;$('signOut').hidden=true;return;}$('loginPanel').hidden=true;$('workspace').hidden=false;$('signOut').hidden=false;state.context=await loadMyTenantContext();const owners=(state.context.tenants||[]).filter(t=>t.accountType==='owner');if(!owners.length){$('workspace').hidden=true;$('loginPanel').hidden=false;throw new Error('لوحة التحليل المالي متاحة لمدير المعمل فقط.');}state.context.tenants=owners;$('tenantSelect').innerHTML=owners.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');$('tenantSelect').onchange=()=>selectTenant($('tenantSelect').value);$('month').value=currentMonth();$('testRangeFrom').value=monthRange(currentMonth()).monthStart;$('testRangeTo').value=localToday();const preferredTenantId=getPreferredTenantId(owners);$('tenantSelect').value=preferredTenantId;await selectTenant(preferredTenantId);}
-async function selectTenant(id){state.tenant=state.context.tenants.find(t=>t.id===id);if(!state.tenant)return;rememberWorkspaceSelection(state.tenant.id);const ownerBranches=state.tenant?.allBranches||state.tenant?.branches||[];$('branchSelect').innerHTML='<option value="all">كل الفروع</option>'+ownerBranches.map(b=>`<option value="${esc(b.id)}" data-branch-name="${esc(b.name)}">${esc(b.name)}${b.is_active===false?' · مؤرشف':''}</option>`).join('');await refresh();await mountHistoricalWorkbookPanel(state.tenant.id);await mountOwnerFinancialImport(state.tenant.id,ownerBranches);}
+async function selectTenant(id){state.tenant=state.context.tenants.find(t=>t.id===id);if(!state.tenant)return;rememberWorkspaceSelection(state.tenant.id);const ownerBranches=state.tenant?.allBranches||state.tenant?.branches||[];$('branchSelect').innerHTML='<option value="all">كل الفروع</option>'+ownerBranches.map(b=>`<option value="${esc(b.id)}" data-branch-name="${esc(b.name)}">${esc(b.name)}${b.is_active===false?' · مؤرشف':''}</option>`).join('');await refresh();await mountHistoricalWorkbookPanel(state.tenant.id);await mountOwnerFinancialImport(state.tenant.id,ownerBranches);mountAccountantReportCards();const reconciliationTarget=$('ownerContent-reconciliation');for(const id of ['ownerFinancialSourcePanel','ownerFinancialApprovalPanel']){const panel=$(id);if(panel&&reconciliationTarget)reconciliationTarget.append(panel);}}
 function renderComparison(current,previous){
  const body=$('periodComparisonRows');if(!body)return;
  body.innerHTML=compareDashboardPeriods(current,previous).map(item=>{

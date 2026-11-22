@@ -130,7 +130,7 @@ async function renderWork() {
   }
   host.innerHTML = '';
   for (const [visitId, group] of byVisit) {
-    const card = document.createElement('article'); card.className = 'work-card'; card.dataset.visitId = visitId; card.dataset.patientPhone = group.visit?.patients?.phone || ''; card.dataset.visitNumber = group.visit?.visit_number || ''; card.dataset.published = String(Boolean(group.visit?.is_published)); card.dataset.visitStatus = group.visit?.status || 'open';
+    const card = document.createElement('article'); card.className = 'work-card'; card.dataset.visitId = visitId; card.dataset.patientPhone = group.visit?.patients?.phone || ''; card.dataset.patientAge = group.visit?.patients?.age_value ?? group.visit?.patients?.age_years ?? ''; card.dataset.patientAgeUnit = group.visit?.patients?.age_unit || (group.visit?.patients?.age_years != null ? 'years' : ''); card.dataset.patientSex = group.visit?.patients?.sex || ''; card.dataset.visitDate = group.visit?.visit_work_date || ''; card.dataset.visitNumber = group.visit?.visit_number || ''; card.dataset.published = String(Boolean(group.visit?.is_published)); card.dataset.visitStatus = group.visit?.status || 'open';
     const visitTitle = `زيارة ${group.visit?.visit_number ?? '—'} · ${group.visit?.patients?.full_name ?? 'مريض'}`;
     const isPublished = Boolean(group.visit?.is_published);
     const itemsMarkup = group.items.map(item => {
