@@ -10,7 +10,7 @@ import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.j
 import { cacheRows, getCachedRows, replaceCachedRows } from '../../offline/cache.js';
 
 const $ = id => document.getElementById(id);
-const state = { context:null, userId:null, tenant:null, branch:null, staff:[], workday:null, patient:null, catalog:[], prices:new Map(), selected:new Set(), parameters:new Map(), busy:false, stopSync:null, lastVisit:null };
+const state = { context:null, userId:null, tenant:null, branch:null, staff:[], workday:null, patient:null, catalog:[], prices:new Map(), selected:new Set(), parameters:new Map(), busy:false, stopSync:null, lastVisit:null, visitNumberPromise:null };
 const money = n => `${Number(n || 0).toFixed(2)} ج.م`;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateStamp = () => new Date().toISOString().slice(0,10).replaceAll('-','');
@@ -31,23 +31,25 @@ async function newReferenceCodes(){
   const safeFallback=makeCode('V');
   $('visitNumber').value=safeFallback;
   $('visitNumber').title='يتم حجز رقم تسلسلي آمن للفرع عند توفر اتصال السحابة وتفعيل ترقيم الزيارات.';
-  if(!state.tenant?.id||!state.branch?.id||navigator.onLine===false)return;
-  const tenantCode=shortCodePart(state.tenant.slug||state.tenant.name,'LAB');
-  const branchCode=shortCodePart(state.branch.name,'BR');
-  try{
-    const {data,error}=await getSupabaseClient().rpc('reserve_branch_visit_number',{
-      p_tenant_id:state.tenant.id,p_branch_id:state.branch.id,p_tenant_code:tenantCode,p_branch_code:branchCode
-    });
-    if(error)throw error;
-    if(typeof data==='string'&&data.trim()){
-      $('visitNumber').value=data;
-      $('visitNumber').title='رقم تسلسلي محجوز بأمان لهذا الفرع.';
+  state.visitNumberPromise=(async()=>{
+    if(!state.tenant?.id||!state.branch?.id||navigator.onLine===false)return;
+    const tenantCode=shortCodePart(state.tenant.slug||state.tenant.name,'LAB');
+    const branchCode=shortCodePart(state.branch.name,'BR');
+    try{
+      const {data,error}=await getSupabaseClient().rpc('reserve_branch_visit_number',{
+        p_tenant_id:state.tenant.id,p_branch_id:state.branch.id,p_tenant_code:tenantCode,p_branch_code:branchCode
+      });
+      if(error)throw error;
+      if(typeof data==='string'&&data.trim()){
+        $('visitNumber').value=data;
+        $('visitNumber').title='رقم تسلسلي محجوز بأمان لهذا الفرع.';
+      }
+    }catch(error){
+      $('visitNumber').value=safeFallback;
+      $('visitNumber').title='الترقيم التسلسلي المختصر يحتاج تفعيل تحديث قاعدة البيانات 076. الرمز الحالي آمن وفريد.';
     }
-  }catch(error){
-    // Keep the existing collision-resistant reference until migration 076 is applied.
-    $('visitNumber').value=safeFallback;
-    $('visitNumber').title='الترقيم التسلسلي المختصر يحتاج تفعيل تحديث قاعدة البيانات 076. الرمز الحالي آمن وفريد.';
-  }
+  })();
+  await state.visitNumberPromise;
 }
 function showPaymentReceipt({patientName,visitNumber,amount,method,staffName,paymentId}){
   const brand=globalThis.__taibaTenantBrand||{}, lab=brand.settings||{}, print=brand.printSettings||{};
@@ -214,6 +216,7 @@ async function submitVisit(button){
   const gross=[...state.selected].reduce((sum,id)=>sum+Number(state.prices.get(id)?.selling_price||0),0);
   const discount=Number($('discount').value||0),paid=Number($('initialPayment').value||0);
   if(!Number.isFinite(discount)||discount<0||discount>gross||!Number.isFinite(paid)||paid<0||paid>gross-discount){notice('راجع قيمة الخصم والمدفوع؛ المدفوع لا يجوز أن يتجاوز صافي الفاتورة.',true);return;}
+  if(state.visitNumberPromise)await state.visitNumberPromise;
   const visitNumber=$('visitNumber').value||makeCode('V');state.busy=true;updateTotals();busy(button,true,'جارٍ حفظ الزيارة والفاتورة…');
   try{
     const localVisitId=crypto.randomUUID();
