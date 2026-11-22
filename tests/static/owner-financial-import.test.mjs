@@ -49,3 +49,10 @@ assert.match(reconciliation,/buildGenericHistoricalReport/);
 assert.match(reconciliation,/المبيعات \/ الإيرادات/);
 assert.match(reconciliation,/التحصيل النقدي/);
 console.log('PASS accountant stream is distinct from local reference workbooks; reconciliation uses like-for-like metrics and dashboard analysis charts');
+
+assert.match(dashboard,/function mountAccountantReportCards/);
+assert.match(dashboard,/ownerFinancialAnalysisResults/);
+assert.match(dashboard,/\['annual','الرسم السنوي'\]/);
+assert.match(dashboard,/\['bcg','مصفوفة BCG'\]/);
+assert.match(dashboard,/const historicalScreens=\['upload'\]/);
+console.log('PASS accountant-derived BCG, annual, seasonality, demand and profitability panels are mounted in their dedicated report screens');

@@ -143,11 +143,29 @@ function filterHistoricalReport(source,target,needle){
   if(capture)target.append(node.cloneNode(true));
   if(node.tagName==='H4'&&capture&&children[i+1]?.tagName==='DIV'){}
  }
- if(!target.querySelector('h4'))target.insertAdjacentHTML('beforeend','<p class="muted">سيظهر هذا التقرير بعد تحميل ملفات Excel التاريخية المطلوبة واختيار الفترة.</p>');
+ if(!target.querySelector('h4'))target.insertAdjacentHTML('beforeend','<p class="muted">سيظهر هذا التقرير بعد استيراد بيانات المحاسب المتوافقة.</p>');
+}
+function mountAccountantReportCards(){
+ const source=$('ownerFinancialAnalysisResults');if(!source||source.dataset.reportCardsMounted==='true')return;
+ source.dataset.reportCardsMounted='true';
+ const specs=[
+  ['annual','الرسم السنوي'],['annual','الملخص السنوي'],['annual','اتجاه الأداء المالي السنوي'],
+  ['bcg','مصفوفة BCG'],['monthlyPlan','خطة الشهر التالي'],['monthlyPlan','خطة الأشهر الثلاثة التالية'],
+  ['cases','موسمية الحالات حسب الشهر'],['topSellers','الأكثر طلبًا'],['mostProfitable','الأكثر ربحية'],
+  ['leastProfitable','الأقل ربحية'],['needOffers','تحاليل تحتاج تنشيطًا'],['lossMakers','التحاليل الخاسرة']
+ ];
+ const observers=[];
+ for(const [reportId,needle] of specs){
+  const root=$('ownerContent-'+reportId);if(!root)continue;
+  if(!observers.some(x=>x.reportId===reportId))root.querySelectorAll('.historical-report-card').forEach(node=>node.remove());
+  const card=document.createElement('section');card.className='panel historical-report-card';card.dataset.accountantSource=needle;root.append(card);
+  const sync=()=>filterHistoricalReport(source,card,needle);
+  const observer=new MutationObserver(sync);observer.observe(source,{childList:true,subtree:true,characterData:true});observers.push({reportId,observer});sync();
+ }
 }
 function showOwnerReport(id){
  const home=$('ownerDashboardHome'),screens=$('ownerDashboardScreens');
- const historicalScreens=['annual','cases','bcg','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers','upload'];const historyPeriod=$('historyPeriodPanel');if(historyPeriod)historyPeriod.hidden=!historicalScreens.includes(id);
+ const historicalScreens=['upload'];const historyPeriod=$('historyPeriodPanel');if(historyPeriod)historyPeriod.hidden=!historicalScreens.includes(id);
  if(id==='home'){home.hidden=false;screens.hidden=true;return;}
  const screen=screens.querySelector('[data-owner-screen="'+id+'"]');if(!screen)return;
  home.hidden=true;screens.hidden=false;
@@ -155,7 +173,7 @@ function showOwnerReport(id){
  window.scrollTo({top:screens.offsetTop-12,behavior:'smooth'});
 }
 async function start(){mountOwnerDashboardNavigation();const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;$('signOut').hidden=true;return;}$('loginPanel').hidden=true;$('workspace').hidden=false;$('signOut').hidden=false;state.context=await loadMyTenantContext();const owners=(state.context.tenants||[]).filter(t=>t.accountType==='owner');if(!owners.length){$('workspace').hidden=true;$('loginPanel').hidden=false;throw new Error('لوحة التحليل المالي متاحة لمدير المعمل فقط.');}state.context.tenants=owners;$('tenantSelect').innerHTML=owners.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');$('tenantSelect').onchange=()=>selectTenant($('tenantSelect').value);$('month').value=currentMonth();$('testRangeFrom').value=monthRange(currentMonth()).monthStart;$('testRangeTo').value=localToday();const preferredTenantId=getPreferredTenantId(owners);$('tenantSelect').value=preferredTenantId;await selectTenant(preferredTenantId);}
-async function selectTenant(id){state.tenant=state.context.tenants.find(t=>t.id===id);if(!state.tenant)return;rememberWorkspaceSelection(state.tenant.id);const ownerBranches=state.tenant?.allBranches||state.tenant?.branches||[];$('branchSelect').innerHTML='<option value="all">كل الفروع</option>'+ownerBranches.map(b=>`<option value="${esc(b.id)}" data-branch-name="${esc(b.name)}">${esc(b.name)}${b.is_active===false?' · مؤرشف':''}</option>`).join('');await refresh();await mountHistoricalWorkbookPanel(state.tenant.id);await mountOwnerFinancialImport(state.tenant.id,ownerBranches);const reconciliationTarget=$('ownerContent-reconciliation');for(const id of ['ownerFinancialSourcePanel','ownerFinancialApprovalPanel']){const panel=$(id);if(panel&&reconciliationTarget)reconciliationTarget.append(panel);}}
+async function selectTenant(id){state.tenant=state.context.tenants.find(t=>t.id===id);if(!state.tenant)return;rememberWorkspaceSelection(state.tenant.id);const ownerBranches=state.tenant?.allBranches||state.tenant?.branches||[];$('branchSelect').innerHTML='<option value="all">كل الفروع</option>'+ownerBranches.map(b=>`<option value="${esc(b.id)}" data-branch-name="${esc(b.name)}">${esc(b.name)}${b.is_active===false?' · مؤرشف':''}</option>`).join('');await refresh();await mountHistoricalWorkbookPanel(state.tenant.id);await mountOwnerFinancialImport(state.tenant.id,ownerBranches);mountAccountantReportCards();const reconciliationTarget=$('ownerContent-reconciliation');for(const id of ['ownerFinancialSourcePanel','ownerFinancialApprovalPanel']){const panel=$(id);if(panel&&reconciliationTarget)reconciliationTarget.append(panel);}}
 function renderComparison(current,previous){
  const body=$('periodComparisonRows');if(!body)return;
  body.innerHTML=compareDashboardPeriods(current,previous).map(item=>{
