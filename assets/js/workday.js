@@ -10,7 +10,7 @@ const $=id=>document.getElementById(id);
 const state={context:null,userId:null,tenant:null,branch:null,staff:[],workday:null,categories:[],busy:false,autoCloseBusy:false,stopSync:null};
 const money=n=>`${Number(n||0).toFixed(2)} ج.م`;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function localDate(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function localDate(){const d=new Date(),zone=state.tenant?.timezone;if(zone){try{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d).map(x=>[x.type,x.value]));return `${parts.year}-${parts.month}-${parts.day}`;}catch{}}return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function notice(message,error=false){$('notice').textContent=message;$('notice').className=`notice show${error?' error':''}`;clearTimeout(notice.timer);notice.timer=setTimeout(()=>$('notice').className='notice',6500);}
 function busy(button,on,label){button.disabled=on;if(on){button.dataset.old=button.textContent;button.textContent=label||'جارٍ التنفيذ…';}else if(button.dataset.old){button.textContent=button.dataset.old;delete button.dataset.old;}}
 const staffId=()=> $('staffSelect').value||null;
