@@ -184,3 +184,11 @@ html[data-theme=dark] :where(.post-save-actions,.historical-results-panel,.billi
 html[data-theme=dark] :where(.notice.show,#notice.show){background:#214A4A!important;color:#F3FAFA!important;border:1px solid #3C7776!important}
 html[data-theme=dark] :where(.notice.error,#notice.show.error){background:#512D2B!important;color:#FFC0B8!important;border-color:#8A4A43!important}
 :where(button,a,input,select,textarea):focus-visible{outline:3px solid color-mix(in srgb,var(--taiba-accent) 55%,transparent);outline-offset:2px}
+
+/* Dark mode wins over legacy per-page colors and preserves the chosen contrast palette. */
+html[data-theme="dark"] :where(input:not([type=checkbox]):not([type=radio]),select,textarea){background:var(--taiba-input)!important;color:var(--taiba-ink)!important;border-color:var(--taiba-border)!important}
+html[data-theme="dark"] :where(input,select,textarea)::placeholder{color:var(--taiba-muted)!important}
+html[data-theme="dark"] :is(.button-secondary,.button-ghost,.button-outline,.button-light,.profile-open-button,.visit-select-button){background:var(--taiba-accent-soft)!important;color:var(--taiba-ink)!important;border-color:var(--taiba-border)!important}
+html[data-theme="dark"] :is(.button-primary,.button:not(.button-secondary):not(.button-ghost):not(.button-outline):not(.button-light)){background:var(--taiba-accent)!important;color:#FFFFFF!important;border-color:var(--taiba-accent)!important}
+html[data-theme="dark"] :where(.portal-card,.portal-results-card,.report-card,.report-sheet,.report-preview,.public-card,.site-section,.site-panel,.lookup-card){background:var(--taiba-surface)!important;color:var(--taiba-ink)!important;border-color:var(--taiba-border)!important}
+html[data-theme="dark"] :where(.portal-card,.portal-results-card,.report-card,.report-sheet,.report-preview,.public-card,.site-section,.site-panel,.lookup-card) :where(h1,h2,h3,strong,label,p,small,span){color:inherit}
