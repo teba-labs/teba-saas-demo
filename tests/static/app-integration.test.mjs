@@ -14,12 +14,15 @@ test('unified Arabic launcher exists and loads authenticated tenant context', ()
   assert.match(html, /id="tenantSelect"/);
   assert.match(html, /id="branchSelect"/);
   assert.match(html, /id="workdayTitle"/);
+  assert.match(html, /id="welcomeTitle"/);
+  assert.match(html, /id="welcomeClock"/);
   assert.match(html, /id="ownerArea"/);
   assert.match(html, /assets\/js\/tenant-branding\.js/);
   assert.match(js, /loadMyTenantContext/);
   assert.match(js, /getCurrentSession/);
   assert.match(js, /getCurrentWorkday/);
   assert.match(js, /getOutboxSummary/);
+  assert.match(js, /updateWelcomeClock/);
 });
 
 test('launcher exposes core operations to staff and reserves owner controls', () => {
