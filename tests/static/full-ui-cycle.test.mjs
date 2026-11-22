@@ -47,7 +47,7 @@ test('reception preserves post-save actions for online and offline visit intake'
 
 test('theme controls and semantic palette are available on the priority screens',()=>{
  const theme=read('assets/css/theme-system.css');
- for(const page of ['app/reception.html','app/results-workbench.html','app/result-entry.html','app/catalog.html']){
+ for(const page of ['app/reception.html','app/results-workbench.html','app/result-entry.html','app/catalog.html','app/settings.html','app/dashboard.html','app/platform-admin.html','portal/index.html','website/index.html']){
   assert.match(read(page),/theme-controller\.js/,page);
  }
  for(const token of ['--taiba-page:#F4F7FA','--taiba-surface:#FFFFFF','--taiba-accent:#168C8C','--taiba-page:#101D2B','--taiba-surface:#17293B','--taiba-ink:#F3F7FA'])assert.ok(theme.includes(token),token);
@@ -61,4 +61,12 @@ test('priority pages have responsive breakpoints for desktop tablet and phone',(
  assert.match(results,/test-launch-card/);
  assert.match(reception,/\.intake-content\{display:grid/);
  assert.match(catalog,/max-width:900px/);
+});
+
+test('offline shell includes the dedicated entry route and new appearance assets',()=>{
+ const sw=read('service-worker.js');
+ assert.match(sw,/taiba-smart-lab-shell-v39/);
+ assert.match(sw,/\.\/app\/result-entry\.html/);
+ assert.match(sw,/\.\/assets\/css\/theme-system\.css/);
+ assert.match(sw,/\.\/assets\/js\/results-workbench-layout\.js/);
 });
