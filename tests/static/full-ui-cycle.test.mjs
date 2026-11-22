@@ -5,7 +5,7 @@ import path from 'node:path';
 const root=path.resolve(import.meta.dirname,'../..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
-test('visit numbers are reserved atomically per tenant and branch with a readable prefix',()=>{
+test('visit numbers are reserved atomically per laboratory across branches with a readable prefix',()=>{
  const sql=read('database/migrations/076_branch_visit_number_sequences.sql');
  const js=read('assets/js/reception.js');
  assert.match(sql,/create table if not exists private\.branch_visit_sequences/);
