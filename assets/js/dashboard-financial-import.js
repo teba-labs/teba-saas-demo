@@ -74,8 +74,8 @@ function renderGenericHistoricalCards(report){
 async function refreshArchive(branchId=null){
  const batches=await listOwnerFinancialBatches(tenantId),root=$('ownerFinancialBatches');root.replaceChildren();if(!batches.length)root.append(element('p','لم يتم استيراد ملفات مالية بعد.'));
  for(const b of batches){const card=element('article');card.className='history-file-card';card.append(element('strong',b.file_name),element('p','الصفوف: '+b.rows_imported+' · '+(b.period_start||'—')+' إلى '+(b.period_end||'—')+' · '+new Date(b.created_at).toLocaleString('ar-EG')));root.append(card);}
- const rows=await listOwnerFinancialRows({tenantId});const report=buildGenericHistoricalReport(rows,{branchId});const t=report.totals;renderGenericHistoricalCards(report);
- $('ownerFinancialSummary').innerHTML='<div class="history-analysis-kpis"><article><span>إيرادات المحاسب</span><strong>'+money(t.revenue)+'</strong></article><article><span>مصروفات المحاسب</span><strong>'+money(t.expenses)+'</strong></article><article><span>صافي مبدئي</span><strong>'+money(t.profit)+'</strong></article><article><span>الحالات</span><strong>'+Number(t.cases||0).toLocaleString('ar-EG')+'</strong></article></div><p>الفترات المقروءة: '+report.periods.join('، ')+'</p>';
+ const rows=await listOwnerFinancialRows({tenantId});const approvals=await listOwnerMonthApprovals({tenantId});const isApproved=row=>{if(!row.period_date)return approvals.some(a=>!branchId||a.branch_id===null||a.branch_id===branchId);const month=String(row.period_date).slice(0,7);return approvals.some(a=>String(a.period_month||'').slice(0,7)===month&&(a.branch_id===null||a.branch_id===row.branch_id));};const approvedRows=rows.filter(isApproved);const allPeriods=[...new Set(rows.map(r=>String(r.period_date||'').slice(0,7)).filter(Boolean))];const approvedPeriods=new Set(approvals.map(a=>String(a.period_month||'').slice(0,7)));const pendingPeriods=allPeriods.filter(m=>!approvedPeriods.has(m));const report=buildGenericHistoricalReport(approvedRows,{branchId});const t=report.totals;renderGenericHistoricalCards(report);
+ $('ownerFinancialSummary').innerHTML='<div class="history-analysis-kpis"><article><span>إيرادات الأشهر المعتمدة</span><strong>'+money(t.revenue)+'</strong></article><article><span>مصروفات الأشهر المعتمدة</span><strong>'+money(t.expenses)+'</strong></article><article><span>الصافي المعتمد</span><strong>'+money(t.profit)+'</strong></article><article><span>الحالات</span><strong>'+Number(t.cases||0).toLocaleString('ar-EG')+'</strong></article></div><p>الفترات الداخلة في التحليل: '+report.periods.join('، ')+'</p><p class="hint">أشهر مستوردة تنتظر اعتماد الدكتور: '+(pendingPeriods.join('، ')||'لا توجد')+'. لا تدخل بيانات الشهر في التحليل النهائي قبل الاعتماد.</p>';
  const tbody=$('ownerFinancialMonthly');tbody.replaceChildren();report.monthly.forEach(m=>{const tr=element('tr');[m.month,m.revenue,m.expenses,m.profit,m.cases].forEach((v,i)=>tr.append(element('td',i?money(v):v)));tbody.append(tr);});
  const seasonal=$('ownerFinancialSeasonality');if(seasonal){seasonal.replaceChildren();report.seasonality.forEach(m=>{const tr=element('tr');[m.month,m.revenue,m.cases,m.years].forEach(v=>tr.append(element('td',v)));seasonal.append(tr);});}
  const items=$('ownerFinancialItems');if(items){items.replaceChildren();report.items.slice(0,30).forEach(item=>{const tr=element('tr');[item.name,item.count,item.revenue,item.cost,item.profit,item.unitProfit].forEach((v,i)=>tr.append(element('td',i<2?v:money(v))));items.append(tr);});}
@@ -91,21 +91,23 @@ export async function mountOwnerFinancialImport(currentTenant,tenantBranches=[])
  $('ownerFinancialSheet').onchange=e=>{activeSheet=e.target.value;queueProgress();renderMapping();};
  $('ownerFinancialCompare').onclick=async()=>{try{
  const month=$('ownerFinancialApprovalMonth').value;if(!month)throw new Error('اختر شهر المطابقة.');
- const liveReport=window.__ownerLiveReport;if(liveReport?.period?.monthStart!==month+'-01')throw new Error('اختر نفس الشهر في فلتر لوحة المالك أولًا حتى تكون مقارنة اللايف مع Excel لنفس الفترة.');
+ const liveReport=window.__ownerLiveReport;const liveAvailable=Boolean(liveReport?.period?.monthStart===month+'-01');
  const branchValue=$('branchSelect')?.value||'all',branchId=branchValue==='all'?null:branchValue;
  const end=new Date(month+'-01T00:00:00Z');end.setUTCMonth(end.getUTCMonth()+1);end.setUTCDate(end.getUTCDate()-1);
  const rows=await listOwnerFinancialRows({tenantId,from:month+'-01',to:end.toISOString().slice(0,10)});
  const excel=buildGenericHistoricalReport(rows,{branchId});if(!rows.length)throw new Error('لا توجد بيانات Excel مستوردة لهذا الشهر.');
- const live=liveReport.totals||{},pairs=[['الإيرادات','revenue','netBilled','money'],['التحصيل','collections','collected','money'],['المصروفات','expenses','expenses','money'],['الحالات','cases','visits','count'],['الخصومات','discounts','discounts','money'],['التحاليل','tests','tests','count']];
- const comparison=pairs.map(([label,key,field,kind])=>({label,kind,excel:Number(excel.totals[key]||0),live:Number(live[field]||0),difference:Number(excel.totals[key]||0)-Number(live[field]||0)}));
- const scopedRows=rows.filter(r=>!branchId||r.branch_id===branchId||(r.branch_id==null&&r.metric_key==='test_price'));const reconciliation={period:month,branchId,scope:branchId?$('branchSelect').selectedOptions[0]?.textContent:'كل الفروع',excelRows:scopedRows.length,comparison,liveReportAvailable:true};
+ const live=liveAvailable?liveReport.totals||{}:null,pairs=[['الإيرادات','revenue','netBilled','money'],['التحصيل','collections','collected','money'],['المصروفات','expenses','expenses','money'],['الحالات','cases','visits','count'],['الخصومات','discounts','discounts','money'],['التحاليل','tests','tests','count']];
+ const comparison=pairs.map(([label,key,field,kind])=>({label,key,field,kind,excel:Number(excel.totals[key]||0),live:live?Number(live[field]||0):null,difference:live?Number(excel.totals[key]||0)-Number(live[field]||0):null}));
+ const scopedRows=rows.filter(r=>!branchId||r.branch_id===branchId||(r.branch_id==null&&r.metric_key==='test_price'));const reconciliation={period:month,branchId,scope:branchId?$('branchSelect').selectedOptions[0]?.textContent:'كل الفروع',excelRows:scopedRows.length,comparison,liveReportAvailable:liveAvailable,manualValues:{}};
  pendingApproval={tenantId,month,branchId,sourceChoices:{...sources},reconciliation};
- $('ownerFinancialReconciliation').innerHTML='<h4>مطابقة '+esc(month)+' · '+esc(reconciliation.scope)+'</h4><div class="table-wrap"><table><thead><tr><th>البند</th><th>Excel</th><th>Live</th><th>الفرق (Excel − Live)</th></tr></thead><tbody>'+comparison.map(x=>'<tr><td>'+x.label+'</td><td class="num">'+(x.kind==='money'?money(x.excel):x.excel.toLocaleString('ar-EG'))+'</td><td class="num">'+(x.kind==='money'?money(x.live):x.live.toLocaleString('ar-EG'))+'</td><td class="num">'+(x.kind==='money'?money(x.difference):x.difference.toLocaleString('ar-EG'))+'</td></tr>').join('')+'</tbody></table></div><p>عدد صفوف Excel المطابقة: '+rows.length+'. لم يتم تعديل أي بيانات تشغيلية.</p>';
- $('ownerFinancialApprove').disabled=false;note('ظهرت الفروق. راجعها ثم اضغط اعتماد الشهر لحفظ لقطة المطابقة.');
+ const comparisonRows=comparison.map(x=>'<tr><td>'+x.label+'</td><td class="num">'+(x.kind==='money'?money(x.excel):x.excel.toLocaleString('ar-EG'))+'</td><td class="num">'+(live?(x.kind==='money'?money(x.live):x.live.toLocaleString('ar-EG')):'لا يوجد تسجيل حي')+'</td><td class="num">'+(live?(x.kind==='money'?money(x.difference):x.difference.toLocaleString('ar-EG')):'غير متاح')+'</td><td><select data-approval-source="'+x.key+'"><option value="live" '+((sources[x.key]||(live?'live':'excel'))==='live'?'selected':'')+'>اعتماد النظام</option><option value="excel" '+((sources[x.key]||(live?'live':'excel'))==='excel'?'selected':'')+'>اعتماد Excel</option><option value="manual">قيمة يدوية</option></select><input type="number" step="0.01" data-approval-manual="'+x.key+'" placeholder="قيمة يدوية" aria-label="قيمة يدوية '+x.label+'"></td></tr>').join('');
+ $('ownerFinancialReconciliation').innerHTML='<h4>مراجعة '+esc(month)+' · '+esc(reconciliation.scope)+'</h4><p class="hint">'+(live?'مقارنة بين بيانات التشغيل وملف المحاسب.':'لا توجد بيانات تشغيل حية لهذا الشهر؛ يمكنك اعتماد الأرشيف التاريخي بعد مراجعة الصفوف.')+'</p><div class="table-wrap"><table><thead><tr><th>البند</th><th>Excel</th><th>Live</th><th>الفرق (Excel − Live)</th><th>قرار الدكتور / قيمة يدوية</th></tr></thead><tbody>'+comparisonRows+'</tbody></table></div><p>عدد صفوف Excel في الفترة: '+scopedRows.length+'. لم يتم تعديل أي بيانات تشغيلية.</p>';
+ $('ownerFinancialApprove').disabled=false;note('راجع الفروق ومصدر كل بند؛ ويمكن إدخال قيمة يدوية قبل اعتماد الشهر.');
  }catch(err){pendingApproval=null;$('ownerFinancialApprove').disabled=true;note(err.message,true);}};
 $('ownerFinancialApprove').onclick=async()=>{try{
  if(!pendingApproval)throw new Error('اعرض المطابقة أولًا قبل اعتماد الشهر.');
- if(window.__ownerLiveReport?.period?.monthStart!==pendingApproval.month+'-01')throw new Error('تغيرت فترة التشغيل؛ أعد عرض المطابقة.');
+ if(pendingApproval.reconciliation.liveReportAvailable&&window.__ownerLiveReport?.period?.monthStart!==pendingApproval.month+'-01')throw new Error('تغيرت فترة التشغيل؛ أعد عرض المطابقة.');
+ const manualValues={};document.querySelectorAll('[data-approval-source]').forEach(select=>{pendingApproval.sourceChoices[select.dataset.approvalSource]=select.value;});document.querySelectorAll('[data-approval-manual]').forEach(input=>{const value=input.value.trim();if(value!=='')manualValues[input.dataset.approvalManual]=Number(value);});for(const [key,source] of Object.entries(pendingApproval.sourceChoices)){if(source==='manual'&&!Number.isFinite(manualValues[key]))throw new Error('أدخل القيمة اليدوية للبند: '+key);if(source==='manual')pendingApproval.reconciliation.manualValues[key]=manualValues[key];}
  await saveOwnerMonthApproval({tenantId:pendingApproval.tenantId,month:pendingApproval.month,branchId:pendingApproval.branchId,sourceChoices:pendingApproval.sourceChoices,reconciliation:pendingApproval.reconciliation,notes:$('ownerFinancialApprovalNotes').value});
  pendingApproval=null;$('ownerFinancialApprove').disabled=true;note('تم حفظ اعتماد الشهر ولقطة الفروق ومصادر المؤشرات.');
  }catch(err){note(err.message,true);}};
@@ -115,25 +117,21 @@ $('ownerFinancialApprove').onclick=async()=>{try{
 }
 export async function applyOwnerFinancialSources(tenantId,liveReport,branchId=null){
  if(!tenantId||!liveReport)return liveReport;
- let choices;try{choices=await getOwnerDashboardSources(tenantId);}catch(error){if(error?.code==='42P01'||/does not exist|schema cache/i.test(error?.message||''))return liveReport;throw error;}
- if(!Object.values(choices).includes('excel'))return liveReport;
+ const month=String(liveReport.period?.monthStart||'').slice(0,7);if(!month)return liveReport;
+ let approvals;try{approvals=await listOwnerMonthApprovals({tenantId,month,branchId});}catch(error){if(error?.code==='42P01'||/does not exist|schema cache/i.test(error?.message||''))return liveReport;throw error;}
+ const approval=(approvals||[]).find(row=>branchId?row.branch_id===branchId:row.branch_id===null);
+ if(!approval)return {...liveReport,monthApproval:{approved:false,month,branchId,message:'الشهر لم يعتمد بعد؛ تعرض لوحة التشغيل بيانات النظام الحية فقط.'}};
+ const choices=approval.source_choices||{},manual=approval.reconciliation_snapshot?.manualValues||{};
  const monthEnd=(()=>{const d=new Date(liveReport.period.monthEnd+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})();
  const rows=await listOwnerFinancialRows({tenantId,from:liveReport.period.monthStart,to:monthEnd});
  const historical=buildGenericHistoricalReport(rows,{from:liveReport.period.monthStart,to:monthEnd,branchId});
- const t={...liveReport.totals},metricMap={revenue:'netBilled',collections:'collected',expenses:'expenses',cases:'visits',discounts:'discounts',tests:'tests'};
- for(const [metric,field] of Object.entries(metricMap)){if(choices[metric]==='excel'){if(metric==='revenue')t[field]=historical.totals.revenue;else if(metric==='collections')t[field]=historical.totals.collections;else if(metric==='expenses')t[field]=historical.totals.expenses;else if(metric==='cases')t[field]=historical.totals.cases;else if(metric==='discounts')t[field]=historical.totals.discounts;else t[field]=historical.totals.tests;}}
- if(choices.revenue==='excel')t.grossBilled=Number(t.netBilled||0)+Number(t.discounts||0);
- t.netCash=Number(t.collected||0)-Number(t.expenses||0);
- const branchReports=(liveReport.branches||[]).map(branch=>{const h=buildGenericHistoricalReport(rows,{from:liveReport.period.monthStart,to:monthEnd,branchId:branch.id});const b={...branch};
-  if(choices.revenue==='excel'){b.netBilled=h.totals.revenue;b.grossBilled=h.totals.revenue+(choices.discounts==='excel'?h.totals.discounts:b.discounts||0);}
-  if(choices.collections==='excel')b.collected=h.totals.collections;
-  if(choices.expenses==='excel')b.expenses=h.totals.expenses;
-  if(choices.cases==='excel')b.visits=h.totals.cases;
-  if(choices.discounts==='excel')b.discounts=h.totals.discounts;
-  if(choices.tests==='excel')b.tests=h.totals.tests;
-  b.netCash=Number(b.collected||0)-Number(b.expenses||0);return b;
- });
- const next={...liveReport,totals:t,branches:branchReports,selectedSources:choices,historicalSourceSummary:historical};
+ const metricMap={revenue:'netBilled',collections:'collected',expenses:'expenses',cases:'visits',discounts:'discounts',tests:'tests'};
+ const applyMetric=(target,metric,field,report)=>{if(choices[metric]==='excel'){if(metric==='revenue')target[field]=report.totals.revenue;else if(metric==='collections')target[field]=report.totals.collections;else if(metric==='expenses')target[field]=report.totals.expenses;else if(metric==='cases')target[field]=report.totals.cases;else if(metric==='discounts')target[field]=report.totals.discounts;else target[field]=report.totals.tests;}else if(choices[metric]==='manual'&&Number.isFinite(Number(manual[metric])))target[field]=Number(manual[metric]);};
+ const totals={...liveReport.totals};for(const [metric,field] of Object.entries(metricMap))applyMetric(totals,metric,field,historical);
+ if(choices.revenue==='excel'||choices.revenue==='manual')totals.grossBilled=Number(totals.netBilled||0)+Number(totals.discounts||0);
+ totals.netCash=Number(totals.collected||0)-Number(totals.expenses||0);
+ const branchReports=(liveReport.branches||[]).map(branch=>{if(branchId&&branch.id!==branchId)return branch;const scoped=buildGenericHistoricalReport(rows,{from:liveReport.period.monthStart,to:monthEnd,branchId:branch.id}),result={...branch};for(const [metric,field] of Object.entries(metricMap))applyMetric(result,metric,field,scoped);if(choices.revenue==='excel'||choices.revenue==='manual')result.grossBilled=Number(result.netBilled||0)+Number(result.discounts||0);result.netCash=Number(result.collected||0)-Number(result.expenses||0);return result;});
+ const next={...liveReport,totals,branches:branchReports,selectedSources:choices,historicalSourceSummary:historical,monthApproval:{approved:true,month,branchId,approvedAt:approval.approved_at,approvalId:approval.id}};
  if(choices.expenses==='excel')next.expenseBreakdown=historical.expenseCategories.map(item=>({branchName:branchId?(liveReport.branches.find(b=>b.id===branchId)?.name||'الفرع المحدد'):'كل الفروع',categoryName:item.name,count:0,amount:item.amount}));
  if(choices.tests==='excel')next.topTests=historical.items.map(item=>({name:item.name,count:item.count,billed:item.revenue})).sort((a,b)=>b.count-a.count);
  return next;
