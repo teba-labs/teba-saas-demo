@@ -29,9 +29,9 @@ test('historical workbook cloud repository uses private tenant backup paths and 
 test('historical dashboard keeps a local cache while syncing cloud archive separately from accountant imports',()=>{
  const js=read('assets/js/dashboard-history.js');
  assert.match(js,/saveCloudHistoricalWorkbook/);
- assert.match(js,/hydrateCloudArchive/);
+ assert.match(js,/hydrateCloudArchive/);assert.match(js,/localIsNewer/);assert.match(js,/saveCloudHistoricalWorkbook/);
  assert.match(js,/downloadCloudHistoricalWorkbook/);
  assert.match(js,/deleteCloudHistoricalWorkbook/);
  assert.match(js,/الأرشيف التاريخي مستقل عن التشغيل الحي ومسار المحاسب الشهري/);
- assert.match(js,/localHash===item\.file_sha256/);
+ assert.match(js,/cloud?.file_sha256===localHash/);
 });
