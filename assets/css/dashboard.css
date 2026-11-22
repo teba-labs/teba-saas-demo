@@ -56,3 +56,16 @@
  table{white-space:normal;font-size:10pt}
  th,td{padding:6px}
 }
+
+/* Accountant stream charts: compact, comparable and source-labelled. */
+.owner-source-chart{border:1px solid #e1e8ec;border-radius:12px;background:#fbfcfd;padding:14px;margin:12px 0 18px}
+.owner-source-chart h4{margin:0 0 12px;color:#294653;font-size:14px}
+.owner-source-chart-list{display:grid;gap:11px}
+.owner-source-chart-row{display:grid;grid-template-columns:minmax(110px,1.2fr) minmax(90px,2fr) minmax(74px,.8fr);align-items:center;gap:10px;font-size:12px}
+.owner-source-chart-row>span{overflow-wrap:anywhere;color:#425965}
+.owner-source-chart-row>strong{text-align:left;white-space:nowrap;font-variant-numeric:tabular-nums;color:#203e4c}
+.owner-source-chart-track{height:10px;background:#eaf0f3;border-radius:20px;overflow:hidden}
+.owner-source-chart-track i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#2c8394,#65aeb0);min-width:2px}
+.owner-source-chart-track i.negative{background:linear-gradient(90deg,#bd6c61,#d69b7d)}
+#ownerFinancialSourcePanel,#ownerFinancialApprovalPanel{margin-top:14px}
+@media(max-width:620px){.owner-source-chart-row{grid-template-columns:minmax(80px,1fr) minmax(70px,1.3fr);gap:7px}.owner-source-chart-row>strong{grid-column:2;text-align:left}.owner-source-chart-row>span{grid-row:span 2}}

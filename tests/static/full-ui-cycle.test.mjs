@@ -76,3 +76,9 @@ test('offline shell includes the dedicated entry route and new appearance assets
  assert.match(sw,/\.\/assets\/css\/theme-system\.css/);
  assert.match(sw,/\.\/assets\/js\/results-workbench-layout\.js/);
 });
+
+test('application navigation does not render escaped newline text in the header',()=>{
+ for(const page of ['app/reception.html','app/result-entry.html','app/results-workbench.html']){
+  assert.doesNotMatch(read(page),/\\n/,'literal backslash-n in '+page);
+ }
+});
