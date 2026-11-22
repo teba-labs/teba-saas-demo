@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const source=await readFile(new URL('../../modules/dashboard/financial-import-validation.js',import.meta.url),'utf8');
+const validation=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const canImport=validation.isFinancialImportRowImportable;
+assert.equal(canImport({metric_key:'test_price',period_date:null,unit_cost:20,selling_price:100}),true,'timeless price list rows must be importable');
+assert.equal(canImport({metric_key:'test_price',period_date:null,unit_cost:0,selling_price:null}),true,'zero cost is a valid configured value');
+assert.equal(canImport({metric_key:'test_price',period_date:null,unit_cost:null,selling_price:0}),true,'zero selling price is a valid configured value');
+assert.equal(canImport({metric_key:'expenses',period_date:null,amount:100}),false,'financial movements still require a period');
+assert.equal(canImport({metric_key:'expenses',period_date:'2024-01-01',amount:100}),true);
+assert.equal(canImport({metric_key:'expenses',period_date:'2024-01-01',amount:null,quantity:null}),false);
+assert.equal(canImport({metric_key:'test_price',period_date:null,unit_cost:null,selling_price:null}),false);
+assert.equal(canImport({metric_key:'test_price',period_date:null,unit_cost:20,selling_price:100,_duplicate:true}),false);
+assert.equal(canImport({metric_key:'   ',period_date:'2024-01-01',amount:100}),false);
+console.log('PASS accountant persistence guard: timeless price lists, zero values, period-required movements and duplicates');
