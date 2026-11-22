@@ -14,6 +14,19 @@
 .intake-panel .post-save-actions{border-radius:16px;box-shadow:0 8px 24px #168C8C16}
 .intake-panel input,.intake-panel select,.intake-panel textarea{min-height:46px}
 .intake-panel .button{min-height:44px}
-@media(min-width:1100px){.shell{max-width:1440px}.intake-panel{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(320px,.8fr);column-gap:24px}.intake-panel>.panel-heading,.intake-panel>.section-divider:first-of-type,.intake-panel>#patientSearch,.intake-panel>#patientMatches,.intake-panel>#selectedPatient,.intake-panel>#patientHistoricalPanel,.intake-panel>#newPatientDetails{grid-column:1/-1}.intake-panel>.section-divider:nth-of-type(2),.intake-panel>.form-grid.visit-meta,.intake-panel>label[for=visitNotes]{grid-column:1/-1}.intake-panel>.section-divider:nth-of-type(3),.intake-panel>#catalogSearch,.intake-panel>.catalog-toolbar,.intake-panel>#catalogList{grid-column:1}.intake-panel>.section-divider:nth-of-type(4),.intake-panel>.billing,.intake-panel>.main-actions,.intake-panel>.danger-note,.intake-panel>#postSaveActions{grid-column:2}.intake-panel>.section-divider:nth-of-type(4){grid-row:auto}.intake-panel>.main-actions{align-self:start}}
-@media(max-width:850px){.shell{width:calc(100% - 24px)}.workspace-context{grid-template-columns:1fr}.selectors{grid-template-columns:repeat(2,minmax(0,1fr))}.intake-panel{padding:18px}}
-@media(max-width:620px){.shell{width:calc(100% - 14px)}.topbar{align-items:flex-start;flex-wrap:wrap}.top-actions{width:100%;flex-wrap:wrap}.selectors,.patient-fields,.visit-meta,.form-grid{grid-template-columns:1fr}.intake-panel{padding:13px}.intake-panel .billing{grid-template-columns:1fr}.intake-panel .main-actions .button{width:100%}.intake-panel .post-save-actions .actions{display:grid;grid-template-columns:1fr;width:100%}}
+
+.intake-content{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:18px;align-items:start}
+.intake-block{min-width:0;padding:16px;border:1px solid var(--taiba-border);border-radius:16px;background:var(--taiba-surface)}
+.patient-block,.visit-block{grid-column:1/-1}
+.tests-block{grid-column:1}
+.billing-block{grid-column:2}
+.intake-block .section-divider{margin-top:0}
+.intake-block .section-divider:not(:first-child){margin-top:20px}
+.intake-block .catalog-list{max-height:430px;overflow:auto;padding:8px;border:1px solid var(--taiba-border);border-radius:14px;background:var(--taiba-surface-soft)}
+.intake-block .catalog-list label{background:var(--taiba-surface);border:1px solid var(--taiba-border);border-radius:11px;padding:10px 12px}
+.intake-block .billing{border:1px solid var(--taiba-border);border-radius:16px;padding:14px;background:var(--taiba-surface-soft)}
+.intake-block input,.intake-block select,.intake-block textarea{min-height:46px}
+.intake-block .button{min-height:44px}
+.intake-block .post-save-actions{border-radius:16px;box-shadow:0 8px 24px #168C8C16}
+@media(max-width:850px){.shell{width:calc(100% - 24px)}.workspace-context{grid-template-columns:1fr}.selectors{grid-template-columns:repeat(2,minmax(0,1fr))}.intake-content{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.intake-block{padding:13px}}
+@media(max-width:620px){.shell{width:calc(100% - 14px)}.topbar{align-items:flex-start;flex-wrap:wrap}.top-actions{width:100%;flex-wrap:wrap}.selectors,.patient-fields,.visit-meta,.form-grid{grid-template-columns:1fr}.intake-content{grid-template-columns:1fr}.patient-block,.visit-block,.tests-block,.billing-block{grid-column:1}.intake-block{padding:12px}.intake-block .billing{grid-template-columns:1fr}.intake-block .main-actions .button{width:100%}.intake-block .post-save-actions .actions{display:grid;grid-template-columns:1fr;width:100%}}
