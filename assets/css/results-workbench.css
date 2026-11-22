@@ -17,3 +17,23 @@
 .results-column{font-size:14px}.results-column input,.results-column select,.results-column textarea{font-size:14px;min-height:40px}.results-column-head h2{font-size:18px}.visit-select-button{font-size:14px}.catalog-result-row{font-size:14px}.catalog-result-row small{font-size:12px}.parameter-group legend{font-size:14px;font-weight:700}.parameter-group label{font-size:14px;line-height:1.5}.parameter-group label small{font-size:12px;line-height:1.4}.parameter-group input,.parameter-group select{min-height:42px}.profile-open-button{font-size:14px;min-height:44px}
 @media(max-width:900px){.results-columns{grid-template-columns:1fr}.visit-list{max-height:240px;grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.visit-list{grid-template-columns:1fr}.catalog-tools{grid-template-columns:1fr}.results-actionbar-buttons{grid-template-columns:1fr}.results-actionbar-buttons>*{width:100%}}.profile-work-list[hidden],.profile-entry-view[hidden]{display:none!important}
+/* Adaptive three-column results desk and dedicated result-entry page */
+.results-columns{grid-template-columns:minmax(220px,.78fr) minmax(0,1.1fr) minmax(0,1.1fr);gap:14px}
+.results-column{min-height:360px}
+.test-launch-list{display:grid;gap:9px}
+.test-launch-card{display:flex;width:100%;align-items:center;justify-content:space-between;gap:12px;text-align:right;padding:13px;border:1px solid var(--taiba-border);border-radius:12px;background:var(--taiba-surface-soft);color:var(--taiba-ink);font:inherit;cursor:pointer}
+.test-launch-card:hover{border-color:var(--taiba-accent);background:var(--taiba-accent-soft)}
+.test-launch-card span{display:grid;gap:4px;min-width:0}
+.test-launch-card small{color:var(--taiba-muted)}
+.test-launch-card .launch-arrow{font-size:20px;color:var(--taiba-accent)}
+.result-entry-page .results-workbench-shell{display:none!important}
+.result-entry-page #entryView{display:block}
+.result-entry-page #entryWorkspace>.parameter{display:grid;gap:18px;padding:clamp(16px,2.5vw,30px);border:1px solid var(--taiba-border);border-radius:18px;background:var(--taiba-surface)}
+.result-entry-page #entryWorkspace .parameter-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.result-entry-page #entryWorkspace .parameter-grid label{padding:12px;border:1px solid var(--taiba-border);border-radius:12px;background:var(--taiba-surface-soft)}
+.result-entry-page #entryWorkspace input,.result-entry-page #entryWorkspace select{min-height:48px}
+.result-entry-page #entryWorkspace .actions{padding-top:14px;border-top:1px solid var(--taiba-border)}
+@media(max-width:1050px){.results-columns{grid-template-columns:minmax(190px,.75fr) minmax(0,1fr) minmax(0,1fr)}}
+@media(max-width:850px){.results-columns{grid-template-columns:1fr 1fr}.visits-column{grid-column:1/-1}.visit-list{max-height:210px;grid-template-columns:repeat(3,minmax(0,1fr))}.results-column{min-height:0}}
+@media(max-width:620px){.results-columns{grid-template-columns:1fr}.visits-column{grid-column:auto}.visit-list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:260px}.result-entry-page #entryWorkspace .parameter-grid{grid-template-columns:1fr}.result-entry-page .shell{padding:0 8px}}
+@media(max-width:390px){.visit-list{grid-template-columns:1fr}.results-actionbar-buttons{grid-template-columns:1fr}}
