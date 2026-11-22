@@ -19,9 +19,35 @@ const paymentMethodLabels = {cash:'نقدي',card:'بطاقة',wallet:'محفظ�
 function notice(message,error=false){const el=$('notice');el.textContent=message;el.className=`notice show${error?' error':''}`;clearTimeout(notice.timer);notice.timer=setTimeout(()=>el.className='notice',6500);}
 function busy(button,on,label){if(!button)return;button.disabled=on;if(on){button.dataset.label=button.textContent;button.textContent=label||'جارٍ التنفيذ…';}else if(button.dataset.label){button.textContent=button.dataset.label;delete button.dataset.label;}}
 function currentStaff(){return $('staffSelect').value || null;}
-function newReferenceCodes(){
+function shortCodePart(value,fallback){
+  const map={ا:'A',أ:'A',إ:'A',آ:'A',ء:'A',ب:'B',ت:'T',ث:'TH',ج:'J',ح:'H',خ:'KH',د:'D',ذ:'DH',ر:'R',ز:'Z',س:'S',ش:'SH',ص:'S',ض:'D',ط:'T',ظ:'Z',ع:'A',غ:'GH',ف:'F',ق:'Q',ك:'K',ل:'L',م:'M',ن:'N',ه:'H',ة:'H',و:'W',ي:'Y',ى:'A'};
+  let raw=String(value||'').trim().toLowerCase();
+  if(raw.startsWith('ال'))raw=raw.slice(2);
+  const latin=[...raw].map(ch=>map[ch]||(/[a-z0-9]/i.test(ch)?ch.toUpperCase():'')).join('').replace(/[^A-Z0-9]/g,'');
+  return (latin||fallback).slice(0,3).padEnd(2,'X');
+}
+async function newReferenceCodes(){
   $('patientNumberPreview').value=makeCode('P');
-  $('visitNumber').value=makeCode('V');
+  const safeFallback=makeCode('V');
+  $('visitNumber').value=safeFallback;
+  $('visitNumber').title='يتم حجز رقم تسلسلي آمن للفرع عند توفر اتصال السحابة وتفعيل ترقيم الزيارات.';
+  if(!state.tenant?.id||!state.branch?.id||navigator.onLine===false)return;
+  const tenantCode=shortCodePart(state.tenant.slug||state.tenant.name,'LAB');
+  const branchCode=shortCodePart(state.branch.name,'BR');
+  try{
+    const {data,error}=await getSupabaseClient().rpc('reserve_branch_visit_number',{
+      p_tenant_id:state.tenant.id,p_branch_id:state.branch.id,p_tenant_code:tenantCode,p_branch_code:branchCode
+    });
+    if(error)throw error;
+    if(typeof data==='string'&&data.trim()){
+      $('visitNumber').value=data;
+      $('visitNumber').title='رقم تسلسلي محجوز بأمان لهذا الفرع.';
+    }
+  }catch(error){
+    // Keep the existing collision-resistant reference until migration 076 is applied.
+    $('visitNumber').value=safeFallback;
+    $('visitNumber').title='الترقيم التسلسلي المختصر يحتاج تفعيل تحديث قاعدة البيانات 076. الرمز الحالي آمن وفريد.';
+  }
 }
 function showPaymentReceipt({patientName,visitNumber,amount,method,staffName,paymentId}){
   const brand=globalThis.__taibaTenantBrand||{}, lab=brand.settings||{}, print=brand.printSettings||{};
@@ -114,7 +140,7 @@ async function loadBranch(){
   const prices=await listCurrentPrices({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});
   state.prices=new Map(prices.map(p=>[p.test_id,p]));state.parameters.clear();
   if(navigator.onLine!==false){try{await warmCatalogParameters({tenantId:state.tenant.id,testIds:catalog.map(t=>t.id)});}catch(error){notice('تعذر استكمال تجهيز بيانات التحاليل للعمل دون اتصال: '+(error.message||''),true);}}
-  $('intakePanel').hidden=false;newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();
+  $('intakePanel').hidden=false;await newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();
 }
 function renderCatalog(){
   const term=$('catalogSearch').value.trim().toLowerCase(),host=$('catalogList');
@@ -173,12 +199,12 @@ async function addNewPatient(button){
     else notice('تم تسجيل المريض واختياره بنجاح.');
   }catch(error){notice(error.message||'تعذر تسجيل المريض.',true);}finally{busy(button,false);updateTotals();}
 }
-function clearIntake(){
+async function clearIntake(){
   state.patient=null;state.selected.clear();state.parameters.clear();setPatient(null);
   $('patientSearch').value='';$('patientMatches').innerHTML='<p class="muted">ابدأ البحث لاختيار مريض مسجل.</p>';
   $('newPatientForm').reset();$('newPatientDetails').open=false;$('catalogSearch').value='';
   $('referredBy').value='';$('visitNotes').value='';$('discount').value='0';$('initialPayment').value='0';$('initialPaymentMethod').value='cash';
-  $('postSaveActions').hidden=true;$('paymentReceipt').hidden=true;newReferenceCodes();renderCatalog();$('patientSearch').focus();
+  $('postSaveActions').hidden=true;$('paymentReceipt').hidden=true;await newReferenceCodes();renderCatalog();$('patientSearch').focus();
 }
 async function submitVisit(button){
   if(state.busy)return;
@@ -235,7 +261,7 @@ async function submitVisit(button){
       notice(`تم تسجيل الزيارة رقم ${visitNumber} وإضافة ${state.selected.size} تحليلًا.`);
       await loadRecent();await loadBalances();
     }
-    state.selected.clear();renderCatalog();$('visitNumber').value=makeCode('V');$('discount').value='0';$('initialPayment').value='0';$('initialPaymentMethod').value='cash';$('referredBy').value='';$('visitNotes').value='';
+    state.selected.clear();renderCatalog();await newReferenceCodes();$('discount').value='0';$('initialPayment').value='0';$('initialPaymentMethod').value='cash';$('referredBy').value='';$('visitNotes').value='';
     if(!result?.queued){$('newPatientDetails').open=false;}
     updateTotals();$('postSaveActions').scrollIntoView({behavior:'smooth',block:'center'});
   }catch(error){notice(error.message||'تعذر تسجيل الزيارة. لم يتم تأكيد حفظ الفاتورة.',true);}
