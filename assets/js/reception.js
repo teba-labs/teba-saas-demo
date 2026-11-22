@@ -45,6 +45,7 @@ async function newReferenceCodes(){
         $('visitNumber').title='رقم تسلسلي محجوز بأمان لهذا الفرع.';
       }
     }catch(error){
+      // Keep the existing collision-resistant reference until migration 076 is applied.
       $('visitNumber').value=safeFallback;
       $('visitNumber').title='الترقيم التسلسلي المختصر يحتاج تفعيل تحديث قاعدة البيانات 076. الرمز الحالي آمن وفريد.';
     }
