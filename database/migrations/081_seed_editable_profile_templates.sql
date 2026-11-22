@@ -67,5 +67,6 @@ select i.id,x.code,x.name,nullif(x.unit,''),x.type,x.decimals,
   '[]'::jsonb
 from inserted i
 join profiles p using(master_code)
-cross join lateral jsonb_to_recordset(p.parameters)
-  with ordinality as x(code text,name text,unit text,type text,decimals smallint,ord bigint);
+cross join lateral rows from (
+  jsonb_to_recordset(p.parameters) as (code text,name text,unit text,type text,decimals smallint)
+) with ordinality as x(code,name,unit,type,decimals,ord);
