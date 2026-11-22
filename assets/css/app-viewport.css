@@ -36,3 +36,62 @@ pre,code{max-width:100%;overflow:auto}
  :is(.toolbar,.actions,.form-actions,.button-row)>button{flex:1 1 calc(50% - 8px)}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+
+/* Adaptive desktop application grids.
+   Browser zoom changes the CSS viewport width, so these layouts reflow instead of
+   keeping a fixed web-page arrangement and merely scaling its contents. */
+:where(.apps-grid,.owner-report-grid){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%, 154px),1fr)) !important;
+  align-items:stretch;
+}
+:where(.owner-links){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%, 238px),1fr)) !important;
+}
+:where(.kpis,.secondary-kpis,.security-status-grid){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%, 184px),1fr)) !important;
+}
+:where(.filters,.history-files){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%, 205px),1fr)) !important;
+}
+:where(.grid,.form-grid,.parameter-grid,.context){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%, 205px),1fr));
+}
+:where(.workspace-heading,.workspace-selectors,.head,.owner-dashboard-title,.owner-screen-head){
+  min-width:0;
+}
+:where(.app-card,.owner-report-card,.owner-link,.kpi,.panel,.history-file){
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+:where(.app-card,.owner-report-card){
+  height:100%;
+}
+:where(.table-wrap,.table-scroll){
+  max-width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+@media(min-width:1500px){
+  :where(.shell,main.shell){max-width:1600px}
+}
+@media(max-width:680px){
+  :where(.topbar,.top-actions,.head,.owner-dashboard-title,.owner-screen-head){
+    flex-wrap:wrap;
+  }
+  :where(.filters,.grid,.form-grid,.parameter-grid,.context){
+    grid-template-columns:repeat(auto-fit,minmax(min(100%, 150px),1fr));
+  }
+}
+@media(max-width:390px){
+  :where(.apps-grid,.owner-report-grid,.owner-links,.kpis,.secondary-kpis,.filters,.grid,.form-grid,.parameter-grid,.context){
+    grid-template-columns:minmax(0,1fr) !important;
+  }
+}
+
+@media(max-width:760px){
+  :where(.nav,.navlinks){height:auto;flex-wrap:wrap;justify-content:center}
+  :where(.nav){padding-block:12px}
+  :where(.navlinks){gap:10px}
+  :where(.cards){grid-template-columns:repeat(auto-fit,minmax(min(100%, 205px),1fr))}
+}
