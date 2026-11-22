@@ -1,0 +1,64 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+const root=path.resolve(import.meta.dirname,'../..');
+const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+
+test('visit numbers are reserved atomically per tenant and branch with a readable prefix',()=>{
+ const sql=read('database/migrations/076_branch_visit_number_sequences.sql');
+ const js=read('assets/js/reception.js');
+ assert.match(sql,/create table if not exists private\.branch_visit_sequences/);
+ assert.match(sql,/primary key \(tenant_id, branch_id\)/);
+ assert.match(sql,/private\.can_access_branch\(p_tenant_id, p_branch_id\)/);
+ assert.match(sql,/on conflict \(tenant_id, branch_id\)[\s\S]*last_value = private\.branch_visit_sequences\.last_value \+ 1/i);
+ assert.match(sql,/lpad\(v_next::text, 5, '0'\)/);
+ assert.match(sql,/revoke all on function public\.reserve_branch_visit_number[\s\S]*grant execute on function public\.reserve_branch_visit_number[\s\S]*to authenticated/i);
+ assert.match(js,/reserve_branch_visit_number/);
+ assert.match(js,/p_tenant_code:tenantCode,p_branch_code:branchCode/);
+ assert.match(js,/Keep the existing collision-resistant reference until migration 076 is applied/);
+});
+
+test('each result opens in a dedicated route and returns to its selected visit',()=>{
+ const page=read('app/result-entry.html');
+ const layout=read('assets/js/results-workbench-layout.js');
+ const workbench=read('app/results-workbench.html');
+ assert.match(page,/class="result-entry-page"/);
+ for(const id of ['entryView','entryTitle','entryContext','entryBack','entryWorkspace','workList'])assert.match(page,new RegExp('id="'+id+'"'));
+ assert.match(layout,/result-entry\.html/);
+ assert.match(layout,/searchParams\.set\('visit_id',record\.visitId\)/);
+ assert.match(layout,/searchParams\.set\('visit_test_id',node\.dataset\.testId\)/);
+ assert.match(layout,/classList\.contains\('result-entry-page'\)/);
+ assert.match(layout,/entry\.replaceChildren\(node\)/);
+ assert.match(layout,/results-workbench\.html/);
+ assert.match(workbench,/results-workbench-layout\.js/);
+});
+
+test('reception preserves post-save actions for online and offline visit intake',()=>{
+ const page=read('app/reception.html'),js=read('assets/js/reception.js');
+ assert.match(page,/id="postSaveActions"/);
+ assert.match(page,/id="goToResults"/);
+ assert.match(page,/id="newPatientAfterSave"/);
+ assert.match(js,/\$\('goToResults'\)\.addEventListener\('click',\(\)=>goToResults\(\)\)/);
+ assert.match(js,/\$\('newPatientAfterSave'\)\.addEventListener\('click',\(\)=>\{clearIntake\(\);focusNewPatient\(\);\}\)/);
+ assert.match(js,/تم حفظ الزيارة محليًا/);
+ assert.match(js,/تم حفظ الزيارة والفاتورة بنجاح/);
+});
+
+test('theme controls and semantic palette are available on the priority screens',()=>{
+ const theme=read('assets/css/theme-system.css');
+ for(const page of ['app/reception.html','app/results-workbench.html','app/result-entry.html','app/catalog.html']){
+  assert.match(read(page),/theme-controller\.js/,page);
+ }
+ for(const token of ['--taiba-page:#F4F7FA','--taiba-surface:#FFFFFF','--taiba-accent:#168C8C','--taiba-page:#101D2B','--taiba-surface:#17293B','--taiba-ink:#F3F7FA'])assert.ok(theme.includes(token),token);
+ assert.match(theme,/::placeholder/);
+});
+
+test('priority pages have responsive breakpoints for desktop tablet and phone',()=>{
+ const reception=read('assets/css/reception.css'),results=read('assets/css/results-workbench.css'),catalog=read('assets/css/catalog.css');
+ for(const css of [reception,results,catalog])for(const bp of ['max-width:850px','max-width:620px'])assert.ok(css.includes(bp),bp);
+ assert.match(results,/max-width:1050px/);
+ assert.match(results,/test-launch-card/);
+ assert.match(reception,/\.intake-content\{display:grid/);
+ assert.match(catalog,/max-width:900px/);
+});
