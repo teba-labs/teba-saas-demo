@@ -18,3 +18,6 @@
 .editor-panel input,.editor-panel select,.editor-panel textarea{min-height:44px}
 @media(max-width:900px){.layout{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)}.context{grid-template-columns:1fr 1fr}.context>div:first-child{grid-column:1/-1}}
 @media(max-width:680px){.layout{grid-template-columns:1fr}.test-list,.parameter-list{max-height:38vh}.context{grid-template-columns:1fr}.context>div:first-child{grid-column:auto}.section-head{align-items:flex-start;flex-wrap:wrap}.editor-panel .form-grid{grid-template-columns:1fr}.editor-panel .wide{grid-column:auto}}
+
+/* Optional owner-only master library and adaptive catalog workspace. */
+.master-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.master-panel[hidden]{display:none!important}.master-item>div{min-width:0}.master-item small{line-height:1.65}.layout{align-items:start}.list-panel,.editor-panel{min-width:0}@media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.test-list,.parameter-list{max-height:32vh}}@media(min-width:901px){.layout{grid-template-columns:minmax(260px,.72fr) minmax(0,1.6fr)}}
