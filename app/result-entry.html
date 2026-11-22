@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Taiba Smart Lab | إدخال نتيجة التحليل</title>
+  <link rel="stylesheet" href="../assets/css/results-workbench.css">
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('../service-worker.js').catch(()=>{}));}</script></head>
+<body class="result-entry-page">
+  <header class="topbar">
+    <div><strong>Taiba Smart Lab</strong><span>تشغيل المعمل · النتائج والاعتماد</span></div>
+    <a href="reception.html" style="color:#fff;font-size:13px">الاستقبال</a>\n    <a href="index.html" style="color:#fff;font-size:13px">الرئيسية</a>
+    <a href="sync-center.html" style="color:#fff;font-size:13px">المزامنة والنسخ المحلي</a><button id="signOut" class="button button-quiet" hidden>تسجيل الخروج</button>
+  </header>
+  <main class="shell">
+    <section id="loginPanel" class="panel login-panel">
+      <h1>تسجيل دخول المعمل</h1>
+      <p class="muted">استخدم حساب المعمل على مشروع الاختبار فقط.</p>
+      <form id="loginForm" class="stack">
+        <label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label>
+        <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="button" type="submit">دخول</button>
+      </form>
+    </section>
+
+    <section id="workspace" hidden>
+      <section class="panel controls">
+        <div><h1>قائمة العمل</h1><p class="muted">اختر المعمل والفرع، ثم افتح الزيارة لإدخال النتائج ومراجعتها.</p></div>
+        <div class="selectors">
+          <label>المعمل<select id="tenantSelect" required></select></label>
+          <label>الفرع<select id="branchSelect" required></select></label>
+          <label>اسم الموظف<select id="staffSelect" required></select></label>
+        </div>
+        <div class="toolbar"><button id="refreshButton" class="button button-secondary">تحديث القائمة</button><span id="contextStatus" class="muted" role="status"></span></div>
+      </section>
+      <section id="entryView" class="panel entry-view" hidden>
+        <div class="entry-page-head">
+          <div><span class="eyebrow">تسجيل نتيجة التحليل</span><h1 id="entryTitle">تحميل التحليل…</h1><p id="entryContext" class="muted">جارٍ تحميل بيانات المريض والزيارة</p></div>
+          <a id="entryBack" class="button button-secondary" href="results-workbench.html">رجوع لقائمة النتائج</a>
+        </div>
+        <div id="entryWorkspace" class="entry-workspace"><div class="empty">جارٍ تحميل بيانات التحليل…</div></div>
+      </section>
+      <section id="workList" class="work-list" aria-live="polite"></section>
+      <section class="panel historical-results-lookup">
+        <label class="history-toggle"><input id="showHistoricalToggle" type="checkbox"> إظهار النتائج التاريخية القديمة (لا تظهر افتراضيًا)</label>
+        <div id="historicalLookupPanel" hidden>
+          <p class="muted">ابحث باسم المريض لعرض نتائجه التاريخية في الفرع الحالي. هذه السجلات لا تدخل في قائمة العمل أو الفواتير أو التقرير التشغيلي تلقائيًا.</p>
+          <div class="toolbar"><input id="historicalSearch" type="search" placeholder="اسم المريض — حرفان على الأقل"><button id="searchHistoricalResults" class="button button-secondary" type="button">بحث في النتائج القديمة</button></div>
+          <div id="historicalResultsList" aria-live="polite"></div>
+        </div>
+      </section>
+      <nav id="workPager" class="toolbar" aria-label="صفحات قائمة التحاليل" hidden>
+        <button id="prevWorkPage" class="button button-secondary" type="button">السابق</button>
+        <span id="workPageStatus" class="muted" role="status"></span>
+        <button id="nextWorkPage" class="button button-secondary" type="button">التالي</button>
+      </nav>
+    </section>
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+  </main>
+  <script type="module" src="../assets/js/tenant-branding.js"></script><script type="module" src="../assets/js/results-workbench.js"></script><script type="module" src="../assets/js/results-workbench-layout.js"></script>
+<script type="module" src="../modules/ui/keyboard-navigation.js"></script>
+<script type="module" src="../assets/js/theme-controller.js"></script>
+</body>
+</html>
