@@ -11,9 +11,9 @@
 <main class="shell">
   <section id="loginPanel" class="panel login-panel"><h1>تسجيل دخول المعمل</h1><p class="muted">استخدم حساب المعمل المخصص لك.</p><form id="loginForm" class="stack"><label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label><label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label><button class="button" type="submit">دخول</button></form></section>
   <section id="workspace" hidden>
-    <section class="panel context"><div><span class="eyebrow">إدارة بيانات المعمل</span><h1>كتالوج التحاليل</h1><p id="userLine" class="muted"></p></div><label>المعمل<select id="tenantSelect"></select></label><div id="roleNotice" class="role-notice"></div></section>
-    <section id="masterCatalogPanel" class="panel master-panel">
-      <div class="section-head"><div><h2>المكتبة الطبية الرئيسية</h2><p class="muted">استورد تعريفًا طبيًا إلى نسخة المعمل القابلة للتعديل. لا تُستورد الأسعار تلقائيًا.</p></div><span id="masterCatalogCount" class="status">تحميل المكتبة…</span></div>
+    <section class="panel context"><div><span class="eyebrow">إدارة بيانات المعمل</span><h1>كتالوج التحاليل</h1><p id="userLine" class="muted"></p></div><label>المعمل<select id="tenantSelect"></select></label><div id="roleNotice" class="role-notice"></div><button id="openMasterLibrary" class="button button-secondary" type="button" hidden>فتح مكتبة الماستر العلمية</button></section>
+    <section id="masterCatalogPanel" class="panel master-panel" hidden>
+      <div class="section-head"><div><h2>مكتبة الماستر العلمية</h2><p class="muted">مكتبة المنصة المرجعية؛ افتحها عند الحاجة فقط. الاستيراد ينشئ نسخة مستقلة قابلة للتعديل داخل المعمل.</p></div><div class="master-head-actions"><span id="masterCatalogCount" class="status">تحميل المكتبة…</span><button id="closeMasterLibrary" class="button button-light" type="button">إخفاء المكتبة</button></div></div>
       <label>بحث في المكتبة<input id="masterCatalogSearch" type="search" placeholder="اسم التحليل أو الكود"></label>
       <div id="masterCatalogList" class="master-catalog-list"><p class="empty">جارٍ تحميل الإصدارات المنشورة…</p></div>
     </section>
