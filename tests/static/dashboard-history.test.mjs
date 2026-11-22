@@ -19,8 +19,11 @@ const dashboardJs = await readDashboardFile(new URL('../../assets/js/dashboard.j
 assert.match(dashboardHtml, /historyLiveReconciliation/);
 assert.match(dashboardJs, /renderLiveHistoricalReconciliation/);
 assert.match(dashboardJs, /await renderLiveHistoricalReconciliation/);
-assert.match(history, /إيراد Excel/);
-assert.match(history, /لم يتم تخمين الربط/);
+assert.match(history, /مسار المحاسب/);
+assert.match(history, /لا توجد صفوف من مسار المحاسب/);
+assert.match(history, /buildGenericHistoricalReport/);
+assert.match(history, /المبيعات \/ الإيرادات/);
+assert.match(history, /التحصيل النقدي/);
 const historicalEngine = fs.readFileSync(new URL('modules/dashboard/historical-analysis.js', root), 'utf8');
 assert.match(historicalEngine, /compareHistoricalAndLiveReports/);
 assert.match(historicalEngine, /Branch names must match exactly/);
