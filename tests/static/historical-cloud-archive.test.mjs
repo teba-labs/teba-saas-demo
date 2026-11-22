@@ -21,7 +21,7 @@ test('historical workbook cloud repository uses private tenant backup paths and 
  assert.match(repo,/owner_historical_workbooks/);
  assert.match(repo,/tenantId\+'\/historical-workbooks\//);
  assert.match(repo,/storage\.from\('tenant-backups'\)/);
- assert.match(repo,/SHA-256/);
+ assert.match(repo,/sha256/i);
  assert.match(repo,/downloadCloudHistoricalWorkbook/);
  assert.match(repo,/deleteCloudHistoricalWorkbook/);
 });
