@@ -61,18 +61,32 @@ export async function refreshHistoricalDashboard(){
  }catch(error){target.textContent=error.message||'تعذر حساب التحليل التاريخي.';}
 }
 
+async function workbookHash(data){
+ const digest=await crypto.subtle.digest('SHA-256',data);
+ return [...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
+}
 async function hydrateCloudArchive(tenantId){
  if(globalThis.navigator?.onLine===false)return;
- const remote=await listCloudHistoricalWorkbooks(tenantId);cloudFiles=remote;
- for(const item of remote){
-  const cached=await getHistoricalWorkbook({tenantId,type:item.workbook_type});
-  if(cached?.data instanceof ArrayBuffer){
-   const digest=await crypto.subtle.digest('SHA-256',cached.data);
-   const localHash=[...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
-   if(localHash===item.file_sha256)continue;
+ const remote=await listCloudHistoricalWorkbooks(tenantId),remoteMap=new Map(remote.map(row=>[row.workbook_type,row]));
+ cloudFiles=remote;
+ const localRows=await listHistoricalWorkbooks(tenantId),types=new Set([...remote.map(row=>row.workbook_type),...localRows.map(row=>row.type)]);
+ for(const type of types){
+  const local=await getHistoricalWorkbook({tenantId,type}),cloud=remoteMap.get(type);
+  if(local?.data instanceof ArrayBuffer){
+   const localHash=await workbookHash(local.data);
+   if(cloud?.file_sha256===localHash)continue;
+   const localIsNewer=!cloud||Date.parse(local.uploadedAt||0)>Date.parse(cloud.uploaded_at||0);
+   if(localIsNewer){
+    const saved=await saveCloudHistoricalWorkbook({tenantId,type,fileName:local.fileName,data:local.data,sheets:local.sheets||[]});
+    const index=cloudFiles.findIndex(row=>row.workbook_type===type);
+    if(index>=0)cloudFiles[index]=saved;else cloudFiles.push(saved);
+    continue;
+   }
   }
-  const downloaded=await downloadCloudHistoricalWorkbook({tenantId,type:item.workbook_type});
-  if(downloaded?.data)await saveHistoricalWorkbook({tenantId,type:item.workbook_type,fileName:downloaded.file_name,size:downloaded.file_size,sheets:downloaded.sheet_summary,data:downloaded.data});
+  if(cloud){
+   const downloaded=await downloadCloudHistoricalWorkbook({tenantId,type});
+   if(downloaded?.data)await saveHistoricalWorkbook({tenantId,type,fileName:downloaded.file_name,size:downloaded.file_size,sheets:downloaded.sheet_summary,data:downloaded.data});
+  }
  }
 }
 export async function mountHistoricalWorkbookPanel(tenantId){
