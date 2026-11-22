@@ -47,6 +47,8 @@
         <div><span class="step-kicker">مسار تسجيل الزيارة</span><h2>تسجيل مريض وزيارة جديدة</h2><p class="muted">املأ البيانات بالترتيب، ويمكنك استخدام لوحة المفاتيح من أول خانة حتى الحفظ.</p></div>
         <span class="workday-chip" id="intakeWorkdayChip">يوم العمل</span>
       </div>
+      <div class="intake-content">
+      <section class="intake-block patient-block">
       <div class="section-divider"><span>01</span><div><h3>بيانات المريض</h3><p>ابحث عن مريض مسجل أو أضف مريضًا جديدًا.</p></div></div>
       <label for="patientSearch">البحث عن مريض بالاسم أو رقم الهاتف</label>
       <input id="patientSearch" type="search" placeholder="اكتب حرفين على الأقل من الاسم أو الهاتف" autocomplete="off">
@@ -70,6 +72,8 @@
         </form>
       </details>
 
+      </section>
+      <section class="intake-block visit-block">
       <div class="section-divider"><span>02</span><div><h3>بيانات الزيارة</h3><p>رقم الزيارة وتاريخ يوم العمل يتم إنشاؤهما تلقائيًا.</p></div></div>
       <div class="form-grid visit-meta">
         <label for="visitNumber">رقم الزيارة (تلقائي)<input id="visitNumber" readonly></label>
@@ -78,12 +82,16 @@
       </div>
       <label for="visitNotes">ملاحظات طبية أو إدارية<textarea id="visitNotes" rows="2" maxlength="1000" placeholder="أي ملاحظات تخص الزيارة…"></textarea></label>
 
+      </section>
+      <section class="intake-block tests-block">
       <div class="section-divider"><span>03</span><div><h3>اختيار التحاليل</h3><p>ابحث في الكتالوج وحدد تحليلًا أو أكثر؛ السعر يظهر بجوار كل تحليل.</p></div></div>
       <label for="catalogSearch">بحث في كتالوج التحاليل</label>
       <input id="catalogSearch" type="search" placeholder="اسم التحليل أو الكود…">
       <div class="catalog-toolbar"><span id="catalogCount">قائمة التحاليل</span><span id="selectedCount">لم يتم اختيار تحاليل</span></div>
       <div id="catalogList" class="catalog-list" data-keyboard-list><p class="muted">جارٍ تحميل قائمة التحاليل…</p></div>
 
+      </section>
+      <section class="intake-block billing-block">
       <div class="section-divider"><span>04</span><div><h3>الحسابات والتحصيل</h3><p>راجع الإجمالي والخصم والمبلغ المدفوع قبل الحفظ.</p></div></div>
       <div class="billing">
         <div><span>إجمالي التحاليل</span><strong id="grossTotal">0.00 ج.م</strong></div>
@@ -103,6 +111,8 @@
         <div><strong id="postSaveTitle">تم حفظ الزيارة بنجاح</strong><p id="postSaveDetail">اختر الخطوة التالية.</p></div>
         <div class="actions"><button id="goToResults" class="button button-primary" type="button">الانتقال لتسجيل النتائج</button><button id="newPatientAfterSave" class="button button-secondary" type="button">تسجيل مريض جديد</button></div>
       </section>
+      </section>
+    </div>
     </section>
 
     <section id="recentPanel" class="panel">
