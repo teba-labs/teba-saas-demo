@@ -37,3 +37,10 @@
 @media(max-width:850px){.results-columns{grid-template-columns:1fr 1fr}.visits-column{grid-column:1/-1}.visit-list{max-height:210px;grid-template-columns:repeat(3,minmax(0,1fr))}.results-column{min-height:0}}
 @media(max-width:620px){.results-columns{grid-template-columns:1fr}.visits-column{grid-column:auto}.visit-list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:260px}.result-entry-page #entryWorkspace .parameter-grid{grid-template-columns:1fr}.result-entry-page .shell{padding:0 8px}}
 @media(max-width:390px){.visit-list{grid-template-columns:1fr}.results-actionbar-buttons{grid-template-columns:1fr}}
+
+.result-entry-page #workList{display:none!important}
+.result-entry-page .entry-view{display:block;border-radius:20px;padding:clamp(16px,2.5vw,30px)}
+.result-entry-page .entry-page-head{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid var(--taiba-border)}
+.result-entry-page .entry-page-head h1{margin:4px 0;font-size:clamp(21px,2.5vw,30px);color:var(--taiba-ink)}
+.result-entry-page .entry-workspace{min-width:0}
+@media(max-width:620px){.result-entry-page .entry-page-head{align-items:stretch;flex-direction:column}.result-entry-page .entry-page-head .button{width:100%;justify-content:center}}
