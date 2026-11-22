@@ -21,13 +21,13 @@ async function refreshList(tenantId=activeTenantId){
  }).join('');
 }
 async function upload(input,type){
- const tenantId=activeTenantId,file=input.files&&input.files[0];if(!file)return;
+ const tenantId=activeTenantId,file=input.files&&input.files[0];if(!file)return;let localSaved=false;
  try{
   if(file.size>20*1024*1024)throw new Error('الحد الأقصى لحجم الملف 20 ميجابايت.');
   const ext=file.name.split('.').pop().toLowerCase();if(!['xlsx','xls','csv'].includes(ext))throw new Error('الصيغ المدعومة: XLSX وXLS وCSV.');
   status('جارٍ فحص الملف وحفظ النسخة المحلية والسحابية…');
   const data=await file.arrayBuffer(),wb=reader().read(data,{type:'array',cellDates:false}),sheets=validate(type,wb);
-  await saveHistoricalWorkbook({tenantId,type,fileName:file.name,size:file.size,sheets,data});
+  await saveHistoricalWorkbook({tenantId,type,fileName:file.name,size:file.size,sheets,data});localSaved=true;
   let cloudSaved=false;
   if(globalThis.navigator?.onLine!==false){
    await saveCloudHistoricalWorkbook({tenantId,type,fileName:file.name,data,sheets});cloudSaved=true;
@@ -104,7 +104,8 @@ export async function mountHistoricalWorkbookPanel(tenantId){
   bound=true;
  }
  try{
-  await hydrateCloudArchive(activeTenantId);await refreshList(activeTenantId);
+  try{await hydrateCloudArchive(activeTenantId);}catch(syncError){cloudArchiveError=syncError.message||'تعذر مزامنة الأرشيف السحابي.';}
+  await refreshList(activeTenantId);
   status(globalThis.navigator?.onLine===false?'لا يوجد اتصال: تُعرض النسخ المحلية فقط.':'الأرشيف التاريخي محفوظ سحابيًا للمعمل، وتُستخدم نسخة محلية لتسريع القراءة. وهو مستقل عن التشغيل الحي ومسار المحاسب الشهري.');
   if(cloudArchiveError)status('تعذر تحديث قائمة الأرشيف السحابي: '+cloudArchiveError,true);
   await refreshHistoricalDashboard();
