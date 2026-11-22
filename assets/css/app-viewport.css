@@ -88,3 +88,10 @@ pre,code{max-width:100%;overflow:auto}
     grid-template-columns:minmax(0,1fr) !important;
   }
 }
+
+@media(max-width:760px){
+  :where(.nav,.navlinks){height:auto;flex-wrap:wrap;justify-content:center}
+  :where(.nav){padding-block:12px}
+  :where(.navlinks){gap:10px}
+  :where(.cards){grid-template-columns:repeat(auto-fit,minmax(min(100%, 205px),1fr))}
+}
