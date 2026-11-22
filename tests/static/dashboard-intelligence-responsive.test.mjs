@@ -13,7 +13,7 @@ test('desktop zoom reflows application grids instead of scaling a fixed page',as
   assert.match(css,/\.owner-links/);
   assert.match(css,/\.kpis/);
   assert.match(css,/overflow-x:auto/);
-  for(const path of ['app/index.html','app/catalog.html','app/dashboard.html','app/reception.html','app/results-workbench.html','app/settings.html','app/sync-center.html','app/workday.html','app/cms-editor.html','app/platform-admin.html','app/site-management.html','app/site-preview.html']){
+  for(const path of ['app/index.html','app/catalog.html','app/dashboard.html','app/reception.html','app/results-workbench.html','app/settings.html','app/sync-center.html','app/workday.html','app/cms-editor.html','app/platform-admin.html','app/site-management.html','app/site-preview.html','portal/index.html','website/index.html']){
     assert.match(await read(path),/app-viewport\.css/,path+' must load shared adaptive layout rules');
   }
 });
