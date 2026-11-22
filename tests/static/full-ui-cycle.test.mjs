@@ -56,7 +56,8 @@ test('theme controls and semantic palette are available on the priority screens'
 });
 
 test('priority pages have responsive breakpoints for desktop tablet and phone',()=>{
- const reception=read('assets/css/reception.css'),results=read('assets/css/results-workbench.css'),catalog=read('assets/css/catalog.css');\n assert.match(results,/entryView:not\\(\\[hidden\\]\\)/);
+ const reception=read('assets/css/reception.css'),results=read('assets/css/results-workbench.css'),catalog=read('assets/css/catalog.css');
+ assert.match(results,/entryView:not\(\[hidden\]\)/);
  for(const css of [reception,results])for(const bp of ['max-width:850px','max-width:620px'])assert.ok(css.includes(bp),bp);
  assert.ok(catalog.includes('max-width:900px'));
  assert.ok(catalog.includes('max-width:680px'));
