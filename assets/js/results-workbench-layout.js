@@ -14,7 +14,7 @@ function buildShell(host,cards){
   const tests=[...card.querySelectorAll(':scope > .parameter')];
   const actions=[...card.children].filter(node=>node!==header&&!tests.includes(node));
   card.classList.add('work-source-card');
-  return {card,visitId,title:header?.querySelector('h2')?.textContent||'زيارة',status:header?.querySelector('.pill')?.textContent||'',visitStatus:card.dataset.visitStatus||'open',tests,actions,phone:card.dataset.patientPhone||'',visitNumber:card.dataset.visitNumber||'',published:card.dataset.published==='true'};
+  return {card,visitId,title:header?.querySelector('h2')?.textContent||'زيارة',status:header?.querySelector('.pill')?.textContent||'',visitStatus:card.dataset.visitStatus||'open',tests,actions,phone:card.dataset.patientPhone||'',patientAge:card.dataset.patientAge||'',patientAgeUnit:card.dataset.patientAgeUnit||'',patientSex:card.dataset.patientSex||'',visitDate:card.dataset.visitDate||'',visitNumber:card.dataset.visitNumber||'',published:card.dataset.published==='true'};
  }).filter(x=>x.visitId);
  host.replaceChildren();
  const shell=document.createElement('div');shell.className='results-workbench-shell';
@@ -64,7 +64,7 @@ function selectRecord(record,records,shell){
   const entry=$('entryWorkspace'),view=$('entryView');
   if(!node){entry.innerHTML='<div class="empty">لم يتم العثور على التحليل داخل الزيارة المحددة. ارجع لقائمة النتائج وافتح التحليل مرة أخرى.</div>';view.hidden=false;shell.hidden=true;return;}
   $('entryTitle').textContent=node.querySelector('.card-head strong')?.textContent?.trim()||'تسجيل نتيجة التحليل';
-  $('entryContext').textContent=record.title;
+  $('entryContext').textContent=[record.title,record.visitDate,record.patientSex==='male'?'ذكر':record.patientSex==='female'?'أنثى':'',record.patientAge?('العمر '+record.patientAge+' '+({days:'يوم',months:'شهر',years:'سنة'}[record.patientAgeUnit]||'')):'',record.phone?'الهاتف '+record.phone:''].filter(Boolean).join(' · ');
   const back=new URL('results-workbench.html',location.href);back.searchParams.set('visit_id',record.visitId);$('entryBack').href=back.href;
   entry.replaceChildren(node);view.hidden=false;shell.hidden=true;return;
  }
