@@ -20,7 +20,7 @@ test('master medical catalog has read-only global definitions and tenant-owned i
  assert.match(importPolicy,/importability is not clinical approval/i);
  assert.doesNotMatch(importPolicy,/clinical_review_status.*verified/);
  const incompleteImport=read('database/migrations/078_allow_empty_master_catalog_import.sql');
- assert.match(incompleteImport,/Empty parameter sets are importable/i);
+ assert.match(incompleteImport,/Empty\/incomplete definitions/i);
  assert.doesNotMatch(incompleteImport,/v_parameter_count\s*=\s*0/i);
  assert.match(incompleteImport,/revoke all on function private\.guard_tenant_master_catalog_link/);
  assert.match(read('database/migrations/038_master_catalog_import_formula_order.sql'),/result_source='calculated'/);
