@@ -29,12 +29,10 @@ async function upload(input,type){
   const data=await file.arrayBuffer(),wb=reader().read(data,{type:'array',cellDates:false}),sheets=validate(type,wb);
   await saveHistoricalWorkbook({tenantId,type,fileName:file.name,size:file.size,sheets,data});localSaved=true;
   let cloudSaved=false;
-  if(globalThis.navigator?.onLine!==false){
-   await saveCloudHistoricalWorkbook({tenantId,type,fileName:file.name,data,sheets});cloudSaved=true;
-  }
+  if(globalThis.navigator?.onLine!==false){await saveCloudHistoricalWorkbook({tenantId,type,fileName:file.name,data,sheets});cloudSaved=true;}
   await refreshList(tenantId);await refreshHistoricalDashboard();
-  status(cloudSaved?'تم حفظ الملف في أرشيف المعمل السحابي ونسخة محلية لهذا الجهاز. الأرشيف التاريخي مستقل عن التشغيل الحي ومسار المحاسب الشهري.':'تم حفظ نسخة محلية فقط لعدم وجود اتصال. أعد رفع الملف عند عودة الإنترنت لحفظه سحابيًا.');
- }catch(e){status(e.message||'تعذر حفظ الملف.',true);}finally{input.value='';}
+  status(cloudSaved?'تم حفظ الملف في أرشيف المعمل السحابي ونسخة محلية لهذا الجهاز. الأرشيف التاريخي مستقل عن التشغيل الحي ومسار المحاسب الشهري.':'تم حفظ نسخة محلية فقط لعدم وجود اتصال. سيتم رفعها تلقائيًا إلى سحابة المعمل عند عودة الاتصال وفتح لوحة التقارير.');
+ }catch(e){status(localSaved?'تم حفظ النسخة المحلية، لكن تعذر إكمال الحفظ السحابي: '+(e.message||'خطأ غير معروف'):e.message||'تعذر حفظ الملف.',true);}finally{input.value='';}
 }
 
 const money=value=>Number(value||0).toLocaleString('ar-EG',{maximumFractionDigits:1})+' ج.م';
