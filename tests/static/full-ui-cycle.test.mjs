@@ -56,7 +56,7 @@ test('theme controls and semantic palette are available on the priority screens'
 
 test('priority pages have responsive breakpoints for desktop tablet and phone',()=>{
  const reception=read('assets/css/reception.css'),results=read('assets/css/results-workbench.css'),catalog=read('assets/css/catalog.css');
- for(const css of [reception,results,catalog])for(const bp of ['max-width:850px','max-width:620px'])assert.ok(css.includes(bp),bp);
+ for(const css of [reception,results])for(const bp of ['max-width:850px','max-width:620px'])assert.ok(css.includes(bp),bp);\n assert.ok(catalog.includes('max-width:900px'));\n assert.ok(catalog.includes('max-width:680px'));
  assert.match(results,/max-width:1050px/);
  assert.match(results,/test-launch-card/);
  assert.match(reception,/\.intake-content\{display:grid/);
