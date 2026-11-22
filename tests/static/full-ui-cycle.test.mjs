@@ -8,10 +8,10 @@ const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 test('visit numbers are reserved atomically per laboratory across branches with a readable prefix',()=>{
  const sql=read('database/migrations/076_branch_visit_number_sequences.sql');
  const js=read('assets/js/reception.js');
- assert.match(sql,/create table if not exists private\.branch_visit_sequences/);
- assert.match(sql,/primary key \(tenant_id, branch_id\)/);
+ assert.match(sql,/create table if not exists private\.tenant_visit_sequences/);
+ assert.match(sql,/primary key \(tenant_id\)/);
  assert.match(sql,/private\.can_access_branch\(p_tenant_id, p_branch_id\)/);
- assert.match(sql,/on conflict \(tenant_id, branch_id\)[\s\S]*last_value = private\.branch_visit_sequences\.last_value \+ 1/i);
+ assert.match(sql,/on conflict \(tenant_id\)[\s\S]*last_value = private\.tenant_visit_sequences\.last_value \+ 1/i);
  assert.match(sql,/lpad\(v_next::text, 5, '0'\)/);
  assert.match(sql,/revoke all on function public\.reserve_branch_visit_number[\s\S]*grant execute on function public\.reserve_branch_visit_number[\s\S]*to authenticated/i);
  assert.match(js,/reserve_branch_visit_number/);
