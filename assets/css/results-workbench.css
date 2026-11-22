@@ -44,3 +44,6 @@
 .result-entry-page .entry-page-head h1{margin:4px 0;font-size:clamp(21px,2.5vw,30px);color:var(--taiba-ink)}
 .result-entry-page .entry-workspace{min-width:0}
 @media(max-width:620px){.result-entry-page .entry-page-head{align-items:stretch;flex-direction:column}.result-entry-page .entry-page-head .button{width:100%;justify-content:center}}
+
+/* Report-like result entry: parameter fields remain compact and aligned in the same viewport. */
+.result-entry-page #entryWorkspace>.parameter{min-width:0;max-width:none}.result-entry-page #entryWorkspace .parameter-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.result-entry-page #entryWorkspace .parameter-grid label{min-width:0;padding:9px}.result-entry-page #entryWorkspace .parameter-grid input,.result-entry-page #entryWorkspace .parameter-grid select{min-width:0;width:100%}.result-entry-page #entryWorkspace .parameter-group{min-width:0}.result-entry-page #entryWorkspace .parameter-group .parameter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:1100px){.result-entry-page #entryWorkspace .parameter-grid,.result-entry-page #entryWorkspace .parameter-group .parameter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:640px){.result-entry-page #entryWorkspace .parameter-grid,.result-entry-page #entryWorkspace .parameter-group .parameter-grid{grid-template-columns:1fr}}
