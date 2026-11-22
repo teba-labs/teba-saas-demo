@@ -310,8 +310,23 @@ export async function listMasterCatalogTests() {
     .select('id, release_id, master_code, canonical_name, alternate_names, test_kind, category, service_type, clinical_review_status, source_name')
     .in('release_id', releases.map(row=>row.id)).order('canonical_name');
   if (error) throw error;
+  const rows = data ?? [];
+  const ids = rows.map(row=>row.id);
+  const parameterCounts = new Map();
+  if (ids.length) {
+    const { data: parameterRows, error: parameterError } = await db().from('master_catalog_parameters')
+      .select('master_test_id').in('master_test_id', ids);
+    if (parameterError) throw parameterError;
+    for (const parameter of parameterRows ?? []) {
+      parameterCounts.set(parameter.master_test_id, (parameterCounts.get(parameter.master_test_id) || 0) + 1);
+    }
+  }
   const byRelease = new Map(releases.map(row=>[row.id,row]));
-  return (data ?? []).map(row=>({...row, release:byRelease.get(row.release_id)}));
+  return rows.map(row=>({
+    ...row,
+    parameter_count: parameterCounts.get(row.id) || 0,
+    release: byRelease.get(row.release_id),
+  }));
 }
 
 export async function importMasterCatalogTest({ tenantId, masterTestId } = {}) {
