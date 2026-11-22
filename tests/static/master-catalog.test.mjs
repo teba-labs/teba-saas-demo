@@ -56,3 +56,12 @@ test('catalog UI exposes the master library and structured medical metadata edit
  assert.match(js,/استيراد واستكمال محليًا/);
  assert.match(js,/بدون بارامترات — قابلة للاستكمال محليًا/);
 });
+
+test('master library seeds 13 editable profile templates without invented reference intervals',()=>{
+ const sql=read('database/migrations/081_seed_editable_profile_templates.sql');
+ for(const code of ['ELECTROLYTE_PROFILE','BONE_PROFILE','CARDIAC_MARKERS_PROFILE','GLYCEMIC_CONTROL_PROFILE','THYROID_ANTIBODY_PROFILE','MALE_FERTILITY_HORMONE_PROFILE','FEMALE_CYCLE_HORMONE_PROFILE','PCOS_EVALUATION_PROFILE','TORCH_SEROLOGY_PROFILE','AUTOIMMUNE_SCREEN_PROFILE','RHEUMATOLOGY_PROFILE','ANTENATAL_INFECTION_SCREEN_PROFILE','PANCREATIC_ENZYME_PROFILE'])assert.ok(sql.includes(code),'missing '+code);
+ assert.match(sql,/clinical_review_status='needs_review'/);
+ assert.match(sql,/'\[\]'::jsonb/);
+ assert.match(sql,/local_verification_required/);
+ assert.doesNotMatch(sql,/clinical_review_status\s*,?\s*'verified'/);
+});
