@@ -37,8 +37,13 @@ async function loadParameters({tenantId=state.tenant?.id,testId=state.selectedTe
 function renderMasterCatalog(){
  const term=$('masterCatalogSearch').value.trim().toLocaleLowerCase();
  const rows=state.masterTests.filter(t=>!term||`${t.canonical_name} ${t.master_code} ${(t.alternate_names||[]).join(' ')}`.toLocaleLowerCase().includes(term));
- $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف · ${state.masterTests.filter(t=>t.clinical_review_status==='verified').length} موثق مركزيًا · الباقي يحتاج استكمالًا`;
- $('masterCatalogList').innerHTML=rows.length?rows.map(t=>`<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'مجموعة':'فردي'} · ${esc(t.category||'غير مصنف')} · إصدار ${esc(t.release?.version||'—')}</small><small>المراجعة: ${t.clinical_review_status==='verified'?'مراجع مركزيًا':'قيد المراجعة الطبية'}</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}" >استيراد للمعمل</button></div>`).join(''):'<p class="empty">لا توجد تعريفات منشورة مطابقة. ستظهر المكتبة بعد نشر حزمة الكتالوج الطبي.</p>';
+ $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف · ${state.masterTests.filter(t=>t.clinical_review_status==='verified').length} موثق مركزيًا · ${state.masterTests.filter(t=>!t.parameter_count).length} بدون بارامترات — قابلة للاستكمال محليًا`;
+ $('masterCatalogList').innerHTML=rows.length?rows.map(t=>{
+  const parameterCount=Number(t.parameter_count||0);
+  const completeness=parameterCount?`${D}parameterCount} بارامتر`:'لا توجد بارامترات — أضفها محليًا بعد الاستيراد';
+  const review=t.clinical_review_status==='verified'?'مراجع مركزيًا':'غير معتمد مركزيًا — يحتاج مراجعة محلية';
+  return `<div class="master-item"><div><strong>${D}esc(t.canonical_name)}</strong><small>${D}esc(t.master_code)} · ${D}t.test_kind==='panel'?'مجموعة':'فردي'} · ${D}esc(t.category||'غير مصنف')} · إصدار ${D}esc(t.release?.version||'—')}</small><small>${D}completeness} · ${D}review}</small></div><button type="button" class="button button-secondary" data-import-master="${D}esc(t.id)}">${D}parameterCount?'استيراد للمعمل':'استيراد واستكمال محليًا'}</button></div>`;
+ }).join(''):'<p class="empty">لا توجد تعريفات منشورة مطابقة.</p>';
 }
 async function loadMasterCatalog(){
  try{state.masterTests=await listMasterCatalogTests();renderMasterCatalog();}
