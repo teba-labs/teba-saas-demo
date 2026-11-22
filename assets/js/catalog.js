@@ -40,10 +40,11 @@ function renderMasterCatalog(){
  $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف · ${state.masterTests.filter(t=>t.clinical_review_status==='verified').length} موثق مركزيًا · ${state.masterTests.filter(t=>!t.parameter_count).length} بدون بارامترات — قابلة للاستكمال محليًا`;
  $('masterCatalogList').innerHTML=rows.length?rows.map(t=>{
   const parameterCount=Number(t.parameter_count||0);
-  const missingRanges=Number(t.missing_numeric_ranges||0),unreviewed=Number(t.unreviewed_parameters||0);
-  const completeness=parameterCount?`${parameterCount} بارامتر · ${missingRanges?missingRanges+' بدون رينج رقمي (قابل للتعديل محليًا)':'لا توجد رينجات رقمية ناقصة'} · ${unreviewed?unreviewed+' تحتاج مراجعة':'البارامترات مراجعَة'}`:'لا توجد بارامترات — أضفها محليًا بعد الاستيراد';
+  const missingRanges=Number(t.missing_numeric_ranges||0),unreviewed=Number(t.unreviewed_parameters||0),placeholderCount=Number(t.placeholder_parameters||0);
+  const completeness=placeholderCount?placeholderCount+' حقل مبدئي عام — حدّد النوع والوحدة والرينج محليًا':parameterCount?parameterCount+' بارامتر · '+(missingRanges?missingRanges+' بدون رينج رقمي (قابل للتعديل محليًا)':'لا توجد رينجات رقمية ناقصة')+' · '+(unreviewed?unreviewed+' تحتاج مراجعة':'البارامترات مراجعَة'):'لا توجد بارامترات — أضفها محليًا بعد الاستيراد';
+  const requiresLocalSetup=!parameterCount||placeholderCount>0||missingRanges>0||unreviewed>0;
   const review=t.clinical_review_status==='verified'?'مراجع مركزيًا':'غير معتمد مركزيًا — يحتاج مراجعة محلية';
-  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'مجموعة':'فردي'} · ${esc(t.category||'غير مصنف')} · إصدار ${esc(t.release?.version||'—')}</small><small>${completeness} · ${review}</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}">${parameterCount?'استيراد للمعمل':'استيراد واستكمال محليًا'}</button></div>`;
+  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'مجموعة':'فردي'} · ${esc(t.category||'غير مصنف')} · إصدار ${esc(t.release?.version||'—')}</small><small>${completeness} · ${review}</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}">${requiresLocalSetup?'استيراد واستكمال محليًا':'استيراد للمعمل'}</button></div>`;
  }).join(''):'<p class="empty">لا توجد تعريفات منشورة مطابقة.</p>';
 }
 async function loadMasterCatalog(){
