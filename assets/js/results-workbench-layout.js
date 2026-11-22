@@ -113,3 +113,14 @@ async function toggleCatalog(button,column,records){
 const host=$('workList');
 if(host){const observer=new MutationObserver(()=>{const cards=[...host.querySelectorAll(':scope > .work-card')];if(cards.length&&!host.querySelector('.results-workbench-shell'))buildShell(host,cards);});observer.observe(host,{childList:true,subtree:false});}
 document.addEventListener('taiba:results-context',event=>{window.taibaResultsContext=event.detail;catalogCache=null;});
+
+if(document.body.classList.contains('result-entry-page')){
+ const back=$('entryBack');
+ back?.addEventListener('click',event=>{
+  if(window.taibaGetDirtyResultInputs?.().length){
+   event.preventDefault();
+   window.alert('هناك نتائج لم يتم حفظها بعد. احفظ النتيجة أولًا قبل الرجوع لقائمة العمل.');
+  }
+ });
+}
+
