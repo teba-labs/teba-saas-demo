@@ -15,7 +15,8 @@ test('visit numbers are reserved atomically per tenant and branch with a readabl
  assert.match(sql,/lpad\(v_next::text, 5, '0'\)/);
  assert.match(sql,/revoke all on function public\.reserve_branch_visit_number[\s\S]*grant execute on function public\.reserve_branch_visit_number[\s\S]*to authenticated/i);
  assert.match(js,/reserve_branch_visit_number/);
- assert.match(js,/p_tenant_code:tenantCode,p_branch_code:branchCode/);\n assert.match(js,/await state\\.visitNumberPromise/);
+ assert.match(js,/p_tenant_code:tenantCode,p_branch_code:branchCode/);
+ assert.match(js,/await state\.visitNumberPromise/);
  assert.match(js,/Keep the existing collision-resistant reference until migration 076 is applied/);
 });
 
