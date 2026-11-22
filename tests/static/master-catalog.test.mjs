@@ -38,7 +38,7 @@ test('catalog repository persists the advanced metadata and imports published ma
  for(const field of ['patient_preparation','collection_requirements','specimen_requirements','transport_requirements','stability_requirements','critical_result_policy','clinical_review_status','unit_ucum','critical_ranges','applicability']) assert.ok(repo.includes(field),'missing '+field);
  assert.match(repo,/listMasterCatalogTests/);
  assert.match(repo,/import_master_catalog_test/);
- assert.match(repo,/parameter_count/);
+ assert.match(repo,/parameter_count/);assert.match(repo,/missing_numeric_ranges/);
  assert.match(repo,/master_catalog_parameters/);
 });
 
@@ -54,7 +54,7 @@ test('catalog UI exposes the master library and structured medical metadata edit
  assert.match(html,/id="closeMasterLibrary"/);
  assert.match(js,/masterLibraryOpen/);
  assert.match(js,/استيراد واستكمال محليًا/);
- assert.match(js,/بدون بارامترات — قابلة للاستكمال محليًا/);
+ assert.match(js,/بدون بارامترات — قابلة للاستكمال محليًا/);assert.match(js,/بدون رينج رقمي \(قابل للتعديل محليًا\)/);assert.doesNotMatch(js,/\$\{D\}/);
 });
 
 test('master library seeds 13 editable profile templates without invented reference intervals',()=>{
