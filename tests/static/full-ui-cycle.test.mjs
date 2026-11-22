@@ -65,6 +65,7 @@ test('priority pages have responsive breakpoints for desktop tablet and phone',(
  assert.ok(catalog.includes('max-width:680px'));
  assert.match(results,/max-width:1050px/);
  assert.match(results,/test-launch-card/);
+ assert.match(results,/repeat\(3,minmax\(0,1fr\)\)/);
  assert.match(reception,/\.intake-content\{display:grid/);
  assert.match(catalog,/max-width:900px/);
 });

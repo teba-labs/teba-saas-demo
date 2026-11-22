@@ -5,7 +5,7 @@ import { listCatalog, listCurrentPrices, listTestParameters, saveCatalogTest, sa
 import { parseFormulaExpression, formulaToExpression } from '../../modules/catalog/formula-engine.js';
 
 const $ = id => document.getElementById(id);
-const state = { context:null, tenant:null, role:'staff', tests:[], masterTests:[], prices:new Map(), selectedTest:null, parameters:[], selectedParameter:null, busy:false, tenantRequest:0, selectionRequest:0 };
+const state = { context:null, tenant:null, role:'staff', tests:[], masterTests:[], masterLibraryOpen:false, prices:new Map(), selectedTest:null, parameters:[], selectedParameter:null, busy:false, tenantRequest:0, selectionRequest:0 };
 const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = value => `${Number(value || 0).toFixed(2)} ج.م`;
 const priceKey = (testId, branchId = null) => `${testId}:${branchId || 'base'}`;
@@ -37,8 +37,15 @@ async function loadParameters({tenantId=state.tenant?.id,testId=state.selectedTe
 function renderMasterCatalog(){
  const term=$('masterCatalogSearch').value.trim().toLocaleLowerCase();
  const rows=state.masterTests.filter(t=>!term||`${t.canonical_name} ${t.master_code} ${(t.alternate_names||[]).join(' ')}`.toLocaleLowerCase().includes(term));
- $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف · ${state.masterTests.filter(t=>t.clinical_review_status==='verified').length} مراجع مركزيًا`;
- $('masterCatalogList').innerHTML=rows.length?rows.map(t=>`<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'مجموعة':'فردي'} · ${esc(t.category||'غير مصنف')} · إصدار ${esc(t.release?.version||'—')}</small><small>المراجعة: ${t.clinical_review_status==='verified'?'مراجع مركزيًا':'قيد المراجعة الطبية'}</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}" ${t.clinical_review_status==='verified'?'':'disabled'}>${t.clinical_review_status==='verified'?'استيراد للمعمل':'بانتظار الاعتماد الطبي'}</button></div>`).join(''):'<p class="empty">لا توجد تعريفات منشورة مطابقة. ستظهر المكتبة بعد نشر حزمة الكتالوج الطبي.</p>';
+ $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف · ${state.masterTests.filter(t=>t.clinical_review_status==='verified').length} موثق مركزيًا · ${state.masterTests.filter(t=>!t.parameter_count).length} بدون بارامترات — قابلة للاستكمال محليًا`;
+ $('masterCatalogList').innerHTML=rows.length?rows.map(t=>{
+  const parameterCount=Number(t.parameter_count||0);
+  const missingRanges=Number(t.missing_numeric_ranges||0),unreviewed=Number(t.unreviewed_parameters||0),placeholderCount=Number(t.placeholder_parameters||0);
+  const completeness=placeholderCount?placeholderCount+' حقل مبدئي عام — حدّد النوع والوحدة والرينج محليًا':parameterCount?parameterCount+' بارامتر · '+(missingRanges?missingRanges+' بدون رينج رقمي (قابل للتعديل محليًا)':'لا توجد رينجات رقمية ناقصة')+' · '+(unreviewed?unreviewed+' تحتاج مراجعة':'البارامترات مراجعَة'):'لا توجد بارامترات — أضفها محليًا بعد الاستيراد';
+  const requiresLocalSetup=!parameterCount||placeholderCount>0||missingRanges>0||unreviewed>0;
+  const review=t.clinical_review_status==='verified'?'مراجع مركزيًا':'غير معتمد مركزيًا — يحتاج مراجعة محلية';
+  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'مجموعة':'فردي'} · ${esc(t.category||'غير مصنف')} · إصدار ${esc(t.release?.version||'—')}</small><small>${completeness} · ${review}</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}">${requiresLocalSetup?'استيراد واستكمال محليًا':'استيراد للمعمل'}</button></div>`;
+ }).join(''):'<p class="empty">لا توجد تعريفات منشورة مطابقة.</p>';
 }
 async function loadMasterCatalog(){
  try{state.masterTests=await listMasterCatalogTests();renderMasterCatalog();}
@@ -53,7 +60,7 @@ function editParameter(id){const p=state.parameters.find(x=>x.id===id);if(!p)ret
  $('parameterApplicability').value=displayJson(p.applicability);$('parameterMethodNotes').value=p.method_notes||'';
  $('parameterSources').value=displayJson(p.source_references);$('parameterClinicalMetadata').value=displayJson(p.clinical_metadata);$('parameterReferenceStatus').value=p.reference_interval_status||'local_verification_required';$('parameterReviewStatus').value=p.clinical_review_status||'needs_review';$('parameterFormula').value=formulaToExpression(p.formula);updateFormulaFields();$('parameterRequired').checked=!!p.is_required;$('parameterActive').checked=!!p.is_active;$('parameterForm').hidden=false;$('parameterForm').scrollIntoView({behavior:'smooth',block:'nearest'});}
 async function start(){const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;$('signOut').hidden=true;return;}state.context=await loadMyTenantContext();if(!state.context.tenants?.length)throw new Error('الحساب لا يملك معملًا نشطًا.');$('loginPanel').hidden=true;$('workspace').hidden=false;$('signOut').hidden=false;$('userLine').textContent=`الحساب: ${session.user.email||'مستخدم مسجل'}`;$('tenantSelect').innerHTML=state.context.tenants.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');await loadMasterCatalog();await selectTenant(getPreferredTenantId(state.context.tenants) || state.context.tenants[0].id);}
-async function selectTenant(id){const requestId=++state.tenantRequest;state.selectionRequest++;state.tenant=state.context.tenants.find(t=>t.id===id);if(!state.tenant)throw new Error('لم يتم العثور على المعمل المحدد.');rememberWorkspaceSelection(state.tenant.id);state.role=state.tenant.accountType==='owner'?'owner':'staff';$('masterCatalogPanel').hidden=state.role!=='owner';$('priceBranchSelect').innerHTML='<option value="">السعر الأساسي لكل الفروع</option>'+(state.tenant.branches||[]).map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');if(state.role!=='owner'&&state.tenant.branches?.length===1)$('priceBranchSelect').value=state.tenant.branches[0].id;$('roleNotice').textContent=state.role==='owner'?'إدارة كتالوج التحاليل والأسعار متاحة لمالك المعمل فقط. صلاحية الموظف: إدارة التحاليل والبارامترات الفنية.':'صلاحية الموظف: إدارة التحاليل والبارامترات الفنية. تعديل الأسعار غير متاح.';resetTestForm();await loadCatalog(requestId);}
+async function selectTenant(id){const requestId=++state.tenantRequest;state.selectionRequest++;state.tenant=state.context.tenants.find(t=>t.id===id);if(!state.tenant)throw new Error('لم يتم العثور على المعمل المحدد.');rememberWorkspaceSelection(state.tenant.id);state.role=state.tenant.accountType==='owner'?'owner':'staff';$('openMasterLibrary').hidden=state.role!=='owner';$('masterCatalogPanel').hidden=state.role!=='owner'||!state.masterLibraryOpen;$('priceBranchSelect').innerHTML='<option value="">السعر الأساسي لكل الفروع</option>'+(state.tenant.branches||[]).map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');if(state.role!=='owner'&&state.tenant.branches?.length===1)$('priceBranchSelect').value=state.tenant.branches[0].id;$('roleNotice').textContent=state.role==='owner'?'إدارة كتالوج التحاليل والأسعار متاحة لمالك المعمل فقط. صلاحية الموظف: إدارة التحاليل والبارامترات الفنية.':'صلاحية الموظف: إدارة التحاليل والبارامترات الفنية. تعديل الأسعار غير متاح.';resetTestForm();await loadCatalog(requestId);}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signInWithEmail($('email').value,$('password').value);await start();}catch(err){notice(err.message||'تعذر تسجيل الدخول.',true);}});
 $('signOut').addEventListener('click',async()=>{try{await signOut();await start();}catch(e){notice(e.message,true);}});
 $('tenantSelect').addEventListener('change',()=>selectTenant($('tenantSelect').value).catch(e=>notice(e.message,true)));
@@ -78,11 +85,13 @@ $('parameterForm').addEventListener('submit',async e=>{e.preventDefault();if(!st
  sourceReferences:parseJsonArrayField('parameterSources','المراجع العلمية'),referenceIntervalStatus:$('parameterReferenceStatus').value,clinicalReviewStatus:$('parameterReviewStatus').value,
  isRequired:$('parameterRequired').checked,isActive:$('parameterActive').checked};await saveTestParameter({tenantId:state.tenant.id,testId:state.selectedTest,id:state.selectedParameter||undefined,parameter});notice('تم حفظ البارامتر الفني.');resetParameterForm();await loadParameters();}catch(err){notice(err.message||'تعذر حفظ البارامتر.',true);}finally{setBusy(form,false);}});
 $('masterCatalogSearch').addEventListener('input',renderMasterCatalog);
+$('openMasterLibrary').addEventListener('click',()=>{state.masterLibraryOpen=true;$('masterCatalogPanel').hidden=false;$('openMasterLibrary').hidden=true;});
+$('closeMasterLibrary').addEventListener('click',()=>{state.masterLibraryOpen=false;$('masterCatalogPanel').hidden=true;$('openMasterLibrary').hidden=state.role!=='owner';});
 $('masterCatalogList').addEventListener('click',async e=>{
  const btn=e.target.closest('[data-import-master]');if(!btn||state.role!=='owner')return;
  btn.disabled=true;
  try{requireOnline();const testId=await importMasterCatalogTest({tenantId:state.tenant.id,masterTestId:btn.dataset.importMaster});
-  await loadCatalog();await selectTest(testId);notice('تم استيراد نسخة قابلة للتعديل إلى كتالوج المعمل. أضف السعر وراجع البيانات الطبية قبل التشغيل.');
+  await loadCatalog();await selectTest(testId);notice('تم استيراد نسخة مستقلة إلى كتالوج المعمل. يمكنك استكمال السعر والرينجات والبيانات الفنية قبل اعتمادها للتشغيل.');
  }catch(error){notice(error.message||'تعذر استيراد تعريف التحليل.',true);}finally{btn.disabled=false;}
 });
 $('priceBranchSelect').addEventListener('change',()=>loadPrice());

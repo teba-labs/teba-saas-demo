@@ -1,15 +1,39 @@
 import{saveHistoricalWorkbook,listHistoricalWorkbooks,getHistoricalWorkbook,deleteHistoricalWorkbook}from'../../modules/dashboard/historical-workbooks.js';
+import{listCloudHistoricalWorkbooks,saveCloudHistoricalWorkbook,downloadCloudHistoricalWorkbook,deleteCloudHistoricalWorkbook}from'../../modules/dashboard/historical-workbook-cloud.js';
 import{buildHistoricalDashboardReport,buildHistoricalProductPortfolio,compareHistoricalAndLiveReports,findLatestHistoricalPeriod}from'../../modules/dashboard/historical-analysis.js';
 import{listOwnerFinancialRows}from'../../dashboard/owner-financial-repository.js';
 import{buildGenericHistoricalReport}from'../../modules/dashboard/financial-import-engine.js';
 const FILES=[{type:'sales',label:'ملف المتابعة السنوية والشهرية',hint:'يحتوي أوراق الشهرية والسنوية وحركة التحاليل'},{type:'prices',label:'ملف أسعار وتكلفة التحاليل',hint:'يحتوي ورقة التحاليل وأسعار البيع والتكلفة والوزن'},{type:'detail2025',label:'تفصيل التحاليل لعام 2025',hint:'ملف تاريخي مستقل لتحليل حركة التحاليل'},{type:'detail2026',label:'تفصيل التحاليل لعام 2026',hint:'ملف تاريخي مستقل لتحليل حركة التحاليل'}];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const formatSize=n=>(Number(n||0)/1024/1024).toFixed(2)+' MB';let activeTenantId=null,bound=false,monthBound=false;
+const formatSize=n=>(Number(n||0)/1024/1024).toFixed(2)+' MB';let activeTenantId=null,bound=false,monthBound=false,cloudFiles=[],cloudArchiveError='';
 function status(msg,error=false){const node=document.getElementById('historyNotice');if(node){node.textContent=msg;node.className='history-notice'+(error?' error':'');}}
 function reader(){if(!globalThis.XLSX||typeof globalThis.XLSX.read!=='function')throw new Error('مكتبة قراءة Excel لم تُحمّل. تحقق من الاتصال بالإنترنت ثم أعد تحميل الصفحة.');return globalThis.XLSX;}
 function validate(type,wb){const names=wb.SheetNames||[];if(!names.length)throw new Error('الملف لا يحتوي على أوراق عمل.');if(type==='sales'&&(!names.some(n=>n.includes('الشهرية'))||!names.some(n=>n.includes('السنوية'))))throw new Error('ملف المتابعة يجب أن يحتوي ورقتي الشهرية والسنوية على الأقل.');if(type==='prices'&&!names.some(n=>n.includes('التحاليل')))throw new Error('ملف الأسعار يجب أن يحتوي ورقة باسم يتضمن «التحاليل».');return names.map(name=>{const s=wb.Sheets[name],r=s&&s['!ref']?reader().utils.decode_range(s['!ref']):null;return{name,rows:r?Math.max(0,r.e.r-r.s.r):0};});}
-async function refreshList(tenantId=activeTenantId){const list=document.getElementById('historyFilesList');if(!tenantId||!list)return;const rows=await listHistoricalWorkbooks(tenantId);if(tenantId!==activeTenantId)return;const map=new Map(rows.map(x=>[x.type,x]));list.innerHTML=FILES.map(f=>{const x=map.get(f.type),detail=x?'<div class="history-saved"><b>محفوظ محليًا</b><span>'+esc(x.fileName)+' · '+formatSize(x.size)+'</span><small>'+esc((x.sheets||[]).map(s=>s.name).join('، '))+'</small><button type="button" data-history-delete="'+f.type+'">حذف النسخة المحلية</button></div>':'<div class="history-empty">لم يتم تحميل ملف لهذا القسم بعد.</div>';return'<article class="history-file"><div><b>'+f.label+'</b><small>'+f.hint+'</small></div><label class="history-upload">اختيار ملف Excel<input type="file" accept=".xlsx,.xls,.csv" data-history-upload="'+f.type+'"></label>'+detail+'</article>';}).join('');}
-async function upload(input,type){const tenantId=activeTenantId;const file=input.files&&input.files[0];if(!file)return;try{if(file.size>20*1024*1024)throw new Error('الحد الأقصى لحجم الملف 20 ميجابايت.');const ext=file.name.split('.').pop().toLowerCase();if(!['xlsx','xls','csv'].includes(ext))throw new Error('الصيغ المدعومة: XLSX وXLS وCSV.');status('جارٍ فحص الملف وحفظه محليًا…');const data=await file.arrayBuffer(),wb=reader().read(data,{type:'array',cellDates:false}),sheets=validate(type,wb);await saveHistoricalWorkbook({tenantId,type,fileName:file.name,size:file.size,sheets,data});await refreshList(tenantId);await refreshHistoricalDashboard();status('تم حفظ الملف التاريخي في هذا المتصفح وللمعمل المحدد فقط. لم يتم رفعه إلى السحابة أو دمجه مع التشغيل الحي.');}catch(e){status(e.message||'تعذر حفظ الملف.',true);}finally{input.value='';}}
+async function refreshList(tenantId=activeTenantId){
+ const list=document.getElementById('historyFilesList');if(!tenantId||!list)return;
+ const rows=await listHistoricalWorkbooks(tenantId);if(tenantId!==activeTenantId)return;
+ if(globalThis.navigator?.onLine!==false){try{cloudFiles=await listCloudHistoricalWorkbooks(tenantId);cloudArchiveError='';}catch(error){cloudArchiveError=error.message||'تعذر قراءة الأرشيف السحابي.';}}
+ const map=new Map(rows.map(x=>[x.type,x])),cloudMap=new Map(cloudFiles.map(x=>[x.workbook_type,x]));
+ list.innerHTML=FILES.map(f=>{
+  const x=map.get(f.type),cloud=cloudMap.get(f.type);
+  const detail=x?'<div class="history-saved"><b>'+(cloud?'محفوظ محليًا + سحابيًا':'محفوظ محليًا فقط')+'</b><span>'+esc(x.fileName)+' · '+formatSize(x.size)+'</span><small>'+esc((x.sheets||[]).map(s=>s.name).join('، '))+'</small><button type="button" data-history-delete="'+f.type+'">حذف النسخة المحلية والسحابية</button></div>':cloud?'<div class="history-saved"><b>محفوظ سحابيًا</b><span>'+esc(cloud.file_name)+' · '+formatSize(cloud.file_size)+'</span><small>سيتم تنزيل نسخة محلية عند الاتصال.</small></div>':'<div class="history-empty">لم يتم تحميل ملف لهذا القسم بعد.</div>';
+  return'<article class="history-file"><div><b>'+f.label+'</b><small>'+f.hint+'</small></div><label class="history-upload">اختيار ملف Excel<input type="file" accept=".xlsx,.xls,.csv" data-history-upload="'+f.type+'"></label>'+detail+'</article>';
+ }).join('');
+}
+async function upload(input,type){
+ const tenantId=activeTenantId,file=input.files&&input.files[0];if(!file)return;let localSaved=false;
+ try{
+  if(file.size>20*1024*1024)throw new Error('الحد الأقصى لحجم الملف 20 ميجابايت.');
+  const ext=file.name.split('.').pop().toLowerCase();if(!['xlsx','xls','csv'].includes(ext))throw new Error('الصيغ المدعومة: XLSX وXLS وCSV.');
+  status('جارٍ فحص الملف وحفظ النسخة المحلية والسحابية…');
+  const data=await file.arrayBuffer(),wb=reader().read(data,{type:'array',cellDates:false}),sheets=validate(type,wb);
+  await saveHistoricalWorkbook({tenantId,type,fileName:file.name,size:file.size,sheets,data});localSaved=true;
+  let cloudSaved=false;
+  if(globalThis.navigator?.onLine!==false){await saveCloudHistoricalWorkbook({tenantId,type,fileName:file.name,data,sheets});cloudSaved=true;}
+  await refreshList(tenantId);await refreshHistoricalDashboard();
+  status(cloudSaved?'تم حفظ الملف في أرشيف المعمل السحابي ونسخة محلية لهذا الجهاز. الأرشيف التاريخي مستقل عن التشغيل الحي ومسار المحاسب الشهري.':'تم حفظ نسخة محلية فقط لعدم وجود اتصال. سيتم رفعها تلقائيًا إلى سحابة المعمل عند عودة الاتصال وفتح لوحة التقارير.');
+ }catch(e){status(localSaved?'تم حفظ النسخة المحلية، لكن تعذر إكمال الحفظ السحابي: '+(e.message||'خطأ غير معروف'):e.message||'تعذر حفظ الملف.',true);}finally{input.value='';}
+}
 
 const money=value=>Number(value||0).toLocaleString('ar-EG',{maximumFractionDigits:1})+' ج.م';
 const workbookSheets=record=>{if(!record)return null;const wb=reader().read(record.data,{type:'array',cellDates:false});return wb.SheetNames.map(name=>({name,rows:reader().utils.sheet_to_json(wb.Sheets[name],{header:1,defval:''})}));};
@@ -35,7 +59,57 @@ export async function refreshHistoricalDashboard(){
  }catch(error){target.textContent=error.message||'تعذر حساب التحليل التاريخي.';}
 }
 
-export async function mountHistoricalWorkbookPanel(tenantId){if(!tenantId)return;activeTenantId=String(tenantId);const panel=document.getElementById('historyFilesList');if(!panel)return;if(!bound){panel.addEventListener('change',e=>{const input=e.target.closest('[data-history-upload]');if(input)upload(input,input.dataset.historyUpload);});panel.addEventListener('click',async e=>{const button=e.target.closest('[data-history-delete]');if(!button)return;const tenantId=activeTenantId;if(!globalThis.confirm('حذف النسخة المحلية لهذا الملف من هذا المتصفح؟'))return;button.disabled=true;try{await deleteHistoricalWorkbook({tenantId,type:button.dataset.historyDelete});await refreshList(tenantId);status('تم حذف النسخة المحلية المحددة فقط.');}catch(err){status(err.message||'تعذر حذف الملف.',true);button.disabled=false;}});bound=true;}try{await refreshList();status('ملفات Excel التاريخية مستقلة عن بيانات التشغيل الحية. التخزين محلي على هذا المتصفح فقط. وهي مرجع اختياري لا يدخل في مطابقة مسار المحاسب السحابي.');await refreshHistoricalDashboard();if(!monthBound){document.getElementById('historyMonth')?.addEventListener('change',async()=>{await refreshHistoricalDashboard();if(globalThis.__refreshOwnerFinancialArchive)await globalThis.__refreshOwnerFinancialArchive();});monthBound=true;}}catch(e){status(e.message||'تعذر قراءة الأرشيف المحلي.',true);}}
+async function workbookHash(data){
+ const digest=await crypto.subtle.digest('SHA-256',data);
+ return [...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
+}
+async function hydrateCloudArchive(tenantId){
+ if(globalThis.navigator?.onLine===false)return;
+ const remote=await listCloudHistoricalWorkbooks(tenantId),remoteMap=new Map(remote.map(row=>[row.workbook_type,row]));
+ cloudFiles=remote;
+ const localRows=await listHistoricalWorkbooks(tenantId),types=new Set([...remote.map(row=>row.workbook_type),...localRows.map(row=>row.type)]);
+ for(const type of types){
+  const local=await getHistoricalWorkbook({tenantId,type}),cloud=remoteMap.get(type);
+  if(local?.data instanceof ArrayBuffer){
+   const localHash=await workbookHash(local.data);
+   if(cloud?.file_sha256===localHash)continue;
+   const localIsNewer=!cloud||Date.parse(local.uploadedAt||0)>Date.parse(cloud.uploaded_at||0);
+   if(localIsNewer){
+    const saved=await saveCloudHistoricalWorkbook({tenantId,type,fileName:local.fileName,data:local.data,sheets:local.sheets||[]});
+    const index=cloudFiles.findIndex(row=>row.workbook_type===type);
+    if(index>=0)cloudFiles[index]=saved;else cloudFiles.push(saved);
+    continue;
+   }
+  }
+  if(cloud){
+   const downloaded=await downloadCloudHistoricalWorkbook({tenantId,type});
+   if(downloaded?.data)await saveHistoricalWorkbook({tenantId,type,fileName:downloaded.file_name,size:downloaded.file_size,sheets:downloaded.sheet_summary,data:downloaded.data});
+  }
+ }
+}
+export async function mountHistoricalWorkbookPanel(tenantId){
+ if(!tenantId)return;activeTenantId=String(tenantId);const panel=document.getElementById('historyFilesList');if(!panel)return;
+ if(!bound){
+  panel.addEventListener('change',e=>{const input=e.target.closest('[data-history-upload]');if(input)upload(input,input.dataset.historyUpload);});
+  panel.addEventListener('click',async e=>{
+   const button=e.target.closest('[data-history-delete]');if(!button)return;
+   const ownerTenantId=activeTenantId;
+   if(!globalThis.confirm('حذف هذا الملف من الأرشيف المحلي والسحابي للمعمل؟'))return;
+   button.disabled=true;
+   try{await deleteCloudHistoricalWorkbook({tenantId:ownerTenantId,type:button.dataset.historyDelete});await deleteHistoricalWorkbook({tenantId:ownerTenantId,type:button.dataset.historyDelete});await refreshList(ownerTenantId);status('تم حذف الملف من الأرشيف المحلي والسحابي.');}
+   catch(err){status(err.message||'تعذر حذف الملف.',true);button.disabled=false;}
+  });
+  bound=true;
+ }
+ try{
+  try{await hydrateCloudArchive(activeTenantId);}catch(syncError){cloudArchiveError=syncError.message||'تعذر مزامنة الأرشيف السحابي.';}
+  await refreshList(activeTenantId);
+  status(globalThis.navigator?.onLine===false?'لا يوجد اتصال: تُعرض النسخ المحلية فقط.':'الأرشيف التاريخي محفوظ سحابيًا للمعمل، وتُستخدم نسخة محلية لتسريع القراءة. وهو مستقل عن التشغيل الحي ومسار المحاسب الشهري.');
+  if(cloudArchiveError)status('تعذر تحديث قائمة الأرشيف السحابي: '+cloudArchiveError,true);
+  await refreshHistoricalDashboard();
+  if(!monthBound){document.getElementById('historyMonth')?.addEventListener('change',async()=>{await refreshHistoricalDashboard();if(globalThis.__refreshOwnerFinancialArchive)await globalThis.__refreshOwnerFinancialArchive();});monthBound=true;}
+ }catch(e){status(e.message||'تعذر قراءة الأرشيف التاريخي.',true);}
+}
 
 /** Read-only reconciliation between the live operating stream and the accountant's separate Excel stream. */
 export async function renderLiveHistoricalReconciliation(liveReport,tenantId,branchId=null){

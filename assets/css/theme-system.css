@@ -192,3 +192,5 @@ html[data-theme="dark"] :is(.button-secondary,.button-ghost,.button-outline,.but
 html[data-theme="dark"] :is(.button-primary,.button:not(.button-secondary):not(.button-ghost):not(.button-outline):not(.button-light)){background:var(--taiba-accent)!important;color:#FFFFFF!important;border-color:var(--taiba-accent)!important}
 html[data-theme="dark"] :where(.portal-card,.portal-results-card,.report-card,.report-sheet,.report-preview,.public-card,.site-section,.site-panel,.lookup-card){background:var(--taiba-surface)!important;color:var(--taiba-ink)!important;border-color:var(--taiba-border)!important}
 html[data-theme="dark"] :where(.portal-card,.portal-results-card,.report-card,.report-sheet,.report-preview,.public-card,.site-section,.site-panel,.lookup-card) :where(h1,h2,h3,strong,label,p,small,span){color:inherit}
+
+html[data-theme="dark"] :is(.workspace-heading,.workspace-selectors,.welcome-copy){background:#142530!important;color:#e4edf2!important;border-color:#304754!important}html[data-theme="dark"] .welcome-copy h1{color:#e7f0f4!important}html[data-theme="dark"] .welcome-clock{color:#a9bdc7!important}

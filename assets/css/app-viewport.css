@@ -1,0 +1,38 @@
+/* Shared application viewport and adaptive layout rules.
+   Breakpoints respond to the CSS viewport, including browser zoom; no navigation/tab switching. */
+:root{scrollbar-gutter:stable}
+html{min-width:320px;min-height:100%;scroll-behavior:auto}
+body{min-width:320px;min-height:100dvh;max-width:100%;overflow-x:hidden}
+body,main,header,section,article,aside,nav,form,fieldset{box-sizing:border-box}
+main,main>* ,section>* ,form>*{min-width:0}
+img,svg,video,canvas{max-width:100%}
+input,select,textarea,button{max-width:100%;font:inherit}
+button,[role=button],a{touch-action:manipulation}
+button{white-space:normal;overflow-wrap:anywhere}
+nav,.toolbar,.actions,.form-actions,.button-row,.section-head,.top-actions{display:flex;align-items:center;flex-wrap:wrap;gap:clamp(6px,1vw,12px)}
+nav>* ,.toolbar>* ,.actions>* ,.form-actions>* ,.button-row>*{min-width:0;max-width:100%}
+:is(.grid,.layout,.form-grid,.parameter-grid,.apps-grid,.owner-report-grid,.context,.workspace-heading,.workspace-selectors){min-width:0}
+:is(.grid,.layout,.form-grid,.parameter-grid,.apps-grid,.owner-report-grid)>*{min-width:0;max-width:100%}
+:is(.test-list,.parameter-list,.master-catalog-list,.patient-list,.visit-list,.result-list,.report-content,.table-scroll,.table-wrap){min-width:0;overscroll-behavior:contain}
+:is(.test-list,.parameter-list,.master-catalog-list,.patient-list,.visit-list,.result-list){overflow:auto;scrollbar-width:thin}
+:is(table,.data-table){max-width:100%;border-collapse:collapse}
+.table-scroll,.table-wrap{width:100%;overflow:auto;overscroll-behavior:contain}
+pre,code{max-width:100%;overflow:auto}
+:where(.panel,.card,.workspace,.workbench,.editor-panel,.list-panel,.report-panel){min-width:0;max-width:100%}
+@media(max-width:1100px){
+ :is(.layout,.form-grid,.parameter-grid,.context){grid-template-columns:repeat(2,minmax(0,1fr))}
+ :is(.toolbar,.section-head,.context,.workspace-heading){min-width:0}
+}
+@media(max-width:700px){
+ :is(.layout,.form-grid,.parameter-grid,.context){grid-template-columns:minmax(0,1fr)}
+ :is(nav,.toolbar,.actions,.form-actions,.button-row){align-items:stretch}
+ :is(nav,.toolbar,.actions,.form-actions,.button-row)>button,
+ :is(nav,.toolbar,.actions,.form-actions,.button-row)>.button{flex:0 1 auto}
+ :is(input,select,textarea){min-width:0}
+}
+@media(max-width:420px){
+ body{font-size:14px}
+ :is(.panel,.card,.workspace,.workbench){max-width:100%;min-width:0}
+ :is(.toolbar,.actions,.form-actions,.button-row)>button{flex:1 1 calc(50% - 8px)}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}

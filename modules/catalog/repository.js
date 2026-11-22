@@ -310,8 +310,33 @@ export async function listMasterCatalogTests() {
     .select('id, release_id, master_code, canonical_name, alternate_names, test_kind, category, service_type, clinical_review_status, source_name')
     .in('release_id', releases.map(row=>row.id)).order('canonical_name');
   if (error) throw error;
+  const rows = data ?? [];
+  const ids = rows.map(row=>row.id);
+  const parameterCounts = new Map();
+  if (ids.length) {
+    const { data: parameterRows, error: parameterError } = await db().from('master_catalog_parameters')
+      .select('master_test_id,value_type,reference_ranges,clinical_review_status,clinical_metadata').in('master_test_id', ids);
+    if (parameterError) throw parameterError;
+    for (const parameter of parameterRows ?? []) {
+      const stats = parameterCounts.get(parameter.master_test_id) || { count: 0, missing_numeric_ranges: 0, unreviewed_parameters: 0, placeholder_parameters: 0 };
+      stats.count += 1;
+      if (parameter.value_type === 'numeric' && (!Array.isArray(parameter.reference_ranges) || parameter.reference_ranges.length === 0)) {
+        stats.missing_numeric_ranges += 1;
+      }
+      if (parameter.clinical_review_status !== 'verified') stats.unreviewed_parameters += 1;
+      if (parameter.clinical_metadata?.template_placeholder === true) stats.placeholder_parameters += 1;
+      parameterCounts.set(parameter.master_test_id, stats);
+    }
+  }
   const byRelease = new Map(releases.map(row=>[row.id,row]));
-  return (data ?? []).map(row=>({...row, release:byRelease.get(row.release_id)}));
+  return rows.map(row=>({
+    ...row,
+    parameter_count: parameterCounts.get(row.id)?.count || 0,
+    missing_numeric_ranges: parameterCounts.get(row.id)?.missing_numeric_ranges || 0,
+    unreviewed_parameters: parameterCounts.get(row.id)?.unreviewed_parameters || 0,
+    placeholder_parameters: parameterCounts.get(row.id)?.placeholder_parameters || 0,
+    release: byRelease.get(row.release_id),
+  }));
 }
 
 export async function importMasterCatalogTest({ tenantId, masterTestId } = {}) {
