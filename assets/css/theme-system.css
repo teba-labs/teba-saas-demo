@@ -165,3 +165,22 @@ html[data-theme="dark"] :where(.actions,.parameter-actions,.item-actions) > :is(
   :where(.actions) > :is(button,.button,.btn,a.button){flex:1 1 calc(50% - 8px)}
   :where(.parameter-actions,.item-actions) > :is(button,.button,.btn){flex:1 1 auto}
 }
+
+/* Unified Taiba clinical workspace palette */
+:root{--taiba-page:#F4F7FA;--taiba-surface:#FFFFFF;--taiba-surface-soft:#EAF1F5;--taiba-ink:#123047;--taiba-muted:#526575;--taiba-border:#D8E2E9;--taiba-accent:#168C8C;--taiba-accent-soft:#DCEFEF;--taiba-input:#FFFFFF;--taiba-success-bg:#E5F3EC;--taiba-success-text:#176B45;--taiba-warning-bg:#FFF1D8;--taiba-warning-text:#855A13;--taiba-danger-bg:#FCE9E7;--taiba-danger-text:#9A332D}
+html[data-theme="dark"]{--taiba-page:#101D2B;--taiba-surface:#17293B;--taiba-surface-soft:#243A4D;--taiba-ink:#F3F7FA;--taiba-muted:#B8C8D6;--taiba-border:#354C60;--taiba-accent:#45B8B3;--taiba-accent-soft:#244A50;--taiba-input:#122335;--taiba-success-bg:#214737;--taiba-success-text:#B9F1D1;--taiba-warning-bg:#59451F;--taiba-warning-text:#FFE2A3;--taiba-danger-bg:#512D2B;--taiba-danger-text:#FFC0B8}
+html,body{background:var(--taiba-page)!important;color:var(--taiba-ink)!important}body{background-image:none!important}
+:where(.panel,.card,.work-card,.results-column,.owner-area,.section-card,.settings-tab-panel,.login-panel,.context,.workspace-context,.receipt-panel,.master-panel,.list-panel,.editor-panel,.module-card,.app-card,.stat-card,.dashboard-card,.workday-overview,.historical-results-lookup,.results-actionbar,.parameter,.parameter-group,.test-item,.parameter-item,.master-item,.history-panel,.history-file-card,.owner-report-card){background:var(--taiba-surface)!important;color:var(--taiba-ink)!important;border-color:var(--taiba-border)!important}
+:where(h1,h2,h3,h4,h5,strong,b,legend,th,label){color:var(--taiba-ink)}:where(p,small,.muted,.eyebrow,.step-kicker,.helper-text,.generated-note){color:var(--taiba-muted)}
+:where(input:not([type=checkbox]):not([type=radio]),select,textarea){background:var(--taiba-input)!important;color:var(--taiba-ink)!important;border-color:var(--taiba-border)!important}
+:where(input,select,textarea)::placeholder{color:var(--taiba-muted)!important;opacity:1}
+:where(.button-secondary,.button-ghost,.button-outline,.button-light,.profile-open-button,.visit-select-button){background:var(--taiba-accent-soft);color:var(--taiba-ink);border:1px solid var(--taiba-border)}
+:where(.button-primary,.button:not(.button-secondary):not(.button-ghost):not(.button-outline):not(.button-light)){background:var(--taiba-accent);color:#fff;border-color:var(--taiba-accent)}
+:where(.status.good,.status.success,.badge.online,.badge.open,.status.active){background:var(--taiba-success-bg)!important;color:var(--taiba-success-text)!important}
+:where(.status.bad,.status.error,.badge.offline,.badge.closed){background:var(--taiba-danger-bg)!important;color:var(--taiba-danger-text)!important}
+:where(.warning,.status.warning,.alert-warning){background:var(--taiba-warning-bg)!important;color:var(--taiba-warning-text)!important}
+:where(table,th,td,hr){border-color:var(--taiba-border)}
+html[data-theme=dark] :where(.post-save-actions,.historical-results-panel,.billing,.catalog-results,.advanced-fields,.master-catalog-list,.hidden-visits-list,.historical-report-picker,.culture-workflow,.culture-isolate,.net-box,.remaining-box,.status,.workday-chip,.role-notice){background:var(--taiba-surface-soft)!important;color:var(--taiba-ink)!important;border-color:var(--taiba-border)!important}
+html[data-theme=dark] :where(.notice.show,#notice.show){background:#214A4A!important;color:#F3FAFA!important;border:1px solid #3C7776!important}
+html[data-theme=dark] :where(.notice.error,#notice.show.error){background:#512D2B!important;color:#FFC0B8!important;border-color:#8A4A43!important}
+:where(button,a,input,select,textarea):focus-visible{outline:3px solid color-mix(in srgb,var(--taiba-accent) 55%,transparent);outline-offset:2px}
