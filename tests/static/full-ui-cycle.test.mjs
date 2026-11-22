@@ -32,6 +32,8 @@ test('each result opens in a dedicated route and returns to its selected visit',
  assert.match(layout,/classList\.contains\('result-entry-page'\)/);
  assert.match(layout,/entry\.replaceChildren\(node\)/);
  assert.match(layout,/results-workbench\.html/);
+ assert.match(layout,/record\.patientAge/);
+ assert.match(layout,/الهاتف/);
  assert.match(workbench,/results-workbench-layout\.js/);
 });
 
