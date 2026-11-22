@@ -1,3 +1,4 @@
+import {isFinancialImportRowImportable} from '../../modules/dashboard/financial-import-validation.js';
 import {FINANCIAL_FIELDS,suggestFinancialMapping,analyzeFinancialRows,buildGenericHistoricalReport} from '../../modules/dashboard/financial-import-engine.js';
 import {createOwnerFinancialBatch,listOwnerFinancialBatches,listOwnerFinancialRows,getOwnerDashboardSources,saveOwnerDashboardSources,saveOwnerMonthApproval,listOwnerMonthApprovals} from '../../dashboard/owner-financial-repository.js';
 const $=id=>document.getElementById(id);
@@ -32,8 +33,7 @@ async function importPrepared(mapping,headers,rawRows,branchId){
  for(const x of preparedRows){
   const matchedBranch=x.branch_name?branches.find(b=>String(b.name).trim().toLocaleLowerCase('ar')===String(x.branch_name).trim().toLocaleLowerCase('ar')):null;
   const resolvedBranch=x.branch_name?(matchedBranch?.id||null):(branchId||null);
-  const timelessPrice=x.metric_key==='test_price'&&(x.unit_cost!==null||x.selling_price!==null);
-  if((!x.period_date&&!timelessPrice)||!String(x.metric_key||'').trim()||(x.amount===null&&x.quantity===null&&!timelessPrice)||x._duplicate){skipped.push({row:x._rowNumber,reason:'صف غير مكتمل أو مكرر داخل الملف'});continue;}
+  if(!isFinancialImportRowImportable(x)){skipped.push({row:x._rowNumber,reason:'صف غير مكتمل أو مكرر داخل الملف'});continue;}
   if(x.branch_name&&!matchedBranch){skipped.push({row:x._rowNumber,reason:'اسم الفرع غير مطابق لفروع المعمل'});continue;}
   if(fingerprints.has(x._fingerprint)){skipped.push({row:x._rowNumber,reason:'هذا الصف مستورد سابقًا'});continue;}
   const candidate={...x,branch_id:resolvedBranch},existingMatch=existingByKey.get(keyOf(candidate));
