@@ -40,7 +40,10 @@ test('historical analysis is gated by a doctor monthly approval and supports exp
   assert.match(ui,/data-approval-manual/);
   assert.match(ui,/manualValues/);
   assert.match(ui,/listOwnerMonthApprovals/);
-  assert.match(ui,/الشهر لم يعتمد بعد/);\n  assert.match(ui,/approvedRows/);\n  assert.match(ui,/pendingPeriods/);\n  assert.match(ui,/await refreshOwnerFinancialArchive\(\)/);
+  assert.match(ui,/الشهر لم يعتمد بعد/);
+  assert.match(ui,/approvedRows/);
+  assert.match(ui,/pendingPeriods/);
+  assert.match(ui,/await refreshOwnerFinancialArchive\(\)/);
   assert.match(repository,/approvalHistory/);
   assert.match(repository,/slice\(-20\)/);
   assert.match(dashboard,/الشهر غير معتمد ماليًا بعد/);
