@@ -16,6 +16,15 @@ const apps = [
   { id:'sync', title:'المزامنة والنسخ المحلي', desc:'متابعة العمليات المعلقة والتعارضات وحالة البيانات المحلية.', href:'sync-center.html', icon:'⟳', roles:['owner','staff'] },
   { id:'dashboard', title:'لوحة الإدارة والتحليل', desc:'مؤشرات الأداء والتحصيل والمصروفات ومقارنة الفروع.', href:'dashboard.html', icon:'▥', roles:['owner'] },
 ];
+function updateWelcomeClock() {
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'صباح الخير' : hour < 18 ? 'مساء الخير' : 'مساء الخير';
+  const title = $('welcomeTitle');
+  const clock = $('welcomeClock');
+  if (title) title.textContent = greeting;
+  if (clock) clock.textContent = new Intl.DateTimeFormat('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(now);
+}
 function notice(message, error=false) { $('notice').textContent=message; $('notice').className=`notice show${error?' error':''}`; }
 function updateConnection() {
   const online = navigator.onLine;
