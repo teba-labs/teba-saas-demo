@@ -520,9 +520,14 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const allVisitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
   if (!allVisitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
   const visit = allVisitItems[0].visits || {};
-  const serverApproved = visit.status === 'approved' || Boolean(visit.is_published);
-  const localOffline = !serverApproved && (globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || allVisitItems.some(item => item.local_offline));
-  const partialReport = !serverApproved && !localOffline && allVisitItems.some(item => item.status === 'completed');
+  const visitApproved = visit.status === 'approved' || Boolean(visit.is_published);
+  const hasCompletedTests = allVisitItems.some(item => item.status === 'completed');
+  const hasPendingTests = allVisitItems.some(item => item.status !== 'completed');
+  const localOffline = !visitApproved && (globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || allVisitItems.some(item => item.local_offline));
+  const serverApproved = visitApproved && !hasPendingTests;
+  // Even if the visit header was approved earlier, unfinished tests must never
+  // be silently represented as a complete final report.
+  const partialReport = globalThis.navigator?.onLine !== false && hasCompletedTests && hasPendingTests;
   const visitItems = partialReport ? allVisitItems.filter(item => item.status === 'completed') : allVisitItems;
   const canPrint = serverApproved || localOffline || partialReport;
   const patient = visit.patients || {};
