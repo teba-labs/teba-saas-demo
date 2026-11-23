@@ -64,8 +64,9 @@ test('staff publication endpoint keeps JWT verification enabled', () => {
 });
 
 test('patient portal is optional and final publication is blocked until all requested tests are complete', () => {
-  assert.match(optIn,/alter column portal_settings set default jsonb_build_object[\\s\\S]*'enabled', false/);
-  assert.match(optIn,/ss\\.portal_settings @> '\\{"enabled":true\\}'::jsonb/);
-  assert.match(optIn,/All visit tests must be completed before report publication/);
-  assert.doesNotMatch(optIn,/patient_portal_enabled/);
+  assert.ok(optIn.includes('alter column portal_settings set default'));
+  assert.ok(optIn.includes("'enabled', false"));
+  assert.ok(optIn.includes("ss.portal_settings @> '{\"enabled\":true}'::jsonb"));
+  assert.ok(optIn.includes('All visit tests must be completed before report publication'));
+  assert.ok(!optIn.includes('patient_portal_enabled'));
 });
