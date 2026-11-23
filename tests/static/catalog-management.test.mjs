@@ -12,8 +12,8 @@ test('catalog repository exposes tenant-scoped test and parameter management wit
   }
   assert.match(source, /\.eq\('tenant_id', tenantId\)/);
   assert.match(source, /\.eq\('test_id', testId\)/);
-  assert.match(source, /Choice parameters require at least one choice/);
-  assert.match(source, /referenceRanges must be an object or array/);
+  assert.match(source, /أضف الاختيارات المطلوبة لهذا النوع من النتائج/);
+  assert.match(source, /يجب أن تكون المديات المرجعية قائمة/);
   assert.match(source, /decimalPlaces must be from 0 to 6/);
   assert.match(source, /Preserve parameter history\/snapshots by toggling is_active/);
   assert.doesNotMatch(source, /\.delete\(\)/);
