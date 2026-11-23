@@ -16,13 +16,13 @@ test('master medical catalog has read-only global definitions and tenant-owned i
  assert.match(sql,/revoke all on function public\.import_master_catalog_test/);
  assert.match(read('database/migrations/036_master_catalog_import_invoker.sql'),/security invoker/);
  assert.match(read('database/migrations/037_guard_master_catalog_import.sql'),/must be clinically verified/); // historical gate, superseded by 086.
- const partial=read('database/migrations/086_master_catalog_partial_import_activation.sql');
+ const partial=read('database/migrations/100_master_catalog_partial_import_activation.sql');
  assert.match(partial,/Missing clinical metadata never blocks import/i);
  assert.match(partial,/return new/);
  assert.doesNotMatch(partial,/must be defined before import|v_bad_count>0|v_invalid>0/);
- assert.match(read('database/migrations/087_catalog_import_invoker_permissions.sql'),/security invoker/i);
- assert.match(read('database/migrations/088_publish_editable_legacy_catalog_index.sql'),/taiba-expanded-index-2026\.11\.23-r2/);
- assert.match(read('database/migrations/088_publish_editable_legacy_catalog_index.sql'),/needs_review/);
+ assert.match(read('database/migrations/101_catalog_import_invoker_permissions.sql'),/security invoker/i);
+ assert.match(read('database/migrations/102_publish_editable_legacy_catalog_index.sql'),/taiba-expanded-index-2026\.11\.23-r2/);
+ assert.match(read('database/migrations/102_publish_editable_legacy_catalog_index.sql'),/needs_review/);
  const catalogRepo=read('modules/catalog/repository.js');
  assert.doesNotMatch(catalogRepo,/eq\('clinical_review_status','verified'\)/);
  assert.doesNotMatch(catalogRepo,/\.filter\(row=>row\.parameter_count>0/);
