@@ -70,7 +70,7 @@ test('common chemistry, lipid, urine, CBC and stool master data have forward-onl
 });
 
 test('partial catalog definitions are available to tenant import without fabricated medical metadata', () => {
-  const currentImport = readFile(new URL('database/migrations/100_master_catalog_partial_import_activation.sql', root), 'utf8');
+  const currentImport = migration;
   assert.match(currentImport, /Only the tenant owner may import master catalog tests/);
   assert.doesNotMatch(currentImport, /method and specimen must be defined/);
   assert.doesNotMatch(currentImport, /v_bad_count>0|v_invalid>0|set is_active=false/);
