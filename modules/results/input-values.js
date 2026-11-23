@@ -26,7 +26,7 @@ export function prepareResultInputValue(parameter, value, flag = null) {
     return { parameter_code: parameter.code, value_numeric: parsed, value_text: null, flag };
   }
   if (mode === 'numeric_comparator') {
-    if (!/^(<=|>=|<|>|≤|≥)\\s*-?(?:\\d+(?:\\.\\d+)?|\\.\\d+)$/.test(raw)) {
+    if (!/^(<=|>=|<|>|≤|≥)\s*-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(raw)) {
       throw new Error('اكتب علامة مقارنة ثم رقمًا، مثل: > 5 أو ≤ 3.2');
     }
     return { parameter_code: parameter.code, value_numeric: null, value_text: raw, flag };
