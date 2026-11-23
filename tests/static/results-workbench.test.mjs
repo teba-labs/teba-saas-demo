@@ -53,6 +53,6 @@ test('operator can save every test in a visit and approve once without per-test 
   assert.match(script, /state\.work\.filter\(item => item\.visit_id === visitId/);
   assert.match(script, /await saveDraftResults\(/);
   assert.match(script, /await approveVisitWithAutoCompletion\(/);
-  assert.doesNotMatch(script, /class="button button-secondary complete-test"/);
+  assert.doesNotMatch(script, /complete-test|completeTest|completeVisitTest/);
   assert.match(repository, /approve_visit_with_auto_completion/);
 });
