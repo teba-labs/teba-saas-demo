@@ -3,7 +3,7 @@ import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/ses
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { findPatients, createPatient, getOpenWorkday, createVisitIntake, recordPayment, listBranchOutstandingBalances } from '../../modules/reception/repository.js';
-import { listCatalog, listCurrentPrices, listTestParameters, warmCatalogParameters } from '../../modules/catalog/repository.js';
+import { listCatalog, listCurrentPrices, listTestParameters, warmCatalogParameters, setCurrentPrice } from '../../modules/catalog/repository.js';
 import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
@@ -151,10 +151,30 @@ function renderCatalog(){
   $('catalogCount').textContent=`التحاليل المتاحة: ${available.length}`;
   host.innerHTML=available.length?available.map(t=>{
     const price=state.prices.get(t.id),checked=state.selected.has(t.id);
-    return `<div class="catalog-item"><input type="checkbox" data-test="${escapeHtml(t.id)}" id="test-${escapeHtml(t.id)}" ${checked?'checked':''} ${!price?'disabled':''} aria-label="${escapeHtml(t.name)}"><label for="test-${escapeHtml(t.id)}"><strong>${escapeHtml(t.name)}</strong><small>${escapeHtml(t.code)}${t.category?' · '+escapeHtml(t.category):''}${!price?' · لا يوجد سعر نشط':''}</small></label><strong>${price?money(price.selling_price):'—'}</strong></div>`;
+    const priceSetup=!price?(state.tenant?.accountType==='owner'
+      ? `<div class="quick-price"><input type="number" min="0" step="0.01" data-quick-price="${escapeHtml(t.id)}" placeholder="حدد سعر التحليل"><button type="button" class="button button-secondary" data-save-quick-price="${escapeHtml(t.id)}">حفظ السعر</button></div>`
+      : '<small class="price-missing">السعر لم يحدده مالك المعمل بعد</small>'):'';
+    return `<div class="catalog-item"><input type="checkbox" data-test="${escapeHtml(t.id)}" id="test-${escapeHtml(t.id)}" ${checked?'checked':''} ${!price?'disabled':''} aria-label="${escapeHtml(t.name)}"><label for="test-${escapeHtml(t.id)}"><strong>${escapeHtml(t.name)}</strong><small>${escapeHtml(t.code)}${t.category?' · '+escapeHtml(t.category):''}${!price?' · السعر غير محدد':''}</small></label><strong>${price?money(price.selling_price):'—'}</strong>${priceSetup}</div>`;
   }).join(''):'<p class="muted">لا توجد تحاليل مطابقة لبحثك.</p>';
   host.querySelectorAll('[data-test]').forEach(input=>input.addEventListener('change',()=>toggleTest(input.dataset.test,input.checked)));
+  host.querySelectorAll('[data-save-quick-price]').forEach(button=>button.addEventListener('click',()=>saveQuickCatalogPrice(button)));
   updateTotals();
+}
+async function saveQuickCatalogPrice(button){
+  if(state.tenant?.accountType!=='owner'){notice('تحديد أسعار التحاليل متاح لمالك المعمل فقط.',true);return;}
+  const testId=button.dataset.saveQuickPrice,input=$('catalogList').querySelector('[data-quick-price="'+CSS.escape(testId)+'"]');
+  const raw=input?.value;
+  if(raw===''||raw==null||!Number.isFinite(Number(raw))||Number(raw)<0){notice('اكتب سعرًا صحيحًا للتحليل.',true);input?.focus();return;}
+  busy(button,true,'جارٍ حفظ السعر…');
+  try{
+    await setCurrentPrice({tenantId:state.tenant.id,testId,sellingPrice:Number(raw)});
+    const prices=await listCurrentPrices({tenantId:state.tenant.id,branchId:state.branch.id,testIds:[testId]});
+    const price=prices.find(row=>row.test_id===testId);
+    if(price)state.prices.set(testId,price);
+    renderCatalog();
+    notice('تم حفظ سعر التحليل وإتاحته للاستقبال.');
+  }catch(error){notice(error.message||'تعذر حفظ سعر التحليل.',true);}
+  finally{busy(button,false);}
 }
 async function toggleTest(id,checked){
   if(checked){
@@ -184,19 +204,40 @@ async function searchPatients(){
     for(const button of $('patientMatches').querySelectorAll('[data-patient]'))button.addEventListener('click',()=>{const patient=rows.find(p=>p.id===button.dataset.patient);setPatient(patient);notice('تم اختيار المريض.');});
   }catch(error){$('patientMatches').innerHTML='<p class="muted">تعذر البحث: '+escapeHtml(error.message||'خطأ غير معروف')+'</p>';}
 }
+function ageFromDateOfBirth(value){
+  const birth=new Date(String(value||'')+'T00:00:00');
+  if(!value||Number.isNaN(birth.getTime()))throw new Error('راجع تاريخ الميلاد.');
+  const now=new Date();
+  if(birth>new Date(now.getFullYear(),now.getMonth(),now.getDate()))throw new Error('تاريخ الميلاد لا يمكن أن يكون في المستقبل.');
+  let years=now.getFullYear()-birth.getFullYear();
+  let months=now.getMonth()-birth.getMonth();
+  if(now.getDate()<birth.getDate())months--;
+  if(months<0){years--;months+=12;}
+  return Number((years+months/12).toFixed(2));
+}
+function syncAgeFromDob(){
+  const dob=$('patientDob').value;
+  $('patientAge').readOnly=Boolean(dob);
+  $('patientAgeUnit').disabled=Boolean(dob);
+  if(!dob)return;
+  try{$('patientAge').value=ageFromDateOfBirth(dob);$('patientAgeUnit').value='years';}
+  catch(error){$('patientAge').value='';notice(error.message,true);}
+}
 async function addNewPatient(button){
   const fullName=$('patientName').value.trim();if(!fullName){notice('اكتب اسم المريض أولًا.',true);$('patientName').focus();return;}
+  const phone=$('patientPhone').value.trim()||null;
   const sex=$('patientSex').value;if(!sex){notice('حدد النوع: ذكر أو أنثى.',true);$('patientSex').focus();return;}
-  const ageRaw=$('patientAge').value,age=ageRaw===''?null:Number(ageRaw),unit=$('patientAgeUnit').value;
+  const dateOfBirth=$('patientDob').value||null;
+  const ageRaw=$('patientAge').value,age=dateOfBirth?ageFromDateOfBirth(dateOfBirth):(ageRaw===''?null:Number(ageRaw)),unit=dateOfBirth?'years':$('patientAgeUnit').value;
   const max=unit==='days'?43800:unit==='months'?1440:120;
   if(age!==null&&(!Number.isFinite(age)||age<0||age>max)){notice('راجع العمر ووحدة القياس المدخلة.',true);$('patientAge').focus();return;}
   busy(button,true,'جارٍ حفظ المريض…');
   try{
     const patient=await createPatient({tenantId:state.tenant.id,branchId:state.branch.id,patient:{
-      fullName,phone:$('patientPhone').value.trim()||null,ageValue:age,ageUnit:unit,patientNumber:$('patientNumberPreview').value,
+      fullName,phone,dateOfBirth,ageValue:age,ageUnit:unit,patientNumber:$('patientNumberPreview').value,
       sex,createdByStaffId:currentStaff()
     }});
-    setPatient(patient);$('patientSearch').value='';$('patientMatches').replaceChildren();$('newPatientForm').reset();
+    setPatient(patient);$('patientSearch').value='';$('patientMatches').replaceChildren();$('newPatientForm').reset();syncAgeFromDob();
     $('patientNumberPreview').value=makeCode('P');
     if(patient.offline_pending){$('pendingSyncNotice').hidden=false;notice('تم حفظ المريض محليًا. ستتم مزامنته وربط الزيارة به بعد عودة الاتصال.');}
     else notice('تم تسجيل المريض واختياره بنجاح.');
@@ -205,7 +246,7 @@ async function addNewPatient(button){
 async function clearIntake(){
   state.patient=null;state.selected.clear();state.parameters.clear();setPatient(null);
   $('patientSearch').value='';$('patientMatches').innerHTML='<p class="muted">ابدأ البحث لاختيار مريض مسجل.</p>';
-  $('newPatientForm').reset();$('newPatientDetails').open=false;$('catalogSearch').value='';
+  $('newPatientForm').reset();syncAgeFromDob();$('newPatientDetails').open=false;$('catalogSearch').value='';
   $('referredBy').value='';$('visitNotes').value='';$('discount').value='0';$('initialPayment').value='0';$('initialPaymentMethod').value='cash';
   $('postSaveActions').hidden=true;$('paymentReceipt').hidden=true;await newReferenceCodes();renderCatalog();$('patientSearch').focus();
 }
@@ -314,7 +355,14 @@ function goToResults(visitId=state.lastVisit?.visitId){
 }
 function focusNewPatient(){ $('newPatientDetails').open=true; $('patientName').focus(); }
 function bindKeyboard(){
+  $('patientDob').addEventListener('change',syncAgeFromDob);
   $('newPatientDetails').addEventListener('toggle',()=>{if($('newPatientDetails').open)requestAnimationFrame(()=>$('patientName').focus());});
+  $('newPatientForm').addEventListener('keydown',e=>{
+    if(e.key!=='Enter'||e.target.matches('textarea,button,input[type="submit"],input[type="button"],input[type="checkbox"],input[type="radio"]'))return;
+    const fields=[...$('newPatientForm').querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly]),select:not([disabled]),textarea:not([disabled])')].filter(el=>el.getClientRects().length);
+    const index=fields.indexOf(e.target);if(index<0)return;
+    e.preventDefault();e.stopPropagation();const next=fields[index+1];(next||$('createPatient')).focus();
+  });
   $('newPatientForm').addEventListener('submit',e=>{e.preventDefault();addNewPatient($('createPatient'));});
   $('patientMatches').addEventListener('keydown',e=>{if(e.key==='Escape')$('patientSearch').focus();});
   $('catalogList').addEventListener('keydown',e=>{
