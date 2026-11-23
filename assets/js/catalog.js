@@ -146,11 +146,21 @@ async function loadParameters({tenantId=state.tenant?.id,testId=state.selectedTe
 function renderMasterCatalog(){
  const term=$('masterCatalogSearch').value.trim().toLocaleLowerCase();
  const rows=state.masterTests.filter(t=>!term||`${t.canonical_name} ${t.master_code} ${(t.alternate_names||[]).join(' ')}`.toLocaleLowerCase().includes(term));
- $('masterCatalogCount').textContent=`${state.masterTests.length} تحليل/بروفايل جاهز للاستيراد بعد المراجعة الطبية المركزية`;
+ const verified=state.masterTests.filter(t=>t.clinical_review_status==='verified').length;
+ $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف متاح للاستيراد · ${verified} مراجَع مركزيًا · والباقي قابل للمراجعة والاستكمال داخل المعمل`;
  $('masterCatalogList').innerHTML=rows.length?rows.map(t=>{
   const parameterCount=Number(t.parameter_count||0);
-  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'بروفايل / مجموعة':'تحليل فردي'} · ${esc(t.category||'غير مصنف')} · ${parameterCount} بارامتر · إصدار ${esc(t.release?.version||'—')}</small><small>مكتمل ومراجع مركزيًا؛ لا يحتاج استكمال رينجات أو معادلات قبل الاستيراد. بعد الاستيراد راجع سعر المعمل ثم اعتمده للتشغيل.</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}">استيراد للمراجعة والاعتماد</button></div>`;
- }).join(''):'<p class="empty">لا توجد حاليًا تحاليل مكتملة ومراجعة مركزيًا تطابق البحث. التعريفات الناقصة لا تظهر للعميل حتى تكتمل مراجعتها.</p>';
+  const review=t.clinical_review_status==='verified'?'مراجَع مركزيًا':'يحتاج مراجعة/استكمال محلي';
+  const missing=[];
+  if(!t.definition?.specimen)missing.push('العينة');
+  if(!t.definition?.method)missing.push('الطريقة');
+  if(t.missing_units)missing.push(`الوحدات (${t.missing_units})`);
+  if(t.missing_numeric_ranges)missing.push(`الرينجات (${t.missing_numeric_ranges})`);
+  if(t.missing_choices)missing.push(`الاختيارات (${t.missing_choices})`);
+  if(t.missing_formulas)missing.push(`المعادلات (${t.missing_formulas})`);
+  if(t.placeholder_parameters)missing.push('بارامترات عامة قابلة للتعديل');
+  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'بروفايل / مجموعة':t.test_kind==='group'?'مجموعة تحاليل':'تحليل فردي'} · ${esc(t.category||'غير مصنف')} · ${parameterCount} بارامتر · إصدار ${esc(t.release?.version||'—')}</small><small>${review}.${missing.length?' بيانات ناقصة: '+esc(missing.join('، '))+'.':' لا توجد نواقص مسجلة.'} يمكنك الاستيراد الآن وإكمال البيانات لاحقًا؛ لا تُنشأ رينجات أو وحدات تلقائيًا.</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}">استيراد الآن</button></div>`;
+ }).join(''):'<p class="empty">لا توجد تعريفات منشورة تطابق البحث.</p>';
 }
 async function loadMasterCatalog(){
  try{state.masterTests=await listMasterCatalogTests();renderMasterCatalog();}
