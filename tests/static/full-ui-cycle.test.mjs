@@ -35,7 +35,7 @@ test('each test opens inline in the selected visit without a page hop; legacy di
  assert.ok(layout.includes("'results-workbench.html'"));
  assert.ok(layout.includes('record.patientAge'));
  assert.match(layout,/الهاتف/);
- assert.match(workbench,/results-workbench-layout\\.js/);
+ assert.ok(workbench.includes('results-workbench-layout.js'));
 });
 
 test('reception preserves post-save actions for online and offline visit intake',()=>{
