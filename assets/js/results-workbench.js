@@ -918,69 +918,16 @@ async function approve(button) {
   try {
     requireCloudConnection('اعتماد الزيارة');
     if (!visitId) throw new Error('تعذر تحديد الزيارة المراد اعتمادها.');
-    const items = state.work.filter(item => item.visit_id === visitId && item.status !== 'cancelled');
-    if (!items.length) throw new Error('لا توجد تحاليل فعالة في الزيارة.');
     const dirtyOutside = window.taibaGetDirtyResultInputs?.().filter(input =>
       input.closest('.parameter[data-visit-id]')?.dataset.visitId !== visitId
     ) || [];
     if (dirtyOutside.length) throw new Error('هناك نتيجة غير محفوظة في زيارة أخرى. احفظها أولًا حتى لا تختلط الحالات.');
 
     setBusy(button, true, 'جارٍ حفظ واعتماد الزيارة…');
-    for (const item of items) {
-      if (item.status === 'completed') continue;
-      const section = document.querySelector('[data-test-id="' + CSS.escape(item.id) + '"]');
-      if (!section) continue;
-      if (section.dataset.localPending === 'true' || section.querySelector('[data-local-pending="true"]')) {
-        throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد؛ انتظر اكتمال المزامنة ثم أعد الاعتماد.');
-      }
-      const inputs = [...section.querySelectorAll('[data-param-code]')];
-      const clearedSaved = inputs.filter(input =>
-        input.dataset.resultSource !== 'calculated' &&
-        input.dataset.resultId &&
-        input.value.trim() === '' &&
-        (input.dataset.originalValue ?? '').trim() !== ''
-      );
-      if (clearedSaved.length) {
-        throw new Error('تم مسح نتيجة محفوظة من أحد الحقول. أعد إدخالها أو استخدم مسار التصحيح الموثق قبل الاعتماد؛ لن نعتمد قيمة قديمة بدل القيمة التي ظهرت فارغة.');
-      }
-      const results = inputs
-        .filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim() !== '')
-        .map(input => ({
-          parameter: {
-            code: input.dataset.paramCode,
-            name: input.dataset.paramName,
-            unit: input.dataset.unit,
-            valueType: input.dataset.valueType,
-            inputMode: input.dataset.inputMode,
-            resultConfig: JSON.parse(input.dataset.resultConfig || '{}'),
-            referenceRange: JSON.parse(input.dataset.range || '{}'),
-            choices: JSON.parse(input.dataset.choices || '[]')
-          },
-          value: input.value,
-          flag: classifyResultFlag(input)
-        }));
-      if (!results.length) continue;
-      const savedRows = await saveDraftResults({
-        tenantId: state.tenant.id,
-        branchId: state.branch.id,
-        visitTestId: item.id,
-        results,
-        staffId: $('staffSelect').value,
-        dependsOn: item.local_intake_operation_id ? [item.local_intake_operation_id] : []
-      });
-      for (const row of savedRows || []) {
-        const input = section.querySelector('[data-param-code="' + CSS.escape(row.parameter_code) + '"]');
-        if (!input) continue;
-        input.value = row.value_numeric ?? row.value_text ?? '';
-        input.dataset.resultId = row.id;
-        input.dataset.originalValue = input.value;
-        delete input.dataset.localPending;
-      }
-      delete section.dataset.localPending;
-      const pill = section.querySelector('.card-head .pill');
-      if (pill) pill.textContent = 'تم حفظ النتائج';
+    const saved = await saveVisitDrafts(visitId);
+    if (saved.queuedCount) {
+      throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد؛ انتظر اكتمال المزامنة ثم أعد الاعتماد.');
     }
-
     await approveVisitWithAutoCompletion({
       tenantId: state.tenant.id,
       branchId: state.branch.id,
