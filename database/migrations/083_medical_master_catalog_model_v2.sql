@@ -374,7 +374,8 @@ $function$;
 revoke all on function private.add_catalog_kind_to_visit_snapshot() from public,anon,authenticated;
 
 
--- Freeze the new doctor-facing parameter model into each visit at order time.
+-- Freeze the v2 clinical parameter definition into each visit test at order time.
+-- Preserve existing immutable price and technical snapshot behavior.
 create or replace function private.apply_catalog_price_snapshot()
 returns trigger
 language plpgsql
@@ -457,8 +458,8 @@ end;
 $function$;
 
 
--- Enforce each configured result control against the immutable visit parameter snapshot.
--- Multiple choices remain backward compatible by storing a JSON array string in value_text.
+-- Enforce the configured v2 result input mode against the immutable visit snapshot.
+-- Multiple-choice values remain backward-compatible JSON strings in value_text.
 create or replace function private.validate_result_parameter()
 returns trigger
 language plpgsql
@@ -475,9 +476,9 @@ declare
   v_choices jsonb;
   v_multi jsonb;
   v_choice text;
-  v_max_selections integer;
   v_score text;
   v_score_total numeric := 0;
+  v_max_selections integer;
 begin
   select technical_snapshot, branch_id into v_snapshot, v_branch
     from public.visit_tests
@@ -563,40 +564,28 @@ begin
       if exists(
         select value from jsonb_array_elements_text(v_multi)
          group by value having count(*)>1
-      ) then raise exception 'Duplicate choices are not allowed'; end if;
+      ) then
+        raise exception 'Duplicate choices are not allowed';
+      end if;
+      if v_input_mode='graded_multi_choice'
+         and jsonb_typeof(v_parameter->'result_config'->'choice_scores') is distinct from 'object' then
+        raise exception 'Graded choice parameters require a score mapping';
+      end if;
       for v_choice in select value from jsonb_array_elements_text(v_multi) loop
         if not exists(
           select 1 from jsonb_array_elements_text(v_choices) as choice(value)
            where choice.value=v_choice
-        ) then raise exception 'A selected value is not in the allowed choices list'; end if;
+        ) then
+          raise exception 'A selected value is not in the allowed parameter choices';
+        end if;
         if v_input_mode='graded_multi_choice' then
           v_score:=v_parameter->'result_config'->'choice_scores'->>v_choice;
-          if v_score is null or v_score !~ '^[+-]?([0-9]+([.][0-9]+)?|[.][0-9]+)
-      v_max_selections:=nullif(v_parameter->'result_config'->>'max_selections','')::integer;
-      if v_max_selections is not null and jsonb_array_length(v_multi)>v_max_selections then
-        raise exception 'Too many choices were selected';
-      end if;
-    end if;
-  elsif v_input_mode<>'text' then
-    raise exception 'Unsupported result input mode: %',v_input_mode;
-  end if;
-
-  return new;
-end;
-$function$;
-
-
-commit;
- then
+          if v_score is null or v_score !~ '^[+-]?([0-9]+([.][0-9]+)?|[.][0-9]+)$' then
             raise exception 'Every selected graded choice must have a numeric score';
           end if;
           v_score_total:=v_score_total+v_score::numeric;
         end if;
       end loop;
-      if v_input_mode='graded_multi_choice'
-         and jsonb_typeof(v_parameter->'result_config'->'choice_scores') is distinct from 'object' then
-        raise exception 'Graded choice parameters require a score mapping';
-      end if;
       v_max_selections:=nullif(v_parameter->'result_config'->>'max_selections','')::integer;
       if v_max_selections is not null and jsonb_array_length(v_multi)>v_max_selections then
         raise exception 'Too many choices were selected';
