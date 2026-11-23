@@ -17,7 +17,7 @@ import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } fro
 const $ = (id) => document.getElementById(id);
 const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), stopBackgroundSync: null };
 window.taibaGetResultsContext=()=>({tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug});
-window.taibaGetDirtyResultInputs=()=>[...document.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultSource!=='calculated'&&getResultInputValue(input)!==(input.dataset.originalValue??''));
+window.taibaGetDirtyResultInputs=()=>[...document.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultSource!=='calculated'&&input.value.trim()!==(input.dataset.originalValue??'').trim());
 window.addEventListener('taiba:results-work-refresh',()=>refreshWork().catch(error=>showNotice(error.message||'تعذر تحديث قائمة النتائج.',true)));
 const showNotice = (message, error = false) => {
   const el = $('notice'); el.textContent = message; el.className = `notice show${error ? ' error' : ''}`;
@@ -27,93 +27,88 @@ const setBusy = (button, busy, label) => { button.disabled = busy; if (busy) { b
 const requireCloudConnection = operation => { if (globalThis.navigator?.onLine === false) throw new Error(`${operation} يتطلب اتصالًا بالإنترنت. لم تُحفظ التغييرات محليًا أو في السحابة.`); };
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function resultInputMode(parameter){
- const type=parameter?.value_type||'numeric';
- return parameter?.result_input_mode||(type==='numeric'?(Number(parameter?.decimal_places)===0?'numeric_integer':'numeric_decimal'):type==='choice'?'single_choice':type);
+  if(parameter?.result_input_mode)return parameter.result_input_mode;
+  return ({numeric:'numeric_decimal',text:'text',boolean:'boolean',choice:'single_choice'}[parameter?.value_type||'numeric']||'numeric_decimal');
 }
-function formatStoredResultForReport(parameter,result){
- const mode=resultInputMode(parameter);
- const raw=result?.value_text??result?.value_numeric??'—';
- if(mode!=='multi_choice'&&mode!=='graded_multi_choice')return raw;
- try{
-  const parsed=typeof raw==='string'?JSON.parse(raw):raw;
-  const selected=Array.isArray(parsed)?parsed:Array.isArray(parsed?.selected)?parsed.selected:[];
-  if(!selected.length)return raw;
-  const base=selected.join('، ');
-  return mode==='graded_multi_choice'&&parsed?.score!=null?base+' (الدرجة: '+parsed.score+')':base;
- }catch{return raw;}
+function resultModeValueType(mode){
+  return ({numeric_integer:'numeric',numeric_decimal:'numeric',numeric_comparator:'text',
+    text:'text',positive_negative:'choice',boolean:'boolean',single_choice:'choice',
+    multi_choice:'choice',graded_multi_choice:'choice'}[mode]||'text');
 }
-
-function resultInputConfig(input){
- try{return JSON.parse(input.dataset.resultConfig||'{}');}catch{return {};}
-}
-function getResultInputValue(input){
- let selected=[];
- if(input.dataset.multiChoice==='true'){
-  selected=[...(input.closest('label')?.querySelectorAll('[data-choice-option]:checked')||[])].map(option=>option.value);
- }else if(input.multiple)selected=[...input.selectedOptions].map(option=>option.value);
- if(input.dataset.multiChoice==='true'||input.multiple){
-  if(!selected.length)return '';
-  if(input.dataset.resultInputMode==='graded_multi_choice'){
-   const scores=resultInputConfig(input).choice_scores||{};
-   const score=selected.reduce((sum,value)=>sum+(Number(scores[value])||0),0);
-   return JSON.stringify({selected,score});
+function resultChoices(parameter){return Array.isArray(parameter?.choices)?parameter.choices:[];}
+function renderResultControl(parameter,metadata,locked,mode){
+  const choices=resultChoices(parameter),disabled=locked?' disabled':'';
+  if(parameter.result_source==='calculated')return `<input type="number" step="any" ${metadata} data-result-source="calculated" disabled placeholder="تُحسب تلقائيًا بعد إدخال المدخلات" />`;
+  if(mode==='numeric_integer'||mode==='numeric_decimal'){
+    const decimals=Math.max(0,Math.min(6,Number(parameter.decimal_places??2)));
+    return `<input type="number" step="${mode==='numeric_integer'?'1':String(10**-decimals)}" ${metadata}${disabled} placeholder="${mode==='numeric_integer'?'أدخل عددًا صحيحًا':'أدخل النتيجة الرقمية'}" />`;
   }
-  return JSON.stringify(selected);
- }
- return String(input.value??'').trim();
-}
-function setResultInputValue(input,stored){
- const value=stored===null||stored===undefined?'':String(stored);
- if(input.dataset.multiChoice==='true'||input.multiple){
-  let selected=[];
-  try{const parsed=JSON.parse(value);selected=Array.isArray(parsed)?parsed:Array.isArray(parsed?.selected)?parsed.selected:[];}catch{}
-  if(input.dataset.multiChoice==='true'){
-   for(const option of input.closest('label')?.querySelectorAll('[data-choice-option]')||[])option.checked=selected.includes(option.value);
-  }else for(const option of input.options)option.selected=selected.includes(option.value);
- }else input.value=value;
- input.dataset.originalValue=getResultInputValue(input);
-}
-function conditionalRuleMatches(rule,section){
- const source=section.querySelector(`[data-param-code="${CSS.escape(rule.source_parameter_code||'')}"]`);
- if(!source)return false;
- const sourceValue=getResultInputValue(source);
- if(rule.operator==='is_not_empty')return sourceValue!=='';
- if(rule.operator==='not_equals')return sourceValue!==''&&sourceValue!==String(rule.value??'');
- return sourceValue===String(rule.value??'');
-}
-function applyConditionalFields(section){
- if(!section)return;
- for(const label of section.querySelectorAll('label[data-display-rules]')){
-  let rules=[];try{rules=JSON.parse(label.dataset.displayRules||'[]');}catch{label.hidden=true;continue;}
-  const matches=rules.every(rule=>conditionalRuleMatches(rule,section));
-  label.hidden=!matches;
-  const input=label.querySelector('[data-param-code]');
-  if(input&&!matches){
-   if(input.dataset.multiChoice==='true'){for(const option of input.closest('label')?.querySelectorAll('[data-choice-option]')||[])option.checked=false;}
-   else if(input.multiple){for(const option of input.options)option.selected=false;}
-   else input.value='';
-   input.dataset.originalValue='';
-   delete input.dataset.resultId;
-   delete input.dataset.localPending;
+  if(mode==='numeric_comparator')return `<input type="text" ${metadata}${disabled} placeholder="مثال: <5 أو >=1.2" />`;
+  if(mode==='boolean')return `<select ${metadata}${disabled}><option value="">اختر نعم أو لا</option><option value="true">نعم</option><option value="false">لا</option></select>`;
+  if(mode==='positive_negative'||mode==='single_choice'){
+    return `<select ${metadata}${disabled}><option value="">اختر النتيجة</option>${choices.map(choice=>`<option data-option-value="${escapeHtml(choice)}" value="${escapeHtml(choice)}">${escapeHtml(choice)}</option>`).join('')}</select>`;
   }
-  if(!input||!matches||!rules.length||!input.tagName.match(/SELECT/i))continue;
-  const activeRule=[...rules].reverse().find(rule=>Array.isArray(rule.choices)&&rule.choices.length);
-  if(!activeRule)continue;
-  if(input.dataset.multiChoice==='true'){
-   for(const option of input.closest('label')?.querySelectorAll('[data-choice-option]')||[]){
-    const permitted=activeRule.choices.includes(option.value);
-    option.closest('.choice-option').hidden=!permitted;
-    if(!permitted)option.checked=false;
-   }
-   continue;
+  if(mode==='multi_choice'||mode==='graded_multi_choice'){
+    const maximum=Number(parameter.result_config?.max_selections||0);
+    return `<div class="multi-choice-editor" data-multi-choice-editor>
+      <input type="hidden" class="multi-choice-value" ${metadata}${disabled} value="" />
+      <div class="multi-choice-options">${choices.map(choice=>`<label class="multi-choice-option" data-choice-option><input class="multi-choice-item" type="checkbox" data-choice-value="${escapeHtml(choice)}"${disabled}><span>${escapeHtml(choice)}</span></label>`).join('')}</div>
+      ${maximum>0?'<small>اختر بحد أقصى '+maximum+' اختيارات</small>':''}
+      ${mode==='graded_multi_choice'?'<small class="choice-score-total" data-choice-score-total aria-live="polite"></small>':''}
+    </div>`;
   }
-  const fullChoices=(()=>{try{return JSON.parse(input.dataset.choices||'[]');}catch{return [];}})();
-  const permitted=fullChoices.filter(value=>activeRule.choices.includes(value));
-  const current=input.multiple?[...input.selectedOptions].map(option=>option.value):[input.value];
-  const placeholder=!input.multiple?input.options[0]?.value===''?input.options[0].outerHTML:'':'';
-  input.innerHTML=placeholder+permitted.map(value=>`<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
-  for(const option of input.options)option.selected=current.includes(option.value);
- }
+  return `<textarea rows="2" ${metadata}${disabled} placeholder="اكتب النتيجة هنا"></textarea>`;
+}
+function syncMultiChoiceValue(hiddenInput){
+  const editor=hiddenInput?.closest('[data-multi-choice-editor]');
+  if(!editor)return;
+  const selected=[...editor.querySelectorAll('.multi-choice-item:checked')].map(input=>input.dataset.choiceValue);
+  hiddenInput.value=selected.length?JSON.stringify(selected):'';
+  const summary=editor.querySelector('[data-choice-score-total]');
+  if(summary){
+    let config={};try{config=JSON.parse(hiddenInput.dataset.resultConfig||'{}');}catch{}
+    const scores=config.choice_scores||{};
+    const total=selected.reduce((sum,choice)=>sum+Number(scores[choice]||0),0);
+    summary.textContent=selected.length?'الدرجة المحتسبة: '+total:'';
+  }
+}
+function setMultiChoiceValue(hiddenInput,rawValue){
+  if(!hiddenInput)return;
+  let selected=[];try{const parsed=JSON.parse(String(rawValue||'[]'));if(Array.isArray(parsed))selected=parsed.map(String);}catch{}
+  hiddenInput.value=selected.length?JSON.stringify(selected):'';
+  const editor=hiddenInput.closest('[data-multi-choice-editor]');
+  if(editor)editor.querySelectorAll('.multi-choice-item').forEach(input=>{input.checked=selected.includes(input.dataset.choiceValue);});
+  syncMultiChoiceValue(hiddenInput);
+}
+function evaluateDisplayRules(section){
+  if(!section)return;
+  for(const field of section.querySelectorAll('[data-display-rules]')){
+    let rules=[];try{rules=JSON.parse(field.dataset.displayRules||'[]');}catch{}
+    if(!Array.isArray(rules)||!rules.length)continue;
+    const visible=new Set(),conditional=new Set();let matched=false;
+    for(const rule of rules){
+      const condition=rule?.when||{},source=section.querySelector('[data-param-code="'+CSS.escape(condition.parameter_code||'')+'"]');
+      let sourceValue=source?.value??'';
+      if(source?.dataset.inputMode==='multi_choice'||source?.dataset.inputMode==='graded_multi_choice'){try{sourceValue=JSON.parse(sourceValue||'[]');}catch{sourceValue=[];}}
+      const conditionValue=String(condition.value??'');
+      const hasControllerValue=Array.isArray(sourceValue)?sourceValue.length>0:String(sourceValue).trim()!=='';
+      const isMatch=hasControllerValue&&(condition.operator==='not_equals'
+        ? (Array.isArray(sourceValue)?!sourceValue.includes(conditionValue):String(sourceValue)!==conditionValue)
+        : (Array.isArray(sourceValue)?sourceValue.includes(conditionValue):String(sourceValue)===conditionValue));
+      for(const value of (rule.visible_values||[])){conditional.add(String(value));if(isMatch)visible.add(String(value));}
+      if(isMatch)matched=true;
+    }
+    field.querySelectorAll('[data-option-value], [data-choice-value]').forEach(option=>{
+      const value=option.dataset.optionValue??option.dataset.choiceValue??'';
+      const shouldHide=matched?!visible.has(value):conditional.has(value);
+      if(option.tagName==='OPTION'){
+        option.hidden=shouldHide;option.disabled=shouldHide;
+        if(shouldHide&&option.selected&&option.closest('select'))option.closest('select').value='';
+      }
+      else{const label=option.closest('[data-choice-option]')||option;label.hidden=shouldHide;if(shouldHide&&option.checked)option.checked=false;}
+    });
+    const hidden=field.querySelector('.multi-choice-value');if(hidden)syncMultiChoiceValue(hidden);
+  }
 }
 
 
@@ -229,42 +224,16 @@ async function renderWork() {
       const groupedParams = new Map();
       for (const p of params) { const sectionName = p.clinical_metadata?.section || 'النتائج'; if (!groupedParams.has(sectionName)) groupedParams.set(sectionName, []); groupedParams.get(sectionName).push(p); }
       const parameterControls = [...groupedParams.entries()].map(([sectionName, groupParams]) => `<fieldset class="parameter-group"><legend>${escapeHtml(sectionName)}</legend>${groupParams.map(p => {
-        const type = p.value_type ?? 'numeric';
-        const mode = resultInputMode(p);
-        const code = escapeHtml(p.code);
-        const name = escapeHtml(p.name ?? p.parameter_name ?? p.code);
-        const parameterRange = rangeOverridesByKey.get(item.id+'|'+p.code)?.reference_ranges ?? p.reference_ranges ?? {};
-        const choices = Array.isArray(p.choices) ? p.choices : [];
-        const config = p.result_config && typeof p.result_config==='object' ? p.result_config : {};
-        const metadata = `aria-label="${name}" data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit ?? '')}" data-value-type="${escapeHtml(type)}" data-result-input-mode="${escapeHtml(mode)}" data-result-config='${escapeHtml(JSON.stringify(config))}' data-range='${escapeHtml(JSON.stringify(parameterRange))}' data-choices='${escapeHtml(JSON.stringify(choices))}' data-reference-interval-status='${escapeHtml(p.reference_interval_status ?? 'local_verification_required')}' data-patient-age='${escapeHtml(item.visits?.patients?.age_years ?? '')}' data-patient-sex='${escapeHtml(item.visits?.patients?.sex ?? '')}' data-critical-range='${escapeHtml(JSON.stringify(p.critical_ranges ?? []))}'`;
-        let control;
-        if (p.result_source === 'calculated') {
-          control = `<input type="number" step="any" ${metadata} data-result-source="calculated" disabled placeholder="تُحسب تلقائيًا بعد إدخال المدخلات" />`;
-        } else if (mode === 'boolean') {
-          control = `<select ${metadata}${locked ? ' disabled' : ''}><option value="">اختر نعم أو لا</option><option value="true">نعم</option><option value="false">لا</option></select>`;
-        } else if (mode === 'positive_negative') {
-          const options=choices.length?choices:['Positive','Negative'];
-          control = `<select ${metadata}${locked ? ' disabled' : ''}><option value="">اختر موجب أو سالب</option>${options.map(value=>`<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('')}</select>`;
-        } else if (mode === 'single_choice') {
-          control = `<select ${metadata}${locked ? ' disabled' : ''}><option value="">اختر النتيجة</option>${choices.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('')}</select>`;
-        } else if (mode === 'multi_choice' || mode === 'graded_multi_choice') {
-          control = `<input type="hidden" ${metadata} data-multi-choice="true" ${locked ? 'disabled' : ''} />
-            <div class="choice-checkbox-list" data-choice-options aria-label="${name} — اختر إجابة أو أكثر">
-              ${choices.map((value,index)=>`<div class="choice-option"><input type="checkbox" data-choice-option value="${escapeHtml(value)}" id="choice-${code}-${index}" ${locked ? 'disabled' : ''}><span>${escapeHtml(value)}${mode==='graded_multi_choice'&&config.choice_scores?.[value]!=null?' · درجة '+escapeHtml(config.choice_scores[value]):''}</span></div>`).join('')}
-            </div>`;
-        } else if (mode === 'numeric_integer' || mode === 'numeric_decimal') {
-          const decimals = mode==='numeric_integer'?0:Math.max(0, Math.min(6, Number(p.decimal_places ?? 2)));
-          control = `<input type="number" step="${decimals === 0 ? '1' : String(10 ** -decimals)}" ${metadata}${locked ? ' disabled' : ''} placeholder="أدخل النتيجة" />`;
-        } else if (mode === 'numeric_comparator') {
-          control = `<input type="text" inputmode="decimal" pattern="(<=|>=|<|>|≤|≥)\\s*-?[0-9]+([.][0-9]+)?" ${metadata}${locked ? ' disabled' : ''} placeholder="مثال: > 5 أو ≤ 3.2" />`;
-        } else {
-          control = `<textarea rows="2" ${metadata}${locked ? ' disabled' : ''} placeholder="اكتب النتيجة النصية"></textarea>`;
-        }
-        const rules=Array.isArray(p.display_rules)?p.display_rules:[];
+        const mode=resultInputMode(p),type=resultModeValueType(mode);
+        const code=escapeHtml(p.code),name=escapeHtml(p.name??p.parameter_name??p.code);
+        const parameterRange=rangeOverridesByKey.get(item.id+'|'+p.code)?.reference_ranges??p.reference_ranges??{};
+        const displayRules=Array.isArray(p.display_rules)?p.display_rules:[];
+        const metadata=`aria-label="${name}" data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit??'')}" data-value-type="${escapeHtml(type)}" data-input-mode="${escapeHtml(mode)}" data-result-config='${escapeHtml(JSON.stringify(p.result_config||{}))}' data-range='${escapeHtml(JSON.stringify(parameterRange))}' data-choices='${escapeHtml(JSON.stringify(resultChoices(p)))}' data-reference-interval-status='${escapeHtml(p.reference_interval_status??'local_verification_required')}' data-patient-age='${escapeHtml(patientAgeInYears(item.visits?.patients||{})??'')}' data-patient-sex='${escapeHtml(item.visits?.patients?.sex??'')}' data-critical-range='${escapeHtml(JSON.stringify(p.critical_ranges??[]))}'`;
+        const control=renderResultControl(p,metadata,locked,mode);
         const rangeText = resolveReferenceRange(parameterRange, item.visits?.patients || {}, p.reference_interval_status);
         const rangeEditButton = (isPublished || (group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled'))
           ? '<button type="button" class="edit-reference-range" data-visit-test-id="' + escapeHtml(item.id) + '" data-param-code="' + code + '" data-range="' + escapeHtml(JSON.stringify(parameterRange)) + '" data-published="' + String(isPublished) + '">' + (isPublished ? 'تصحيح رينج التقرير المنشور' : 'تعديل الرينج لهذه الزيارة') + '</button>' : '';
-        return '<div class="result-field" data-display-rules="' + escapeHtml(JSON.stringify(rules)) + '"><span class="result-field-name">' + name + (p.is_required === false ? ' (اختياري)' : '') + '</span><small>' + escapeHtml(p.unit ?? '') + ' ' + escapeHtml(rangeText) + '</small>' + control + rangeEditButton + '</div>';
+        return '<div class="result-field" data-display-rules=\'' + escapeHtml(JSON.stringify(displayRules)) + '\'><span class="result-field-name">' + name + (p.is_required === false ? ' (اختياري)' : '') + '</span><small>' + escapeHtml(p.unit ?? '') + ' ' + escapeHtml(rangeText) + '</small>' + control + rangeEditButton + '</div>';
       }).join('')}</fieldset>`).join('');
       const isCulture = String(item.test_code_snapshot || '').startsWith('CULTURE_');
       const cultureEditor = isCulture ? `<section class="culture-workflow" data-culture-workflow="${escapeHtml(item.id)}"><h3>العزلات والاختبار الحساسي (Antibiogram)</h3><p class="muted">أضف كل عزلة منفصلة. أدخل تفسير الحساسية وفق إصدار CLSI/EUCAST والطريقة المعتمدة في المعمل؛ النظام لا يخمّن نقاط القطع.</p><div class="culture-isolates" data-culture-isolates="${escapeHtml(item.id)}"><p class="muted">جارٍ تحميل العزلات…</p></div>${!locked && !isPublished ? `<form class="culture-isolate-form" data-visit-test-id="${escapeHtml(item.id)}"><label>رقم العزلة<input name="isolateNumber" type="number" min="1" max="20" value="1" required></label><label>اسم الكائن الممرض / العزلة<input name="organismName" maxlength="200" required placeholder="مثال: Escherichia coli"></label><label>وصف النمو<input name="growthDescription" placeholder="Pure growth / mixed growth"></label><label>عدد المستعمرات<input name="colonyCount" type="number" min="0" step="any"></label><label>وحدة العد<input name="colonyCountUnit" value="CFU/mL"></label><label>طريقة التعريف<input name="identificationMethod" placeholder="Biochemical / MALDI-TOF / Automated"></label><label class="wide">ملاحظات<textarea name="notes" rows="2"></textarea></label><button class="button" type="submit">حفظ العزلة</button></form>` : ''}</section>` : '';
@@ -283,13 +252,29 @@ async function renderWork() {
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
       <p class="danger-note">التصحيح بعد النشر يحتاج سببًا موثقًا، ويجب إدخال التصحيح من مسار التصحيح المعتمد قبل رفع النسخة الجديدة.</p>`;
     host.append(card);
-    card.querySelectorAll('[data-param-code], [data-choice-option]').forEach(input=>{
-      input.addEventListener('input',()=>applyConditionalFields(input.closest('.parameter')));
-      input.addEventListener('change',()=>applyConditionalFields(input.closest('.parameter')));
-    });
-    card.querySelectorAll('.parameter[data-test-id]').forEach(section=>applyConditionalFields(section));
   }
   host.querySelectorAll('.edit-reference-range').forEach(btn => btn.addEventListener('click', () => editReferenceRange(btn)));
+  if(!host.dataset.resultControlsBound){
+    host.dataset.resultControlsBound='true';
+    host.addEventListener('change',event=>{
+      const section=event.target.closest('.parameter[data-test-id]');if(!section)return;
+      const checkbox=event.target.closest('.multi-choice-item');
+      if(checkbox){
+        const editor=checkbox.closest('[data-multi-choice-editor]');
+        const hidden=editor?.querySelector('.multi-choice-value');
+        let config={};try{config=JSON.parse(hidden?.dataset.resultConfig||'{}');}catch{}
+        const max=Number(config.max_selections||0),selected=[...editor.querySelectorAll('.multi-choice-item:checked')];
+        if(max>0&&selected.length>max){checkbox.checked=false;showNotice('عدد الاختيارات تجاوز الحد المسموح.',true);}
+        if(hidden)syncMultiChoiceValue(hidden);
+      }
+      evaluateDisplayRules(section);
+    });
+    host.addEventListener('input',event=>{
+      const section=event.target.closest('.parameter[data-test-id]');if(section)evaluateDisplayRules(section);
+    });
+  }
+  host.querySelectorAll('.parameter[data-test-id]').forEach(section=>evaluateDisplayRules(section));
+
   host.querySelectorAll('.save-test').forEach(btn => btn.addEventListener('click', () => saveTest(btn)));
   host.querySelectorAll('.complete-test').forEach(btn => btn.addEventListener('click', () => completeTest(btn)));
   host.querySelectorAll('.correct-test, .correct-unpublished-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
@@ -321,7 +306,12 @@ async function renderWork() {
     if (!section) continue;
     for (const result of resultsByTest.get(item.id) ?? []) {
       const input = section.querySelector(`[data-param-code="${CSS.escape(result.parameter_code)}"]`);
-      if (input) { setResultInputValue(input,result.value_numeric ?? result.value_text ?? ''); input.dataset.resultId = result.id; }
+      if (input) {
+        const rawValue=result.value_numeric??result.value_text??'';
+        if(input.dataset.inputMode==='multi_choice'||input.dataset.inputMode==='graded_multi_choice')setMultiChoiceValue(input,rawValue);
+        else input.value=rawValue;
+        input.dataset.resultId=result.id;input.dataset.originalValue=input.value;
+      }
     }
   }
   const pendingDraftBatches = await listPendingDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id });
@@ -337,18 +327,21 @@ async function renderWork() {
     for (const result of batch.payload?.results || []) {
       const input = section.querySelector(`[data-param-code="${CSS.escape(result.parameter_code)}"]`);
       if (!input) continue;
-      setResultInputValue(input,result.value_numeric ?? result.value_text ?? '');
-      input.dataset.localPending = 'true';
+      const rawValue=result.value_numeric??result.value_text??'';
+      if(input.dataset.inputMode==='multi_choice'||input.dataset.inputMode==='graded_multi_choice')setMultiChoiceValue(input,rawValue);
+      else input.value=rawValue;
+      input.dataset.originalValue=input.value;
+      input.dataset.localPending='true';
     }
   }
-  host.querySelectorAll('.parameter[data-test-id]').forEach(section=>applyConditionalFields(section));
+  host.querySelectorAll('.parameter[data-test-id]').forEach(section=>evaluateDisplayRules(section));
   if (globalThis.navigator?.onLine === false || state.work.some(item => item.local_offline)) {
     for (const item of state.work) {
       const section = host.querySelector(`[data-test-id="${CSS.escape(item.id)}"]`);
       if (!section) continue;
       const localRows = [];
       for (const input of section.querySelectorAll('[data-param-code]')) {
-        if (input.dataset.resultSource !== 'calculated' && input.dataset.valueType === 'numeric' && input.value.trim() && Number.isFinite(Number(input.value))) {
+        if (input.dataset.resultSource !== 'calculated' && ['numeric_integer','numeric_decimal'].includes(input.dataset.inputMode) && input.value.trim() && Number.isFinite(Number(input.value))) {
           localRows.push({ visit_test_id: item.id, parameter_code: input.dataset.paramCode, value_numeric: Number(input.value) });
         }
       }
@@ -392,32 +385,35 @@ async function editReferenceRange(button) {
   }catch(error){button.disabled=false;showNotice(error.message||'تعذر حفظ المدى المرجعي.',true);}
 }
 
+function ageBoundaryInYears(value,unit){
+  if(value==null||value==='')return null;
+  const normalized=String(unit||'years').toLowerCase();
+  const factor=['month','months','mo','m'].includes(normalized)?1/12
+    :['day','days','d'].includes(normalized)?1/365:1;
+  return Number(value)*factor;
+}
+function patientAgeInYears(patient={}){
+  if(patient.age_years!=null&&patient.age_years!=='')return Number(patient.age_years);
+  return ageBoundaryInYears(patient.age_value,patient.age_unit||'years');
+}
 function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
   const localPending = status === 'local_verification_required';
   if (localPending && (!value || (Array.isArray(value) && value.length === 0))) return 'لا يوجد مدى مصدر محدد؛ يلزم ضبطه محليًا';
   if (status === 'not_applicable' && !(value && (value.text || Array.isArray(value)))) return 'لا ينطبق';
   if (Array.isArray(value)) {
-    const age = patient?.age_years == null ? null : Number(patient.age_years);
+    const age = patientAgeInYears(patient);
     const sex = String(patient?.sex || '').toLowerCase();
     const matches = value.filter(range => {
       if (range.pregnancy) return false;
       if (range.sex && String(range.sex).toLowerCase() !== sex) return false;
       if (range.age) {
-        if (age === null) return false;
-        const asYears=(value,unit)=>{
-          if(value==null)return null;
-          const normalized=String(unit||range.age.unit||'years').toLowerCase();
-          if(['year','years','y'].includes(normalized))return Number(value);
-          if(['month','months','mo'].includes(normalized))return Number(value)/12;
-          if(['day','days','d'].includes(normalized))return Number(value)/365.25;
-          return NaN;
-        };
-        const minimum=asYears(range.age.min,range.age.min_unit);
-        const maximum=asYears(range.age.max,range.age.max_unit);
-        if(range.age.min!=null&&!Number.isFinite(minimum))return false;
-        if(range.age.max!=null&&!Number.isFinite(maximum))return false;
-        if(minimum!=null&&age<minimum)return false;
-        if(maximum!=null&&age>maximum)return false;
+        if (age === null || !Number.isFinite(age)) return false;
+        const minUnit=range.age.min_unit||range.age.unit||'years';
+        const maxUnit=range.age.max_unit||range.age.unit||'years';
+        const min=ageBoundaryInYears(range.age.min,minUnit);
+        const max=ageBoundaryInYears(range.age.max,maxUnit);
+        if (min!=null&&age<min)return false;
+        if (max!=null&&age>max)return false;
       }
       return true;
     });
@@ -637,7 +633,21 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
       const result = resultMap.get(code);
       if (!result) return '';
       const parameterName = result.parameter_name_snapshot || parameter.name || parameter.parameter_name || code;
-      const value = formatStoredResultForReport(parameter,result);
+      let value = result.value_numeric ?? result.value_text ?? '—';
+      const reportMode=resultInputMode(parameter);
+      if(['multi_choice','graded_multi_choice'].includes(reportMode)){
+        try{
+          const selected=JSON.parse(String(value));
+          if(Array.isArray(selected)){
+            value=selected.join('، ');
+            if(reportMode==='graded_multi_choice'){
+              const scores=parameter.result_config?.choice_scores||{};
+              const total=selected.reduce((sum,choice)=>sum+Number(scores[choice]||0),0);
+              value+=' · الدرجة: '+total;
+            }
+          }
+        }catch{}
+      }
       const unit = result.unit_snapshot || parameter.unit || '';
       const reference = resolveReferenceRange(result.reference_range_snapshot ?? parameter.reference_ranges, patient, parameter.reference_interval_status);
       const calculatedFlag=computeReferenceFlag(result.value_numeric,result.reference_range_snapshot ?? parameter.reference_ranges,patient.age_years,patient.sex,parameter.reference_interval_status,'numeric');
@@ -715,12 +725,9 @@ function computeReferenceFlag(value,rangesInput,ageValue,sexValue,status,valueTy
   if(range.sex&&String(range.sex).toLowerCase()!==sex)return false;
   if(range.age){
    if(!Number.isFinite(age))return false;
-   const asYears=(value,unit)=>{if(value==null)return null;const u=String(unit||range.age.unit||'years').toLowerCase();if(['year','years','y'].includes(u))return Number(value);if(['month','months','mo'].includes(u))return Number(value)/12;if(['day','days','d'].includes(u))return Number(value)/365.25;return NaN;};
-   const minimum=asYears(range.age.min,range.age.min_unit),maximum=asYears(range.age.max,range.age.max_unit);
-   if(range.age.min!=null&&!Number.isFinite(minimum))return false;
-   if(range.age.max!=null&&!Number.isFinite(maximum))return false;
-   if(minimum!=null&&age<minimum)return false;
-   if(maximum!=null&&age>maximum)return false;
+   const min=ageBoundaryInYears(range.age.min,range.age.min_unit||range.age.unit||'years');
+   const max=ageBoundaryInYears(range.age.max,range.age.max_unit||range.age.unit||'years');
+   if(min!=null&&age<min)return false;if(max!=null&&age>max)return false;
   }
   return true;
  });
@@ -733,7 +740,8 @@ function computeReferenceFlag(value,rangesInput,ageValue,sexValue,status,valueTy
 }
 function classifyResultFlag(input) {
  let ranges=[];try{ranges=JSON.parse(input.dataset.range||'[]');}catch{}
- return computeReferenceFlag(input.value,ranges,input.dataset.patientAge,input.dataset.patientSex,input.dataset.referenceIntervalStatus,input.dataset.valueType);
+ if(!['numeric_integer','numeric_decimal'].includes(input.dataset.inputMode))return null;
+ return computeReferenceFlag(input.value,ranges,input.dataset.patientAge,input.dataset.patientSex,input.dataset.referenceIntervalStatus,'numeric');
 }
 
 async function saveTest(button) {
@@ -742,13 +750,13 @@ async function saveTest(button) {
     const section = button.closest('.parameter[data-test-id]');
     const testId = button.dataset.testId;
     const inputs = [...section.querySelectorAll('[data-param-code]')];
-    const results = inputs.filter(input => input.dataset.resultSource !== 'calculated'
-      && !input.closest('label')?.hidden && getResultInputValue(input)!=='').map(input => ({
-      parameter: { code: input.dataset.paramCode, name: input.dataset.paramName, unit: input.dataset.unit,
-        valueType: input.dataset.valueType, inputMode: input.dataset.resultInputMode,
-        resultConfig: resultInputConfig(input), referenceRange: JSON.parse(input.dataset.range || '{}'),
-        choices: JSON.parse(input.dataset.choices || '[]') },
-      value: getResultInputValue(input), flag: classifyResultFlag(input),
+    const results = inputs.filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim()).map(input => ({
+      parameter: { code: input.dataset.paramCode,name:input.dataset.paramName,unit:input.dataset.unit,
+        valueType:input.dataset.valueType,inputMode:input.dataset.inputMode,
+        resultConfig:JSON.parse(input.dataset.resultConfig||'{}'),
+        referenceRange:JSON.parse(input.dataset.range||'{}'),
+        choices:JSON.parse(input.dataset.choices||'[]') },
+      value: input.value, flag: classifyResultFlag(input),
     }));
     if (!results.length) throw new Error('أدخل نتيجة واحدة على الأقل قبل الحفظ.');
     const workItem=state.work.find(row=>row.id===testId);
@@ -757,11 +765,11 @@ async function saveTest(button) {
       dependsOn: workItem?.local_intake_operation_id ? [workItem.local_intake_operation_id] : [] });
     if (savedRows?.queued) {
       section.dataset.localPending = 'true';
-      for (const input of inputs) if (getResultInputValue(input)!=='') { input.dataset.originalValue = getResultInputValue(input); input.dataset.localPending = 'true'; }
+      for (const input of inputs) if (input.value.trim()) { input.dataset.originalValue = input.value; input.dataset.localPending = 'true'; }
       const pill = section.querySelector('.card-head .pill'); if (pill) pill.textContent = 'محفوظ محليًا — بانتظار المزامنة';
       showNotice('تم حفظ النتائج على هذا الجهاز بأمان. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ لا تعتمد التحليل قبل اكتمال المزامنة.');
     } else {
-      for (const row of savedRows) { const input=section.querySelector(`[data-param-code="${CSS.escape(row.parameter_code)}"]`); if(input){setResultInputValue(input,row.value_numeric??row.value_text??'');input.dataset.resultId=row.id;delete input.dataset.localPending;} }
+      for (const row of savedRows) { const input=section.querySelector(`[data-param-code="${CSS.escape(row.parameter_code)}"]`); if(input){input.value=row.value_numeric??row.value_text??'';input.dataset.resultId=row.id;input.dataset.originalValue=input.value;delete input.dataset.localPending;} }
       delete section.dataset.localPending;
       showNotice('تم حفظ النتائج اليدوية وحساب البارامترات المشتقة تلقائيًا على السحابة.');
     }
@@ -776,12 +784,13 @@ async function correctTest(button) {
   if(button.dataset.correctionMode!=='true'){
     button.dataset.correctionMode='true';button.textContent='حفظ التصحيح';
     section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=false;});
+    section.querySelectorAll('.multi-choice-item').forEach(input=>{input.disabled=false;});
     showNotice('وضع التصحيح مفعل. غيّر نتيجة واحدة فقط ثم اضغط حفظ التصحيح.');
     return;
   }
   try {
     requireCloudConnection('تصحيح النتائج');
-    const changed=[...section.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultId&&!input.closest('label')?.hidden&&getResultInputValue(input)!==''&&getResultInputValue(input)!==(input.dataset.originalValue??''));
+    const changed=[...section.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultId&&input.value.trim()!==''&&input.value.trim()!==(input.dataset.originalValue??'').trim());
     if(!changed.length)throw new Error('لا توجد نتيجة محفوظة تغيرت قيمتها للتصحيح.');
     if(changed.length>1)throw new Error('صحح نتيجة واحدة في كل مرة لتجنب حفظ بعض التصحيحات دون غيرها.');
     const visitId=state.work.find(row=>row.id===section.dataset.testId)?.visit_id;
@@ -790,12 +799,13 @@ async function correctTest(button) {
     if(!reason)throw new Error('سبب التصحيح إلزامي.');
     setBusy(button,true,'جارٍ حفظ التصحيح…');
     for(const input of changed){
-      const raw=getResultInputValue(input),numeric=input.dataset.valueType==='numeric'?raw:null,text=input.dataset.valueType==='numeric'?null:raw;
+      const raw=input.value.trim(),isNumeric=['numeric_integer','numeric_decimal'].includes(input.dataset.inputMode),numeric=isNumeric?raw:null,text=isNumeric?null:raw;
       await correctVisitResultWithFlag({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,flag:classifyResultFlag(input),reason,staffId:$('staffSelect').value});
-      input.dataset.originalValue=getResultInputValue(input);
+      input.dataset.originalValue=input.value;
     }
     state.previewedVisits.delete(visitId);
     section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=true;});
+    section.querySelectorAll('.multi-choice-item').forEach(input=>{input.disabled=true;});
     button.dataset.correctionMode='false';button.textContent=isPublished?'تصحيح نتيجة منشورة':'تصحيح نتيجة محفوظة';button.dataset.oldLabel=button.textContent;
     showNotice(isPublished?'تم تسجيل التصحيح. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع نسخة مصححة.':'تم تصحيح النتيجة قبل اعتماد الزيارة، وحُفظ سبب التصحيح وسجل التعديل.');
   } catch(error){showNotice(error.message||'تعذر تصحيح النتيجة.',true);}
