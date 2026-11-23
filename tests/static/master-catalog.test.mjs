@@ -53,8 +53,8 @@ test('catalog UI exposes the master library and structured medical metadata edit
  assert.match(html,/id="openMasterLibrary"/);
  assert.match(html,/id="closeMasterLibrary"/);
  assert.match(js,/masterLibraryOpen/);
- assert.match(js,/استيراد واستكمال محليًا/);
- assert.match(js,/بدون بارامترات — قابلة للاستكمال محليًا/);assert.match(js,/بدون رينج رقمي \(قابل للتعديل محليًا\)/);assert.doesNotMatch(js,/\$\{D\}/);
+ assert.match(js,/مكتملة ومراجعة مركزيًا/);
+ assert.match(js,/التعريفات الناقصة لا تظهر للعميل/);assert.doesNotMatch(js,/\$\{D\}/);
 });
 
 test('master library seeds 13 editable profile templates without invented reference intervals',()=>{
