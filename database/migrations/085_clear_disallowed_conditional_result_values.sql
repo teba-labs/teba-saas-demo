@@ -14,7 +14,7 @@ set search_path = pg_catalog, public, private
 as $function$
 declare
   v_rule jsonb; v_source text; v_expected text; v_actual text; v_operator text;
-  v_allowed jsonb; v_condition_met boolean; v_selected jsonb; v_candidate text;
+  v_allowed jsonb; v_condition_met boolean; v_selected jsonb; v_candidate text; v_actual_json jsonb;
 begin
   if p_rules is null then return true; end if;
   if jsonb_typeof(p_rules)<>'array' then return false; end if;
@@ -35,9 +35,21 @@ begin
       select coalesce(tr.value_text,tr.value_numeric::text) into v_actual
         from public.test_results tr where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id and tr.parameter_code=v_source limit 1;
     end if;
-    v_condition_met:=case when v_operator='equals' then v_actual is not distinct from v_expected
-      when v_operator='not_equals' then v_actual is not null and v_actual<>v_expected
-      when v_operator='is_not_empty' then nullif(btrim(coalesce(v_actual,'')),'') is not null else false end;
+    v_actual_json:=null;
+    if left(btrim(coalesce(v_actual,'')),1)='[' then
+      begin v_actual_json:=v_actual::jsonb; exception when others then v_actual_json:=null; end;
+    end if;
+    v_condition_met:=case
+      when v_operator='equals' then
+        case when jsonb_typeof(v_actual_json)='array' then v_actual_json @> jsonb_build_array(v_expected)
+             else v_actual is not distinct from v_expected end
+      when v_operator='not_equals' then
+        case when jsonb_typeof(v_actual_json)='array' then v_actual is not null and not (v_actual_json @> jsonb_build_array(v_expected))
+             else v_actual is not null and v_actual<>v_expected end
+      when v_operator='is_not_empty' then
+        case when jsonb_typeof(v_actual_json)='array' then jsonb_array_length(v_actual_json)>0
+             else nullif(btrim(coalesce(v_actual,'')),'') is not null end
+      else false end;
     if not v_condition_met then continue; end if;
     if p_value_text is null then return false; end if;
     begin
