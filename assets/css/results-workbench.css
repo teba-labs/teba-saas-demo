@@ -59,3 +59,5 @@
 .multi-choice-editor>small{color:#657580;font-size:11px}
 .parameter-group textarea{font:inherit;min-height:44px;border:1px solid #cbd6dc;border-radius:8px;padding:8px 10px;resize:vertical}
 @media(max-width:560px){.multi-choice-options{grid-template-columns:1fr}.multi-choice-option{min-height:42px}}
+
+.choice-score-total{display:block;padding:7px 10px;border-radius:8px;background:var(--taiba-surface-soft,#f1f6f5);font-size:12px;font-weight:700;color:var(--taiba-text,#23564f)}
