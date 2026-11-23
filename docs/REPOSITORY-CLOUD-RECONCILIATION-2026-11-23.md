@@ -65,7 +65,9 @@ Migrations 084 and 085 were applied successfully to the confirmed primary projec
 - Verified the input-mode validator, conditional-choice validator, draft-save, completion, and approval functions exist in the primary database.
 - Read-only behavior probes passed for integer validation, comparator values, maximum-choice enforcement, graded-choice validation, conditional visible-choice allow/reject behavior, multi-choice controller values, and numeric-field exemption.
 - Static/unit CI passed: 320 tests, 0 failures. Responsive browser zoom QA passed.
-- GitHub Pages build and deployment succeeded for main commit `2313e947bf027c86a2699dfe40da26e8981b155c`; the follow-up documentation/migration merge is being deployed separately.
+- GitHub Pages build and deployment succeeded for main commit `93c52d9ec26870b145ad574ec9f483f1cd2327b5` (tree `395910051eae217668342bf09971cd39c2c387da`; the ancestry reconciliation did not change application files).
+- Static CI on main passed: 320 tests, 0 failures. Responsive browser zoom QA passed on the same application tree.
+- Preview URL: `https://teba-labs.github.io/teba-saas-demo/`. The web inspection tool could not open the live URL, so a manual interactive login-to-result-entry cycle is not claimed.
 - Preview URL: `https://teba-labs.github.io/teba-saas-demo/`. The deployment action succeeded, but the web inspection tool could not open the live URL; a full interactive login-to-result-entry cycle is therefore not claimed as manually verified.
 
 
