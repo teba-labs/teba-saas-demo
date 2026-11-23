@@ -30,6 +30,7 @@ declare
   v_visit public.visits%rowtype;
   v_version integer;
   v_report public.report_versions%rowtype;
+  v_expected_pattern text;
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
   if not private.can_access_branch(p_tenant_id,p_branch_id) then raise exception 'Branch access denied'; end if;
@@ -38,10 +39,9 @@ begin
     where sd.id=p_staff_id and sd.tenant_id=p_tenant_id and sd.branch_id=p_branch_id and sd.is_active
   ) then raise exception 'An active staff identity for this branch is required'; end if;
 
-  if p_storage_path is null or p_storage_path !~ (
-    '^' || p_tenant_id::text || '/' || p_visit_id::text ||
-    '/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}[.]pdf' || chr(36)
-  ) then
+  v_expected_pattern := '^' || p_tenant_id::text || '/' || p_visit_id::text ||
+    '/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}[.]pdf' || chr(36);
+  if p_storage_path is null or p_storage_path !~ v_expected_pattern then
     raise exception 'Invalid report storage path';
   end if;
 
