@@ -85,6 +85,10 @@
               </section>
               <label class="wide">الاختيارات المتاحة<textarea id="parameterChoices" rows="3" placeholder="موجب&#10;سالب&#10;Trace"></textarea><small>اكتب كل اختيار في سطر مستقل. تستخدم مع موجب/سالب، اختيار واحد أو عدة اختيارات.</small></label>
               <label>أقصى عدد للاختيارات<input id="parameterMaxSelections" type="number" min="1" max="100" placeholder="اتركه فارغًا لبدون حد"></label>
+              <label id="parameterChoiceScoresField" class="wide" hidden>درجة كل اختيار — سطر لكل اختيار بصيغة «الاختيار = الدرجة»
+                <textarea id="parameterChoiceScores" rows="3" placeholder="Trace = 1\n1+ = 2\n2+ = 3"></textarea>
+                <small>يُحسب مجموع درجات العناصر المختارة تلقائيًا ويُحفظ مع تعريف البارامتر.</small>
+              </label>
               <section class="wide condition-editor">
                 <strong>إظهار اختيارات حسب نتيجة بارامتر آخر (اختياري)</strong>
                 <p class="muted">مثال: لا تظهر اختيارات البلورات إلا بعد تحديد قيمة pH مناسبة. لن يتم إخفاء أي اختيار ما لم تضف قاعدة هنا.</p>
