@@ -41,7 +41,7 @@ PR #42 is a draft containing an older 083 migration variant. It is superseded by
 
 ## Supabase migration inventory
 
-The connected primary project reports 73 applied migrations, with `083_medical_master_catalog_model_v2` as the latest applied migration before this reconciliation.
+Before this reconciliation, the connected primary project reported 73 applied migrations, with `083_medical_master_catalog_model_v2` as the latest. After applying migration 084, the project reports **74 applied migrations**, with `084_medical_result_input_validation_and_conditional_rules` as the latest.
 
 The repository contains 84 migration files. The difference is not 11 pending production migrations:
 
@@ -50,11 +50,15 @@ The repository contains 84 migration files. The difference is not 11 pending pro
 - Files 001–011 are the original bootstrap/baseline scripts; the live database already has the core tenant, branch, patient, visit, catalog, parameter, result, and workday schema. Do not replay these bootstrap files on the live database.
 - `012_atomic_patient_portal_rate_limit.sql` is an older experimental/TEST restoration file whose own header says not to apply until the chain is reconciled. The active rate-limit migration is already recorded as `016_atomic_patient_portal_rate_limit`. Do not apply the old 012 file.
 
-Migration 084 is the only new forward migration in this reconciliation. Apply it only to the confirmed primary project `hgqwpykeazuzceeiumjg`, after code checks pass. Never apply anything to the legacy project.
+Migration 084 was applied successfully to the confirmed primary project `hgqwpykeazuzceeiumjg`. No migration was applied to the legacy project.
 
 ## Safety and verification
 
 - No patient/test-result data is rewritten by migration 084; it replaces database functions and adds private validation helpers.
 - Keep historical feature and backup branches; do not delete them as part of this reconciliation.
 - Do not claim a live login/patient/result cycle is verified from static tests alone.
-- After merge and migration, verify the new functions in the primary database, then verify the GitHub Pages deployment for the merged main SHA.
+- Verified the new validator, conditional-choice, draft-save, completion, and approval functions exist in the primary database.
+- Read-only behavior probes passed for integer validation, comparator values, maximum-choice enforcement, graded-choice validation, and conditional visible-choice allow/reject behavior.
+- Static/unit CI passed: 324 tests, 0 failures. Responsive browser zoom QA passed.
+- GitHub Pages build and deployment succeeded for main commit `2313e947bf027c86a2699dfe40da26e8981b155c`.
+- Preview URL: `https://teba-labs.github.io/teba-saas-demo/`. The deployment action succeeded, but the web inspection tool could not open the live URL; a full interactive login-to-result-entry cycle is therefore not claimed as manually verified.
