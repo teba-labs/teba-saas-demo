@@ -4,6 +4,22 @@ import { listHiddenWorkbenchVisits, setVisitWorkbenchHidden } from '../../module
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let selectedVisitId = null, catalogCache = null, rebuilding = false;
+const portalEnabledCache = new Map();
+async function isPatientPortalEnabled(slug) {
+  if (!slug) return false;
+  if (!portalEnabledCache.has(slug)) {
+    const request = fetch(APP_ENV.supabase.url + '/functions/v1/patient-portal-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: APP_ENV.supabase.publishableKey },
+      body: JSON.stringify({ slug })
+    }).then(async response => {
+      const data = await response.json().catch(() => ({}));
+      return response.ok && data.ok === true && data.settings?.enabled === true;
+    }).catch(() => false);
+    portalEnabledCache.set(slug, request);
+  }
+  return portalEnabledCache.get(slug);
+}
 function button(label, cls='button button-secondary'){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;return b;}
 if($('entryBack'))$('entryBack').addEventListener('click',event=>{
  if(window.taibaGetDirtyResultInputs?.().length){event.preventDefault();window.alert('احفظ كل نتائج الزيارة أولًا قبل الرجوع حتى لا تفقد أي قيمة أدخلتها.');}
@@ -137,9 +153,14 @@ function selectRecord(record,records,shell){
  const whatsapp=button('إرسال واتساب للنتائج','button button-secondary');
  const rawPhone=String(record.phone||'').replace(/[^0-9+]/g,'');let waPhone=rawPhone.replace(/^00/,'');
  if(waPhone.startsWith('0'))waPhone='20'+waPhone.slice(1);else if(waPhone.startsWith('+'))waPhone=waPhone.slice(1);
- const shareReady=record.published&&/^20\\d{9,11}$/.test(waPhone)&&Boolean(window.taibaResultsContext?.tenantSlug);
- whatsapp.disabled=!shareReady;whatsapp.title=shareReady?'إرسال رابط بوابة المريض عبر واتساب':'يتطلب رقم هاتف صالحًا وتقريرًا منشورًا ورمز معمل';
- whatsapp.addEventListener('click',()=>{if(!shareReady)return;const portal=new URL('../portal/index.html',location.href).href;const message='نتائج تحاليلك جاهزة من معامل '+(window.taibaResultsContext?.tenantSlug||'')+'. لعرض التقرير افتح بوابة النتائج: '+portal+' ثم أدخل رمز المعمل ورقم الزيارة '+record.visitNumber+' واسم المريض كما هو مسجل.';window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent(message),'_blank','noopener');});
+ const baseShareReady=record.published&&/^20\\d{9,11}$/.test(waPhone)&&Boolean(window.taibaResultsContext?.tenantSlug);
+ whatsapp.disabled=true;whatsapp.title=baseShareReady?'جارٍ التحقق من تفعيل بوابة المريض…':'يتطلب رقم هاتف صالحًا وتقريرًا منشورًا ورمز معمل';
+ if(baseShareReady)isPatientPortalEnabled(window.taibaResultsContext.tenantSlug).then(enabled=>{
+   const shareReady=baseShareReady&&enabled;
+   whatsapp.disabled=!shareReady;
+   whatsapp.title=shareReady?'إرسال رابط بوابة المريض عبر واتساب':enabled?'تعذر تجهيز رابط البوابة الآن':'بوابة المريض غير مفعلة لهذا المعمل';
+ });
+ whatsapp.addEventListener('click',()=>{if(whatsapp.disabled)return;const portal=new URL('../portal/index.html',location.href).href;const message='نتائج تحاليلك جاهزة من معامل '+(window.taibaResultsContext?.tenantSlug||'')+'. لعرض التقرير افتح بوابة النتائج: '+portal+' ثم أدخل رمز المعمل ورقم الزيارة '+record.visitNumber+' واسم المريض كما هو مسجل.';window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent(message),'_blank','noopener');});
  actions.prepend(whatsapp);actions.prepend(hide);actions.prepend(preview);
  shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
  const canAdd=record.visitStatus!=='approved'&&!record.published;shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>{b.disabled=!canAdd;b.title=canAdd?'إضافة تحليل لهذه الزيارة':'لا يمكن إضافة تحاليل بعد اعتماد الزيارة أو نشرها';});
