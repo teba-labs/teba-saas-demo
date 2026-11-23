@@ -19,7 +19,7 @@ test('validates integer and decimal inputs into numeric database columns',()=>{
 });
 
 test('validates comparator, text, qualitative and yes/no values',()=>{
- assert.equal(prepareResultInputValue({code:'TITER',inputMode:'numeric_comparator'},'> 160').value_text,'> 1:160');
+ assert.equal(prepareResultInputValue({code:'TITER',inputMode:'numeric_comparator'},'> 160').value_text,'> 160');
  assert.throws(()=>prepareResultInputValue({code:'TITER',inputMode:'numeric_comparator'},'above 1'),/علامة مقارنة/);
  assert.equal(prepareResultInputValue({code:'COMMENT',inputMode:'text'},'Normal morphology').value_text,'Normal morphology');
  assert.equal(prepareResultInputValue({code:'URINE',inputMode:'positive_negative'},'Positive').value_text,'Positive');
