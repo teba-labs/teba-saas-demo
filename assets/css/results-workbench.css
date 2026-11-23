@@ -47,3 +47,15 @@
 
 /* Report-like result entry: parameter fields remain compact and aligned in the same viewport. */
 .result-entry-page #entryWorkspace>.parameter{min-width:0;max-width:none}.result-entry-page #entryWorkspace .parameter-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.result-entry-page #entryWorkspace .parameter-grid label{min-width:0;padding:9px}.result-entry-page #entryWorkspace .parameter-grid input,.result-entry-page #entryWorkspace .parameter-grid select{min-width:0;width:100%}.result-entry-page #entryWorkspace .parameter-group{min-width:0}.result-entry-page #entryWorkspace .parameter-group .parameter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:1100px){.result-entry-page #entryWorkspace .parameter-grid,.result-entry-page #entryWorkspace .parameter-group .parameter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:640px){.result-entry-page #entryWorkspace .parameter-grid,.result-entry-page #entryWorkspace .parameter-group .parameter-grid{grid-template-columns:1fr}}
+
+/* Medical result controls: accessible clinic-floor input layout */
+.result-field{min-width:0}
+.result-field>small{display:block;margin:4px 0;color:#657580;font-size:12px;line-height:1.45}
+.multi-choice-editor{display:grid;gap:8px;padding:9px;border:1px solid #d7e2e6;border-radius:10px;background:#fbfdfd}
+.multi-choice-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr));gap:7px}
+.multi-choice-option{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #dce5e8;border-radius:8px;background:#fff;font-weight:500;min-width:0}
+.multi-choice-option input{width:17px;min-height:17px;flex:0 0 17px;margin:0}
+.multi-choice-option[hidden]{display:none!important}
+.multi-choice-editor>small{color:#657580;font-size:11px}
+.parameter-group textarea{font:inherit;min-height:44px;border:1px solid #cbd6dc;border-radius:8px;padding:8px 10px;resize:vertical}
+@media(max-width:560px){.multi-choice-options{grid-template-columns:1fr}.multi-choice-option{min-height:42px}}
