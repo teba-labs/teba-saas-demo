@@ -68,6 +68,13 @@ export function prepareResultInput(parameter, value) {
     if (new Set(selected).size !== selected.length) throw new Error('لا يمكن تكرار الاختيار نفسه.');
     const maximum = Number(config.max_selections ?? 0);
     if (maximum > 0 && selected.length > maximum) throw new Error('عدد الاختيارات يتجاوز الحد المسموح.');
+    if (mode === 'graded_multi_choice') {
+      const scores = config.choice_scores;
+      if (!scores || typeof scores !== 'object' || Array.isArray(scores)
+          || selected.some(item => !Object.hasOwn(scores, item) || !Number.isFinite(Number(scores[item])))) {
+        throw new Error('تعريف درجات الاختيارات غير مكتمل أو غير صحيح.');
+      }
+    }
     return { value_numeric: null, value_text: JSON.stringify(selected) };
   }
   return { value_numeric: null, value_text: rawValue };
