@@ -525,7 +525,7 @@ begin
   if v_mode='numeric_integer' then return p_numeric is not null and p_numeric=trunc(p_numeric) and p_text is null; end if;
   if v_mode='numeric_decimal' then return p_numeric is not null and p_text is null; end if;
   if v_mode='numeric_comparator' then
-    return p_numeric is null and p_text ~ '^(<=|>=|<|>|≤|≥)\\s*-?(\\d+(\\.\\d+)?|\\.\\d+)
+    return p_numeric is null and p_text ~ '^(<=|>=|<|>|≤|≥)\s*-?(\d+(\.\d+)?|\.\d+)$';
   end if;
   if p_numeric is not null then return false; end if;
   if v_mode='text' then return p_text is not null; end if;
