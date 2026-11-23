@@ -460,9 +460,9 @@ declare
   v_actual text;
   v_operator text;
 begin
-  if p_rules is null or jsonb_typeof(p_rules) <> 'array' or jsonb_array_length(p_rules)=0 then
-    return true;
-  end if;
+  if p_rules is null then return true; end if;
+  if jsonb_typeof(p_rules) <> 'array' then return false; end if;
+  if jsonb_array_length(p_rules)=0 then return true; end if;
   if jsonb_typeof(p_pending_results) <> 'array' then return false; end if;
 
   for v_rule in select value from jsonb_array_elements(p_rules) loop
