@@ -1003,6 +1003,12 @@ window.taibaApproveVisit = (visitId, button) => {
   if (!control.textContent) control.textContent = 'حفظ النتائج واعتماد الزيارة';
   return approve(control);
 };
+window.taibaSaveVisitDrafts = (visitId, button) => {
+  const control = button || document.createElement('button');
+  control.dataset.visitId = visitId;
+  if (!control.textContent) control.textContent = 'حفظ كل النتائج';
+  return saveVisitDraftsAction(control);
+};
 
 $('prevWorkPage').addEventListener('click', async () => {
   if (state.workPage <= 0) return;
