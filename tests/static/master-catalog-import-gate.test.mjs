@@ -99,8 +99,11 @@ test('new master imports start inactive while repeat imports preserve their exis
 test('tenant catalog bootstraps reviewed Core tests idempotently before reception catalog listing',async()=>{
  const migration=await readFile(new URL('database/migrations/105_auto_provision_verified_core_catalog.sql',root),'utf8');
  const repository=await readFile(new URL('modules/catalog/repository.js',root),'utf8');
+ const home=await readFile(new URL('assets/js/app-home.js',root),'utf8');
  assert.match(migration,/ensure_tenant_core_catalog/);
  assert.match(migration,/clinical_review_status = 'verified'/);
  assert.match(migration,/if v_existing is not null then\s+continue/);
  assert.match(repository,/rpc\('ensure_tenant_core_catalog'/);
+ assert.match(home,/ensureTenantCoreCatalog\(state\.tenant\.id\)/);
+ assert.match(home,/لا تحتاج إلى استيراد يدوي/);
 });
