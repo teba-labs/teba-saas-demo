@@ -16,6 +16,7 @@ const stoolSeed = await readFile(new URL('database/migrations/094_complete_stool
 const finalGate = await readFile(new URL('database/migrations/095_finalize_master_import_completeness.sql', root), 'utf8');
 const remainingCore = await readFile(new URL('database/migrations/096_complete_remaining_core_profiles.sql', root), 'utf8');
 const proteinSemen = await readFile(new URL('database/migrations/097_complete_protein_and_semen_profiles.sql', root), 'utf8');
+const versionedCore = await readFile(new URL('database/migrations/098_publish_versioned_core_catalog_and_sync_clean_tenants.sql', root), 'utf8');
 
 test('customer master library exposes only centrally reviewed complete definitions', () => {
   assert.match(repository, /eq\('clinical_review_status','verified'\)/);
@@ -78,4 +79,13 @@ test('all 45 core definitions are supported by source-backed profile migrations'
   assert.match(proteinSemen, /WHO Laboratory Manual for the Examination and Processing of Human Semen/);
   assert.match(proteinSemen, /QUEST-7577/);
   assert.match(proteinSemen, /PEROXIDASE_LEUKOCYTES/);
+});
+
+test('core catalog publication is versioned and syncs only uncustomized tenant copies', () => {
+  assert.match(versionedCore, /taiba-core-2026\.11\.23-r1/);
+  assert.match(versionedCore, /status='retired'/);
+  assert.match(versionedCore, /cardinality\(l\.customization_fields\),0\)=0/);
+  assert.match(versionedCore, /baseline_snapshot=jsonb_build_object/);
+  assert.doesNotMatch(versionedCore, /update public\.visit_tests/i);
+  assert.doesNotMatch(versionedCore, /update public\.test_results/i);
 });
