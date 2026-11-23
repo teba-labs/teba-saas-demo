@@ -54,19 +54,19 @@ test('existing shared result serializer and repository remain the single save pa
 
 test('numeric integer results are not rejected after numeric validation',()=>{
  const migration=read('database/migrations/086_fix_numeric_integer_result_validation.sql');
- assert.match(migration,/v_input_mode in \\('numeric_integer','numeric_decimal'\\)/);
- assert.match(migration,/elsif v_input_mode not in \\('text','numeric_integer','numeric_decimal'\\)/);
- assert.doesNotMatch(migration,/elsif v_input_mode<>'text' then/);
+ assert.ok(migration.includes("v_input_mode in ('numeric_integer','numeric_decimal')"));
+ assert.ok(migration.includes("elsif v_input_mode not in ('text','numeric_integer','numeric_decimal')"));
+ assert.ok(!migration.includes("elsif v_input_mode<>'text' then"));
 });
 
 test('visit-specific reference range editing parses numeric intervals and reports missing snapshots',()=>{
  const ui=read('assets/js/results-workbench.js');
- assert.match(ui,/normalized\\.match\\(\/\^\\(-\?\\\\d\+/);
- assert.match(ui,/تعذر تحديد البارامتر والزيارة لتعديل المدى المرجعي/);
+ assert.ok(ui.includes(String.raw`const numericMatch=normalized.match(/^(-?\\d+(?:\\.\\d+)?)\\s*-\\s*(-?\\d+(?:\\.\\d+)?)$/);`));
+ assert.ok(ui.includes('تعذر تحديد البارامتر والزيارة لتعديل المدى المرجعي'));
 });
 
 test('browser zoom can reflow results columns and wraps application tabs',()=>{
  const css=read('assets/css/app-viewport.css');
- assert.match(css,/body \\.results-columns\\{grid-template-columns:minmax\\(0,1fr\\) minmax\\(0,1fr\\)!important\\}/);
- assert.match(css,/body \\:is\\(\\.tabs,\\.settings-tabs,\\[role=tablist\\]\\)/);
+ assert.ok(css.includes('body .results-columns{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}'));
+ assert.ok(css.includes('body :is(.tabs,.settings-tabs,[role=tablist])'));
 });
