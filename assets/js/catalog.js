@@ -77,12 +77,12 @@ function readRangeRows(){
  }).filter(row=>Object.keys(row).length);
 }
 function readParameterChoices(){
- return $('parameterChoices').value.split(/[\\r\\n,]+/).map(value=>value.trim()).filter(Boolean);
+ return $('parameterChoices').value.split(/[\r\n,]+/).map(value=>value.trim()).filter(Boolean);
 }
 function readChoiceScores(choices){
  if($('parameterInputMode').value!=='graded_multi_choice')return {};
  const scores={};
- const lines=$('parameterChoiceScores').value.split(/[\\r\\n]+/).map(line=>line.trim()).filter(Boolean);
+ const lines=$('parameterChoiceScores').value.split(/[\r\n]+/).map(line=>line.trim()).filter(Boolean);
  for(const line of lines){
   const splitAt=line.lastIndexOf('=');
   if(splitAt<1)throw new Error('اكتب كل درجة بصيغة: اسم الاختيار = الدرجة.');
@@ -107,7 +107,7 @@ function readDisplayRules(){
  const code=$('conditionParameterCode').value;
  if(!code)return [];
  const value=$('conditionValue').value.trim();
- const visibleValues=$('conditionVisibleValues').value.split(/[\\r\\n,]+/).map(item=>item.trim()).filter(Boolean);
+ const visibleValues=$('conditionVisibleValues').value.split(/[\r\n,]+/).map(item=>item.trim()).filter(Boolean);
  if(!value||!visibleValues.length)throw new Error('أكمل البارامتر والقيمة والاختيارات التي تظهر عند تحقق الشرط.');
  return [{when:{parameter_code:code,operator:$('conditionOperator').value,value},visible_values:visibleValues}];
 }
@@ -180,7 +180,7 @@ function editParameter(id){
  renderRangeRows(p.reference_ranges||[]);
  $('parameterChoices').value=displayChoices(p.choices).replace(/, /g,'\\n');
  $('parameterMaxSelections').value=p.result_config?.max_selections??'';
- $('parameterChoiceScores').value=Object.entries(p.result_config?.choice_scores||{}).map(([choice,score])=>choice+' = '+score).join('\\n');
+ $('parameterChoiceScores').value=Object.entries(p.result_config?.choice_scores||{}).map(([choice,score])=>choice+' = '+score).join('\n');
  $('parameterSource').value=p.result_source||'manual';
  $('parameterUnitUcum').value=p.unit_ucum||'';$('parameterAlternateUnits').value=displayJson(p.alternate_units);
  $('parameterCriticalRanges').value=displayJson(p.critical_ranges);$('parameterInterpretation').value=displayJson(p.interpretation_rules);
@@ -193,7 +193,7 @@ function editParameter(id){
  loadConditionParameterOptions(rule?.when?.parameter_code||'');
  $('conditionOperator').value=rule?.when?.operator||'equals';
  $('conditionValue').value=rule?.when?.value||'';
- $('conditionVisibleValues').value=(rule?.visible_values||[]).join('\\n');
+ $('conditionVisibleValues').value=(rule?.visible_values||[]).join('\n');
  updateFormulaFields();$('parameterRequired').checked=!!p.is_required;$('parameterActive').checked=!!p.is_active;
  $('parameterForm').hidden=false;$('parameterForm').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
