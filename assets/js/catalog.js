@@ -49,7 +49,7 @@ function parseChoiceEditor(){
 function makeRangeRow(range={}){
  const age=range.age||{},text=range.text||'';
  const sex=range.sex||'any';
- return `<div class="range-editor-row" data-range-row>
+ return `<div class="range-editor-row" data-range-row data-original-range="${esc(JSON.stringify(range))}">
   <label>الجنس
    <select data-range-field="sex"><option value="any" ${sex==='any'?'selected':''}>الكل</option><option value="male" ${sex==='male'?'selected':''}>ذكر</option><option value="female" ${sex==='female'?'selected':''}>أنثى</option></select>
   </label>
@@ -73,22 +73,26 @@ function parseReferenceRangeEditor(){
  const rows=[];
  for(const row of $('referenceRangeRows').querySelectorAll('[data-range-row]')){
   const get=name=>row.querySelector(`[data-range-field="${name}"]`);
+  let range={};
+  try{const original=JSON.parse(row.dataset.originalRange||'{}');if(original&&typeof original==='object'&&!Array.isArray(original))range={...original};}catch{}
   const note=get('note').value.trim();
-  if(note){rows.push({text:note});continue;}
   const sex=get('sex').value,ageMin=get('age-min').value,ageMax=get('age-max').value;
   const lower=get('lower').value,upper=get('upper').value,unit=get('unit').value.trim();
-  const range={};
-  if(sex!=='any')range.sex=sex;
+  if(sex==='any')delete range.sex;else range.sex=sex;
   if(ageMin!==''||ageMax!==''){
-   range.age={};
-   if(ageMin!==''){range.age.min=Number(ageMin);range.age.min_unit=get('age-min-unit').value;}
-   if(ageMax!==''){range.age.max=Number(ageMax);range.age.max_unit=get('age-max-unit').value;}
+   const age={...(range.age||{})};
+   for(const key of ['min','max','min_unit','max_unit','unit'])delete age[key];
+   if(ageMin!==''){age.min=Number(ageMin);age.min_unit=get('age-min-unit').value;}
+   if(ageMax!==''){age.max=Number(ageMax);age.max_unit=get('age-max-unit').value;}
    if(ageMin!==''&&ageMax!==''&&Number(ageMin)>Number(ageMax)&&get('age-min-unit').value===get('age-max-unit').value)throw new Error('بداية العمر لا يمكن أن تكون أكبر من نهايته.');
-  }
+   range.age=age;
+  }else delete range.age;
+  for(const key of ['lower','low','min','upper','high','max'])delete range[key];
   if(lower!=='')range.lower=Number(lower);
   if(upper!=='')range.upper=Number(upper);
-  if(unit)range.unit=unit;
-  if(get('pregnancy').checked)range.pregnancy=true;
+  if(unit)range.unit=unit;else delete range.unit;
+  if(note)range.text=note;else delete range.text;
+  if(get('pregnancy').checked)range.pregnancy=true;else delete range.pregnancy;
   if(Object.keys(range).length)rows.push(range);
  }
  return rows;
