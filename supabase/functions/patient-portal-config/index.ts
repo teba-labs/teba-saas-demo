@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 
 const DEFAULTS = {
-  enabled: true,
+  enabled: false,
   title: 'بوابة نتائج التحاليل',
   intro: 'أدخل اسم المريض ورقم الزيارة كما هو موضح في إيصال المعمل لعرض أحدث تقرير معتمد.',
   patient_name_label: 'اسم المريض بالكامل',
@@ -34,7 +34,7 @@ Deno.serve(async req=>{
  if(error)return response({ok:false,message:'تعذر تحميل إعدادات البوابة.'},503,origin);
  const raw=site?.portal_settings&&typeof site.portal_settings==='object'?site.portal_settings:{};
  const settings={...DEFAULTS,...raw};
- settings.enabled=settings.enabled!==false;
+ settings.enabled=settings.enabled===true;
  settings.accent_color=/^#[0-9a-f]{6}$/i.test(String(settings.accent_color))?settings.accent_color:DEFAULTS.accent_color;
  return response({ok:true,labName:tenant.name,slug:tenant.slug,settings},200,origin);
 });
