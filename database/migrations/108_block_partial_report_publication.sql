@@ -1,6 +1,9 @@
 -- 108: Prevent publishing a final patient-portal report while any requested test is unfinished.
 begin;
 
+alter table public.tenants
+  add column if not exists patient_portal_enabled boolean not null default false;
+
 create or replace function public.publish_report_version(
   p_tenant_id uuid,
   p_branch_id uuid,
@@ -37,6 +40,10 @@ begin
     where id=p_visit_id and tenant_id=p_tenant_id and branch_id=p_branch_id
     for update;
   if not found then raise exception 'Visit not found'; end if;
+
+  if not exists (select 1 from public.tenants t where t.id=p_tenant_id and t.patient_portal_enabled=true) then
+    raise exception 'Patient portal is disabled for this lab';
+  end if;
 
   if v_visit.is_published then
     if nullif(trim(p_change_reason),'') is null then
