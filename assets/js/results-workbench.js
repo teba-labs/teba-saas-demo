@@ -871,7 +871,7 @@ async function approve(button) {
       const section = document.querySelector('[data-test-id="' + CSS.escape(item.id) + '"]');
       if (!section) continue;
       if (section.dataset.localPending === 'true' || section.querySelector('[data-local-pending="true"]')) {
-        throw new Error('هناك نتائج محفوظة على الجهاز لم تكتمل مزامنتها. انتظر المزامنة ثم أعد الاعتماد.');
+        throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد؛ انتظر اكتمال المزامنة ثم أعد الاعتماد.');
       }
       const inputs = [...section.querySelectorAll('[data-param-code]')];
       const clearedSaved = inputs.filter(input =>
