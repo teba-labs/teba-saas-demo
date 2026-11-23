@@ -43,9 +43,9 @@ test('WhatsApp shares only the patient portal lookup route after publication and
  for(const value of ['record.published','wa.me','tenantSlug','portal/index.html']) assert.ok(layout.includes(value),value);
 });
 
-test('test cards open inline in the same workbench instead of forcing navigation to another page',()=>{
+test('test cards open in a same-screen modal instead of navigating to another page',()=>{
  assert.match(layout,/function testLauncher\(node,record,kind,workspace\)/);
- assert.match(layout,/test-detail/);
+ assert.match(layout,/result-entry-modal/);
  assert.match(layout,/placeholder\.replaceWith\(node\)/);
  assert.doesNotMatch(layout,/location\.href=url\.href/);
 });
@@ -54,4 +54,20 @@ test('dedicated result entry page exposes visit-wide save, approval and preview 
  assert.ok(layout.includes('اعتماد الزيارة'));
  assert.match(layout,/window\.taibaApproveVisit/);
  assert.match(layout,/window\.taibaPreviewVisitReport/);
+});
+
+test('individual and profile result forms open in an accessible same-screen modal with preserved return and save-complete actions',()=>{
+ assert.match(layout,/result-entry-modal/);
+ assert.match(layout,/role','dialog'/);
+ assert.match(layout,/aria-modal','true'/);
+ assert.match(layout,/رجوع دون فقد المدخلات/);
+ assert.match(layout,/taibaSaveAndMaybeApproveVisit/);
+ assert.match(js,/approveVisitWithAutoCompletion/);
+ assert.match(js,/saveAndMaybeApproveVisit/);
+ assert.match(js,/completeVisitTestAtomic/);
+ assert.match(js,/partialReport/);
+ assert.match(js,/طباعة النتائج المكتملة فقط/);
+ assert.doesNotMatch(js,/سبب تصحيح النتيجة المنشورة/);
+ assert.match(read('assets/css/results-workbench.css'),/\.result-entry-modal/);
+ assert.doesNotMatch(layout,/className='test-detail'/);
 });
