@@ -1,8 +1,8 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v41';
+const CACHE_NAME = 'taiba-smart-lab-shell-v42';
 const APP_SHELL = [
   './app/index.html', './app/site-preview.html', './website/index.html', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/result-entry.html', './app/sync-center.html',
   './app/dashboard.html', './portal/index.html', './app/cms-editor.html', './app/platform-admin.html', './app/site-management.html', './app/settings.html', './app/data-import.html',
-  './assets/css/app-home.css', './assets/css/catalog.css', './assets/css/reception.css', './assets/css/workday.css', './assets/css/results-workbench.css', './assets/css/sync-center.css',
+  './assets/css/app-viewport.css', './assets/css/app-home.css', './assets/css/catalog.css', './assets/css/reception.css', './assets/css/workday.css', './assets/css/results-workbench.css', './assets/css/sync-center.css',
   './assets/css/dashboard.css', './assets/css/theme-system.css', './assets/css/cms-editor.css', './assets/css/platform-admin.css', './assets/css/site-management.css', './assets/css/settings-center.css', './assets/css/data-import.css',
   './assets/js/site-preview.js', './website/public-site-page.js', './assets/js/theme-controller.js', './assets/js/tenant-branding.js', './assets/js/app-home.js', './assets/js/catalog.js', './assets/js/reception.js', './assets/js/workday.js', './assets/js/results-workbench.js', './assets/js/results-workbench-layout.js', './assets/js/sync-center.js',
   './assets/js/dashboard.js', './assets/js/dashboard-history.js', './assets/js/dashboard-financial-import.js', './assets/js/cms-editor.js', './assets/js/platform-admin.js', './assets/js/site-management.js', './assets/js/settings-center.js', './assets/js/data-import.js', './modules/migration/historical-results-repository.js',
