@@ -42,6 +42,7 @@ This is the acceptance checklist for the small-laboratory operating model. It is
 - Migrations 105–108 are in the PR only and have **not** been applied to SaaS TEST or production. All four were rehearsed together inside a transaction and rolled back; the database was confirmed unchanged afterward.
 - No Netlify preview credentials are configured; no live preview URL is available from this PR.
 - No signed-in end-to-end customer session has been tested.
+- SaaS TEST RLS was exercised in rollback-only authenticated transactions: owner access returned only its tenant's 2 visits/2 patients; a temporarily linked employee saw 2 visits, 2 patients, 4 visit tests and 18 results in the assigned branch, and zero rows in the other branch. The temporary staff link was rolled back. Only one tenant is currently seeded, so a second real tenant-to-tenant negative test remains outstanding.
 - The expanded 495-definition index remains needs_review / local_verification_required; it is not part of automatic provisioning.
 - Of the Core numeric parameters, 131 reference intervals still require local verification and 6 have no range. The UI labels proposed source ranges as unapproved locally and does not auto-flag H/L until a range is verified locally.
 - CBC, urine, stool, culture, formula/conditional entry, physical print output, offline sync under interruption, patient portal/WhatsApp delivery and full RLS negative tests still need execution evidence.
