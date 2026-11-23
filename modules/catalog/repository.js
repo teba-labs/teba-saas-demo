@@ -202,6 +202,17 @@ const validateParameter = parameter => {
       throw new Error('الحد الأقصى للاختيارات غير صحيح.');
     }
   }
+  if (resultInputMode === 'graded_multi_choice') {
+    const scores = resultConfig.choice_scores;
+    if (!scores || typeof scores !== 'object' || Array.isArray(scores)) {
+      throw new Error('أدخل درجة لكل اختيار في النوع المتدرج.');
+    }
+    const keys = Object.keys(scores);
+    if (keys.length !== choices.length
+        || choices.some(choice => !Object.hasOwn(scores, choice) || !Number.isFinite(Number(scores[choice])))) {
+      throw new Error('درجة كل اختيار يجب أن تكون رقمًا، ويجب تغطية كل الاختيارات.');
+    }
+  }
   const displayRules = parameter.displayRules ?? [];
   if (!Array.isArray(displayRules)) throw new Error('قواعد إظهار الاختيارات يجب أن تكون قائمة.');
   for (const rule of displayRules) {
