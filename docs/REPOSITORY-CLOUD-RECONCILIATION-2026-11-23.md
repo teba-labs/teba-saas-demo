@@ -46,7 +46,7 @@ PR #42 is a draft containing an older 083 migration variant. It is superseded by
 
 Before this reconciliation, the connected primary project reported 73 applied migrations, with `083_medical_master_catalog_model_v2` as the latest. After applying migrations 084 and 085, the project reports **75 applied migrations**, with `085_clear_disallowed_conditional_result_values` as the latest.
 
-The repository contains 86 migration files. A normalized name comparison shows 74 applied migration records, 12 repository-only names, and one applied-only name; this is not a list of 11 pending production migrations:
+The repository contains 86 migration files. A normalized name comparison shows 75 applied migration records, 12 repository-only names, and one applied-only name; this is not a list of 11 pending production migrations:
 
 - Migrations 023–075 are recorded in Supabase under their migration names without the repository's numeric filename prefix.
 - Migrations 076–083 are recorded with their numeric names.
