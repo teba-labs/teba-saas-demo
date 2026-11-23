@@ -43,7 +43,7 @@ test('result repository supports numeric and non-numeric catalog parameter types
 });
 
 test('save and correction actions resolve the containing test card, not the action button itself', () => {
-  assert.equal((script.match(/button\.closest\('\.parameter\[data-test-id\]'\)/g) || []).length, 2);
+  assert.equal((script.match(/button\\.closest\\('\.parameter\\[data-test-id\\]'\\)/g) || []).length, 1);
   assert.doesNotMatch(script, /button\.closest\('\[data-test-id\]'\)/);
   assert.match(script, /const inputs = \[\.\.\.section\.querySelectorAll\('\[data-param-code\]'\)\]/);
 });
