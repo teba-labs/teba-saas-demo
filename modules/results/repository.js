@@ -22,14 +22,46 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
     if (!parameter?.code) throw new Error('Every result must identify its parameter code.');
     const rawValue = value === null || value === undefined ? '' : String(value).trim();
     if (!rawValue) throw new Error('A result value is required.');
-    const valueType = parameter.valueType ?? 'numeric';
-    if (!['numeric', 'text', 'boolean', 'choice'].includes(valueType)) throw new Error('Unsupported result value type.');
-    const isText = valueType !== 'numeric';
-    const numeric = isText ? null : Number(rawValue);
-    if (!isText && !Number.isFinite(numeric)) throw new Error('Numeric result is invalid.');
-    if (valueType === 'boolean' && !['true', 'false'].includes(rawValue)) throw new Error('اختر نعم أو لا للنتيجة المنطقية.');
-    if (valueType === 'choice' && (!Array.isArray(parameter.choices) || !parameter.choices.includes(rawValue))) throw new Error('اختر قيمة من القائمة المحددة لهذا البارامتر.');
-    return { parameter_code: parameter.code, value_numeric: numeric, value_text: isText ? rawValue : null, flag };
+    const legacyMode = ({numeric:'numeric_decimal',text:'text',boolean:'boolean',choice:'single_choice'})[parameter.valueType || 'numeric'];
+    const mode = parameter.inputMode || parameter.resultInputMode || legacyMode || 'numeric_decimal';
+    const choices = Array.isArray(parameter.choices) ? parameter.choices : [];
+    const allowedChoice = item => choices.includes(item);
+    let numeric = null;
+    let text = null;
+
+    if (mode === 'numeric_integer' || mode === 'numeric_decimal') {
+      numeric = Number(rawValue);
+      if (!Number.isFinite(numeric)) throw new Error('أدخل قيمة رقمية صحيحة.');
+      if (mode === 'numeric_integer' && !Number.isInteger(numeric)) {
+        throw new Error('هذا الحقل يقبل أرقامًا صحيحة فقط دون كسور.');
+      }
+    } else if (mode === 'numeric_comparator') {
+      if (!/^(<=|>=|<|>)[\\s]*[+-]?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)$/.test(rawValue)) {
+        throw new Error('اكتب نتيجة مقارنة مثل <5 أو <=10 أو >300 أو >=1.2.');
+      }
+      text = rawValue;
+    } else if (mode === 'boolean') {
+      if (!['true','false'].includes(rawValue)) throw new Error('اختر نعم أو لا.');
+      text = rawValue;
+    } else if (mode === 'positive_negative' || mode === 'single_choice') {
+      if (!allowedChoice(rawValue)) throw new Error('اختر قيمة من القائمة المحددة لهذا البارامتر.');
+      text = rawValue;
+    } else if (mode === 'multi_choice' || mode === 'graded_multi_choice') {
+      let selected;
+      try { selected = JSON.parse(rawValue); } catch { throw new Error('اختر قيمة واحدة على الأقل من القائمة.'); }
+      if (!Array.isArray(selected) || !selected.length || selected.some(item => typeof item !== 'string' || !allowedChoice(item))) {
+        throw new Error('الاختيارات المحددة غير صحيحة.');
+      }
+      if (new Set(selected).size !== selected.length) throw new Error('لا يمكن تكرار الاختيار نفسه.');
+      const max = Number(parameter.resultConfig?.max_selections ?? parameter.result_config?.max_selections ?? 0);
+      if (max > 0 && selected.length > max) throw new Error('عدد الاختيارات يتجاوز الحد المسموح.');
+      text = JSON.stringify(selected);
+    } else if (mode === 'text') {
+      text = rawValue;
+    } else {
+      throw new Error('نوع إدخال النتيجة غير مدعوم: '+mode);
+    }
+    return { parameter_code: parameter.code, value_numeric: numeric, value_text: text, flag };
   });
   if (new Set(prepared.map(item => item.parameter_code)).size !== prepared.length) {
     throw new Error('لا يمكن إرسال البارامتر نفسه أكثر من مرة في عملية الحفظ.');
