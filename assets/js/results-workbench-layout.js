@@ -61,6 +61,8 @@ function testLauncher(node,record,kind,workspace){
   const footer=document.createElement('footer');footer.className='result-entry-modal-foot';
   const save=button('حفظ النتيجة','button button-primary result-entry-modal-save');
   const back=button('رجوع دون فقد المدخلات','button button-secondary');
+  node.addEventListener('input',()=>{delete node.dataset.resultSaved;},true);
+  node.addEventListener('change',()=>{delete node.dataset.resultSaved;},true);
   const closeModal=(forceRefresh=false)=>{const shouldRefresh=forceRefresh||node.dataset.resultSaved==='true';placeholder.replaceWith(node);overlay.remove();list.hidden=false;open.focus();if(shouldRefresh)window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));};
   close.addEventListener('click',closeModal);back.addEventListener('click',closeModal);
   overlay.addEventListener('click',event=>{if(event.target===overlay)closeModal();});
