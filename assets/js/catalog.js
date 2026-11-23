@@ -79,6 +79,23 @@ function readRangeRows(){
 function readParameterChoices(){
  return $('parameterChoices').value.split(/[\\r\\n,]+/).map(value=>value.trim()).filter(Boolean);
 }
+function readChoiceScores(choices){
+ if($('parameterInputMode').value!=='graded_multi_choice')return {};
+ const scores={};
+ const lines=$('parameterChoiceScores').value.split(/[\\r\\n]+/).map(line=>line.trim()).filter(Boolean);
+ for(const line of lines){
+  const splitAt=line.lastIndexOf('=');
+  if(splitAt<1)throw new Error('اكتب كل درجة بصيغة: اسم الاختيار = الدرجة.');
+  const choice=line.slice(0,splitAt).trim(),scoreText=line.slice(splitAt+1).trim(),score=Number(scoreText);
+  if(!choices.includes(choice))throw new Error('يوجد اختيار في جدول الدرجات غير موجود في قائمة الاختيارات.');
+  if(!scoreText||!Number.isFinite(score))throw new Error('درجة كل اختيار يجب أن تكون رقمًا صحيحًا.');
+  if(Object.hasOwn(scores,choice))throw new Error('لا تكرر درجة الاختيار نفسه.');
+  scores[choice]=score;
+ }
+ if(choices.some(choice=>!Object.hasOwn(scores,choice)))throw new Error('أدخل درجة لكل اختيار في القائمة.');
+ return scores;
+}
+
 function loadConditionParameterOptions(selectedCode=''){
  const host=$('conditionParameterCode');if(!host)return;
  const current=$('parameterCode').value.trim();
@@ -99,6 +116,7 @@ function updateParameterFields(){
  const choiceMode=['positive_negative','single_choice','multi_choice','graded_multi_choice'].includes(mode);
  $('parameterChoices').closest('label').hidden=!choiceMode;
  $('parameterMaxSelections').closest('label').hidden=!['multi_choice','graded_multi_choice'].includes(mode);
+ $('parameterChoiceScoresField').hidden=mode!=='graded_multi_choice';
  $('conditionParameterCode').closest('.condition-editor').hidden=!choiceMode;
  $('parameterRangeRows').closest('.range-editor').hidden=['boolean','positive_negative','single_choice','multi_choice','graded_multi_choice'].includes(mode);
 }
@@ -147,7 +165,7 @@ async function loadPrice(){const branchId=$('priceBranchSelect').value||null;con
 function resetParameterForm(){
  state.selectedParameter=null;$('parameterForm').reset();
  $('parameterDecimals').value='2';$('parameterOrder').value='0';$('parameterChoices').value='';
- $('parameterMaxSelections').value='';$('parameterSource').value='manual';$('parameterFormula').value='';
+ $('parameterMaxSelections').value='';$('parameterChoiceScores').value='';$('parameterSource').value='manual';$('parameterFormula').value='';
  $('conditionValue').value='';$('conditionVisibleValues').value='';$('conditionOperator').value='equals';
  loadConditionParameterOptions();renderRangeRows([]);updateFormulaFields();
  $('parameterRequired').checked=true;$('parameterActive').checked=true;
@@ -162,6 +180,7 @@ function editParameter(id){
  renderRangeRows(p.reference_ranges||[]);
  $('parameterChoices').value=displayChoices(p.choices).replace(/, /g,'\\n');
  $('parameterMaxSelections').value=p.result_config?.max_selections??'';
+ $('parameterChoiceScores').value=Object.entries(p.result_config?.choice_scores||{}).map(([choice,score])=>choice+' = '+score).join('\\n');
  $('parameterSource').value=p.result_source||'manual';
  $('parameterUnitUcum').value=p.unit_ucum||'';$('parameterAlternateUnits').value=displayJson(p.alternate_units);
  $('parameterCriticalRanges').value=displayJson(p.critical_ranges);$('parameterInterpretation').value=displayJson(p.interpretation_rules);
@@ -211,7 +230,10 @@ $('parameterForm').addEventListener('submit',async e=>{
    referenceRanges:readRangeRows(),choices:readParameterChoices(),resultSource,
    formula:resultSource==='calculated'?parseFormulaExpression($('parameterFormula').value,state.parameters,$('parameterCode').value):null,
    formulaExpression:resultSource==='calculated'?$('parameterFormula').value.trim():null,
-   resultConfig:$('parameterMaxSelections').value?{max_selections:Number($('parameterMaxSelections').value)}:{},
+   resultConfig:{
+    ...($('parameterMaxSelections').value?{max_selections:Number($('parameterMaxSelections').value)}:{}),
+    ...(resultInputMode==='graded_multi_choice'?{choice_scores:readChoiceScores(readParameterChoices())}:{})
+   },
    displayRules:readDisplayRules(),
    unitUcum:$('parameterUnitUcum').value,alternateUnits:parseJsonArrayField('parameterAlternateUnits','الوحدات البديلة'),
    criticalRanges:parseJsonObjectField('parameterCriticalRanges','القيم الحرجة'),interpretationRules:parseJsonArrayField('parameterInterpretation','قواعد التفسير'),
