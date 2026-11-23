@@ -48,23 +48,45 @@ function testLauncher(node,record,kind,workspace){
  open.innerHTML='<span><strong>'+esc(name)+'</strong><small>'+esc(status)+' · '+(kind==='profile'?'بروفايل':'تحليل فردي')+'</small></span><b class="launch-arrow" aria-hidden="true">←</b>';
  open.addEventListener('click',()=>{
   const list=workspace.querySelector('.test-launch-list');
-  if(!list)return;
-  const previous=workspace.querySelector('.test-detail');
-  if(previous){
-   const previousNode=previous.querySelector('.parameter[data-test-id]');
-   const previousMarker=previousNode&&document.querySelector('[data-test-placeholder="'+CSS.escape(previousNode.dataset.testId)+'"]');
-   if(previousNode&&previousMarker)previousMarker.replaceWith(previousNode);
-   previous.remove();list.hidden=false;
-  }
+  if(!list||document.querySelector('.result-entry-modal'))return;
   const placeholder=document.createElement('span');placeholder.hidden=true;placeholder.dataset.testPlaceholder=node.dataset.testId;
   node.before(placeholder);
-  const detail=document.createElement('section');detail.className='test-detail';
-  const back=button('رجوع لقائمة التحاليل','button button-secondary test-detail-back');
-  back.addEventListener('click',()=>{
-   placeholder.replaceWith(node);detail.remove();list.hidden=false;
+  const overlay=document.createElement('div');overlay.className='result-entry-modal';overlay.setAttribute('role','presentation');
+  const dialog=document.createElement('section');dialog.className='result-entry-dialog';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-labelledby','resultEntryModalTitle');
+  const head=document.createElement('header');head.className='result-entry-modal-head';
+  const heading=document.createElement('div');heading.innerHTML='<strong id="resultEntryModalTitle">'+esc(name)+'</strong><small>'+esc(record.title)+' · '+esc(record.visitDate||'')+'</small>';
+  const close=button('رجوع','button button-secondary result-entry-modal-close');close.setAttribute('aria-label','الرجوع لقائمة التحاليل');
+  head.append(heading,close);
+  const body=document.createElement('div');body.className='result-entry-modal-body';body.append(node);
+  const footer=document.createElement('footer');footer.className='result-entry-modal-foot';
+  const save=button('حفظ النتيجة','button button-primary result-entry-modal-save');
+  const back=button('رجوع دون فقد المدخلات','button button-secondary');
+  const closeModal=()=>{placeholder.replaceWith(node);overlay.remove();list.hidden=false;open.focus();};
+  close.addEventListener('click',closeModal);back.addEventListener('click',closeModal);
+  overlay.addEventListener('click',event=>{if(event.target===overlay)closeModal();});
+  dialog.addEventListener('keydown',event=>{
+   if(event.key==='Escape'){event.preventDefault();closeModal();return;}
+   if(event.key==='Tab'){
+    const focusable=[...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')].filter(el=>!el.hidden);
+    if(!focusable.length)return;
+    const first=focusable[0],last=focusable[focusable.length-1];
+    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+   }
   });
-  detail.append(back,node);list.hidden=true;workspace.append(detail);
-  node.scrollIntoView({behavior:'smooth',block:'start'});
+  save.addEventListener('click',async()=>{
+   if(typeof window.taibaSaveAndMaybeApproveVisit!=='function'){window.alert('تعذر تحميل خدمة حفظ واعتماد التحليل.');return;}
+   save.disabled=true;save.textContent='جارٍ الحفظ والتحقق…';
+   try{
+    const result=await window.taibaSaveAndCompleteTest(record.visitId,node.dataset.testId);
+    if(result?.completed){closeModal();window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));}
+    else {save.disabled=false;save.textContent='حفظ واستكمال التحليل';}
+   }catch(error){save.disabled=false;save.textContent='حفظ واستكمال التحليل';window.alert(error.message||'تعذر حفظ التحليل أو استكماله.');}
+  });
+  footer.append(back,save);dialog.append(head,body,footer);overlay.append(dialog);document.body.append(overlay);
+  list.hidden=true;
+  const firstInput=node.querySelector('[data-param-code]:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)');
+  (firstInput||close).focus();
  });
  return open;
 }
