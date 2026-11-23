@@ -8,6 +8,12 @@ const ui = await readFile(new URL('assets/js/catalog.js', root), 'utf8');
 const migration = await readFile(new URL('database/migrations/087_gate_master_catalog_import.sql', root), 'utf8');
 const activation = await readFile(new URL('database/migrations/088_guard_master_import_activation.sql', root), 'utf8');
 const hormoneSeed = await readFile(new URL('database/migrations/089_complete_reproductive_hormone_profiles.sql', root), 'utf8');
+const chemistrySeed = await readFile(new URL('database/migrations/090_complete_common_chemistry_profiles.sql', root), 'utf8');
+const lipidSeed = await readFile(new URL('database/migrations/091_complete_lipid_profile_decision_ranges.sql', root), 'utf8');
+const urineSeed = await readFile(new URL('database/migrations/092_complete_urine_catalog_ranges.sql', root), 'utf8');
+const cbcSeed = await readFile(new URL('database/migrations/093_complete_cbc_indices_and_differential.sql', root), 'utf8');
+const stoolSeed = await readFile(new URL('database/migrations/094_complete_stool_profiles_and_dedupe.sql', root), 'utf8');
+const finalGate = await readFile(new URL('database/migrations/095_finalize_master_import_completeness.sql', root), 'utf8');
 
 test('customer master library exposes only centrally reviewed complete definitions', () => {
   assert.match(repository, /eq\('clinical_review_status','verified'\)/);
@@ -43,4 +49,24 @@ test('reproductive hormone profiles carry source-backed intervals without preten
   for (const source of ['MAYO-FSH-602753','MAYO-LH-602752','MAYO-ESTS-8575','MAYO-PGSN-8141','MAYO-PRL-800091','MAYO-TTST-8533']) assert.ok(hormoneSeed.includes(source));
   assert.match(hormoneSeed, /reference_interval_status='local_verification_required'/);
   assert.match(hormoneSeed, /external_source_suggested/);
+});
+
+test('common chemistry, lipid, urine, CBC and stool master data have forward-only enrichment migrations', () => {
+  assert.match(chemistrySeed, /HOMA1_IR/);
+  assert.match(chemistrySeed, /KIDNEY_PROFILE/);
+  assert.match(lipidSeed, /LIPID_PROFILE/);
+  assert.match(urineSeed, /UA_COMPLETE/);
+  assert.match(cbcSeed, /PCT/);
+  assert.match(cbcSeed, /'calculated'/);
+  assert.match(stoolSeed, /STOOL_EXAM/);
+  assert.match(stoolSeed, /CULTURE_STOOL/);
+});
+
+test('final server import gate checks method, specimen and choice options', () => {
+  assert.match(finalGate, /method and specimen must be defined/);
+  assert.match(finalGate, /p.value_type = 'choice' and coalesce\(jsonb_array_length\(p.choices\),0\)=0/);
+  assert.match(finalGate, /set is_active=false/);
+  assert.match(repository, /missing_choices/);
+  assert.match(repository, /row.definition\?\.method/);
+  assert.match(repository, /row.definition\?\.specimen/);
 });
