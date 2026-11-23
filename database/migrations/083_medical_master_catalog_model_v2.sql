@@ -266,11 +266,8 @@ begin
        or coalesce(jsonb_array_length(v_definition->'components'),0)=0) then
     raise exception 'Master group must contain at least one component reference';
   end if;
-  if v_master.test_kind<>'group' and not exists(
-    select 1 from public.master_catalog_parameters where master_test_id=p_master_test_id
-  ) then
-    raise exception 'Master catalog test has no result parameters';
-  end if;
+  -- Empty published definitions remain importable as editable tenant templates.
+  -- Importability is not clinical approval; the tenant owner completes missing parameters locally.
 
   insert into public.tests_catalog(
     tenant_id,code,name,test_kind,category,specimen,method,turnaround_minutes,instructions,is_active,
