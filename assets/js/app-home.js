@@ -3,7 +3,7 @@ import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { getCurrentWorkday } from '../../modules/workday/repository.js';
 import { getOutboxSummary } from '../../offline/outbox.js';
-import { ensureTenantCoreCatalog } from '../../modules/catalog/repository.js';
+import { ensureTenantCoreCatalog, listCatalog, warmCatalogParameters } from '../../modules/catalog/repository.js';
 import { APP_ENV, validateEnvironment } from '../../config/environment.js';
 
 const $ = id => document.getElementById(id);
@@ -86,6 +86,14 @@ async function refreshOperationalStatus() {
     $('syncText').textContent = 'افتح مركز المزامنة لعرض التفاصيل.';
   }
 }
+async function prepareTenantCatalog(tenantId) {
+  const bootstrap = await ensureTenantCoreCatalog(tenantId);
+  const tests = await listCatalog({ tenantId });
+  if (globalThis.navigator?.onLine !== false && tests.length) {
+    await warmCatalogParameters({ tenantId, testIds: tests.map(test => test.id) });
+  }
+  return { bootstrap, tests };
+}
 async function selectTenant(id) {
   state.tenant = state.context.tenants.find(t => t.id === id) || null;
   if (!state.tenant) return;
@@ -94,9 +102,10 @@ async function selectTenant(id) {
   renderApps();
   await refreshOperationalStatus();
   try {
-    const catalog = await ensureTenantCoreCatalog(state.tenant.id);
+    const prepared = await prepareTenantCatalog(state.tenant.id);
+    const catalog = prepared.bootstrap;
     if (!catalog.skipped && !catalog.unavailable && Number(catalog.available_count || 0) > 0) {
-      notice('مكتبة التحاليل الأساسية جاهزة: ' + catalog.available_count + ' تعريفًا. لا تحتاج إلى استيراد يدوي.');
+      notice('مكتبة التحاليل الأساسية جاهزة: ' + catalog.available_count + ' تعريفًا، وتم تجهيزها للعمل دون اتصال بعد أول مزامنة.');
     }
   } catch (error) {
     notice('تعذر تحديث مكتبة التحاليل الآن: ' + (error.message || 'خطأ اتصال'), true);
@@ -147,7 +156,7 @@ $('signOut').addEventListener('click', async () => {
 window.addEventListener('online', () => {
   updateConnection();
   refreshOperationalStatus().catch(() => {});
-  if (state.tenant?.id) ensureTenantCoreCatalog(state.tenant.id).catch(error => notice('تعذر تحديث مكتبة التحاليل: '+(error.message||'خطأ اتصال'),true));
+  if (state.tenant?.id) prepareTenantCatalog(state.tenant.id).catch(error => notice('تعذر تحديث مكتبة التحاليل: '+(error.message||'خطأ اتصال'),true));
 });
 window.addEventListener('offline', updateConnection);
 updateConnection();
