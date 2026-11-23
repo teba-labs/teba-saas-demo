@@ -30,6 +30,19 @@ function resultInputMode(parameter){
  const type=parameter?.value_type||'numeric';
  return parameter?.result_input_mode||(type==='numeric'?(Number(parameter?.decimal_places)===0?'numeric_integer':'numeric_decimal'):type==='choice'?'single_choice':type);
 }
+function formatStoredResultForReport(parameter,result){
+ const mode=resultInputMode(parameter);
+ const raw=result?.value_text??result?.value_numeric??'—';
+ if(mode!=='multi_choice'&&mode!=='graded_multi_choice')return raw;
+ try{
+  const parsed=typeof raw==='string'?JSON.parse(raw):raw;
+  const selected=Array.isArray(parsed)?parsed:Array.isArray(parsed?.selected)?parsed.selected:[];
+  if(!selected.length)return raw;
+  const base=selected.join('، ');
+  return mode==='graded_multi_choice'&&parsed?.score!=null?base+' (الدرجة: '+parsed.score+')':base;
+ }catch{return raw;}
+}
+
 function resultInputConfig(input){
  try{return JSON.parse(input.dataset.resultConfig||'{}');}catch{return {};}
 }
@@ -600,7 +613,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
       const result = resultMap.get(code);
       if (!result) return '';
       const parameterName = result.parameter_name_snapshot || parameter.name || parameter.parameter_name || code;
-      const value = result.value_numeric ?? result.value_text ?? '—';
+      const value = formatStoredResultForReport(parameter,result);
       const unit = result.unit_snapshot || parameter.unit || '';
       const reference = resolveReferenceRange(result.reference_range_snapshot ?? parameter.reference_ranges, patient, parameter.reference_interval_status);
       const calculatedFlag=computeReferenceFlag(result.value_numeric,result.reference_range_snapshot ?? parameter.reference_ranges,patient.age_years,patient.sex,parameter.reference_interval_status,'numeric');
