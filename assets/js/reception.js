@@ -207,20 +207,22 @@ async function searchPatients(){
 function ageFromDateOfBirth(value){
   const birth=new Date(String(value||'')+'T00:00:00');
   if(!value||Number.isNaN(birth.getTime()))throw new Error('راجع تاريخ الميلاد.');
-  const now=new Date();
-  if(birth>new Date(now.getFullYear(),now.getMonth(),now.getDate()))throw new Error('تاريخ الميلاد لا يمكن أن يكون في المستقبل.');
-  let years=now.getFullYear()-birth.getFullYear();
-  let months=now.getMonth()-birth.getMonth();
+  const now=new Date();now.setHours(0,0,0,0);
+  if(birth>now)throw new Error('تاريخ الميلاد لا يمكن أن يكون في المستقبل.');
+  const days=Math.floor((now.getTime()-birth.getTime())/86400000);
+  if(days<60)return {value:days,unit:'days'};
+  let months=(now.getFullYear()-birth.getFullYear())*12+(now.getMonth()-birth.getMonth());
   if(now.getDate()<birth.getDate())months--;
-  if(months<0){years--;months+=12;}
-  return Number((years+months/12).toFixed(2));
+  months=Math.max(0,months);
+  if(months<24)return {value:months,unit:'months'};
+  return {value:Number((months/12).toFixed(2)),unit:'years'};
 }
 function syncAgeFromDob(){
   const dob=$('patientDob').value;
   $('patientAge').readOnly=Boolean(dob);
   $('patientAgeUnit').disabled=Boolean(dob);
   if(!dob)return;
-  try{$('patientAge').value=ageFromDateOfBirth(dob);$('patientAgeUnit').value='years';}
+  try{const age=ageFromDateOfBirth(dob);$('patientAge').value=age.value;$('patientAgeUnit').value=age.unit;}
   catch(error){$('patientAge').value='';notice(error.message,true);}
 }
 async function addNewPatient(button){
@@ -228,7 +230,8 @@ async function addNewPatient(button){
   const phone=$('patientPhone').value.trim()||null;
   const sex=$('patientSex').value;if(!sex){notice('حدد النوع: ذكر أو أنثى.',true);$('patientSex').focus();return;}
   const dateOfBirth=$('patientDob').value||null;
-  const ageRaw=$('patientAge').value,age=dateOfBirth?ageFromDateOfBirth(dateOfBirth):(ageRaw===''?null:Number(ageRaw)),unit=dateOfBirth?'years':$('patientAgeUnit').value;
+  const ageRaw=$('patientAge').value,ageFromDob=dateOfBirth?ageFromDateOfBirth(dateOfBirth):null;
+  const age=ageFromDob?ageFromDob.value:(ageRaw===''?null:Number(ageRaw)),unit=ageFromDob?ageFromDob.unit:$('patientAgeUnit').value;
   const max=unit==='days'?43800:unit==='months'?1440:120;
   if(age!==null&&(!Number.isFinite(age)||age<0||age>max)){notice('راجع العمر ووحدة القياس المدخلة.',true);$('patientAge').focus();return;}
   busy(button,true,'جارٍ حفظ المريض…');
