@@ -33,7 +33,7 @@ const mime={
 const server=createServer(async(req,res)=>{
   try{
     const pathname=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname);
-    const relative=pathname==='/'?'app/index.html':pathname.replace(/^\/+/, '');
+    const relative=pathname==='/'?'app/index.html':pathname.slice(1);
     const file=path.resolve(root,relative);
     assert.ok(file===root||file.startsWith(root+path.sep),'path escaped repository');
     const body=await readFile(file);
