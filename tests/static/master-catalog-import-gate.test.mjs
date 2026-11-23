@@ -104,6 +104,8 @@ test('tenant catalog bootstraps reviewed Core tests idempotently before receptio
  assert.match(migration,/clinical_review_status = 'verified'/);
  assert.match(migration,/if v_existing is not null then\s+continue/);
  assert.match(repository,/rpc\('ensure_tenant_core_catalog'/);
- assert.match(home,/ensureTenantCoreCatalog\(state\.tenant\.id\)/);
+ assert.match(home,/prepareTenantCatalog\(state\.tenant\.id\)/);
+ assert.match(home,/warmCatalogParameters/);
  assert.match(home,/لا تحتاج إلى استيراد يدوي/);
+ assert.doesNotMatch(home,/signOut\(\).*catalog/);
 });
