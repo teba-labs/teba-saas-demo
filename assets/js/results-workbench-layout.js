@@ -52,11 +52,11 @@ function testLauncher(node,record,kind,workspace){
   const previous=workspace.querySelector('.test-detail');
   if(previous){
    const previousNode=previous.querySelector('.parameter[data-test-id]');
-   const previousMarker=previousNode?.previousSibling;
-   if(previousNode&&previousMarker?.nodeType===8)previousMarker.replaceWith(previousNode);
+   const previousMarker=previousNode&&document.querySelector('[data-test-placeholder="'+CSS.escape(previousNode.dataset.testId)+'"]');
+   if(previousNode&&previousMarker)previousMarker.replaceWith(previousNode);
    previous.remove();list.hidden=false;
   }
-  const placeholder=document.createComment('test-card-placeholder');
+  const placeholder=document.createElement('span');placeholder.hidden=true;placeholder.dataset.testPlaceholder=node.dataset.testId;
   node.before(placeholder);
   const detail=document.createElement('section');detail.className='test-detail';
   const back=button('رجوع لقائمة التحاليل','button button-secondary test-detail-back');
@@ -72,8 +72,8 @@ function selectRecord(record,records,shell){
  if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ نتائج الزيارة الحالية قبل تغيير الاختيار أو الانتقال إلى زيارة أخرى.');return;}
  // Restore any open editor to its source card before rebuilding the selected visit.
  shell.querySelectorAll('.test-detail').forEach(detail=>{
-  const node=detail.querySelector('.parameter[data-test-id]'),marker=node?.previousSibling;
-  if(node&&marker?.nodeType===8)marker.replaceWith(node);
+  const node=detail.querySelector('.parameter[data-test-id]'),marker=node&&document.querySelector('[data-test-placeholder="'+CSS.escape(node.dataset.testId)+'"]');
+  if(node&&marker)marker.replaceWith(node);
   detail.remove();
  });
  selectedVisitId=record.visitId;window.taibaLastSelectedVisitId=selectedVisitId;window.taibaResultsContext=window.taibaGetResultsContext?.()||window.taibaResultsContext||{};
