@@ -70,33 +70,45 @@
               <label>الوحدة<input id="parameterUnit" maxlength="50" placeholder="mg/dL"></label>
               <label>مصدر النتيجة<select id="parameterSource"><option value="manual">إدخال يدوي بواسطة الموظف</option><option value="calculated">محسوبة تلقائيًا من بارامترات أخرى</option></select></label>
               <label id="formulaField" class="wide" hidden>المعادلة الحسابية<textarea id="parameterFormula" rows="2" placeholder="مثال: (HGB + HCT) / 2"></textarea><small>اكتب أكواد البارامترات الرقمية مع العمليات الحسابية (+ − × ÷ والأقواس). الحساب يتم على السحابة عند حفظ النتائج.</small></label>
-              <label>طريقة إدخال النتيجة<select id="parameterInputMode">
-                <option value="numeric_decimal">رقم عشري</option><option value="numeric_integer">رقم صحيح</option>
-                <option value="numeric_comparator">رقم مع علامة مقارنة (مثل &lt;5 أو &gt;300)</option>
-                <option value="text">نص حر</option><option value="positive_negative">موجب / سالب</option>
-                <option value="boolean">نعم / لا</option><option value="single_choice">اختيار واحد من قائمة</option>
-                <option value="multi_choice">اختيارات متعددة</option><option value="graded_multi_choice">اختيارات متعددة بدرجات</option>
-              </select><small>اختار شكل الخانة التي سيستخدمها موظف إدخال النتائج.</small></label>
+              <input id="parameterType" type="hidden" value="numeric">
+              <label>طريقة إدخال النتيجة
+                <select id="parameterInputMode">
+                  <option value="numeric_decimal">رقم عشري</option>
+                  <option value="numeric_integer">عدد صحيح</option>
+                  <option value="numeric_comparator">رقم مع علامة مقارنة (&gt; أو &lt;)</option>
+                  <option value="text">نص حر</option>
+                  <option value="positive_negative">موجب / سالب</option>
+                  <option value="boolean">نعم / لا</option>
+                  <option value="single_choice">اختيار واحد من قائمة</option>
+                  <option value="multi_choice">اختيار أكثر من إجابة</option>
+                  <option value="graded_multi_choice">اختيارات متعددة مع درجة</option>
+                </select>
+                <small>اختر شكل الخانة الذي سيظهر لموظف إدخال النتائج.</small>
+              </label>
               <label>الخانات العشرية<input id="parameterDecimals" type="number" min="0" max="6" value="2"></label>
               <label>ترتيب العرض<input id="parameterOrder" type="number" min="0" max="10000" value="0"></label>
-              <section class="wide range-editor">
-                <div class="range-editor-head"><div><strong>المديات المرجعية</strong><small>أدخل كل فئة عمرية أو نوع أو حالة حمل في سطر منفصل. اترك الحدود فارغة عند عدم وجودها.</small></div><button id="addReferenceRange" class="button button-secondary" type="button">＋ إضافة مدى</button></div>
-                <div id="parameterRangeRows" class="range-editor-rows"></div>
+              <section class="range-editor wide">
+                <div class="section-head"><div><strong>المدى المرجعي</strong><small>أضف مدى لكل عمر أو نوع عند الحاجة. لا تُدخل قيمًا قبل التحقق من طريقة وجهاز المعمل.</small></div><button id="addReferenceRange" class="button button-secondary" type="button">＋ إضافة مدى</button></div>
+                <div id="referenceRangeRows" class="range-editor-rows"></div>
               </section>
-              <label class="wide">الاختيارات المتاحة<textarea id="parameterChoices" rows="3" placeholder="موجب&#10;سالب&#10;Trace"></textarea><small>اكتب كل اختيار في سطر مستقل. تستخدم مع موجب/سالب، اختيار واحد أو عدة اختيارات.</small></label>
-              <label>أقصى عدد للاختيارات<input id="parameterMaxSelections" type="number" min="1" max="100" placeholder="اتركه فارغًا لبدون حد"></label>
-              <label id="parameterChoiceScoresField" class="wide" hidden>درجة كل اختيار — سطر لكل اختيار بصيغة «الاختيار = الدرجة»
-                <textarea id="parameterChoiceScores" rows="3" placeholder="Trace = 1\n1+ = 2\n2+ = 3"></textarea>
-                <small>يُحسب مجموع درجات العناصر المختارة تلقائيًا ويُحفظ مع تعريف البارامتر.</small>
+              <label id="choiceEditorField" class="wide">الاختيارات — كل اختيار في سطر مستقل
+                <textarea id="parameterChoices" rows="4" placeholder="Positive&#10;Negative"></textarea>
+                <small>في الوضع «اختيارات متعددة مع درجة»، اكتب كل سطر بهذا الشكل: الاختيار | الدرجة</small>
               </label>
-              <section class="wide condition-editor">
-                <strong>إظهار اختيارات حسب نتيجة بارامتر آخر (اختياري)</strong>
-                <p class="muted">مثال: لا تظهر اختيارات البلورات إلا بعد تحديد قيمة pH مناسبة. لن يتم إخفاء أي اختيار ما لم تضف قاعدة هنا.</p>
+              <section class="conditional-editor wide">
+                <strong>شرط إظهار هذا البارامتر (اختياري)</strong>
+                <p class="muted">مثال: لا تظهر اختيارات البلورات إلا إذا كانت قيمة pH مساوية للشرط المحدد.</p>
                 <div class="form-grid">
-                  <label>البارامتر المتحكم<select id="conditionParameterCode"><option value="">بدون شرط</option></select></label>
-                  <label>المقارنة<select id="conditionOperator"><option value="equals">يساوي</option><option value="not_equals">لا يساوي</option></select></label>
-                  <label>القيمة المطلوبة<input id="conditionValue" placeholder="مثال: Acidic"></label>
-                  <label class="wide">الاختيارات التي تظهر عند تحقق الشرط<textarea id="conditionVisibleValues" rows="2" placeholder="اختيار 1&#10;اختيار 2"></textarea></label>
+                  <label>يعتمد على البارامتر
+                    <select id="parameterRuleSource"><option value="">بدون شرط</option></select>
+                  </label>
+                  <label>المقارنة
+                    <select id="parameterRuleOperator"><option value="equals">يساوي</option><option value="not_equals">لا يساوي</option><option value="is_not_empty">به قيمة</option></select>
+                  </label>
+                  <label>القيمة المطلوبة<input id="parameterRuleValue" maxlength="120" placeholder="مثال: Acidic"></label>
+                  <label class="wide">الاختيارات المتاحة عند تحقق الشرط — اختياري
+                    <textarea id="parameterRuleChoices" rows="2" placeholder="اختيار 1&#10;اختيار 2"></textarea>
+                  </label>
                 </div>
               </section>
               <details class="advanced-fields wide"><summary>تفاصيل المدى المرجعي والتفسير والجودة</summary>
