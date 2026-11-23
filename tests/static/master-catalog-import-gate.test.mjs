@@ -6,6 +6,7 @@ const root = new URL('../../', import.meta.url);
 const repository = await readFile(new URL('modules/catalog/repository.js', root), 'utf8');
 const ui = await readFile(new URL('assets/js/catalog.js', root), 'utf8');
 const migration = await readFile(new URL('database/migrations/087_gate_master_catalog_import.sql', root), 'utf8');
+const activation = await readFile(new URL('database/migrations/088_guard_master_import_activation.sql', root), 'utf8');
 
 test('customer master library exposes only centrally reviewed complete definitions', () => {
   assert.match(repository, /eq\('clinical_review_status','verified'\)/);
@@ -27,4 +28,11 @@ test('catalog UI no longer invites customers to complete placeholder definitions
   assert.match(ui, /مكتملة ومراجعة مركزيًا/);
   assert.match(ui, /التعريفات الناقصة لا تظهر للعميل/);
   assert.doesNotMatch(ui, /استيراد واستكمال محليًا/);
+});
+
+test('a tenant cannot activate an imported test with incomplete active parameters', () => {
+  assert.match(activation, /guard_master_import_activation/);
+  assert.match(activation, /لا يمكن اعتماد التحليل/);
+  assert.match(activation, /reference_ranges/);
+  assert.match(activation, /result_source = 'calculated' and p.formula is null/);
 });
