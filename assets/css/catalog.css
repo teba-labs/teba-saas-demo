@@ -21,3 +21,17 @@
 
 /* Optional owner-only master library and adaptive catalog workspace. */
 .master-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.master-panel[hidden]{display:none!important}.master-item>div{min-width:0}.master-item small{line-height:1.65}.layout{align-items:start}.list-panel,.editor-panel{min-width:0}@media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.test-list,.parameter-list{max-height:32vh}}@media(min-width:901px){.layout{grid-template-columns:minmax(260px,.72fr) minmax(0,1.6fr)}}
+
+/* Clinician-friendly reference-range and conditional-display editors */
+.range-editor,.conditional-editor{border:1px solid var(--taiba-border,#d8e2e7);border-radius:14px;padding:14px;background:var(--taiba-surface-soft,#f7fafb);min-width:0}
+.range-editor-rows{display:grid;gap:12px}
+.range-editor-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:12px;border:1px solid var(--taiba-border,#d8e2e7);border-radius:12px;background:var(--taiba-surface,#fff);min-width:0}
+.range-editor-row label,.conditional-editor label{min-width:0}
+.range-editor-row input,.range-editor-row select,.conditional-editor input,.conditional-editor select{width:100%;min-width:0}
+.range-editor-row .wide{grid-column:1/-1}
+.range-editor .section-head{align-items:center;gap:12px}
+.range-editor .section-head small{display:block;margin-top:4px;color:var(--taiba-muted,#64748b)}
+.conditional-editor>strong{display:block;margin-bottom:5px}
+.conditional-editor>.muted{margin-top:0}
+@media(max-width:900px){.range-editor-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.range-editor-row{grid-template-columns:minmax(0,1fr)}.range-editor-row .wide{grid-column:auto}}
