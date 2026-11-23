@@ -39,8 +39,8 @@ test('hide and restore are branch-scoped, audited, and never hard-delete medical
  assert.ok(!layout.includes('.delete('));
 });
 
-test('WhatsApp shares only the patient portal lookup route after publication and with a valid phone',()=>{
- for(const value of ['record.published','wa.me','tenantSlug','portal/index.html']) assert.ok(layout.includes(value),value);
+test('WhatsApp sharing stays disabled unless the optional patient portal is enabled',()=>{
+ for(const value of ['record.published','wa.me','tenantSlug','portal/index.html','isPatientPortalEnabled','settings?.enabled === true','whatsapp.disabled=true','APP_ENV.supabase.url']) assert.ok(layout.includes(value),value);
 });
 
 test('test cards open in a same-screen modal instead of navigating to another page',()=>{
