@@ -13,6 +13,7 @@ test('catalog screen is Arabic RTL and exposes test, parameter and price managem
 });
 
 test('catalog screen uses authenticated tenant context and owner-only price editing', () => {
+  const html = read('app/catalog.html');
   const js = read('assets/js/catalog.js');
   assert.match(js, /loadMyTenantContext/);
   assert.match(js, /accountType==='owner'/);
@@ -20,7 +21,14 @@ test('catalog screen uses authenticated tenant context and owner-only price edit
   assert.match(js, /\$\('priceForm'\)\.hidden=state\.role!=='owner'/);
   assert.match(js, /if\(state\.role!=='owner'\|\|!state\.selectedTest\)return/);
   assert.match(js, /requireOnline\(\)/);
-  assert.match(js, /parseJsonField\('parameterRanges','المدى المرجعي',true\)/);
+  for (const control of ['parameterInputMode','parameterRangeRows','addReferenceRange','parameterMaxSelections','conditionParameterCode','conditionVisibleValues','parameterChoiceScoresField','parameterChoiceScores']) {
+    assert.ok(html.includes('id="'+control+'"'), 'missing doctor-friendly editor control '+control);
+  }
+  assert.doesNotMatch(html, /id="parameterRanges"/);
+  assert.ok(!js.includes("parseJsonField('parameterRanges'"), 'reference ranges must not use JSON text entry');
+  assert.ok(js.includes('readRangeRows('));
+  assert.ok(js.includes('readDisplayRules('));
+  assert.match(js, /resultInputMode/);
 });
 
 test('catalog UI uses tenant-scoped repository methods and deactivation instead of deletion', () => {

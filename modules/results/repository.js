@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
+import { prepareResultInput } from './input-mode.js';
 import { TABLES } from '../../core/data/schema-contract.js';
 import { enqueueOperation } from '../../offline/outbox.js';
 import { cacheRows, getCachedRows } from '../../offline/cache.js';
@@ -20,16 +21,11 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
   }
   const prepared = results.map(({ parameter, value, flag = null }) => {
     if (!parameter?.code) throw new Error('Every result must identify its parameter code.');
-    const rawValue = value === null || value === undefined ? '' : String(value).trim();
-    if (!rawValue) throw new Error('A result value is required.');
-    const valueType = parameter.valueType ?? 'numeric';
-    if (!['numeric', 'text', 'boolean', 'choice'].includes(valueType)) throw new Error('Unsupported result value type.');
-    const isText = valueType !== 'numeric';
-    const numeric = isText ? null : Number(rawValue);
-    if (!isText && !Number.isFinite(numeric)) throw new Error('Numeric result is invalid.');
-    if (valueType === 'boolean' && !['true', 'false'].includes(rawValue)) throw new Error('اختر نعم أو لا للنتيجة المنطقية.');
-    if (valueType === 'choice' && (!Array.isArray(parameter.choices) || !parameter.choices.includes(rawValue))) throw new Error('اختر قيمة من القائمة المحددة لهذا البارامتر.');
-    return { parameter_code: parameter.code, value_numeric: numeric, value_text: isText ? rawValue : null, flag };
+    return {
+      parameter_code: parameter.code,
+      ...prepareResultInput(parameter, value),
+      flag,
+    };
   });
   if (new Set(prepared.map(item => item.parameter_code)).size !== prepared.length) {
     throw new Error('لا يمكن إرسال البارامتر نفسه أكثر من مرة في عملية الحفظ.');

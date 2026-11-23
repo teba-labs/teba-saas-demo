@@ -72,7 +72,7 @@ test('priority pages have responsive breakpoints for desktop tablet and phone',(
 
 test('offline shell includes the dedicated entry route and new appearance assets',()=>{
  const sw=read('service-worker.js');
- assert.match(sw,/taiba-smart-lab-shell-v40/);
+ assert.match(sw,/taiba-smart-lab-shell-v41/);
  assert.match(sw,/\.\/app\/result-entry\.html/);
  assert.match(sw,/\.\/assets\/css\/theme-system\.css/);
  assert.match(sw,/\.\/assets\/js\/results-workbench-layout\.js/);

@@ -6,6 +6,7 @@ const root = path.resolve(import.meta.dirname, '../..');
 const page = fs.readFileSync(path.join(root, 'app/results-workbench.html'), 'utf8');
 const script = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 'utf8');
 const repository = fs.readFileSync(path.join(root, 'modules/results/repository.js'), 'utf8');
+const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('results workbench is a separate authenticated page and imports tenant-scoped repositories', () => {
   assert.match(page, /lang="ar" dir="rtl"/);
@@ -29,9 +30,16 @@ test('workbench separates draft entry, approval, audited correction and PDF publ
 });
 
 test('result repository supports numeric and non-numeric catalog parameter types', () => {
-  assert.match(repository, /const isText = valueType !== 'numeric'/);
-  assert.match(repository, /Number\.isFinite\(numeric\)/);
-  assert.match(repository, /value_text: isText \? rawValue : null/);
+  assert.match(repository, /prepareResultInput/);
+  assert.match(repository, /save_draft_results_idempotent/);
+  const inputModes = read('modules/results/input-mode.js');
+  for (const mode of ['numeric_integer','numeric_decimal','numeric_comparator','text','positive_negative','boolean','single_choice','multi_choice','graded_multi_choice']) {
+    assert.ok(inputModes.includes(mode), 'missing result input mode '+mode);
+  }
+  assert.match(script, /renderResultControl/);
+  assert.match(script, /evaluateDisplayRules/);
+  assert.match(script, /data-display-rules/);
+  assert.match(script, /multi-choice-editor/);
 });
 
 test('save and correction actions resolve the containing test card, not the action button itself', () => {

@@ -56,6 +56,7 @@ test('completed test cards are read-only and the server rejects post-completion 
   assert.match(migration, /v_test_status = 'completed'[\s\S]*?Completed test results are locked/);
   assert.match(migration, /v_visit_status in \('approved','published'\)/);
   assert.match(screen, /const locked = item\.status === 'completed'/);
-  assert.match(screen, /locked \? ' disabled' : ''/);
+  assert.ok(screen.includes("disabled=locked?"));
+  assert.ok(screen.includes('${metadata}${disabled}'));
   assert.match(screen, /التحليل مكتمل — النتائج للعرض فقط/);
 });
