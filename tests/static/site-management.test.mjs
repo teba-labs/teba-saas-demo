@@ -15,3 +15,8 @@ test('publication monitor is tenant-scoped, read-only, and bounded to latest 100
 test('patient portal management does not expose cross-tenant patient records or modify publication state',()=>{
  assert.match(js,/from\('patients'\).*\.eq\('tenant_id',state\.tenant\.id\)/s);assert.doesNotMatch(js,/from\('test_results'\)/);
 });
+
+test('patient portal settings create the tenant settings row when it does not exist',()=>{
+ assert.match(js,/\.upsert\(\{tenant_id:state\.tenant\.id,portal_settings,updated_by:state\.userId/);
+ assert.match(js,/onConflict:'tenant_id'/);
+});
