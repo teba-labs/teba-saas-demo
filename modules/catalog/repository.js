@@ -96,7 +96,7 @@ export async function saveCatalogTest({ tenantId, test, id } = {}) {
     throw new Error('turnaroundMinutes must be a whole number from 0 to 10080.');
   }
   const testKind = test?.testKind ?? 'individual';
-  if (!['individual', 'panel', 'group'].includes(testKind)) throw new Error('testKind must be individual, panel or group.');
+  if (!['individual', 'panel'].includes(testKind)) throw new Error('testKind must be individual or panel.');
   const payload = {
     ...(id ? { id } : {}), tenant_id: tenantId, code, name, test_kind: testKind,
     category: test.category?.trim() || null, specimen: test.specimen?.trim() || null,
