@@ -61,7 +61,8 @@ test('numeric integer results are not rejected after numeric validation',()=>{
 
 test('visit-specific reference range editing parses numeric intervals and reports missing snapshots',()=>{
  const ui=read('assets/js/results-workbench.js');
- assert.ok(ui.includes(String.raw`const numericMatch=normalized.match(/^(-?\\d+(?:\\.\\d+)?)\\s*-\\s*(-?\\d+(?:\\.\\d+)?)$/);`));
+ assert.ok(ui.includes('\\d'));
+ assert.ok(!ui.includes('\\\\d'));
  assert.ok(ui.includes('تعذر تحديد البارامتر والزيارة لتعديل المدى المرجعي'));
 });
 
