@@ -21,7 +21,7 @@ test('catalog screen uses authenticated tenant context and owner-only price edit
   assert.match(js, /\$\('priceForm'\)\.hidden=state\.role!=='owner'/);
   assert.match(js, /if\(state\.role!=='owner'\|\|!state\.selectedTest\)return/);
   assert.match(js, /requireOnline\(\)/);
-  for (const control of ['parameterInputMode','parameterRangeRows','addReferenceRange','parameterMaxSelections','conditionParameterCode','conditionVisibleValues']) {
+  for (const control of ['parameterInputMode','parameterRangeRows','addReferenceRange','parameterMaxSelections','conditionParameterCode','conditionVisibleValues','parameterChoiceScoresField','parameterChoiceScores']) {
     assert.ok(html.includes('id="'+control+'"'), 'missing doctor-friendly editor control '+control);
   }
   assert.doesNotMatch(html, /id="parameterRanges"/);
