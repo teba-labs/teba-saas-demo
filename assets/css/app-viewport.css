@@ -95,3 +95,159 @@ pre,code{max-width:100%;overflow:auto}
   :where(.navlinks){gap:10px}
   :where(.cards){grid-template-columns:repeat(auto-fit,minmax(min(100%, 205px),1fr))}
 }
+
+
+/* Full-application zoom hardening.
+   This layer is loaded after each page stylesheet. Use real selector specificity
+   (not :where()) so page-level fixed grids cannot silently defeat the shared rules. */
+html{width:100%;overflow-x:clip}
+body{width:100%;overflow-x:clip}
+body>header,
+body>header.topbar,
+body>.topbar{
+  box-sizing:border-box;
+  width:100%;
+  height:auto!important;
+  min-height:56px;
+  padding-inline:clamp(12px,3vw,32px)!important;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:10px 16px;
+}
+body>.shell,
+body>main,
+body>main.shell,
+body main.shell{
+  box-sizing:border-box;
+  width:calc(100% - 32px);
+  max-width:1480px;
+  min-width:0;
+  margin-inline:auto;
+}
+body :is(.panel,.card,.work-card,.workspace,.workbench,.editor-panel,.list-panel,.report-panel,.owner-area,.settings-tab-panel){
+  box-sizing:border-box;
+  min-width:0;
+  max-width:100%;
+}
+body :is(.login-layout,.workspace-context,.workspace-heading,.context,.heading,.hero,.hero-head,.overview,.panel-heading,.section-head,.head,.view-heading,.owner-dashboard-title,.owner-screen-head,.collection-toolbar,.price-row,.post-save-actions,.file-row){
+  min-width:0;
+  max-width:100%;
+  flex-wrap:wrap;
+}
+body .login-layout{
+  grid-template-columns:minmax(0,1.05fr) minmax(280px,.85fr);
+  gap:clamp(18px,4vw,64px);
+}
+body :is(.layout,.identity-layout,.collection-layout,.workspace-context,.selectors,.filters,.grid,.form-grid,.fields,.parameter-grid,.portal-settings,.studio-nav,.modules,.metrics,.tiles,.totals,.kpis,.history-files,.apps-grid,.owner-links,.owner-report-grid,.security-status-grid,.cards){
+  min-width:0;
+}
+body :is(.layout,.identity-layout,.collection-layout){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));
+  align-items:start;
+}
+body :is(.selectors,.filters,.grid,.form-grid,.fields,.parameter-grid,.portal-settings,.studio-nav,.modules,.metrics,.tiles,.totals,.kpis,.history-files){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,205px),1fr));
+  align-items:stretch;
+}
+body :is(.workspace-context,.context){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));
+}
+body .results-columns{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  align-items:start;
+}
+body :is(.apps-grid,.owner-links,.owner-report-grid){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));
+  align-items:stretch;
+}
+body :is(.app-card,.owner-link,.owner-report-card,.kpi,.history-file,.nav-card,.module-card,.metrics article,.tiles>div,.totals>div){
+  min-width:0;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+body :is(.actions,.toolbar,.form-actions,.button-row,.top-actions,.hero-actions,.parameter-actions,.item-actions,.tenant-controls,.results-actionbar-buttons){
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  min-width:0;
+  max-width:100%;
+  gap:8px;
+}
+body :is(.actions,.toolbar,.form-actions,.button-row,.top-actions,.hero-actions,.parameter-actions,.item-actions,.tenant-controls,.results-actionbar-buttons)>*{
+  min-width:0;
+  max-width:100%;
+}
+body :is(input,select,textarea,button,.button,.btn){
+  box-sizing:border-box;
+  max-width:100%;
+}
+body :is(.tabs,.studio-nav,.settings-tabs,[role=tablist]){
+  max-width:100%;
+  min-width:0;
+  flex-wrap:wrap;
+  overflow:visible;
+}
+body .tabs a{white-space:normal;max-width:100%;overflow-wrap:anywhere}
+body :is(.table-wrap,.table-scroll,.portal-preview,.report-content){
+  box-sizing:border-box;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+}
+body :is(.table-wrap,.table-scroll){overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+body :is(table,.data-table){max-width:none}
+body .portal-preview{overflow:hidden}
+body .portal-preview iframe{display:block;width:100%;max-width:100%}
+body :is(.wide,.full,.full-width){min-width:0;max-width:100%}
+body .notice{box-sizing:border-box;width:calc(100% - 24px);max-width:min(680px,calc(100% - 24px));overflow-wrap:anywhere}
+body :is(.match,.selected,.visit-row,.movement,.attachment-item,.hidden-visit-row,.catalog-result-row,.test-item,.parameter-item){
+  min-width:0;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+body :is(.match,.selected,.visit-row,.movement,.attachment-item,.hidden-visit-row,.catalog-result-row,.test-item,.parameter-item)>*{min-width:0;max-width:100%}
+
+@media(max-width:1180px){
+  body .results-columns{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body .results-columns>.results-column:first-child{grid-column:1/-1}
+}
+@media(max-width:900px){
+  body .login-layout{grid-template-columns:minmax(0,1fr);min-height:0;padding:24px 0}
+  body :is(.layout,.identity-layout,.collection-layout,.workspace-context,.results-columns){grid-template-columns:minmax(0,1fr)}
+  body .results-columns>.results-column:first-child{grid-column:auto}
+  body :is(.hero,.hero-head,.overview,.panel-heading,.section-head,.head,.view-heading,.owner-dashboard-title,.owner-screen-head){align-items:flex-start}
+  body :is(.hero aside,.overview label){min-width:0;max-width:100%}
+}
+@media(max-width:700px){
+  body>.shell,body>main,body>main.shell,body main.shell{width:calc(100% - 20px);margin-block:14px}
+  body>header,body>header.topbar,body>.topbar{justify-content:flex-start;gap:8px 12px}
+  body :is(.top-actions,.hero-actions,.actions,.toolbar,.form-actions,.button-row,.results-actionbar-buttons){align-items:stretch}
+  body :is(.top-actions,.hero-actions,.actions,.toolbar,.form-actions,.button-row,.results-actionbar-buttons)>:is(button,.button,.btn,a.button){flex:1 1 auto}
+  body :is(.filters,.grid,.form-grid,.fields,.selectors,.parameter-grid,.portal-settings,.studio-nav,.modules){grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))}
+  body :is(.panel,.card,.work-card,.results-column,.settings-tab-panel){padding:clamp(12px,3vw,17px)}
+  body :is(.section-head,.panel-heading,.head,.view-heading,.collection-toolbar){align-items:flex-start}
+  body .results-actionbar{align-items:stretch}
+  body .results-actionbar-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  body .results-actionbar-buttons>*{min-width:0}
+  body .topbar nav{flex-wrap:wrap;justify-content:flex-start}
+}
+@media(max-width:520px){
+  body>.shell,body>main,body>main.shell,body main.shell{width:calc(100% - 16px)}
+  body :is(.layout,.identity-layout,.collection-layout,.workspace-context,.context,.login-layout,.results-columns,.filters,.grid,.form-grid,.fields,.selectors,.parameter-grid,.portal-settings,.studio-nav,.modules){grid-template-columns:minmax(0,1fr)}
+  body :is(.kpis,.secondary-kpis,.metrics,.tiles,.totals,.history-files){grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr))}
+  body :is(.wide,.full,.full-width){grid-column:auto}
+  body :is(.actions,.toolbar,.form-actions,.button-row,.results-actionbar-buttons)>:is(button,.button,.btn,a.button){flex:1 1 100%;width:100%}
+  body .results-actionbar-buttons{grid-template-columns:minmax(0,1fr)}
+  body :is(.visit-list,.catalog-list){grid-template-columns:minmax(0,1fr)}
+  body :is(.match,.selected,.visit-row,.movement,.attachment-item,.hidden-visit-row){align-items:flex-start;flex-wrap:wrap}
+  body .price-form{display:grid;grid-template-columns:minmax(0,1fr);max-width:none}
+  body .price-form label{min-width:0}
+}
+@media(max-width:360px){
+  body{font-size:14px}
+  body :is(.panel,.card,.work-card,.results-column){padding:11px}
+  body :is(.topbar,.brand,.top-actions){gap:7px}
+  body :is(button,.button,.btn){padding-inline:10px}
+}
