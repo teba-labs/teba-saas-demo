@@ -84,6 +84,21 @@ export async function approveVisit({ tenantId, branchId, visitId, staffId } = {}
 
 /** One-action visit approval. The server validates all required visible results,
  * completes every eligible test, and approves the visit in one transaction. */
+/** Complete one fully-entered test without approving the entire visit. This supports urgent partial reports. */
+export async function completeVisitTestAtomic({ tenantId, branchId, visitTestId, staffId } = {}) {
+  if (!tenantId || !branchId || !visitTestId || !staffId) {
+    throw new Error('tenantId, branchId, visitTestId and staffId are required.');
+  }
+  const { data, error } = await db().rpc('complete_visit_test_atomic', {
+    p_tenant_id: tenantId,
+    p_branch_id: branchId,
+    p_visit_test_id: visitTestId,
+    p_staff_id: staffId,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function approveVisitWithAutoCompletion({ tenantId, branchId, visitId, staffId } = {}) {
   if (!tenantId || !branchId || !visitId || !staffId) {
     throw new Error('tenantId, branchId, visitId and staffId are required.');
