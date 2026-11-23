@@ -154,7 +154,7 @@ function selectRecord(record,records,shell){
  const whatsapp=button('إرسال واتساب للنتائج','button button-secondary');
  const rawPhone=String(record.phone||'').replace(/[^0-9+]/g,'');let waPhone=rawPhone.replace(/^00/,'');
  if(waPhone.startsWith('0'))waPhone='20'+waPhone.slice(1);else if(waPhone.startsWith('+'))waPhone=waPhone.slice(1);
- const baseShareReady=record.published&&/^20\\d{9,11}$/.test(waPhone)&&Boolean(window.taibaResultsContext?.tenantSlug);
+ const baseShareReady=record.published&&/^20\d{9,11}$/.test(waPhone)&&Boolean(window.taibaResultsContext?.tenantSlug);
  whatsapp.disabled=true;whatsapp.title=baseShareReady?'جارٍ التحقق من تفعيل بوابة المريض…':'يتطلب رقم هاتف صالحًا وتقريرًا منشورًا ورمز معمل';
  if(baseShareReady)isPatientPortalEnabled(window.taibaResultsContext.tenantSlug).then(enabled=>{
    const shareReady=baseShareReady&&enabled;
