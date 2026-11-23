@@ -1,6 +1,18 @@
 -- 108: Prevent publishing a final patient-portal report while any requested test is unfinished.
 begin;
 
+alter table public.site_settings
+  alter column portal_settings set default jsonb_build_object(
+    'enabled', false,
+    'title', 'بوابة نتائج التحاليل',
+    'intro', 'أدخل اسم المريض ورقم الزيارة كما هو موضح في إيصال المعمل لعرض أحدث تقرير معتمد.',
+    'patient_name_label', 'اسم المريض بالكامل',
+    'visit_number_label', 'رقم الزيارة',
+    'submit_label', 'عرض التقرير',
+    'help_text', 'لا تشارك رابط التقرير مع أي شخص آخر. رابط التحميل مؤقت.',
+    'accent_color', '#147c72'
+  );
+
 create or replace function public.publish_report_version(
   p_tenant_id uuid,
   p_branch_id uuid,
