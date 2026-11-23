@@ -13,6 +13,8 @@ assert.match(repository,/export async function listVisitWorkForReport/);
 assert.match(repository,/\.eq\('tenant_id', tenantId\)\.eq\('branch_id', branchId\)\.eq\('visit_id', visitId\)/);
 assert.match(js,/getLabAssetPublicUrl/);
 assert.match(js,/brand\.printSettings/);
+assert.match(js,/canPublishReport/);
+assert.match(js,/allVisitItems\.some\(item => item\.status !== 'completed'\)/);
 assert.match(js,/reference_range_snapshot/);
 assert.match(js,/paperSize/);
 assert.match(js,/orientation/);
