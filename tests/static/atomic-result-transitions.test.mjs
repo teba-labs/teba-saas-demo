@@ -10,9 +10,9 @@ const page = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 
 const migration = fs.readFileSync(path.join(root, 'database/migrations/017_atomic_result_transitions.sql'), 'utf8');
 
 test('staff-facing workflow uses one visit-wide atomic completion and approval RPC', () => {
-  assert.match(repository, /rpc\\('approve_visit_with_auto_completion'/);
-  assert.match(page, /await approveVisitWithAutoCompletion\\(/);
-  assert.doesNotMatch(page, /completeVisitTest|complete-test/);
+  assert.ok(repository.includes("rpc('approve_visit_with_auto_completion'"));
+  assert.ok(page.includes('await approveVisitWithAutoCompletion('));
+  assert.ok(!page.includes('completeVisitTest') && !page.includes('complete-test'));
   assert.doesNotMatch(repository, /\\.update\\(\\{ status: 'completed' \\}\\)/);
   assert.doesNotMatch(repository, /approved_by_staff_id: staffId/);
 });
