@@ -29,7 +29,10 @@ test('multiple and graded choices serialize as JSON text and honor selection lim
   assert.throws(()=>prepareResultInput(parameter,'["1+","2+","3+"]'),/يتجاوز الحد/);
   assert.throws(()=>prepareResultInput(parameter,'["1+","unknown"]'),/غير صحيحة/);
   assert.throws(()=>prepareResultInput(parameter,'["1+","1+"]'),/تكرار/);
-  assert.deepEqual(prepareResultInput({...parameter,inputMode:'graded_multi_choice'},'["2+"]'),{value_numeric:null,value_text:'["2+"]'});
+  const graded={inputMode:'graded_multi_choice',choices:['1+','2+','3+'],resultConfig:{max_selections:2,choice_scores:{'1+':1,'2+':2,'3+':3}}};
+  assert.deepEqual(prepareResultInput(graded,'["2+","3+"]'),{value_numeric:null,value_text:'["2+","3+"]'});
+  assert.throws(()=>prepareResultInput({...graded,resultConfig:{max_selections:2}},'["2+"]'),/درجات الاختيارات/);
+  assert.throws(()=>prepareResultInput({...graded,resultConfig:{max_selections:2,choice_scores:{'1+':1,'2+':2,'3+':'abc'}}},'["3+"]'),/درجات الاختيارات/);
 });
 
 test('legacy value_type records remain readable before and after schema migration',()=>{
