@@ -26,5 +26,5 @@ test('portal applies tenant presentation settings without changing report lookup
  assert.match(portal,/portalVisitLabel/);
  assert.match(portal,/x.enabled === false/);
  assert.match(manager,/portalSettingsFromForm/);
- assert.match(manager,/\.update\(\{portal_settings\}\)/);
+ assert.match(manager,/\.upsert\(\{tenant_id:state\.tenant\.id,portal_settings/);
 });
