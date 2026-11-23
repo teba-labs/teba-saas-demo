@@ -7,6 +7,15 @@ const required = (value, name) => { if (!value) throw new Error(`${name} is requ
 
 export async function listCatalog({ tenantId, includeInactive = false } = {}) {
   required(tenantId, 'tenantId');
+  // Provision the reviewed Core library before listing tenant tests. This RPC is
+  // idempotent and only inserts missing definitions; it never overwrites tenant edits.
+  // A missing RPC is tolerated during staged rollout, but all other failures surface.
+  if (globalThis.navigator?.onLine !== false) {
+    const { error: bootstrapError } = await db().rpc('ensure_tenant_core_catalog', { p_tenant_id: tenantId });
+    if (bootstrapError && !/PGRST202|could not find the function|schema cache/i.test(bootstrapError.message || '')) {
+      throw bootstrapError;
+    }
+  }
   let query = db().from(TABLES.catalog)
     .select('id, tenant_id, code, name, test_kind, category, specimen, method, turnaround_minutes, instructions, is_active, updated_at, short_name, synonyms, loinc_code, clinical_category, clinical_purpose, service_type, patient_preparation, collection_requirements, specimen_requirements, transport_requirements, stability_requirements, rejection_criteria, biosafety_notes, critical_result_policy, reporting_notes, source_references, clinical_review_status, catalog_version')
     .eq('tenant_id', tenantId).order('name');
