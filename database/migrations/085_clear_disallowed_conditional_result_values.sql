@@ -19,6 +19,7 @@ begin
   if p_rules is null then return true; end if;
   if jsonb_typeof(p_rules)<>'array' then return false; end if;
   if jsonb_array_length(p_rules)=0 then return true; end if;
+  if p_value_numeric is not null and p_value_text is null then return true; end if;
   for v_rule in select value from jsonb_array_elements(p_rules) loop
     v_allowed:=case when jsonb_typeof(v_rule->'choices')='array' then v_rule->'choices'
                     when jsonb_typeof(v_rule->'visible_values')='array' then v_rule->'visible_values' else null end;
