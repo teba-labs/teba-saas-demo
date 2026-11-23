@@ -355,7 +355,7 @@ async function renderWork() {
 
 
 async function editReferenceRange(button) {
-  if(window.taibaGetDirtyResultInputs?.().length){showNotice('احفظ النتائج التي أدخلتها قبل تعديل المدى المرجعي.',true);return;}
+  if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ النتائج التي أدخلتها أولًا قبل تعديل المدى المرجعي لهذه الزيارة. لن تُفقد أي نتيجة.');return;}
   const visitTestId=button.dataset.visitTestId,parameterCode=button.dataset.paramCode;
   const item=state.work.find(row=>row.id===visitTestId);
   const parameter=item?.technical_snapshot?.parameters?.find(row=>row.code===parameterCode);
