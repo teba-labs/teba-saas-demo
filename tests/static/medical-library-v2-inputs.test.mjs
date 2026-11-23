@@ -37,6 +37,7 @@ test('forward migration validates input modes, selection limits and current main
  const cleanup=read('database/migrations/085_clear_disallowed_conditional_result_values.sql');
  assert.equal((cleanup.match(/not private\.result_parameter_value_matches_display_rules/g)||[]).length,4);
  assert.match(cleanup,/v_actual_json/);
+ assert.match(cleanup,/p_value_numeric is not null and p_value_text is null/);
  assert.match(cleanup,/jsonb_array_length\(v_actual_json\)/);
  assert.doesNotMatch(cleanup,/create table/i);
 });
