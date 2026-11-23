@@ -359,14 +359,14 @@ async function editReferenceRange(button) {
   const visitTestId=button.dataset.visitTestId,parameterCode=button.dataset.paramCode;
   const item=state.work.find(row=>row.id===visitTestId);
   const parameter=item?.technical_snapshot?.parameters?.find(row=>row.code===parameterCode);
-  if(!item||!parameter)return;
+  if(!item||!parameter){showNotice('تعذر تحديد البارامتر والزيارة لتعديل المدى المرجعي. حدّث شاشة النتائج وحاول مرة أخرى.',true);return;}
   let current={};try{current=JSON.parse(button.dataset.range||'{}');}catch{}
   const currentText=formatReferenceRange(current);
   const value=window.prompt('اكتب المدى المرجعي الجديد لهذا المريض وهذه الزيارة فقط. مثال: 0.7 - 1.3 أو Negative',currentText==='—'?'':currentText);
   if(value===null)return;
   const clean=value.trim();if(!clean){showNotice('لم يتم تغيير المدى المرجعي لأن القيمة فارغة.',true);return;}
   const normalized=clean.replace(/[–—]/g,'-');
-  const numericMatch=normalized.match(/^(-?\\d+(?:\\.\\d+)?)\\s*-\\s*(-?\\d+(?:\\.\\d+)?)$/);
+  const numericMatch=normalized.match(/^(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)$/);
   let referenceRanges;
   if(numericMatch){
     const lower=Number(numericMatch[1]),upper=Number(numericMatch[2]);
