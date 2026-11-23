@@ -40,7 +40,7 @@ test('hide and restore are branch-scoped, audited, and never hard-delete medical
 });
 
 test('WhatsApp sharing stays disabled unless the optional patient portal is enabled',()=>{
- for(const value of ['record.published','wa.me','tenantSlug','portal/index.html','isPatientPortalEnabled','settings?.enabled === true','whatsapp.disabled=true','APP_ENV.supabase.url']) assert.ok(layout.includes(value),value);
+ for(const value of ['record.published','wa.me','tenantSlug','portal/index.html','isPatientPortalEnabled','settings?.enabled === true','whatsapp.disabled=true','APP_ENV.supabase.url','/^20\\d{9,11}$/']) assert.ok(layout.includes(value),value);
 });
 
 test('test cards open in a same-screen modal instead of navigating to another page',()=>{
