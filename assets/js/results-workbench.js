@@ -3,7 +3,7 @@ import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/ses
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/laboratory/repository.js';
-import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
+import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTest, approveVisit, approveVisitWithAutoCompletion } from '../../modules/results/repository.js';
 import { listPendingDraftResults } from '../../offline/outbox.js';
 import { offlineDb } from '../../offline/database.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
@@ -240,7 +240,7 @@ async function renderWork() {
       return `<section class="parameter" data-test-id="${escapeHtml(item.id)}" data-visit-id="${escapeHtml(visitId)}" data-test-status="${escapeHtml(item.status)}" data-published="${String(isPublished)}" data-test-code="${escapeHtml(item.test_code_snapshot || '')}" data-test-kind="${escapeHtml(item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind || 'individual')}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
         <div class="parameter-grid">${parameterControls}</div>${cultureEditor}
-        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة منشورة</button>' : locked && group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled' ? '<button class="button button-secondary correct-unpublished-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة محفوظة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
+        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة منشورة</button>' : locked && group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled' ? '<button class="button button-secondary correct-unpublished-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة محفوظة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ مؤقت للنتائج</button>'}</div>
       </section>`;
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
@@ -852,8 +852,78 @@ async function completeTest(button) {
   catch (error) { showNotice(error.message || 'تعذر إنهاء التحليل.', true); } finally { setBusy(button, false); }
 }
 async function approve(button) {
-  try { requireCloudConnection('اعتماد الزيارة'); if (button.closest('.work-card')?.querySelector('[data-local-pending="true"]')) throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد. انتظر المزامنة ثم أعد اعتماد الزيارة.'); if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ كل النتائج التي أدخلتها قبل اعتماد الزيارة.'); setBusy(button, true, 'جارٍ الاعتماد…'); await approveVisit({ tenantId: state.tenant.id, branchId: state.branch.id, visitId: button.dataset.visitId, staffId: $('staffSelect').value }); showNotice('تم اعتماد الزيارة. يمكنك الآن رفع ملف PDF.'); await refreshWork(); }
-  catch (error) { showNotice(error.message || 'تعذر اعتماد الزيارة.', true); } finally { setBusy(button, false); }
+  const visitId = button.dataset.visitId;
+  try {
+    requireCloudConnection('اعتماد الزيارة');
+    if (!visitId) throw new Error('تعذر تحديد الزيارة المراد اعتمادها.');
+    const items = state.work.filter(item => item.visit_id === visitId && item.status !== 'cancelled');
+    if (!items.length) throw new Error('لا توجد تحاليل فعالة في الزيارة.');
+    const dirtyOutside = window.taibaGetDirtyResultInputs?.().filter(input =>
+      input.closest('.parameter[data-visit-id]')?.dataset.visitId !== visitId
+    ) || [];
+    if (dirtyOutside.length) throw new Error('هناك نتيجة غير محفوظة في زيارة أخرى. احفظها أولًا حتى لا تختلط الحالات.');
+
+    setBusy(button, true, 'جارٍ حفظ واعتماد الزيارة…');
+    for (const item of items) {
+      if (item.status === 'completed') continue;
+      const section = document.querySelector('[data-test-id="' + CSS.escape(item.id) + '"]');
+      if (!section) continue;
+      if (section.dataset.localPending === 'true' || section.querySelector('[data-local-pending="true"]')) {
+        throw new Error('هناك نتائج محفوظة على الجهاز لم تكتمل مزامنتها. انتظر المزامنة ثم أعد الاعتماد.');
+      }
+      const inputs = [...section.querySelectorAll('[data-param-code]')];
+      const results = inputs
+        .filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim() !== '')
+        .map(input => ({
+          parameter: {
+            code: input.dataset.paramCode,
+            name: input.dataset.paramName,
+            unit: input.dataset.unit,
+            valueType: input.dataset.valueType,
+            inputMode: input.dataset.inputMode,
+            resultConfig: JSON.parse(input.dataset.resultConfig || '{}'),
+            referenceRange: JSON.parse(input.dataset.range || '{}'),
+            choices: JSON.parse(input.dataset.choices || '[]')
+          },
+          value: input.value,
+          flag: classifyResultFlag(input)
+        }));
+      if (!results.length) continue;
+      const savedRows = await saveDraftResults({
+        tenantId: state.tenant.id,
+        branchId: state.branch.id,
+        visitTestId: item.id,
+        results,
+        staffId: $('staffSelect').value,
+        dependsOn: item.local_intake_operation_id ? [item.local_intake_operation_id] : []
+      });
+      for (const row of savedRows || []) {
+        const input = section.querySelector('[data-param-code="' + CSS.escape(row.parameter_code) + '"]');
+        if (!input) continue;
+        input.value = row.value_numeric ?? row.value_text ?? '';
+        input.dataset.resultId = row.id;
+        input.dataset.originalValue = input.value;
+        delete input.dataset.localPending;
+      }
+      delete section.dataset.localPending;
+      const pill = section.querySelector('.card-head .pill');
+      if (pill) pill.textContent = 'تم حفظ النتائج';
+    }
+
+    await approveVisitWithAutoCompletion({
+      tenantId: state.tenant.id,
+      branchId: state.branch.id,
+      visitId,
+      staffId: $('staffSelect').value
+    });
+    state.previewedVisits.delete(visitId);
+    showNotice('تم حفظ النتائج واعتماد الزيارة مرة واحدة. يمكنك الآن معاينة التقرير وطباعته.');
+    await refreshWork();
+  } catch (error) {
+    showNotice(error.message || 'تعذر حفظ واعتماد الزيارة.', true);
+  } finally {
+    setBusy(button, false);
+  }
 }
 async function publish(button) {
   try {
@@ -909,6 +979,12 @@ $('refreshButton').addEventListener('click', async () => { try { await refreshWo
 
 try { await startWorkspace(); window.dispatchEvent(new CustomEvent('taiba:results-context',{detail:{tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug}})); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
 window.taibaPreviewVisitReport = async visitId => { const dirty=window.taibaGetDirtyResultInputs?.()||[];if(dirty.length){showNotice('هناك نتائج تم تغييرها ولم تُحفظ بعد. احفظها أولًا ثم أعد المعاينة.',true);return;} const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});state.previewedVisits.add(visitId);window.dispatchEvent(new CustomEvent('taiba:visit-report-previewed',{detail:{visitId}}));showNotice('تم تجهيز معاينة التقرير. راجعها قبل الطباعة أو النشر.');}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
+window.taibaApproveVisit = (visitId, button) => {
+  const control = button || document.createElement('button');
+  control.dataset.visitId = visitId;
+  if (!control.textContent) control.textContent = 'حفظ النتائج واعتماد الزيارة';
+  return approve(control);
+};
 
 $('prevWorkPage').addEventListener('click', async () => {
   if (state.workPage <= 0) return;
