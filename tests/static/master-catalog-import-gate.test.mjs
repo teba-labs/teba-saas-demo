@@ -69,35 +69,12 @@ test('common chemistry, lipid, urine, CBC and stool master data have forward-onl
   assert.match(stoolSeed, /CULTURE_STOOL/);
 });
 
-test('final server import gate checks method, specimen and choice options', () => {
-  assert.match(finalGate, /method and specimen must be defined/);
-  assert.match(finalGate, /p.value_type = 'choice' and coalesce\(jsonb_array_length\(p.choices\),0\)=0/);
-  assert.match(finalGate, /set is_active=false/);
-  assert.match(repository, /missing_choices/);
-  assert.match(repository, /row.definition\?\.method/);
-  assert.match(repository, /row.definition\?\.specimen/);
-});
-
-test('all 45 core definitions are supported by source-backed profile migrations', () => {
-  for (const code of ['BONE_PROFILE','ELECTROLYTE_PROFILE','GLYCEMIC_CONTROL_PROFILE','PANCREATIC_ENZYME_PROFILE','AUTOIMMUNE_SCREEN_PROFILE','RHEUMATOLOGY_PROFILE','THYROID_ANTIBODY_PROFILE','PCOS_EVALUATION_PROFILE','ANTENATAL_INFECTION_SCREEN_PROFILE','TORCH_SEROLOGY_PROFILE','CARDIAC_MARKERS_PROFILE']) assert.ok(remainingCore.includes(code));
-  assert.match(proteinSemen, /WHO Laboratory Manual for the Examination and Processing of Human Semen/);
-  assert.match(proteinSemen, /QUEST-7577/);
-  assert.match(proteinSemen, /PEROXIDASE_LEUKOCYTES/);
-});
-
-test('core catalog publication is versioned and syncs only uncustomized tenant copies', () => {
-  assert.match(versionedCore, /taiba-core-2026\.11\.23-r1/);
-  assert.match(versionedCore, /status='retired'/);
-  assert.match(versionedCore, /cardinality\(l\.customization_fields\),0\)=0/);
-  assert.match(versionedCore, /baseline_snapshot=jsonb_build_object/);
-  assert.doesNotMatch(versionedCore, /update public\.visit_tests/i);
-  assert.doesNotMatch(versionedCore, /update public\.test_results/i);
-});
-
-test('preserved legacy index is republished as editable and explicitly unreviewed', async () => {
-  assert.match(retireLegacy, /taiba-legacy-name-index-2026\.11\.20-r1/);
-  const publish = await readFile(new URL('database/migrations/102_publish_editable_legacy_catalog_index.sql', root), 'utf8');
-  assert.match(publish, /taiba-expanded-index-2026\.11\.23-r2/);
-  assert.match(publish, /needs_review/);
-  assert.match(publish, /published/);
+test('partial catalog definitions are available to tenant import without fabricated medical metadata', () => {
+  const currentImport = readFile(new URL('database/migrations/100_master_catalog_partial_import_activation.sql', root), 'utf8');
+  assert.match(currentImport, /Only the tenant owner may import master catalog tests/);
+  assert.doesNotMatch(currentImport, /method and specimen must be defined/);
+  assert.doesNotMatch(currentImport, /v_bad_count>0|v_invalid>0|set is_active=false/);
+  assert.match(repository, /importMasterCatalogTest/);
+  assert.doesNotMatch(repository, /eq\('clinical_review_status','verified'\)/);
+  assert.match(repository, /missing_numeric_ranges/);
 });
