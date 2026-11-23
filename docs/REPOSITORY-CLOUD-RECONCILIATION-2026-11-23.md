@@ -25,7 +25,7 @@ The older owner-dashboard, print-settings, catalog-foundation, reception, and wo
 
 ## Medical result-input reconciliation
 
-PR #46 was not merged directly because its branch was based on an earlier version of the catalog/results UI and contained a second copy of migration 083. Replacing current main files with that branch would have regressed existing behavior and failed regression tests.
+PR #46 was not merged by taking its tree because its branch was based on an earlier version of the catalog/results UI and contained a second copy of migration 083. Replacing current main files with that branch regressed existing behavior and failed regression tests. The safe database deltas were ported forward into migrations 084 and 085, while the current main UI and serializer were preserved. After this port, the historical branch head was reconciled as an additional parent of main without changing the source tree.
 
 The useful database-side changes from that work are carried forward in migration:
 
@@ -40,7 +40,7 @@ A second forward-only migration, `085_clear_disallowed_conditional_result_values
 
 The current main UI and shared serializer remain the source of truth; duplicate older UI and serializer files from PR #46 are intentionally not copied over them.
 
-PR #42 is a draft containing an older 083 migration variant. It is superseded by the already-applied 083 plus the forward-only 084 approach. Keep its branch for history; do not apply its migration.
+PR #42 contained an older 083 migration variant. It is superseded by the already-applied 083 plus forward-only migrations 084 and 085. Its branch is preserved for history and is now an ancestor of main; do not replay its 083 variant.
 
 ## Supabase migration inventory
 
@@ -65,5 +65,31 @@ Migrations 084 and 085 were applied successfully to the confirmed primary projec
 - Verified the input-mode validator, conditional-choice validator, draft-save, completion, and approval functions exist in the primary database.
 - Read-only behavior probes passed for integer validation, comparator values, maximum-choice enforcement, graded-choice validation, conditional visible-choice allow/reject behavior, multi-choice controller values, and numeric-field exemption.
 - Static/unit CI passed: 320 tests, 0 failures. Responsive browser zoom QA passed.
-- GitHub Pages build and deployment succeeded for main commit `2313e947bf027c86a2699dfe40da26e8981b155c`; the follow-up documentation/migration merge is being deployed separately.
+- GitHub Pages build and deployment succeeded for main commit `93c52d9ec26870b145ad574ec9f483f1cd2327b5` (tree `395910051eae217668342bf09971cd39c2c387da`; the ancestry reconciliation did not change application files).
+- Static CI on main passed: 320 tests, 0 failures. Responsive browser zoom QA passed on the same application tree.
+- Preview URL: `https://teba-labs.github.io/teba-saas-demo/`. The web inspection tool could not open the live URL, so a manual interactive login-to-result-entry cycle is not claimed.
 - Preview URL: `https://teba-labs.github.io/teba-saas-demo/`. The deployment action succeeded, but the web inspection tool could not open the live URL; a full interactive login-to-result-entry cycle is therefore not claimed as manually verified.
+
+
+## Historical development branch ancestry reconciliation
+
+After all safe changes were ported and verified, main received tree-preserving merge commits. The merge trees were identical to the reviewed main tree; these commits reconciled Git ancestry only and did not replace application files.
+
+The main branch is now ahead of (zero commits behind) the following historical development heads:
+
+- `feature/medical-library-results-complete-2026-11-23`
+- `feature/medical-library-restructure-2026-11-23`
+- `integration/unified-test-2026-11-19`
+- `feature/owner-analytics-excel-live-2026-11-21`
+- `feature/preprinted-letterhead-options-2026-11-21`
+- `work/owner-dashboard-18-sections-2026-11-21`
+- `feature/master-lab-catalog-2026-11-20`
+- `feature/system-settings-completion-2026-11-20`
+- `feature/experience-unification-2026-11-21`
+- `feature-completion/owner-setup`
+- `preview/combined-owner-dashboard-2026-11-21`
+- `integration/main-reconciliation-2026-11-20`
+- `cloud-hardening-2026-11-18`
+- `feature/results-workbench-final-2026-11-21`
+
+The old local Supabase rebuild workflows from early TEST branches were not copied into main: they hardcode the old 001–024 TEST migration ledger and need a fresh rewrite against the current 001–085 source inventory before they can safely run. The current static-contract and responsive QA workflows remain active. Old branches are preserved; none were deleted.
