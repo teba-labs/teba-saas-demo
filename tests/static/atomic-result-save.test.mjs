@@ -7,10 +7,10 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('visit approval saves all non-empty values from every test before one atomic visit transition', () => {
   const ui = read('assets/js/results-workbench.js');
-  assert.match(ui, /for \\(const item of items\\)/);
-  assert.match(ui, /await saveDraftResults\\(/);
-  assert.match(ui, /await approveVisitWithAutoCompletion\\(/);
-  assert.doesNotMatch(ui, /await saveDraftResult\\(/);
+  assert.ok(ui.includes('for (const item of items)'));
+  assert.ok(ui.includes('await saveDraftResults('));
+  assert.ok(ui.includes('await approveVisitWithAutoCompletion('));
+  assert.ok(!ui.includes('await saveDraftResult('));
 });
 
 test('result repository sends one tenant, branch, visit-test and staff scoped RPC request', () => {
