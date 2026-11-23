@@ -5,6 +5,9 @@ const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let selectedVisitId = null, catalogCache = null, rebuilding = false;
 function button(label, cls='button button-secondary'){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;return b;}
+if($('entryBack'))$('entryBack').addEventListener('click',event=>{
+ if(window.taibaGetDirtyResultInputs?.().length){event.preventDefault();window.alert('احفظ كل نتائج الزيارة أولًا قبل الرجوع حتى لا تفقد أي قيمة أدخلتها.');}
+});
 function buildShell(host,cards){
  if(rebuilding)return;rebuilding=true;
  window.taibaResultsContext=window.taibaGetResultsContext?.()||window.taibaResultsContext||{};
