@@ -29,7 +29,7 @@ begin
 
   v_expected_prefix := p_tenant_id::text || '/' || p_visit_id::text || '/';
   if p_storage_path is null or left(p_storage_path,length(v_expected_prefix)) <> v_expected_prefix
-     or p_storage_path !~ '\.pdf then
+     or right(lower(p_storage_path),4) <> '.pdf' then
     raise exception 'Invalid report storage path';
   end if;
 
