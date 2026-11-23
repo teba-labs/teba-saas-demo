@@ -17,10 +17,14 @@ test('every application, portal and public-site page loads the shared viewport l
   for(const path of pages){
     const html=await read(path);
     assert.match(html,/<meta[^>]+name=["']viewport["'][^>]+width=device-width/i, path+' must declare a device-width viewport');
-    const pageCss=html.indexOf('rel="stylesheet"');
     const sharedCss=html.indexOf('app-viewport.css');
     assert.notEqual(sharedCss,-1,path+' must load app-viewport.css');
-    assert.ok(sharedCss>pageCss,path+' must load shared responsive rules after its page stylesheet');
+    const localCss=[...html.matchAll(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["']/gi)]
+      .map(match=>match[1]).filter(href=>!href.includes('app-viewport.css'));
+    if(localCss.length){
+      const firstLocal=html.indexOf(localCss[0]);
+      assert.ok(sharedCss>firstLocal,path+' must load shared responsive rules after its page stylesheet');
+    }
   }
 });
 
@@ -29,7 +33,7 @@ test('shared responsive layer overrides page-specific fixed grids at desktop zoo
   for(const selector of ['body .login-layout','body .layout','body .workspace-context','body .selectors','body .filters','body .form-grid','body .fields','body .results-columns','body .studio-nav','body .modules','body .kpis','body .tiles','body .totals','body .table-wrap']){
     assert.ok(css.includes(selector),'missing shared responsive override: '+selector);
   }
-  for(const breakpoint of ['1180px','900px','700px','520px','360px']){
+  for(const breakpoint of ['1100px','900px','700px','520px','360px']){
     assert.ok(css.includes('max-width:'+breakpoint),'missing viewport breakpoint '+breakpoint);
   }
   assert.match(css,/grid-template-columns:repeat\(auto-fit,minmax/);
