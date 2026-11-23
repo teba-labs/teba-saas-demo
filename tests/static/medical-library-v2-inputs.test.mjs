@@ -34,6 +34,11 @@ test('forward migration validates input modes, selection limits and current main
  assert.match(sql,/p->>'result_input_mode'/);
  assert.match(sql,/delete from public\.test_results tr/);
  assert.doesNotMatch(sql,/create table/i);
+ const cleanup=read('database/migrations/085_clear_disallowed_conditional_result_values.sql');
+ assert.equal((cleanup.match(/not private\.result_parameter_value_matches_display_rules/g)||[]).length,3);
+ assert.match(cleanup,/v_actual_json/);
+ assert.match(cleanup,/jsonb_array_length\(v_actual_json\)/);
+ assert.doesNotMatch(cleanup,/create table/i);
 });
 
 test('existing shared result serializer and repository remain the single save path',()=>{
