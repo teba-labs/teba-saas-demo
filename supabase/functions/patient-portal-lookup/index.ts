@@ -58,6 +58,13 @@ Deno.serve(async (req) => {
   const { data: tenant, error: tenantError } = await admin.from('tenants')
     .select('id, name, slug').eq('slug', slug).in('status', ['trial', 'active']).maybeSingle();
   if (tenantError || !tenant) return json(GENERIC_FAILURE, 200, origin);
+  const { data: portalConfig, error: portalConfigError } = await admin.from('site_settings')
+    .select('portal_settings').eq('tenant_id', tenant.id).maybeSingle();
+  if (portalConfigError) {
+    console.error('Patient portal enablement check failed.', portalConfigError.message);
+    return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503, origin);
+  }
+  if (portalConfig?.portal_settings?.enabled !== true) return json(GENERIC_FAILURE, 200, origin);
 
   const lookupHash = await digest(pepper, `${slug}|${normalizeName(patientName)}|${visitNumber.toLowerCase()}`);
   const clientIp = req.headers.get('cf-connecting-ip')?.trim()
