@@ -3,6 +3,7 @@ import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { getCurrentWorkday } from '../../modules/workday/repository.js';
 import { getOutboxSummary } from '../../offline/outbox.js';
+import { ensureTenantCoreCatalog } from '../../modules/catalog/repository.js';
 import { APP_ENV, validateEnvironment } from '../../config/environment.js';
 
 const $ = id => document.getElementById(id);
@@ -92,6 +93,14 @@ async function selectTenant(id) {
   renderBranches();
   renderApps();
   await refreshOperationalStatus();
+  try {
+    const catalog = await ensureTenantCoreCatalog(state.tenant.id);
+    if (!catalog.skipped && !catalog.unavailable && Number(catalog.available_count || 0) > 0) {
+      notice('مكتبة التحاليل الأساسية جاهزة: ' + catalog.available_count + ' تعريفًا. لا تحتاج إلى استيراد يدوي.');
+    }
+  } catch (error) {
+    notice('تعذر تحديث مكتبة التحاليل الآن: ' + (error.message || 'خطأ اتصال'), true);
+  }
 }
 async function selectBranch(id) {
   state.branch = state.tenant?.branches.find(b => b.id === id) || null;
@@ -135,7 +144,11 @@ $('signOut').addEventListener('click', async () => {
   try { await signOut(); state.context = null; state.tenant = null; state.branch = null; await start(); }
   catch (e) { notice(e.message || 'تعذر تسجيل الخروج.', true); }
 });
-window.addEventListener('online', () => { updateConnection(); refreshOperationalStatus().catch(() => {}); });
+window.addEventListener('online', () => {
+  updateConnection();
+  refreshOperationalStatus().catch(() => {});
+  if (state.tenant?.id) ensureTenantCoreCatalog(state.tenant.id).catch(error => notice('تعذر تحديث مكتبة التحاليل: '+(error.message||'خطأ اتصال'),true));
+});
 window.addEventListener('offline', updateConnection);
 updateConnection();
 try { await start(); } catch (e) { notice(e.message || 'تعذر تحميل مساحة العمل.', true); }
