@@ -244,7 +244,7 @@ async function renderWork() {
       </section>`;
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
-      <div class="actions"><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'حفظ النتائج واعتماد الزيارة'}</button></div>
+      <div class="actions"><button class="button button-secondary save-visit-drafts" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>حفظ كل النتائج</button><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
       <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>طباعة التقرير بإعدادات المعمل / حفظ PDF</button></div>
       <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
       <div class="file-row"><label>ملف PDF النهائي للنشر<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!group.visit?.status || (!isPublished && group.visit.status !== 'approved') ? 'disabled' : ''}><small>عاين التقرير واطبعه أولًا باستخدام Save as PDF، ثم اختر ملف PDF المحفوظ هنا للنشر في بوابة المريض.</small></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
@@ -275,7 +275,7 @@ async function renderWork() {
   }
   host.querySelectorAll('.parameter[data-test-id]').forEach(section=>evaluateDisplayRules(section));
 
-  host.querySelectorAll('.save-test').forEach(btn => btn.addEventListener('click', () => saveTest(btn)));
+  host.querySelectorAll('.save-visit-drafts').forEach(btn => btn.addEventListener('click', () => saveVisitDraftsAction(btn)));
   host.querySelectorAll('.correct-test, .correct-unpublished-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
   host.querySelectorAll('.publish-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
@@ -750,38 +750,98 @@ function classifyResultFlag(input) {
  return computeReferenceFlag(input.value,ranges,input.dataset.patientAge,input.dataset.patientSex,input.dataset.referenceIntervalStatus,'numeric');
 }
 
-async function saveTest(button) {
-  try {
-    setBusy(button, true, 'جارٍ الحفظ…');
-    const section = button.closest('.parameter[data-test-id]');
-    const testId = button.dataset.testId;
+async function saveVisitDrafts(visitId) {
+  const items = state.work.filter(item => item.visit_id === visitId && item.status !== 'cancelled');
+  let savedCount = 0, queuedCount = 0;
+  for (const item of items) {
+    if (item.status === 'completed') continue;
+    const section = document.querySelector('[data-test-id="' + CSS.escape(item.id) + '"]');
+    if (!section) continue;
     const inputs = [...section.querySelectorAll('[data-param-code]')];
-    const results = inputs.filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim()).map(input => ({
-      parameter: { code: input.dataset.paramCode,name:input.dataset.paramName,unit:input.dataset.unit,
-        valueType:input.dataset.valueType,inputMode:input.dataset.inputMode,
-        resultConfig:JSON.parse(input.dataset.resultConfig||'{}'),
-        referenceRange:JSON.parse(input.dataset.range||'{}'),
-        choices:JSON.parse(input.dataset.choices||'[]') },
-      value: input.value, flag: classifyResultFlag(input),
-    }));
-    if (!results.length) throw new Error('أدخل نتيجة واحدة على الأقل قبل الحفظ.');
-    const workItem=state.work.find(row=>row.id===testId);
-    const savedRows = await saveDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id,
-      visitTestId: testId, results, staffId: $('staffSelect').value,
-      dependsOn: workItem?.local_intake_operation_id ? [workItem.local_intake_operation_id] : [] });
+    const dirty = inputs.filter(input =>
+      input.dataset.resultSource !== 'calculated' &&
+      input.value.trim() !== (input.dataset.originalValue ?? '').trim()
+    );
+    if (section.dataset.localPending === 'true') {
+      if (dirty.length) throw new Error('هذه الزيارة بها نتائج محفوظة محليًا تنتظر المزامنة. انتظر المزامنة قبل تعديلها مرة أخرى.');
+      queuedCount++;
+      continue;
+    }
+    const clearedSaved = inputs.filter(input =>
+      input.dataset.resultSource !== 'calculated' && input.dataset.resultId &&
+      input.value.trim() === '' && (input.dataset.originalValue ?? '').trim() !== ''
+    );
+    if (clearedSaved.length) {
+      throw new Error('تم مسح نتيجة محفوظة من أحد الحقول. أعد إدخالها أو استخدم مسار التصحيح الموثق قبل الحفظ.');
+    }
+    const results = inputs
+      .filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim() !== '')
+      .map(input => ({
+        parameter: {
+          code: input.dataset.paramCode,
+          name: input.dataset.paramName,
+          unit: input.dataset.unit,
+          valueType: input.dataset.valueType,
+          inputMode: input.dataset.inputMode,
+          resultConfig: JSON.parse(input.dataset.resultConfig || '{}'),
+          referenceRange: JSON.parse(input.dataset.range || '{}'),
+          choices: JSON.parse(input.dataset.choices || '[]')
+        },
+        value: input.value,
+        flag: classifyResultFlag(input)
+      }));
+    if (!results.length || !dirty.length) continue;
+    const savedRows = await saveDraftResults({
+      tenantId: state.tenant.id,
+      branchId: state.branch.id,
+      visitTestId: item.id,
+      results,
+      staffId: $('staffSelect').value,
+      dependsOn: item.local_intake_operation_id ? [item.local_intake_operation_id] : []
+    });
     if (savedRows?.queued) {
       section.dataset.localPending = 'true';
-      for (const input of inputs) if (input.value.trim()) { input.dataset.originalValue = input.value; input.dataset.localPending = 'true'; }
-      const pill = section.querySelector('.card-head .pill'); if (pill) pill.textContent = 'محفوظ محليًا — بانتظار المزامنة';
-      showNotice('تم حفظ النتائج على هذا الجهاز بأمان. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ لا تعتمد التحليل قبل اكتمال المزامنة.');
+      for (const input of inputs) if (input.value.trim() && input.dataset.resultSource !== 'calculated') {
+        input.dataset.originalValue = input.value;
+        input.dataset.localPending = 'true';
+      }
+      const pill = section.querySelector('.card-head .pill');
+      if (pill) pill.textContent = 'محفوظ محليًا — بانتظار المزامنة';
+      queuedCount++;
     } else {
-      for (const row of savedRows) { const input=section.querySelector(`[data-param-code="${CSS.escape(row.parameter_code)}"]`); if(input){input.value=row.value_numeric??row.value_text??'';input.dataset.resultId=row.id;input.dataset.originalValue=input.value;delete input.dataset.localPending;} }
+      for (const row of savedRows || []) {
+        const input = section.querySelector('[data-param-code="' + CSS.escape(row.parameter_code) + '"]');
+        if (!input) continue;
+        input.value = row.value_numeric ?? row.value_text ?? '';
+        input.dataset.resultId = row.id;
+        input.dataset.originalValue = input.value;
+        delete input.dataset.localPending;
+      }
       delete section.dataset.localPending;
-      showNotice('تم حفظ النتائج اليدوية وحساب البارامترات المشتقة تلقائيًا على السحابة.');
+      const pill = section.querySelector('.card-head .pill');
+      if (pill) pill.textContent = 'تم حفظ النتائج';
+      savedCount++;
     }
-    const affectedVisit=state.work.find(row=>row.id===testId)?.visit_id;if(affectedVisit)state.previewedVisits.delete(affectedVisit);
-  } catch (error) { showNotice(error.message || 'تعذر حفظ النتائج.', true); }
-  finally { setBusy(button, false); }
+  }
+  if (savedCount || queuedCount) state.previewedVisits.delete(visitId);
+  return { savedCount, queuedCount };
+}
+async function saveVisitDraftsAction(button) {
+  try {
+    setBusy(button, true, 'جارٍ حفظ كل النتائج…');
+    const result = await saveVisitDrafts(button.dataset.visitId);
+    if (!result.savedCount && !result.queuedCount) {
+      showNotice('لا توجد نتائج جديدة للحفظ. أدخل القيم أولًا.');
+    } else if (result.queuedCount) {
+      showNotice('تم حفظ النتائج على الجهاز بأمان. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ الاعتماد النهائي يحتاج اكتمال المزامنة.');
+    } else {
+      showNotice('تم حفظ كل نتائج الزيارة. يمكنك إكمال الإدخال أو اعتماد الزيارة عند الانتهاء.');
+    }
+  } catch (error) {
+    showNotice(error.message || 'تعذر حفظ نتائج الزيارة.', true);
+  } finally {
+    setBusy(button, false);
+  }
 }
 async function correctTest(button) {
   const section=button.closest('.parameter[data-test-id]');
