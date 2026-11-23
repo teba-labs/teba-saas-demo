@@ -221,6 +221,7 @@ async function renderWork() {
     const hasCompletedTests = group.items.some(item => item.status === 'completed');
     const hasPendingTests = group.items.some(item => item.status !== 'completed');
     const canPrintPartial = hasCompletedTests && hasPendingTests;
+    const canPublishReport = (group.visit?.status === 'approved' || isPublished) && !hasPendingTests;
     const itemsMarkup = group.items.map(item => {
       const locked = item.status === 'completed';
       const canCorrectApproved = state.tenant.accountType === 'owner' && group.visit?.status === 'approved' && !isPublished;
@@ -251,7 +252,8 @@ async function renderWork() {
       <div class="actions"><button class="button button-secondary save-visit-drafts" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>حفظ كل النتائج</button><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
       <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' && !hasCompletedTests ? 'disabled' : ''}>${canPrintPartial ? 'طباعة النتائج المتاحة (تقرير جزئي)' : 'طباعة التقرير بإعدادات المعمل / حفظ PDF'}</button></div>
       <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
-      <div class="file-row"><label>ملف PDF النهائي للنشر<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!group.visit?.status || (!isPublished && group.visit.status !== 'approved') ? 'disabled' : ''}><small>عاين التقرير واطبعه أولًا باستخدام Save as PDF، ثم اختر ملف PDF المحفوظ هنا للنشر في بوابة المريض.</small></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
+      <div class="file-row"><label>ملف PDF النهائي للنشر<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}><small>عاين التقرير واطبعه أولًا باستخدام Save as PDF، ثم اختر ملف PDF المحفوظ هنا للنشر في بوابة المريض.</small></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
+      ${canPrintPartial ? '<p class="muted">التقرير الجزئي للطباعة فقط؛ النشر على بوابة المريض متاح بعد اكتمال جميع التحاليل.</p>' : ''}
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
       <p class="danger-note">اسم المستخدم الذي أجرى التصحيح يُسجل تلقائيًا في سجل المراجعة، ولا يحتاج الفني إلى كتابة سبب للتصحيح.</p>`;
@@ -1043,9 +1045,12 @@ async function publish(button) {
     const fileInput = document.querySelector(`[data-report-file="${CSS.escape(visitId)}"]`);
     const file = fileInput?.files?.[0];
     if (!file) throw new Error('اختر ملف التقرير PDF أولًا.');
-    const isCorrection = state.work.some(item => item.visit_id === visitId && item.visits?.is_published);
-    let reason = '';
-    if (isCorrection) { reason = window.prompt('اكتب سبب إصدار النسخة المصححة:')?.trim() ?? ''; if (!reason) throw new Error('يجب إدخال سبب التصحيح.'); }
+    const allVisitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
+    if (allVisitItems.some(item => item.status !== 'completed')) {
+      throw new Error('لا يمكن نشر تقرير نهائي قبل اكتمال جميع التحاليل. يمكنك طباعة النتائج المكتملة كتقرير جزئي فقط.');
+    }
+    const isCorrection = allVisitItems[0]?.visits?.is_published || state.work.some(item => item.visit_id === visitId && item.visits?.is_published);
+    const reason = isCorrection ? 'إصدار نسخة محدثة بعد تصحيح نتيجة' : '';
     setBusy(button, true, 'جارٍ النشر…');
     await publishReportVersion({ tenantId: state.tenant.id, branchId: state.branch.id, visitId,
       staffId: $('staffSelect').value, file, changeReason: reason });
