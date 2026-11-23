@@ -34,6 +34,7 @@ This is the acceptance checklist for the small-laboratory operating model. It is
 - Partial report preview is limited to individually completed tests and is visibly marked partial; the visit remains open.
 - Result correction no longer prompts for a typed reason; it sends a fixed system audit label and stores authenticated user/staff identity. Migration 107 permits owner correction of approved unpublished results while keeping employee restrictions.
 - Partial reports contain only completed tests and are labelled partial. Migration 108 and the UI block patient-portal publication until every requested test is complete.
+- The patient portal is optional and defaults off for newly created lab settings. Both the public lookup endpoint and the report-publication RPC check the owner's enabled setting; printing and laboratory operations remain available when it is off.
 - Profile reports are given page breaks; physical printer verification is still outstanding.
 
 ## Explicit blockers / not yet verified
