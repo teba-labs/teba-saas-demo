@@ -9,12 +9,12 @@ const worklist = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js
 const page = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'database/migrations/017_atomic_result_transitions.sql'), 'utf8');
 
-test('result completion and visit approval use atomic server RPCs', () => {
-  assert.match(repository, /rpc\('complete_visit_test_atomic'/);
-  assert.match(repository, /rpc\('approve_visit_atomic'/);
-  assert.doesNotMatch(repository, /\.update\(\{ status: 'completed' \}\)/);
+test('staff-facing workflow uses one visit-wide atomic completion and approval RPC', () => {
+  assert.match(repository, /rpc\\('approve_visit_with_auto_completion'/);
+  assert.match(page, /await approveVisitWithAutoCompletion\\(/);
+  assert.doesNotMatch(page, /completeVisitTest|complete-test/);
+  assert.doesNotMatch(repository, /\\.update\\(\\{ status: 'completed' \\}\\)/);
   assert.doesNotMatch(repository, /approved_by_staff_id: staffId/);
-  assert.match(page, /branchId: state\.branch\.id, visitTestId: button\.dataset\.testId, staffId:/);
 });
 
 test('atomic result transitions validate branch access and active operational staff', () => {
