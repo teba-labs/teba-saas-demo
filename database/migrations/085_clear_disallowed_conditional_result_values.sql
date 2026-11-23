@@ -1,6 +1,6 @@
 -- 085: Remove stale result values when conditional choice rules change.
 -- Also mirror main UI semantics when a condition source is a multi-choice parameter.
--- Forward-only correction after 084; no catalog or patient data is rewritten by this migration.
+-- Forward-only correction after 084; no catalog or patient data is rewritten at migration time.
 begin;
 
 create or replace function private.result_parameter_value_matches_display_rules(
@@ -14,7 +14,7 @@ set search_path = pg_catalog, public, private
 as $function$
 declare
   v_rule jsonb; v_source text; v_expected text; v_actual text; v_operator text;
-  v_allowed jsonb; v_condition_met boolean; v_selected jsonb; v_candidate text; v_actual_json jsonb;
+  v_allowed jsonb; v_condition_met boolean; v_selected jsonb; v_candidate text;
 begin
   if p_rules is null then return true; end if;
   if jsonb_typeof(p_rules)<>'array' then return false; end if;
@@ -34,21 +34,9 @@ begin
       select coalesce(tr.value_text,tr.value_numeric::text) into v_actual
         from public.test_results tr where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id and tr.parameter_code=v_source limit 1;
     end if;
-    v_actual_json:=null;
-    if left(btrim(coalesce(v_actual,'')),1)='[' then
-      begin v_actual_json:=v_actual::jsonb; exception when others then v_actual_json:=null; end;
-    end if;
-    v_condition_met:=case
-      when v_operator='equals' then
-        case when jsonb_typeof(v_actual_json)='array' then v_actual_json @> jsonb_build_array(v_expected)
-             else v_actual is not distinct from v_expected end
-      when v_operator='not_equals' then
-        case when jsonb_typeof(v_actual_json)='array' then v_actual is not null and not (v_actual_json @> jsonb_build_array(v_expected))
-             else v_actual is not null and v_actual<>v_expected end
-      when v_operator='is_not_empty' then
-        case when jsonb_typeof(v_actual_json)='array' then jsonb_array_length(v_actual_json)>0
-             else nullif(btrim(coalesce(v_actual,'')),'') is not null end
-      else false end;
+    v_condition_met:=case when v_operator='equals' then v_actual is not distinct from v_expected
+      when v_operator='not_equals' then v_actual is not null and v_actual<>v_expected
+      when v_operator='is_not_empty' then nullif(btrim(coalesce(v_actual,'')),'') is not null else false end;
     if not v_condition_met then continue; end if;
     if p_value_text is null then return false; end if;
     begin
@@ -112,6 +100,16 @@ begin
      and tr.parameter_code=p->>'code'
      and not private.result_parameter_is_visible(
        p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb
+     );
+
+  -- Clear a stored choice that became disallowed after its controller value changed.
+  delete from public.test_results tr
+   using jsonb_array_elements(coalesce(v_test.technical_snapshot->'parameters','[]'::jsonb)) p
+   where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id
+     and tr.parameter_code=p->>'code'
+     and not private.result_parameter_value_matches_display_rules(
+       p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb,
+       tr.value_numeric,tr.value_text
      );
 
   if exists (
@@ -183,6 +181,18 @@ begin
      and tr.tenant_id=p_tenant_id and tr.visit_test_id=vt.id and tr.parameter_code=p->>'code'
      and not private.result_parameter_is_visible(
        p_tenant_id,vt.id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb
+     );
+
+  -- Remove previously saved values that are no longer allowed by the current controller values.
+  delete from public.test_results tr
+   using public.visit_tests vt,
+         jsonb_array_elements(coalesce(vt.technical_snapshot->'parameters','[]'::jsonb)) p
+   where vt.tenant_id=p_tenant_id and vt.branch_id=p_branch_id and vt.visit_id=p_visit_id
+     and vt.status <> 'cancelled'
+     and tr.tenant_id=p_tenant_id and tr.visit_test_id=vt.id and tr.parameter_code=p->>'code'
+     and not private.result_parameter_value_matches_display_rules(
+       p_tenant_id,vt.id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb,
+       tr.value_numeric,tr.value_text
      );
 
   if exists (
@@ -302,6 +312,16 @@ begin
      and tr.parameter_code=p->>'code'
      and not private.result_parameter_is_visible(
        p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb
+     );
+
+  -- Clear old values whose options became hidden after the submitted controller values changed.
+  delete from public.test_results tr
+   using jsonb_array_elements(coalesce(v_snapshot->'parameters','[]'::jsonb)) p
+   where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id
+     and tr.parameter_code=p->>'code'
+     and not private.result_parameter_value_matches_display_rules(
+       p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),p_results,
+       tr.value_numeric,tr.value_text
      );
 
   select coalesce(jsonb_object_agg(tr.parameter_code,tr.value_numeric),'{}'::jsonb) into v_values
