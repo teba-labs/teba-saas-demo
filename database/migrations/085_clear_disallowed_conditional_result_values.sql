@@ -1,6 +1,70 @@
 -- 085: Remove stale result values when conditional choice rules change.
+-- Also mirror main UI semantics when a condition source is a multi-choice parameter.
 -- Forward-only correction after 084; no catalog or patient data is rewritten by this migration.
 begin;
+
+create or replace function private.result_parameter_value_matches_display_rules(
+  p_tenant_id uuid,p_visit_test_id uuid,p_rules jsonb,p_pending_results jsonb,p_value_numeric numeric,p_value_text text
+)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_rule jsonb; v_source text; v_expected text; v_actual text; v_operator text;
+  v_allowed jsonb; v_condition_met boolean; v_selected jsonb; v_candidate text; v_actual_json jsonb;
+begin
+  if p_rules is null then return true; end if;
+  if jsonb_typeof(p_rules)<>'array' then return false; end if;
+  if jsonb_array_length(p_rules)=0 then return true; end if;
+  for v_rule in select value from jsonb_array_elements(p_rules) loop
+    v_allowed:=case when jsonb_typeof(v_rule->'choices')='array' then v_rule->'choices'
+                    when jsonb_typeof(v_rule->'visible_values')='array' then v_rule->'visible_values' else null end;
+    if v_allowed is null or jsonb_array_length(v_allowed)=0 then continue; end if;
+    v_source:=coalesce(nullif(btrim(v_rule->>'source_parameter_code'),''),nullif(btrim(v_rule->'when'->>'parameter_code'),''));
+    v_expected:=coalesce(v_rule->>'value',v_rule->'when'->>'value','');
+    v_operator:=coalesce(v_rule->>'operator',v_rule->'when'->>'operator','equals');
+    if v_source is null then return false; end if;
+    select coalesce(x.value_text,x.value_numeric::text) into v_actual
+      from jsonb_to_recordset(coalesce(p_pending_results,'[]'::jsonb)) as x(parameter_code text,value_numeric numeric,value_text text)
+     where x.parameter_code=v_source limit 1;
+    if v_actual is null then
+      select coalesce(tr.value_text,tr.value_numeric::text) into v_actual
+        from public.test_results tr where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id and tr.parameter_code=v_source limit 1;
+    end if;
+    v_actual_json:=null;
+    if left(btrim(coalesce(v_actual,'')),1)='[' then
+      begin v_actual_json:=v_actual::jsonb; exception when others then v_actual_json:=null; end;
+    end if;
+    v_condition_met:=case
+      when v_operator='equals' then
+        case when jsonb_typeof(v_actual_json)='array' then v_actual_json @> jsonb_build_array(v_expected)
+             else v_actual is not distinct from v_expected end
+      when v_operator='not_equals' then
+        case when jsonb_typeof(v_actual_json)='array' then v_actual is not null and not (v_actual_json @> jsonb_build_array(v_expected))
+             else v_actual is not null and v_actual<>v_expected end
+      when v_operator='is_not_empty' then
+        case when jsonb_typeof(v_actual_json)='array' then jsonb_array_length(v_actual_json)>0
+             else nullif(btrim(coalesce(v_actual,'')),'') is not null end
+      else false end;
+    if not v_condition_met then continue; end if;
+    if p_value_text is null then return false; end if;
+    begin
+      if left(btrim(p_value_text),1) in ('[','{') then
+        v_selected:=p_value_text::jsonb;
+        if jsonb_typeof(v_selected)='object' then v_selected:=v_selected->'selected'; end if;
+        if jsonb_typeof(v_selected)<>'array' then return false; end if;
+      else v_selected:=jsonb_build_array(p_value_text); end if;
+    exception when others then return false; end;
+    for v_candidate in select jsonb_array_elements_text(v_selected) loop
+      if not (v_allowed @> jsonb_build_array(v_candidate)) then return false; end if;
+    end loop;
+  end loop;
+  return true;
+end;
+$function$;
 
 CREATE OR REPLACE FUNCTION public.complete_visit_test_atomic(p_tenant_id uuid, p_branch_id uuid, p_visit_test_id uuid, p_staff_id uuid)
  RETURNS visit_tests
@@ -48,16 +112,6 @@ begin
      and tr.parameter_code=p->>'code'
      and not private.result_parameter_is_visible(
        p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb
-     );
-
-  -- Clear a stored choice that became disallowed after its controller value changed.
-  delete from public.test_results tr
-   using jsonb_array_elements(coalesce(v_test.technical_snapshot->'parameters','[]'::jsonb)) p
-   where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id
-     and tr.parameter_code=p->>'code'
-     and not private.result_parameter_value_matches_display_rules(
-       p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb,
-       tr.value_numeric,tr.value_text
      );
 
   if exists (
@@ -129,18 +183,6 @@ begin
      and tr.tenant_id=p_tenant_id and tr.visit_test_id=vt.id and tr.parameter_code=p->>'code'
      and not private.result_parameter_is_visible(
        p_tenant_id,vt.id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb
-     );
-
-  -- Remove previously saved values that are no longer allowed by the current controller values.
-  delete from public.test_results tr
-   using public.visit_tests vt,
-         jsonb_array_elements(coalesce(vt.technical_snapshot->'parameters','[]'::jsonb)) p
-   where vt.tenant_id=p_tenant_id and vt.branch_id=p_branch_id and vt.visit_id=p_visit_id
-     and vt.status <> 'cancelled'
-     and tr.tenant_id=p_tenant_id and tr.visit_test_id=vt.id and tr.parameter_code=p->>'code'
-     and not private.result_parameter_value_matches_display_rules(
-       p_tenant_id,vt.id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb,
-       tr.value_numeric,tr.value_text
      );
 
   if exists (
@@ -260,16 +302,6 @@ begin
      and tr.parameter_code=p->>'code'
      and not private.result_parameter_is_visible(
        p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb
-     );
-
-  -- Clear old values whose options became hidden after the submitted controller values changed.
-  delete from public.test_results tr
-   using jsonb_array_elements(coalesce(v_snapshot->'parameters','[]'::jsonb)) p
-   where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id
-     and tr.parameter_code=p->>'code'
-     and not private.result_parameter_value_matches_display_rules(
-       p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),p_results,
-       tr.value_numeric,tr.value_text
      );
 
   select coalesce(jsonb_object_agg(tr.parameter_code,tr.value_numeric),'{}'::jsonb) into v_values
