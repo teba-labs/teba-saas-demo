@@ -573,6 +573,86 @@ end;
 $function$;
 revoke all on function private.result_value_matches_input_mode(text,text,jsonb,jsonb,numeric,text) from public,anon,authenticated;
 
+create or replace function private.result_parameter_value_matches_display_rules(
+  p_tenant_id uuid,
+  p_visit_test_id uuid,
+  p_rules jsonb,
+  p_pending_results jsonb,
+  p_value_numeric numeric,
+  p_value_text text
+)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_rule jsonb;
+  v_source text;
+  v_expected text;
+  v_actual text;
+  v_operator text;
+  v_condition_met boolean;
+  v_selected jsonb;
+  v_candidate text;
+begin
+  if p_rules is null then return true; end if;
+  if jsonb_typeof(p_rules) <> 'array' then return false; end if;
+  if jsonb_array_length(p_rules)=0 then return true; end if;
+
+  for v_rule in select value from jsonb_array_elements(p_rules) loop
+    if jsonb_typeof(v_rule->'choices') <> 'array' or jsonb_array_length(v_rule->'choices')=0 then
+      continue;
+    end if;
+    v_source := nullif(btrim(v_rule->>'source_parameter_code'),'');
+    v_expected := coalesce(v_rule->>'value','');
+    v_operator := coalesce(v_rule->>'operator','equals');
+    if v_source is null then return false; end if;
+
+    select coalesce(x.value_text,x.value_numeric::text) into v_actual
+      from jsonb_to_recordset(coalesce(p_pending_results,'[]'::jsonb))
+           as x(parameter_code text,value_numeric numeric,value_text text)
+     where x.parameter_code=v_source
+     limit 1;
+    if v_actual is null then
+      select coalesce(tr.value_text,tr.value_numeric::text) into v_actual
+        from public.test_results tr
+       where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id
+         and tr.parameter_code=v_source
+       limit 1;
+    end if;
+
+    v_condition_met := case
+      when v_operator='equals' then v_actual is not distinct from v_expected
+      when v_operator='not_equals' then v_actual is not null and v_actual<>v_expected
+      when v_operator='is_not_empty' then nullif(btrim(coalesce(v_actual,'')),'') is not null
+      else false
+    end;
+    if not v_condition_met then continue; end if;
+    if p_value_text is null then return false; end if;
+
+    begin
+      if left(btrim(p_value_text),1) in ('[','{') then
+        v_selected := p_value_text::jsonb;
+        if jsonb_typeof(v_selected)='object' then v_selected:=v_selected->'selected'; end if;
+        if jsonb_typeof(v_selected)<>'array' then return false; end if;
+      else
+        v_selected := jsonb_build_array(p_value_text);
+      end if;
+    exception when others then
+      return false;
+    end;
+
+    for v_candidate in select jsonb_array_elements_text(v_selected) loop
+      if not (v_rule->'choices' @> jsonb_build_array(v_candidate)) then return false; end if;
+    end loop;
+  end loop;
+  return true;
+end;
+$function$;
+revoke all on function private.result_parameter_value_matches_display_rules(uuid,uuid,jsonb,jsonb,numeric,text) from public,anon,authenticated;
+
 
 CREATE OR REPLACE FUNCTION public.complete_visit_test_atomic(p_tenant_id uuid, p_branch_id uuid, p_visit_test_id uuid, p_staff_id uuid)
  RETURNS visit_tests
@@ -766,6 +846,10 @@ begin
      where not private.result_value_matches_input_mode(
        p->>'result_input_mode',p->>'value_type',coalesce(p->'choices','[]'::jsonb),
        coalesce(p->'result_config','{}'::jsonb),x.value_numeric,x.value_text
+     )
+        or not private.result_parameter_value_matches_display_rules(
+       p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),
+       p_results,x.value_numeric,x.value_text
      )
   ) then raise exception 'One or more values do not match the configured result input type'; end if;
 
