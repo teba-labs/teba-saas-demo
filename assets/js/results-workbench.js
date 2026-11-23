@@ -51,7 +51,7 @@ function renderResultControl(parameter,metadata,locked,mode){
   if(mode==='multi_choice'||mode==='graded_multi_choice'){
     const maximum=Number(parameter.result_config?.max_selections||0);
     return `<div class="multi-choice-editor" data-multi-choice-editor>
-      <input type="hidden" class="multi-choice-value" ${metadata}${disabled} value="[]" />
+      <input type="hidden" class="multi-choice-value" ${metadata}${disabled} value="" />
       <div class="multi-choice-options">${choices.map(choice=>`<label class="multi-choice-option" data-choice-option><input class="multi-choice-item" type="checkbox" data-choice-value="${escapeHtml(choice)}"${disabled}><span>${escapeHtml(choice)}</span></label>`).join('')}</div>
       ${maximum>0?'<small>اختر بحد أقصى '+maximum+' اختيارات</small>':''}
     </div>`;
@@ -61,12 +61,13 @@ function renderResultControl(parameter,metadata,locked,mode){
 function syncMultiChoiceValue(hiddenInput){
   const editor=hiddenInput?.closest('[data-multi-choice-editor]');
   if(!editor)return;
-  hiddenInput.value=JSON.stringify([...editor.querySelectorAll('.multi-choice-item:checked')].map(input=>input.dataset.choiceValue));
+  const selected=[...editor.querySelectorAll('.multi-choice-item:checked')].map(input=>input.dataset.choiceValue);
+  hiddenInput.value=selected.length?JSON.stringify(selected):'';
 }
 function setMultiChoiceValue(hiddenInput,rawValue){
   if(!hiddenInput)return;
   let selected=[];try{const parsed=JSON.parse(String(rawValue||'[]'));if(Array.isArray(parsed))selected=parsed.map(String);}catch{}
-  hiddenInput.value=JSON.stringify(selected);
+  hiddenInput.value=selected.length?JSON.stringify(selected):'';
   const editor=hiddenInput.closest('[data-multi-choice-editor]');
   if(editor)editor.querySelectorAll('.multi-choice-item').forEach(input=>{input.checked=selected.includes(input.dataset.choiceValue);});
 }
@@ -81,16 +82,20 @@ function evaluateDisplayRules(section){
       let sourceValue=source?.value??'';
       if(source?.dataset.inputMode==='multi_choice'||source?.dataset.inputMode==='graded_multi_choice'){try{sourceValue=JSON.parse(sourceValue||'[]');}catch{sourceValue=[];}}
       const conditionValue=String(condition.value??'');
-      const isMatch=condition.operator==='not_equals'
+      const hasControllerValue=Array.isArray(sourceValue)?sourceValue.length>0:String(sourceValue).trim()!=='';
+      const isMatch=hasControllerValue&&(condition.operator==='not_equals'
         ? (Array.isArray(sourceValue)?!sourceValue.includes(conditionValue):String(sourceValue)!==conditionValue)
-        : (Array.isArray(sourceValue)?sourceValue.includes(conditionValue):String(sourceValue)===conditionValue);
+        : (Array.isArray(sourceValue)?sourceValue.includes(conditionValue):String(sourceValue)===conditionValue));
       for(const value of (rule.visible_values||[])){conditional.add(String(value));if(isMatch)visible.add(String(value));}
       if(isMatch)matched=true;
     }
     field.querySelectorAll('[data-option-value], [data-choice-value]').forEach(option=>{
       const value=option.dataset.optionValue??option.dataset.choiceValue??'';
       const shouldHide=matched?!visible.has(value):conditional.has(value);
-      if(option.tagName==='OPTION'){option.hidden=shouldHide;option.disabled=shouldHide;}
+      if(option.tagName==='OPTION'){
+        option.hidden=shouldHide;option.disabled=shouldHide;
+        if(shouldHide&&option.selected&&option.closest('select'))option.closest('select').value='';
+      }
       else{const label=option.closest('[data-choice-option]')||option;label.hidden=shouldHide;if(shouldHide&&option.checked)option.checked=false;}
     });
     const hidden=field.querySelector('.multi-choice-value');if(hidden)syncMultiChoiceValue(hidden);
