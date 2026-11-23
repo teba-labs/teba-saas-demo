@@ -42,7 +42,7 @@ test('medical v2 validates new result input modes at the database boundary',()=>
 
 test('catalog UI saves doctor-friendly ranges, result modes, choices and visibility rules without JSON range entry',()=>{
  const html=read('app/catalog.html'),js=read('assets/js/catalog.js'),repo=read('modules/catalog/repository.js');
- for(const id of ['parameterInputMode','parameterRangeRows','parameterChoices','parameterMaxSelections','conditionParameterCode','conditionVisibleValues']) {
+ for(const id of ['parameterInputMode','parameterRangeRows','parameterChoices','parameterMaxSelections','parameterChoiceScoresField','parameterChoiceScores','conditionParameterCode','conditionVisibleValues']) {
   assert.match(html,new RegExp('id="'+id+'"'));
  }
  assert.doesNotMatch(html,/id="parameterRanges"/);
@@ -64,4 +64,6 @@ test('results UI renders all configured input modes and saves conditional and mu
  assert.match(js,/setMultiChoiceValue/);
  assert.match(repo,/prepareResultInput/);
  assert.match(js,/data-display-rules/);
+ assert.match(js,/choice-score-total/);
+ assert.match(js,/choice_scores/);
 });
