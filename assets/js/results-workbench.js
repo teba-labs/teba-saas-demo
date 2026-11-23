@@ -320,6 +320,7 @@ async function renderWork() {
       input.dataset.localPending='true';
     }
   }
+  host.querySelectorAll('.parameter[data-test-id]').forEach(section=>evaluateDisplayRules(section));
   if (globalThis.navigator?.onLine === false || state.work.some(item => item.local_offline)) {
     for (const item of state.work) {
       const section = host.querySelector(`[data-test-id="${CSS.escape(item.id)}"]`);
@@ -370,6 +371,13 @@ async function editReferenceRange(button) {
   }catch(error){button.disabled=false;showNotice(error.message||'تعذر حفظ المدى المرجعي.',true);}
 }
 
+function ageBoundaryInYears(value,unit){
+  if(value==null||value==='')return null;
+  const normalized=String(unit||'years').toLowerCase();
+  const factor=['month','months','mo','m'].includes(normalized)?1/12
+    :['day','days','d'].includes(normalized)?1/365:1;
+  return Number(value)*factor;
+}
 function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
   const localPending = status === 'local_verification_required';
   if (localPending && (!value || (Array.isArray(value) && value.length === 0))) return 'لا يوجد مدى مصدر محدد؛ يلزم ضبطه محليًا';
@@ -381,9 +389,13 @@ function resolveReferenceRange(value, patient = {}, status = 'local_verification
       if (range.pregnancy) return false;
       if (range.sex && String(range.sex).toLowerCase() !== sex) return false;
       if (range.age) {
-        if (age === null || (range.age.unit && !['year','years','y'].includes(String(range.age.unit).toLowerCase()))) return false;
-        if (range.age.min != null && age < Number(range.age.min)) return false;
-        if (range.age.max != null && age > Number(range.age.max)) return false;
+        if (age === null || !Number.isFinite(age)) return false;
+        const minUnit=range.age.min_unit||range.age.unit||'years';
+        const maxUnit=range.age.max_unit||range.age.unit||'years';
+        const min=ageBoundaryInYears(range.age.min,minUnit);
+        const max=ageBoundaryInYears(range.age.max,maxUnit);
+        if (min!=null&&age<min)return false;
+        if (max!=null&&age>max)return false;
       }
       return true;
     });
@@ -603,7 +615,10 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
       const result = resultMap.get(code);
       if (!result) return '';
       const parameterName = result.parameter_name_snapshot || parameter.name || parameter.parameter_name || code;
-      const value = result.value_numeric ?? result.value_text ?? '—';
+      let value = result.value_numeric ?? result.value_text ?? '—';
+      if(['multi_choice','graded_multi_choice'].includes(resultInputMode(parameter))){
+        try{const selected=JSON.parse(String(value));if(Array.isArray(selected))value=selected.join('، ');}catch{}
+      }
       const unit = result.unit_snapshot || parameter.unit || '';
       const reference = resolveReferenceRange(result.reference_range_snapshot ?? parameter.reference_ranges, patient, parameter.reference_interval_status);
       const calculatedFlag=computeReferenceFlag(result.value_numeric,result.reference_range_snapshot ?? parameter.reference_ranges,patient.age_years,patient.sex,parameter.reference_interval_status,'numeric');
@@ -679,7 +694,12 @@ function computeReferenceFlag(value,rangesInput,ageValue,sexValue,status,valueTy
  const matches=ranges.filter(range=>{
   if(range.pregnancy)return false;
   if(range.sex&&String(range.sex).toLowerCase()!==sex)return false;
-  if(range.age){if(!Number.isFinite(age))return false;if(range.age.min!=null&&age<Number(range.age.min))return false;if(range.age.max!=null&&age>Number(range.age.max))return false;}
+  if(range.age){
+   if(!Number.isFinite(age))return false;
+   const min=ageBoundaryInYears(range.age.min,range.age.min_unit||range.age.unit||'years');
+   const max=ageBoundaryInYears(range.age.max,range.age.max_unit||range.age.unit||'years');
+   if(min!=null&&age<min)return false;if(max!=null&&age>max)return false;
+  }
   return true;
  });
  if(matches.length!==1)return null;
@@ -735,6 +755,7 @@ async function correctTest(button) {
   if(button.dataset.correctionMode!=='true'){
     button.dataset.correctionMode='true';button.textContent='حفظ التصحيح';
     section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=false;});
+    section.querySelectorAll('.multi-choice-item').forEach(input=>{input.disabled=false;});
     showNotice('وضع التصحيح مفعل. غيّر نتيجة واحدة فقط ثم اضغط حفظ التصحيح.');
     return;
   }
@@ -755,6 +776,7 @@ async function correctTest(button) {
     }
     state.previewedVisits.delete(visitId);
     section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=true;});
+    section.querySelectorAll('.multi-choice-item').forEach(input=>{input.disabled=true;});
     button.dataset.correctionMode='false';button.textContent=isPublished?'تصحيح نتيجة منشورة':'تصحيح نتيجة محفوظة';button.dataset.oldLabel=button.textContent;
     showNotice(isPublished?'تم تسجيل التصحيح. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع نسخة مصححة.':'تم تصحيح النتيجة قبل اعتماد الزيارة، وحُفظ سبب التصحيح وسجل التعديل.');
   } catch(error){showNotice(error.message||'تعذر تصحيح النتيجة.',true);}
