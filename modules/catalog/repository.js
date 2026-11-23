@@ -368,7 +368,7 @@ export async function listMasterCatalogTests() {
   if (!releases?.length) return [];
   const { data, error } = await db().from('master_catalog_tests')
     .select('id, release_id, master_code, canonical_name, alternate_names, test_kind, category, service_type, clinical_review_status, source_name, definition')
-    .in('release_id', releases.map(row=>row.id)).eq('clinical_review_status','verified').order('canonical_name');
+    .in('release_id', releases.map(row=>row.id)).order('canonical_name');
   if (error) throw error;
   const rows = data ?? [];
   const ids = rows.map(row=>row.id);
