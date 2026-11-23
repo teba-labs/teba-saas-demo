@@ -36,6 +36,8 @@ The useful database-side changes from that work are carried forward in migration
 - Updates the catalog import/snapshot and atomic draft-save/completion/approval functions.
 - Does not recreate tables or replay migration 083.
 
+A second forward-only migration, `085_clear_disallowed_conditional_result_values.sql`, is included in the documentation follow-up PR. It updates save/completion/approval functions so an old selected value is cleared if a changed controller makes that choice unavailable, and it mirrors the UI's multi-choice controller semantics. It does not bulk-delete existing records at migration time; cleanup occurs only through the normal result save/completion/approval flow. It must pass CI before being applied.
+
 The current main UI and shared serializer remain the source of truth; duplicate older UI and serializer files from PR #46 are intentionally not copied over them.
 
 PR #42 is a draft containing an older 083 migration variant. It is superseded by the already-applied 083 plus the forward-only 084 approach. Keep its branch for history; do not apply its migration.
@@ -44,7 +46,7 @@ PR #42 is a draft containing an older 083 migration variant. It is superseded by
 
 Before this reconciliation, the connected primary project reported 73 applied migrations, with `083_medical_master_catalog_model_v2` as the latest. After applying migration 084, the project reports **74 applied migrations**, with `084_medical_result_input_validation_and_conditional_rules` as the latest.
 
-The repository contains 85 migration files. A normalized name comparison shows 74 applied migration records, 12 repository-only names, and one applied-only name; this is not a list of 11 pending production migrations:
+The repository contains 86 migration files. A normalized name comparison shows 74 applied migration records, 12 repository-only names, and one applied-only name; this is not a list of 11 pending production migrations:
 
 - Migrations 023–075 are recorded in Supabase under their migration names without the repository's numeric filename prefix.
 - Migrations 076–083 are recorded with their numeric names.
@@ -52,11 +54,12 @@ The repository contains 85 migration files. A normalized name comparison shows 7
 - `012_atomic_patient_portal_rate_limit.sql` is an older experimental/TEST restoration file whose own header says not to apply until the chain is reconciled. The active rate-limit migration is already recorded as `016_atomic_patient_portal_rate_limit`. Do not apply the old 012 file.
 - Supabase also records an applied migration named `allow_preapproval_range_corrections` (version `20261120223445`) for which there is no matching SQL file in current `main`. The final `set_visit_parameter_range_override` implementation is represented by migration 061, including pre-approval and published-correction rules. Do not invent or replay a replacement for the missing historical SQL; recover its exact source from a backup/TEST archive if byte-for-byte migration history is required.
 
-Migration 084 was applied successfully to the confirmed primary project `hgqwpykeazuzceeiumjg`. No migration was applied to the legacy project.
+Migration 084 was applied successfully to the confirmed primary project `hgqwpykeazuzceeiumjg`. Migration 085 is still pending final CI/merge and must be applied to the same project only after those checks pass. No migration was applied to the legacy project.
 
 ## Safety and verification
 
-- No patient/test-result data is rewritten by migration 084; it replaces database functions and adds private validation helpers.
+- Migration 084 only replaces database functions and adds private validation helpers; it does not run a bulk data update.
+- Migration 085 changes future save/completion/approval behavior to clear a previously stored choice only when the controller now makes that choice invalid; it does not run that cleanup as a bulk migration operation.
 - Keep historical feature and backup branches; do not delete them as part of this reconciliation.
 - Do not claim a live login/patient/result cycle is verified from static tests alone.
 - Verified the new validator, conditional-choice, draft-save, completion, and approval functions exist in the primary database.
