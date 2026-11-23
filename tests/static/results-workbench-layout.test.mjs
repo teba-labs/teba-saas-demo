@@ -42,3 +42,15 @@ test('hide and restore are branch-scoped, audited, and never hard-delete medical
 test('WhatsApp shares only the patient portal lookup route after publication and with a valid phone',()=>{
  for(const value of ['record.published','wa.me','tenantSlug','portal/index.html']) assert.ok(layout.includes(value),value);
 });
+
+test('test cards open inline in the same workbench instead of forcing navigation to another page',()=>{
+ assert.match(d,/function testLauncher\(node,record,kind,workspace\)/);
+ assert.match(d,/test-detail/);
+ assert.match(d,/placeholder\.replaceWith\(node\)/);
+ assert.doesNotMatch(d,/location\.href=url\.href/);
+});
+test('dedicated result entry page exposes visit-wide save, approval and preview controls',()=>{
+ assert.match(d,/حفظ النتائج واعتماد الزيارة/);
+ assert.match(d,/window\.taibaApproveVisit/);
+ assert.match(d,/window\.taibaPreviewVisitReport/);
+});
