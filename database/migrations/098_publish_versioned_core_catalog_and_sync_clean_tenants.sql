@@ -177,7 +177,7 @@ begin
    where l.master_test_id=map.old_master_test_id
      and coalesce(cardinality(l.customization_fields),0)>0;
 
-  update public.master_catalog_releases set status='archived'
+  update public.master_catalog_releases set status='retired'
    where id=v_old_release;
 end;
 $block$;
