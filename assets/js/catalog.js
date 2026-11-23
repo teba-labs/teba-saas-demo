@@ -18,7 +18,98 @@ function displayChoices(value){return Array.isArray(value)?value.join(', '):'';}
 function displayJson(value){return value&&typeof value==='object'&&Object.keys(value).length?JSON.stringify(value,null,2):'';}
 function parseJsonObjectField(id,label){const value=parseJsonField(id,label,true);return Array.isArray(value)?{}:value;}
 function parseJsonArrayField(id,label){const value=parseJsonField(id,label,false);if(!Array.isArray(value))throw new Error(label+' يجب أن تكون قائمة JSON.');return value;}
-function updateFormulaFields(){const calculated=$('parameterSource').value==='calculated';$('formulaField').hidden=!calculated;$('parameterType').value=calculated?'numeric':$('parameterType').value;$('parameterType').disabled=calculated;}
+
+function normalizeInputMode(parameter){
+ if(parameter.result_input_mode)return parameter.result_input_mode;
+ return ({numeric:'numeric_decimal',text:'text',boolean:'boolean',choice:'single_choice'}[parameter.value_type]||'numeric_decimal');
+}
+const modeLabels={numeric_integer:'رقم صحيح',numeric_decimal:'رقم عشري',numeric_comparator:'رقم مع علامة مقارنة',text:'نص حر',positive_negative:'موجب / سالب',boolean:'نعم / لا',single_choice:'اختيار واحد',multi_choice:'اختيارات متعددة',graded_multi_choice:'اختيارات متعددة بدرجات'};
+function renderRangeRows(ranges=[]){
+ const host=$('parameterRangeRows');if(!host)return;
+ host.innerHTML='';
+ const rows=Array.isArray(ranges)&&ranges.length?ranges:[{}];
+ for(const range of rows){
+  const age=range.age||{};
+  const unit=age.min_unit||age.max_unit||age.unit||'years';
+  host.insertAdjacentHTML('beforeend',`<div class="range-row">
+    <div class="range-row-top"><strong>مدى مرجعي</strong><button type="button" class="range-remove" data-remove-range>حذف</button></div>
+    <label>من<input class="range-lower" type="number" step="any" value="${esc(range.lower??range.low??'')}"></label>
+    <label>إلى<input class="range-upper" type="number" step="any" value="${esc(range.upper??range.high??'')}"></label>
+    <label>الوحدة<input class="range-unit" value="${esc(range.unit||'')}" placeholder="mg/dL"></label>
+    <label>النوع<select class="range-sex"><option value="">كل الأنواع</option><option value="male" ${range.sex==='male'?'selected':''}>ذكر</option><option value="female" ${range.sex==='female'?'selected':''}>أنثى</option></select></label>
+    <label>العمر من<input class="range-age-min" type="number" step="any" value="${esc(age.min??'')}"></label>
+    <label>العمر إلى<input class="range-age-max" type="number" step="any" value="${esc(age.max??'')}"></label>
+    <label>وحدة العمر<select class="range-age-unit"><option value="years" ${unit==='years'?'selected':''}>سنة</option><option value="months" ${unit==='months'?'selected':''}>شهر</option><option value="days" ${unit==='days'?'selected':''}>يوم</option></select></label>
+    <label>الفئة<input class="range-population" value="${esc(range.population||'')}" placeholder="بالغ / طفل / حديث ولادة"></label>
+    <label>النص المرجعي<input class="range-text" value="${esc(range.text||'')}" placeholder="Negative أو طبيعي..."></label>
+    <label>المصدر<input class="range-source" value="${esc(range.source||'')}" placeholder="المصدر أو الجهاز"></label>
+    <label class="range-pregnancy-label"><input class="range-pregnancy" type="checkbox" ${range.pregnancy?'checked':''}> خاص بالحمل</label>
+  </div>`);
+ }
+}
+function readRangeRows(){
+ return [...$('parameterRangeRows').querySelectorAll('.range-row')].map(row=>{
+  const value={};
+  const text=row.querySelector('.range-text').value.trim();
+  const lower=row.querySelector('.range-lower').value.trim();
+  const upper=row.querySelector('.range-upper').value.trim();
+  const unit=row.querySelector('.range-unit').value.trim();
+  const sex=row.querySelector('.range-sex').value;
+  const ageMin=row.querySelector('.range-age-min').value.trim();
+  const ageMax=row.querySelector('.range-age-max').value.trim();
+  const ageUnit=row.querySelector('.range-age-unit').value;
+  const population=row.querySelector('.range-population').value.trim();
+  const source=row.querySelector('.range-source').value.trim();
+  const pregnancy=row.querySelector('.range-pregnancy').checked;
+  if(text)value.text=text;
+  if(lower!=='')value.lower=Number(lower);
+  if(upper!=='')value.upper=Number(upper);
+  if(unit)value.unit=unit;
+  if(sex)value.sex=sex;
+  if(ageMin!==''||ageMax!==''){
+   value.age={};if(ageMin!=='')value.age.min=Number(ageMin);if(ageMax!=='')value.age.max=Number(ageMax);
+   value.age.min_unit=ageUnit;value.age.max_unit=ageUnit;value.age.unit=ageUnit;
+  }
+  if(population)value.population=population;
+  if(pregnancy)value.pregnancy=true;
+  if(source)value.source=source;
+  return value;
+ }).filter(row=>Object.keys(row).length);
+}
+function readParameterChoices(){
+ return $('parameterChoices').value.split(/[\\r\\n,]+/).map(value=>value.trim()).filter(Boolean);
+}
+function loadConditionParameterOptions(selectedCode=''){
+ const host=$('conditionParameterCode');if(!host)return;
+ const current=$('parameterCode').value.trim();
+ const options=state.parameters.filter(row=>row.is_active&&row.parameter_code!==current);
+ host.innerHTML='<option value="">بدون شرط</option>'+options.map(row=>'<option value="'+esc(row.parameter_code)+'">'+esc(row.parameter_name)+' ('+esc(row.parameter_code)+')</option>').join('');
+ host.value=selectedCode;
+}
+function readDisplayRules(){
+ const code=$('conditionParameterCode').value;
+ if(!code)return [];
+ const value=$('conditionValue').value.trim();
+ const visibleValues=$('conditionVisibleValues').value.split(/[\\r\\n,]+/).map(item=>item.trim()).filter(Boolean);
+ if(!value||!visibleValues.length)throw new Error('أكمل البارامتر والقيمة والاختيارات التي تظهر عند تحقق الشرط.');
+ return [{when:{parameter_code:code,operator:$('conditionOperator').value,value},visible_values:visibleValues}];
+}
+function updateParameterFields(){
+ const mode=$('parameterInputMode').value;
+ const choiceMode=['positive_negative','single_choice','multi_choice','graded_multi_choice'].includes(mode);
+ $('parameterChoices').closest('label').hidden=!choiceMode;
+ $('parameterMaxSelections').closest('label').hidden=!['multi_choice','graded_multi_choice'].includes(mode);
+ $('conditionParameterCode').closest('.condition-editor').hidden=!choiceMode;
+ $('parameterRangeRows').closest('.range-editor').hidden=['boolean','positive_negative','single_choice','multi_choice','graded_multi_choice'].includes(mode);
+}
+function updateFormulaFields(){
+ const calculated=$('parameterSource').value==='calculated';
+ $('formulaField').hidden=!calculated;
+ if(calculated)$('parameterInputMode').value='numeric_decimal';
+ $('parameterInputMode').disabled=calculated;
+ updateParameterFields();
+}
+
 function currentTest(){return state.tests.find(t=>t.id===state.selectedTest)||null;}
 function renderTests(){const term=$('search').value.trim().toLocaleLowerCase();const visible=state.tests.filter(t=>( $('showInactive').checked || t.is_active ) && (!term || `${t.name} ${t.code}`.toLocaleLowerCase().includes(term)));$('testList').innerHTML=visible.length?visible.map(t=>`<button type="button" class="test-item ${t.id===state.selectedTest?'selected':''}" data-id="${esc(t.id)}"><span><strong>${esc(t.name)}</strong><small>${esc(t.code)}${t.category?` · ${esc(t.category)}`:''} · ${t.test_kind==='panel'?'مجموعة بارامترات':'تحليل فردي'}</small></span><span class="meta"><span class="status ${t.is_active?'active':'inactive'}">${t.is_active?'نشط':'موقوف'}</span></span></button>`).join(''):'<p class="empty">لا توجد تحاليل مطابقة.</p>';}
 function resetTestForm(){state.selectionRequest++;state.selectedTest=null;$('editorTitle').textContent='إضافة تحليل جديد';$('testForm').reset();$('testActive').checked=true;$('testKind').value='individual';$('testKind').disabled=false;$('testStatus').textContent='تحليل جديد';$('testStatus').className='status';$('parameterSection').hidden=true;$('priceSection').hidden=true;state.parameters=[];state.selectedParameter=null;renderTests();}
@@ -53,12 +144,40 @@ async function loadMasterCatalog(){
 }
 function renderParameters(){const rows=state.parameters;$('parameterList').innerHTML=rows.length?rows.map(p=>`<div class="parameter-item"><div><strong>${esc(p.parameter_name)} <span class="muted-inline">(${esc(p.parameter_code)})</span></strong><small>${esc(p.unit||'بدون وحدة')} · ${esc(({numeric:'رقمي',text:'نص',boolean:'نعم/لا',choice:'اختيارات'})[p.value_type]||p.value_type)} · ${p.result_source==='calculated'?'محسوب تلقائيًا':'إدخال يدوي'} · ${p.is_active?'نشط':'موقوف'} · ${p.reference_interval_status==='verified_local'?'المدى معتمد محليًا':p.reference_interval_status==='not_applicable'?'لا يحتاج مدى':'المدى يحتاج تحققًا محليًا'} · ترتيب ${p.display_order}</small></div><div class="parameter-actions"><button type="button" data-edit-param="${esc(p.id)}">تعديل</button><button type="button" data-toggle-param="${esc(p.id)}">${p.is_active?'إيقاف':'تنشيط'}</button></div></div>`).join(''):'<p class="empty">لا توجد بارامترات لهذا التحليل حتى الآن.</p>';}
 async function loadPrice(){const branchId=$('priceBranchSelect').value||null;const base=state.prices.get(priceKey(state.selectedTest));const override=branchId?state.prices.get(priceKey(state.selectedTest,branchId)):null;const price=override||base;$('currentPrice').textContent=price?money(price.selling_price):'لا يوجد سعر حالي';$('priceHint').textContent=branchId&&!override?(base?`هذا الفرع يستخدم السعر الأساسي (${money(base.selling_price)}). أدخل سعرًا لإضافة استثناء لهذا الفرع.`:'لا يوجد سعر أساسي أو خاص؛ يجب تسجيل سعر أولًا.'):(price?.effective_from?`آخر سريان: ${new Date(price.effective_from).toLocaleString('ar-EG')}`:'يجب تسجيل سعر قبل إتاحة التحليل للاستقبال.');$('priceForm').hidden=state.role!=='owner';$('newPrice').value=branchId?(override?.selling_price??''):(base?.selling_price??'');}
-function resetParameterForm(){state.selectedParameter=null;$('parameterForm').reset();$('parameterDecimals').value='2';$('parameterOrder').value='0';$('parameterRanges').value='';$('parameterChoices').value='';$('parameterSource').value='manual';$('parameterFormula').value='';updateFormulaFields();$('parameterRequired').checked=true;$('parameterActive').checked=true;$('parameterTitle').textContent='إضافة بارامتر';$('parameterForm').hidden=true;}
-function editParameter(id){const p=state.parameters.find(x=>x.id===id);if(!p)return;state.selectedParameter=p.id;$('parameterTitle').textContent=`تعديل: ${p.parameter_name}`;$('parameterCode').value=p.parameter_code||'';$('parameterName').value=p.parameter_name||'';$('parameterUnit').value=p.unit||'';$('parameterType').value=p.value_type||'numeric';$('parameterDecimals').value=p.decimal_places??2;$('parameterOrder').value=p.display_order??0;$('parameterRanges').value=displayRanges(p.reference_ranges);$('parameterChoices').value=displayChoices(p.choices);$('parameterSource').value=p.result_source||'manual';
+function resetParameterForm(){
+ state.selectedParameter=null;$('parameterForm').reset();
+ $('parameterDecimals').value='2';$('parameterOrder').value='0';$('parameterChoices').value='';
+ $('parameterMaxSelections').value='';$('parameterSource').value='manual';$('parameterFormula').value='';
+ $('conditionValue').value='';$('conditionVisibleValues').value='';$('conditionOperator').value='equals';
+ loadConditionParameterOptions();renderRangeRows([]);updateFormulaFields();
+ $('parameterRequired').checked=true;$('parameterActive').checked=true;
+ $('parameterTitle').textContent='إضافة بارامتر';$('parameterForm').hidden=true;
+}
+function editParameter(id){
+ const p=state.parameters.find(x=>x.id===id);if(!p)return;
+ state.selectedParameter=p.id;$('parameterTitle').textContent='تعديل: '+p.parameter_name;
+ $('parameterCode').value=p.parameter_code||'';$('parameterName').value=p.parameter_name||'';
+ $('parameterUnit').value=p.unit||'';$('parameterInputMode').value=normalizeInputMode(p);
+ $('parameterDecimals').value=p.decimal_places??2;$('parameterOrder').value=p.display_order??0;
+ renderRangeRows(p.reference_ranges||[]);
+ $('parameterChoices').value=displayChoices(p.choices).replace(/, /g,'\\n');
+ $('parameterMaxSelections').value=p.result_config?.max_selections??'';
+ $('parameterSource').value=p.result_source||'manual';
  $('parameterUnitUcum').value=p.unit_ucum||'';$('parameterAlternateUnits').value=displayJson(p.alternate_units);
  $('parameterCriticalRanges').value=displayJson(p.critical_ranges);$('parameterInterpretation').value=displayJson(p.interpretation_rules);
  $('parameterApplicability').value=displayJson(p.applicability);$('parameterMethodNotes').value=p.method_notes||'';
- $('parameterSources').value=displayJson(p.source_references);$('parameterClinicalMetadata').value=displayJson(p.clinical_metadata);$('parameterReferenceStatus').value=p.reference_interval_status||'local_verification_required';$('parameterReviewStatus').value=p.clinical_review_status||'needs_review';$('parameterFormula').value=formulaToExpression(p.formula);updateFormulaFields();$('parameterRequired').checked=!!p.is_required;$('parameterActive').checked=!!p.is_active;$('parameterForm').hidden=false;$('parameterForm').scrollIntoView({behavior:'smooth',block:'nearest'});}
+ $('parameterSources').value=displayJson(p.source_references);$('parameterClinicalMetadata').value=displayJson(p.clinical_metadata);
+ $('parameterReferenceStatus').value=p.reference_interval_status||'local_verification_required';
+ $('parameterReviewStatus').value=p.clinical_review_status||'needs_review';
+ $('parameterFormula').value=p.formula_expression||formulaToExpression(p.formula);
+ const rule=Array.isArray(p.display_rules)?p.display_rules[0]:null;
+ loadConditionParameterOptions(rule?.when?.parameter_code||'');
+ $('conditionOperator').value=rule?.when?.operator||'equals';
+ $('conditionValue').value=rule?.when?.value||'';
+ $('conditionVisibleValues').value=(rule?.visible_values||[]).join('\\n');
+ updateFormulaFields();$('parameterRequired').checked=!!p.is_required;$('parameterActive').checked=!!p.is_active;
+ $('parameterForm').hidden=false;$('parameterForm').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
 async function start(){const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;$('signOut').hidden=true;return;}state.context=await loadMyTenantContext();if(!state.context.tenants?.length)throw new Error('الحساب لا يملك معملًا نشطًا.');$('loginPanel').hidden=true;$('workspace').hidden=false;$('signOut').hidden=false;$('userLine').textContent=`الحساب: ${session.user.email||'مستخدم مسجل'}`;$('tenantSelect').innerHTML=state.context.tenants.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');await loadMasterCatalog();await selectTenant(getPreferredTenantId(state.context.tenants) || state.context.tenants[0].id);}
 async function selectTenant(id){const requestId=++state.tenantRequest;state.selectionRequest++;state.tenant=state.context.tenants.find(t=>t.id===id);if(!state.tenant)throw new Error('لم يتم العثور على المعمل المحدد.');rememberWorkspaceSelection(state.tenant.id);state.role=state.tenant.accountType==='owner'?'owner':'staff';$('openMasterLibrary').hidden=state.role!=='owner';$('masterCatalogPanel').hidden=state.role!=='owner'||!state.masterLibraryOpen;$('priceBranchSelect').innerHTML='<option value="">السعر الأساسي لكل الفروع</option>'+(state.tenant.branches||[]).map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');if(state.role!=='owner'&&state.tenant.branches?.length===1)$('priceBranchSelect').value=state.tenant.branches[0].id;$('roleNotice').textContent=state.role==='owner'?'إدارة كتالوج التحاليل والأسعار متاحة لمالك المعمل فقط. صلاحية الموظف: إدارة التحاليل والبارامترات الفنية.':'صلاحية الموظف: إدارة التحاليل والبارامترات الفنية. تعديل الأسعار غير متاح.';resetTestForm();await loadCatalog(requestId);}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signInWithEmail($('email').value,$('password').value);await start();}catch(err){notice(err.message||'تعذر تسجيل الدخول.',true);}});
@@ -77,13 +196,34 @@ $('testForm').addEventListener('submit',async e=>{e.preventDefault();if(state.bu
  reportingNotes:$('testReportingNotes').value,sourceReferences:parseJsonArrayField('testSources','المراجع العلمية'),clinicalReviewStatus:$('testReviewStatus').value}});if(isNew&&testKind==='individual'){await saveTestParameter({tenantId:state.tenant.id,testId:saved.id,parameter:{code:(`RES_${saved.code}`).slice(0,40),name:saved.name,valueType:'numeric',decimalPlaces:2,displayOrder:0,referenceRanges:[],choices:[],isRequired:true,isActive:true}});}notice(isNew&&testKind==='individual'?'تم إنشاء التحليل وإضافة خانة نتيجته تلقائيًا.':'تم حفظ بيانات التحليل.');await loadCatalog();await selectTest(saved.id);}catch(err){notice(err.message||'تعذر حفظ التحليل.',true);}finally{state.busy=false;setBusy(e.currentTarget,false);}});
 $('parameterSection').addEventListener('click',async e=>{const edit=e.target.closest('[data-edit-param]');if(edit){editParameter(edit.dataset.editParam);return;}const toggle=e.target.closest('[data-toggle-param]');if(toggle){const p=state.parameters.find(x=>x.id===toggle.dataset.toggleParam);if(!p)return;try{requireOnline();await setTestParameterActive({tenantId:state.tenant.id,testId:state.selectedTest,parameterId:p.id,isActive:!p.is_active});notice(p.is_active?'تم إيقاف البارامتر.':'تم تنشيط البارامتر.');await loadParameters();}catch(err){notice(err.message,true);}}});
 $('newParameter').addEventListener('click',()=>{resetParameterForm();$('parameterForm').hidden=false;$('parameterForm').scrollIntoView({behavior:'smooth',block:'nearest'});});$('cancelParameter').addEventListener('click',resetParameterForm);
-$('parameterSource').addEventListener('change',updateFormulaFields);$('parameterType').addEventListener('change',updateFormulaFields);
-$('parameterForm').addEventListener('submit',async e=>{e.preventDefault();if(!state.selectedTest)return;const form=e.currentTarget;setBusy(form,true);try{requireOnline();const resultSource=$('parameterSource').value;const parameter={code:$('parameterCode').value,name:$('parameterName').value,unit:$('parameterUnit').value,valueType:$('parameterType').value,decimalPlaces:$('parameterDecimals').value,displayOrder:$('parameterOrder').value,referenceRanges:parseJsonField('parameterRanges','المدى المرجعي',true),choices:parseJsonField('parameterChoices','الاختيارات'),resultSource,formula:resultSource==='calculated'?parseFormulaExpression($('parameterFormula').value,state.parameters,$('parameterCode').value):null,
- unitUcum:$('parameterUnitUcum').value,alternateUnits:parseJsonArrayField('parameterAlternateUnits','الوحدات البديلة'),
- criticalRanges:parseJsonObjectField('parameterCriticalRanges','القيم الحرجة'),interpretationRules:parseJsonArrayField('parameterInterpretation','قواعد التفسير'),
- applicability:parseJsonObjectField('parameterApplicability','الانطباق'),methodNotes:$('parameterMethodNotes').value,clinicalMetadata:parseJsonObjectField('parameterClinicalMetadata','بيانات الجودة والمنهجية'),
- sourceReferences:parseJsonArrayField('parameterSources','المراجع العلمية'),referenceIntervalStatus:$('parameterReferenceStatus').value,clinicalReviewStatus:$('parameterReviewStatus').value,
- isRequired:$('parameterRequired').checked,isActive:$('parameterActive').checked};await saveTestParameter({tenantId:state.tenant.id,testId:state.selectedTest,id:state.selectedParameter||undefined,parameter});notice('تم حفظ البارامتر الفني.');resetParameterForm();await loadParameters();}catch(err){notice(err.message||'تعذر حفظ البارامتر.',true);}finally{setBusy(form,false);}});
+$('parameterSource').addEventListener('change',updateFormulaFields);
+$('parameterInputMode').addEventListener('change',updateParameterFields);
+$('parameterCode').addEventListener('input',()=>loadConditionParameterOptions($('conditionParameterCode').value));
+$('parameterRangeRows').addEventListener('click',e=>{if(e.target.closest('[data-remove-range]')){const row=e.target.closest('.range-row');if(row)row.remove();}});
+$('addReferenceRange').addEventListener('click',()=>{const rows=readRangeRows();rows.push({});renderRangeRows(rows);});
+$('parameterForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!state.selectedTest)return;const form=e.currentTarget;setBusy(form,true);
+ try{
+  requireOnline();const resultSource=$('parameterSource').value;const resultInputMode=resultSource==='calculated'?'numeric_decimal':$('parameterInputMode').value;
+  const parameter={
+   code:$('parameterCode').value,name:$('parameterName').value,unit:$('parameterUnit').value,
+   resultInputMode,decimalPlaces:$('parameterDecimals').value,displayOrder:$('parameterOrder').value,
+   referenceRanges:readRangeRows(),choices:readParameterChoices(),resultSource,
+   formula:resultSource==='calculated'?parseFormulaExpression($('parameterFormula').value,state.parameters,$('parameterCode').value):null,
+   formulaExpression:resultSource==='calculated'?$('parameterFormula').value.trim():null,
+   resultConfig:$('parameterMaxSelections').value?{max_selections:Number($('parameterMaxSelections').value)}:{},
+   displayRules:readDisplayRules(),
+   unitUcum:$('parameterUnitUcum').value,alternateUnits:parseJsonArrayField('parameterAlternateUnits','الوحدات البديلة'),
+   criticalRanges:parseJsonObjectField('parameterCriticalRanges','القيم الحرجة'),interpretationRules:parseJsonArrayField('parameterInterpretation','قواعد التفسير'),
+   applicability:parseJsonObjectField('parameterApplicability','الانطباق'),methodNotes:$('parameterMethodNotes').value,clinicalMetadata:parseJsonObjectField('parameterClinicalMetadata','بيانات الجودة والمنهجية'),
+   sourceReferences:parseJsonArrayField('parameterSources','المراجع العلمية'),referenceIntervalStatus:$('parameterReferenceStatus').value,clinicalReviewStatus:$('parameterReviewStatus').value,
+   isRequired:$('parameterRequired').checked,isActive:$('parameterActive').checked
+  };
+  await saveTestParameter({tenantId:state.tenant.id,testId:state.selectedTest,id:state.selectedParameter||undefined,parameter});
+  notice('تم حفظ تعريف النتيجة والمدى والاختيارات.');resetParameterForm();await loadParameters();
+ }catch(err){notice(err.message||'تعذر حفظ البارامتر.',true);}
+ finally{setBusy(form,false);}
+});
 $('masterCatalogSearch').addEventListener('input',renderMasterCatalog);
 $('openMasterLibrary').addEventListener('click',()=>{state.masterLibraryOpen=true;$('masterCatalogPanel').hidden=false;$('openMasterLibrary').hidden=true;});
 $('closeMasterLibrary').addEventListener('click',()=>{state.masterLibraryOpen=false;$('masterCatalogPanel').hidden=true;$('openMasterLibrary').hidden=state.role!=='owner';});
