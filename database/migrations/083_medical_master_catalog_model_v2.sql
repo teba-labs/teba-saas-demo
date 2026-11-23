@@ -476,6 +476,8 @@ declare
   v_multi jsonb;
   v_choice text;
   v_max_selections integer;
+  v_score text;
+  v_score_total numeric := 0;
 begin
   select technical_snapshot, branch_id into v_snapshot, v_branch
     from public.visit_tests
@@ -567,7 +569,34 @@ begin
           select 1 from jsonb_array_elements_text(v_choices) as choice(value)
            where choice.value=v_choice
         ) then raise exception 'A selected value is not in the allowed choices list'; end if;
+        if v_input_mode='graded_multi_choice' then
+          v_score:=v_parameter->'result_config'->'choice_scores'->>v_choice;
+          if v_score is null or v_score !~ '^[+-]?([0-9]+([.][0-9]+)?|[.][0-9]+)
+      v_max_selections:=nullif(v_parameter->'result_config'->>'max_selections','')::integer;
+      if v_max_selections is not null and jsonb_array_length(v_multi)>v_max_selections then
+        raise exception 'Too many choices were selected';
+      end if;
+    end if;
+  elsif v_input_mode<>'text' then
+    raise exception 'Unsupported result input mode: %',v_input_mode;
+  end if;
+
+  return new;
+end;
+$function$;
+
+
+commit;
+ then
+            raise exception 'Every selected graded choice must have a numeric score';
+          end if;
+          v_score_total:=v_score_total+v_score::numeric;
+        end if;
       end loop;
+      if v_input_mode='graded_multi_choice'
+         and jsonb_typeof(v_parameter->'result_config'->'choice_scores') is distinct from 'object' then
+        raise exception 'Graded choice parameters require a score mapping';
+      end if;
       v_max_selections:=nullif(v_parameter->'result_config'->>'max_selections','')::integer;
       if v_max_selections is not null and jsonb_array_length(v_multi)>v_max_selections then
         raise exception 'Too many choices were selected';
