@@ -64,6 +64,6 @@ Migration 084 was applied successfully to the confirmed primary project `hgqwpyk
 - Do not claim a live login/patient/result cycle is verified from static tests alone.
 - Verified the new validator, conditional-choice, draft-save, completion, and approval functions exist in the primary database.
 - Read-only behavior probes passed for integer validation, comparator values, maximum-choice enforcement, graded-choice validation, and conditional visible-choice allow/reject behavior.
-- Static/unit CI passed: 324 tests, 0 failures. Responsive browser zoom QA passed.
+- Static/unit CI passed: 320 tests, 0 failures. Responsive browser zoom QA passed.
 - GitHub Pages build and deployment succeeded for main commit `2313e947bf027c86a2699dfe40da26e8981b155c`.
 - Preview URL: `https://teba-labs.github.io/teba-saas-demo/`. The deployment action succeeded, but the web inspection tool could not open the live URL; a full interactive login-to-result-entry cycle is therefore not claimed as manually verified.
