@@ -35,6 +35,8 @@ test('results UI renders all new input modes and applies conditional visibility'
  assert.match(ui,/getResultInputValue/);
  assert.match(ui,/!input\.closest\('label'\)\?\.hidden/);
  assert.match(ui,/formatStoredResultForReport/);
+ assert.match(ui,/choice-checkbox-list/);
+ assert.match(ui,/data-choice-option/);
 });
 
 test('database migration snapshots v2 definitions, validates new values and conditionally removes hidden results',()=>{
