@@ -78,3 +78,29 @@ test('partial catalog definitions are available to tenant import without fabrica
   assert.doesNotMatch(repository, /eq\('clinical_review_status','verified'\)/);
   assert.match(repository, /missing_numeric_ranges/);
 });
+
+test('an imported inactive catalog definition can be activated with one isolated action and without changing prices',async()=>{
+ const catalogHtml=await readFile(new URL('app/catalog.html',root),'utf8');
+ assert.match(catalogHtml,/id="activateCatalogTest"/);
+ assert.match(ui,/setCatalogTestActive\(\{tenantId:state\.tenant\.id,testId:state\.selectedTest,isActive:true\}\)/);
+ assert.match(ui,/تم اعتماد تعريف التحليل وإتاحته للاستخدام/);
+ assert.match(repository,/export async function setCatalogTestActive/);
+});
+
+test('new master imports start inactive while repeat imports preserve their existing activation state',async()=>{
+ const activationFix=await readFile(new URL('database/migrations/104_imported_catalog_starts_inactive.sql',root),'utf8');
+ assert.match(activationFix,/select test_id into v_existing[\s\S]*from public\.tenant_catalog_master_links/);
+ assert.match(activationFix,/if v_existing is null then[\s\S]*update public\.tests_catalog[\s\S]*set is_active = false/);
+ assert.match(activationFix,/public\.import_master_catalog_test_unchecked\(p_tenant_id, p_master_test_id\)/);
+ assert.match(activationFix,/grant execute on function public\.import_master_catalog_test\(uuid, uuid\) to authenticated/);
+});
+
+
+test('tenant catalog bootstraps reviewed Core tests idempotently before reception catalog listing',async()=>{
+ const migration=await readFile(new URL('database/migrations/105_auto_provision_verified_core_catalog.sql',root),'utf8');
+ const repository=await readFile(new URL('modules/catalog/repository.js',root),'utf8');
+ assert.match(migration,/ensure_tenant_core_catalog/);
+ assert.match(migration,/clinical_review_status = 'verified'/);
+ assert.match(migration,/if v_existing is not null then\s+continue/);
+ assert.match(repository,/rpc\('ensure_tenant_core_catalog'/);
+});
