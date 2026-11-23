@@ -67,6 +67,28 @@ try{
         const documentWidth=document.documentElement.scrollWidth;
         const bodyWidth=document.body.scrollWidth;
         const offenders=[];
+        const overlaps=[];
+        const layoutContainers=document.querySelectorAll('.layout,.identity-layout,.collection-layout,.workspace-context,.login-layout,.selectors,.filters,.grid,.form-grid,.fields,.parameter-grid,.portal-settings,.studio-nav,.modules,.metrics,.tiles,.totals,.kpis,.history-files,.apps-grid,.owner-links,.results-columns,.actions,.toolbar,.form-actions,.button-row,.settings-tabs,[role="tablist"]');
+        for(const container of layoutContainers){
+          const containerDisplay=getComputedStyle(container).display;
+          if(containerDisplay!=='grid'&&containerDisplay!=='flex') continue;
+          const children=[...container.children].filter(element=>{
+            const style=getComputedStyle(element);
+            const rect=element.getBoundingClientRect();
+            return style.display!=='none'&&style.visibility!=='hidden'&&style.position!=='absolute'&&style.position!=='fixed'&&rect.width>1&&rect.height>1;
+          });
+          for(let i=0;i<children.length;i++){
+            const a=children[i].getBoundingClientRect();
+            for(let j=i+1;j<children.length;j++){
+              const b=children[j].getBoundingClientRect();
+              const overlapX=Math.min(a.right,b.right)-Math.max(a.left,b.left);
+              const overlapY=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+              if(overlapX>3&&overlapY>3){
+                overlaps.push({container:container.className||container.id||container.tagName,a:children[i].className||children[i].tagName,b:children[j].className||children[j].tagName,overlapX:Math.round(overlapX),overlapY:Math.round(overlapY)});
+              }
+            }
+          }
+        }
         for(const element of document.body.querySelectorAll('*')){
           if(['SCRIPT','STYLE','LINK','META','TITLE'].includes(element.tagName)) continue;
           const style=getComputedStyle(element);
@@ -84,10 +106,10 @@ try{
             offenders.push({tag:element.tagName,cls:typeof element.className==='string'?element.className:'',id:element.id,left:Math.round(rect.left),right:Math.round(rect.right),width:Math.round(rect.width)});
           }
         }
-        return {width,documentWidth,bodyWidth,offenders:offenders.slice(0,12)};
+        return {width,documentWidth,bodyWidth,offenders:offenders.slice(0,12),overlaps:overlaps.slice(0,12)};
       });
       checked++;
-      if(result.documentWidth>result.width+1||result.bodyWidth>result.width+1||result.offenders.length){
+      if(result.documentWidth>result.width+1||result.bodyWidth>result.width+1||result.offenders.length||result.overlaps.length){
         failures.push({page:pagePath,viewport:viewport.label,...result});
       }
       if([1366,1093,390].includes(viewport.width)){
