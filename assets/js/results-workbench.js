@@ -3,7 +3,7 @@ import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/ses
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/laboratory/repository.js';
-import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, approveVisitWithAutoCompletion } from '../../modules/results/repository.js';
+import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTestAtomic, approveVisitWithAutoCompletion } from '../../modules/results/repository.js';
 import { listPendingDraftResults } from '../../offline/outbox.js';
 import { offlineDb } from '../../offline/database.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
@@ -218,8 +218,10 @@ async function renderWork() {
     const card = document.createElement('article'); card.className = 'work-card'; card.dataset.visitId = visitId; card.dataset.patientPhone = group.visit?.patients?.phone || ''; card.dataset.patientAge = group.visit?.patients?.age_value ?? group.visit?.patients?.age_years ?? ''; card.dataset.patientAgeUnit = group.visit?.patients?.age_unit || (group.visit?.patients?.age_years != null ? 'years' : ''); card.dataset.patientSex = group.visit?.patients?.sex || ''; card.dataset.visitDate = group.visit?.visit_work_date || ''; card.dataset.visitNumber = group.visit?.visit_number || ''; card.dataset.published = String(Boolean(group.visit?.is_published)); card.dataset.visitStatus = group.visit?.status || 'open';
     const visitTitle = `زيارة ${group.visit?.visit_number ?? '—'} · ${group.visit?.patients?.full_name ?? 'مريض'}`;
     const isPublished = Boolean(group.visit?.is_published);
+    const hasCompletedTests = group.items.some(item => item.status === 'completed');
     const itemsMarkup = group.items.map(item => {
       const locked = item.status === 'completed';
+      const canCorrectApproved = state.tenant.accountType === 'owner' && group.visit?.status === 'approved' && !isPublished;
       const params = item.technical_snapshot?.parameters ?? [];
       const groupedParams = new Map();
       for (const p of params) { const sectionName = p.clinical_metadata?.section || 'النتائج'; if (!groupedParams.has(sectionName)) groupedParams.set(sectionName, []); groupedParams.get(sectionName).push(p); }
@@ -240,17 +242,17 @@ async function renderWork() {
       return `<section class="parameter" data-test-id="${escapeHtml(item.id)}" data-visit-id="${escapeHtml(visitId)}" data-test-status="${escapeHtml(item.status)}" data-published="${String(isPublished)}" data-test-code="${escapeHtml(item.test_code_snapshot || '')}" data-test-kind="${escapeHtml(item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind || 'individual')}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
         <div class="parameter-grid">${parameterControls}</div>${cultureEditor}
-        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة منشورة</button>' : locked && group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled' ? '<button class="button button-secondary correct-unpublished-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة محفوظة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : ''}</div>
+        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة منشورة</button>' : locked && group.visit?.status !== 'cancelled' && (group.visit?.status !== 'approved' || canCorrectApproved) ? '<button class="button button-secondary correct-unpublished-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح النتيجة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : ''}</div>
       </section>`;
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
       <div class="actions"><button class="button button-secondary save-visit-drafts" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>حفظ كل النتائج</button><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
-      <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>طباعة التقرير بإعدادات المعمل / حفظ PDF</button></div>
+      <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' && !hasCompletedTests ? 'disabled' : ''}>${hasCompletedTests && group.visit?.status !== 'approved' && !isPublished ? 'طباعة النتائج المتاحة (تقرير جزئي)' : 'طباعة التقرير بإعدادات المعمل / حفظ PDF'}</button></div>
       <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
       <div class="file-row"><label>ملف PDF النهائي للنشر<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!group.visit?.status || (!isPublished && group.visit.status !== 'approved') ? 'disabled' : ''}><small>عاين التقرير واطبعه أولًا باستخدام Save as PDF، ثم اختر ملف PDF المحفوظ هنا للنشر في بوابة المريض.</small></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
-      <p class="danger-note">التصحيح بعد النشر يحتاج سببًا موثقًا، ويجب إدخال التصحيح من مسار التصحيح المعتمد قبل رفع النسخة الجديدة.</p>`;
+      <p class="danger-note">اسم المستخدم الذي أجرى التصحيح يُسجل تلقائيًا في سجل المراجعة، ولا يحتاج الفني إلى كتابة سبب للتصحيح.</p>`;
     host.append(card);
   }
   host.querySelectorAll('.edit-reference-range').forEach(btn => btn.addEventListener('click', () => editReferenceRange(btn)));
@@ -515,12 +517,14 @@ async function loadHistoricalReportPicker(button){
  }catch(error){picker.textContent=error.message||'تعذر تحميل النتائج التاريخية.';}
 }
 async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
-  const visitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
-  if (!visitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
-  const visit = visitItems[0].visits || {};
+  const allVisitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
+  if (!allVisitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
+  const visit = allVisitItems[0].visits || {};
   const serverApproved = visit.status === 'approved' || Boolean(visit.is_published);
-  const localOffline = !serverApproved && (globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || visitItems.some(item => item.local_offline));
-  const canPrint = serverApproved || localOffline;
+  const localOffline = !serverApproved && (globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || allVisitItems.some(item => item.local_offline));
+  const partialReport = !serverApproved && !localOffline && allVisitItems.some(item => item.status === 'completed');
+  const visitItems = partialReport ? allVisitItems.filter(item => item.status === 'completed') : allVisitItems;
+  const canPrint = serverApproved || localOffline || partialReport;
   const patient = visit.patients || {};
   const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
   if (globalThis.navigator?.onLine === false || localOffline) {
@@ -547,7 +551,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     }
   }
   const cultureRows = await listCultureResults({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:visitItems.filter(item=>String(item.test_code_snapshot || '').startsWith('CULTURE_')).map(item=>item.id)});
-  // Preview may be opened before approval so incomplete work can be spotted; printing remains gated.
+  // A partial report contains only individually completed tests; the visit itself remains open.
   const selectedHistoricalIds=state.historicalSelections.get(visitId)||new Set();
   let selectedHistoricalRows=[];
   if(selectedHistoricalIds.size && globalThis.navigator?.onLine !== false){
@@ -664,7 +668,11 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     return { kind, hasContent, html: '<section class="test ' + (kind === 'panel' ? 'profile-report' : 'individual-test') + '"><h2>' + escapeHtml(item.test_name_snapshot || 'Test') + ' <small class="section-status">' + (item.status === 'completed' ? 'مكتمل' : 'غير مكتمل') + '</small></h2><table><thead><tr><th>Test / Parameter</th><th>Result</th><th>Unit</th><th>Reference Interval</th><th>Flag</th></tr></thead><tbody>' + lines + '</tbody></table>' + cultureHtml + '</section>' };
   });
   const individualHtml = testSections.filter(section => section.kind !== 'panel' && section.hasContent).map(section => section.html).join('');
-  const profileHtml = testSections.filter(section => section.kind === 'panel' && section.hasContent).map(section => section.html).join('');
+  const profileSections = testSections.filter(section => section.kind === 'panel' && section.hasContent);
+  const profileHtml = profileSections.map((section,index) => section.html.replace(
+    'class="test profile-report"',
+    'class="test profile-report' + (!individualHtml && index===0 ? ' first-profile' : '') + '"'
+  )).join('');
   const groupedTestSections = (individualHtml ? '<section class="report-group individual-report"><h2>INDIVIDUAL TESTS</h2>' + individualHtml + '</section>' : '') + profileHtml;
   const historicalSections=selectedHistoricalRows.map(row=>{
     const payload=row.result_data||{},parameters=payload.parameters&&typeof payload.parameters==='object'?Object.entries(payload.parameters):[];
@@ -678,10 +686,11 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const pageBottomMargin = showPrintFooter ? 24 : 12;
   const html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' +
     '@page{size:' + paper + ' ' + orientation + ';margin:' + pageTopMargin + 'mm ' + margin + 'mm ' + pageBottomMargin + 'mm ' + margin + 'mm}' +
-    'body{position:relative;font-family:Tahoma,Arial,sans-serif;color:#1d2e3a;font-size:12px;line-height:1.65;background:#fff}body>*:not(.watermark-image):not(.watermark-text){position:relative;z-index:1}.watermark-image{position:fixed;top:28%;left:0;right:0;z-index:0;text-align:center;pointer-events:none;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + '}.watermark-image img{width:' + (print.watermarkSize==='large'?'62%':print.watermarkSize==='small'?'28%':'42%') + ';max-height:48vh;object-fit:contain}.watermark-text{position:fixed;top:42%;left:8%;right:8%;z-index:0;text-align:center;font-size:' + (print.watermarkSize==='large'?'76px':print.watermarkSize==='small'?'38px':'56px') + ';font-weight:800;color:#173f58;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + ';pointer-events:none}header.report-header{border-bottom:2px solid #168f9a;padding:0 0 4px;margin:0;background:#fff}.report-cover-meta{margin:10px 0 14px}.report-cover-meta h1{font-size:19px;margin:4px 0;text-align:center;color:#173f58}.report-cover-meta .header-grid{display:grid;grid-template-columns:1fr 120px 1fr;align-items:center;gap:10px}.identity-zone{display:grid;gap:3px;font-size:13px}.identity-zone strong{font-size:17px;color:#173f58}.identity-zone span{color:#435864}.header-right{text-align:right}.header-left{text-align:left}.logo-zone{text-align:center}.lab-logo{max-width:110px;max-height:72px;object-fit:contain}.logo-placeholder{font-weight:800;color:#173f58;font-size:12px}h2{font-size:15px;margin:12px 0 6px;color:#173f58}.report-title{text-align:center;font-weight:700;color:#16818b;font-size:13px}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;margin:10px 0 10px}.meta span{padding:6px 8px;background:#f3f7f8;border-radius:5px}.report-group{margin-top:8px}.profile-report{break-before:auto}.test{break-inside:auto;margin:0 0 8px}.individual-report>.test{break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}h2,h3{break-after:avoid;page-break-after:avoid}.historical-test{border:2px dashed #8a6d3b;padding:8px;margin-top:18px}.historical-test h2{color:#765a27}table{width:100%;border-collapse:collapse;margin-bottom:12px;direction:ltr}th,td{border:1px solid #cbd5dc;padding:6px;text-align:left}th{background:#eaf2f4;color:#173f58}td{background:#fff}.branch-performed{font-weight:700;color:#315c66;margin-top:7px;padding:5px 0;border-top:1px solid #dce5e8;font-size:11px}.report-footer{display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;border-top:1px solid #168f9a;margin-top:20px;padding-top:10px;align-items:start;font-size:10px;line-height:1.35}.footer-right,.footer-left{display:grid;gap:4px}.footer-center{text-align:center}.footer-qr{display:grid;justify-items:center;gap:3px;color:#173f58;text-decoration:none}.footer-qr img{width:76px;height:76px;object-fit:contain}.footer-center-message{font-size:11px;font-weight:700}.signature{max-width:130px;max-height:65px;object-fit:contain}.preview-controls{display:flex;gap:8px;justify-content:center;padding:10px;margin-bottom:12px}.preview-controls button{border:0;border-radius:7px;padding:8px 14px;background:#173f58;color:#fff;font:inherit;cursor:pointer}.preview-controls button+button{background:#e7f1f2;color:#173f58}.report-pages{display:block}.report-extra-footer{grid-column:1/-1;text-align:center;border-top:1px solid #e1e8eb;padding-top:4px;margin-top:4px;font-size:9px}@media print{.preview-controls{display:none}'+(showPrintHeader?'header.report-header{position:fixed;top:-29mm;left:0;right:0;z-index:2;background:#fff}':'header.report-header{position:static;top:auto;border:0;padding:0;margin-bottom:14px}')+(showPrintFooter?'.report-footer{position:fixed;bottom:-18mm;left:0;right:0;z-index:2;background:#fff}':'.report-footer{display:none}')+'.profile-report{break-before:auto}.report-footer{break-inside:avoid}}' +
+    'body{position:relative;font-family:Tahoma,Arial,sans-serif;color:#1d2e3a;font-size:12px;line-height:1.65;background:#fff}body>*:not(.watermark-image):not(.watermark-text){position:relative;z-index:1}.watermark-image{position:fixed;top:28%;left:0;right:0;z-index:0;text-align:center;pointer-events:none;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + '}.watermark-image img{width:' + (print.watermarkSize==='large'?'62%':print.watermarkSize==='small'?'28%':'42%') + ';max-height:48vh;object-fit:contain}.watermark-text{position:fixed;top:42%;left:8%;right:8%;z-index:0;text-align:center;font-size:' + (print.watermarkSize==='large'?'76px':print.watermarkSize==='small'?'38px':'56px') + ';font-weight:800;color:#173f58;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + ';pointer-events:none}header.report-header{border-bottom:2px solid #168f9a;padding:0 0 4px;margin:0;background:#fff}.report-cover-meta{margin:10px 0 14px}.report-cover-meta h1{font-size:19px;margin:4px 0;text-align:center;color:#173f58}.report-cover-meta .header-grid{display:grid;grid-template-columns:1fr 120px 1fr;align-items:center;gap:10px}.identity-zone{display:grid;gap:3px;font-size:13px}.identity-zone strong{font-size:17px;color:#173f58}.identity-zone span{color:#435864}.header-right{text-align:right}.header-left{text-align:left}.logo-zone{text-align:center}.lab-logo{max-width:110px;max-height:72px;object-fit:contain}.logo-placeholder{font-weight:800;color:#173f58;font-size:12px}h2{font-size:15px;margin:12px 0 6px;color:#173f58}.report-title{text-align:center;font-weight:700;color:#16818b;font-size:13px}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;margin:10px 0 10px}.meta span{padding:6px 8px;background:#f3f7f8;border-radius:5px}.report-group{margin-top:8px}.profile-report{break-before:page;page-break-before:always}.profile-report.first-profile{break-before:auto;page-break-before:auto}.test{break-inside:auto;margin:0 0 8px}.individual-report>.test{break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}h2,h3{break-after:avoid;page-break-after:avoid}.historical-test{border:2px dashed #8a6d3b;padding:8px;margin-top:18px}.historical-test h2{color:#765a27}table{width:100%;border-collapse:collapse;margin-bottom:12px;direction:ltr}th,td{border:1px solid #cbd5dc;padding:6px;text-align:left}th{background:#eaf2f4;color:#173f58}td{background:#fff}.branch-performed{font-weight:700;color:#315c66;margin-top:7px;padding:5px 0;border-top:1px solid #dce5e8;font-size:11px}.report-footer{display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;border-top:1px solid #168f9a;margin-top:20px;padding-top:10px;align-items:start;font-size:10px;line-height:1.35}.footer-right,.footer-left{display:grid;gap:4px}.footer-center{text-align:center}.footer-qr{display:grid;justify-items:center;gap:3px;color:#173f58;text-decoration:none}.footer-qr img{width:76px;height:76px;object-fit:contain}.footer-center-message{font-size:11px;font-weight:700}.signature{max-width:130px;max-height:65px;object-fit:contain}.preview-controls{display:flex;gap:8px;justify-content:center;padding:10px;margin-bottom:12px}.preview-controls button{border:0;border-radius:7px;padding:8px 14px;background:#173f58;color:#fff;font:inherit;cursor:pointer}.preview-controls button+button{background:#e7f1f2;color:#173f58}.report-pages{display:block}.report-extra-footer{grid-column:1/-1;text-align:center;border-top:1px solid #e1e8eb;padding-top:4px;margin-top:4px;font-size:9px}@media print{.preview-controls{display:none}'+(showPrintHeader?'header.report-header{position:fixed;top:-29mm;left:0;right:0;z-index:2;background:#fff}':'header.report-header{position:static;top:auto;border:0;padding:0;margin-bottom:14px}')+(showPrintFooter?'.report-footer{position:fixed;bottom:-18mm;left:0;right:0;z-index:2;background:#fff}':'.report-footer{display:none}')+'.profile-report{break-before:page;page-break-before:always}.profile-report.first-profile{break-before:auto;page-break-before:auto}.report-footer{break-inside:avoid}}' +
     '</style></head><body>' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
-    '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">' + (localOffline ? 'طباعة مسودة غير معتمدة' : 'طباعة التقرير') + '</button>' : '<button disabled>اعتمد الزيارة أولًا للطباعة</button>') + '<button onclick="window.close()">إغلاق المعاينة</button></div>' +
+    '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">' + (localOffline ? 'طباعة مسودة غير معتمدة' : partialReport ? 'طباعة النتائج المكتملة فقط' : 'طباعة التقرير') + '</button>' : '<button disabled>أكمل تحليلًا واحدًا على الأقل قبل الطباعة الجزئية</button>') + '<button onclick="window.close()">إغلاق المعاينة</button></div>' +
     (localOffline ? '<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">نسخة عمل غير معتمدة — محفوظة على هذا الجهاز — تنتظر المزامنة والمراجعة والاعتماد. لا تُسلّم باعتبارها تقريرًا نهائيًا.</div>' : '') +
+    (partialReport ? '<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">تقرير جزئي — يعرض التحاليل المكتملة فقط. توجد تحاليل أخرى بالزيارة لم تكتمل بعد.</div>' : '') +
     (showPrintHeader ? '<header class="report-header"><div class="header-grid"><div class="header-right">' + headerRight + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-left">' + headerLeft + '</div></div></header>' : '') +
     '<section class="report-cover-meta"><h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="meta"><span>اسم المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>تاريخ الزيارة: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></section>' +
     '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
@@ -823,9 +832,72 @@ async function saveVisitDrafts(visitId) {
       savedCount++;
     }
   }
-  if (savedCount || queuedCount) state.previewedVisits.delete(visitId);
-  return { savedCount, queuedCount };
+  let completedTestCount = 0;
+  // Complete each fully-entered test independently so urgent results can be
+  // issued while the rest of the visit remains open.
+  if (!queuedCount && globalThis.navigator?.onLine !== false) {
+    for (const item of items) {
+      if (item.status === 'completed') continue;
+      const section = document.querySelector('[data-test-id="' + CSS.escape(item.id) + '"]');
+      if (!section) continue;
+      const inputs = [...section.querySelectorAll('[data-param-code]')];
+      const hasSavedOrEnteredValue = inputs.some(input => input.dataset.resultId || input.value.trim());
+      if (!hasSavedOrEnteredValue) continue;
+      try {
+        await completeVisitTestAtomic({
+          tenantId: state.tenant.id,
+          branchId: state.branch.id,
+          visitTestId: item.id,
+          staffId: $('staffSelect').value
+        });
+        item.status = 'completed';
+        section.dataset.testStatus = 'completed';
+        const pill = section.querySelector('.card-head .pill');
+        if (pill) pill.textContent = 'مكتمل';
+        completedTestCount++;
+      } catch (error) {
+        if (/required results are missing|required|missing|ناقص|غير مكتمل/i.test(error.message || '')) continue;
+        throw error;
+      }
+    }
+  }
+  if (savedCount || queuedCount || completedTestCount) state.previewedVisits.delete(visitId);
+  return { savedCount, queuedCount, completedTestCount };
 }
+async function saveAndMaybeApproveVisit(visitId) {
+  if (!visitId) throw new Error('تعذر تحديد الزيارة.');
+  const saved = await saveVisitDrafts(visitId);
+  if (saved.queuedCount) {
+    showNotice('تم حفظ المدخلات محليًا بأمان. الاعتماد النهائي سيتم بعد المزامنة واكتمال نتائج الزيارة.');
+    return { saved: true, queued: true };
+  }
+  try {
+    await approveVisitWithAutoCompletion({
+      tenantId: state.tenant.id,
+      branchId: state.branch.id,
+      visitId,
+      staffId: $('staffSelect').value
+    });
+    state.previewedVisits.delete(visitId);
+    showNotice('تم حفظ النتيجة واعتماد الزيارة تلقائيًا بعد التحقق من اكتمال كل النتائج المطلوبة. يمكنك معاينة التقرير الآن.');
+    return { saved: true, visitApproved: true };
+  } catch (error) {
+    const detail = error.message || 'تعذر إكمال اعتماد الزيارة.';
+    const missingRequired = /required|missing|مفقود|ناقص|غير مكتمل/i.test(detail);
+    if (missingRequired) {
+      const completed = saved.completedTestCount || 0;
+      showNotice(completed
+        ? 'تم حفظ النتائج وإكمال ' + completed + ' تحليل. يمكنك طباعة النتائج المكتملة الآن، والزيارة ستظل مفتوحة لاستكمال الباقي.'
+        : 'تم حفظ النتائج. الزيارة ما زالت مفتوحة لحين اكتمال التحاليل المطلوبة: ' + detail);
+      await refreshWork();
+    } else {
+      showNotice('تم حفظ نتيجة التحليل، لكن تعذر اعتماد الزيارة الآن. النتائج محفوظة ولم تُفقد: ' + detail, true);
+    }
+    return { saved: true, visitApproved: false, approvalError: detail };
+  }
+}
+window.taibaSaveAndMaybeApproveVisit = saveAndMaybeApproveVisit;
+
 async function saveVisitDraftsAction(button) {
   try {
     setBusy(button, true, 'جارٍ حفظ كل النتائج…');
@@ -834,8 +906,11 @@ async function saveVisitDraftsAction(button) {
       showNotice('لا توجد نتائج جديدة للحفظ. أدخل القيم أولًا.');
     } else if (result.queuedCount) {
       showNotice('تم حفظ النتائج على الجهاز بأمان. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ الاعتماد النهائي يحتاج اكتمال المزامنة.');
+    } else if (result.completedTestCount) {
+      showNotice('تم حفظ وإكمال ' + result.completedTestCount + ' تحليل. يمكنك طباعة النتائج المكتملة، واستكمال بقية الزيارة لاحقًا.');
+      await refreshWork();
     } else {
-      showNotice('تم حفظ كل النتائج وحساب البارامترات المشتقة تلقائيًا على السحابة. يمكنك الآن اعتماد الزيارة عند الانتهاء.');
+      showNotice('تم حفظ النتائج وحساب البارامترات المشتقة تلقائيًا على السحابة. أكمل بقية النتائج ثم اعتمد الزيارة.');
     }
   } catch (error) {
     showNotice(error.message || 'تعذر حفظ نتائج الزيارة.', true);
@@ -861,8 +936,7 @@ async function correctTest(button) {
     if(changed.length>1)throw new Error('صحح نتيجة واحدة في كل مرة لتجنب حفظ بعض التصحيحات دون غيرها.');
     const visitId=state.work.find(row=>row.id===section.dataset.testId)?.visit_id;
     if(!visitId)throw new Error('تعذر تحديد الزيارة المرتبطة بالنتيجة.');
-    const reason=window.prompt(isPublished?'سبب تصحيح النتيجة المنشورة:':'سبب تصحيح النتيجة المحفوظة:')?.trim()??'';
-    if(!reason)throw new Error('سبب التصحيح إلزامي.');
+    const reason='تصحيح يدوي من شاشة النتائج';
     setBusy(button,true,'جارٍ حفظ التصحيح…');
     for(const input of changed){
       const raw=input.value.trim(),isNumeric=['numeric_integer','numeric_decimal'].includes(input.dataset.inputMode),numeric=isNumeric?raw:null,text=isNumeric?null:raw;
@@ -873,7 +947,7 @@ async function correctTest(button) {
     section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=true;});
     section.querySelectorAll('.multi-choice-item').forEach(input=>{input.disabled=true;});
     button.dataset.correctionMode='false';button.textContent=isPublished?'تصحيح نتيجة منشورة':'تصحيح نتيجة محفوظة';button.dataset.oldLabel=button.textContent;
-    showNotice(isPublished?'تم تسجيل التصحيح. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع نسخة مصححة.':'تم تصحيح النتيجة قبل اعتماد الزيارة، وحُفظ سبب التصحيح وسجل التعديل.');
+    showNotice(isPublished?'تم تصحيح النتيجة. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع النسخة المصححة.':'تم تصحيح النتيجة، وسُجل اسم المستخدم تلقائيًا.');
   } catch(error){showNotice(error.message||'تعذر تصحيح النتيجة.',true);}
   finally{setBusy(button,false);}
 }
@@ -935,10 +1009,18 @@ async function approve(button) {
       staffId: $('staffSelect').value
     });
     state.previewedVisits.delete(visitId);
-    showNotice('تم حفظ النتائج واعتماد الزيارة مرة واحدة. يمكنك الآن معاينة التقرير وطباعته.');
+    showNotice('تم حفظ النتائج واعتماد الزيارة بالكامل. يمكنك الآن معاينة التقرير وطباعته.');
     await refreshWork();
   } catch (error) {
-    showNotice(error.message || 'تعذر حفظ واعتماد الزيارة.', true);
+    if (/required|missing|ناقص|غير مكتمل/i.test(error.message || '')) {
+      const completed = state.work.filter(item => item.visit_id === visitId && item.status === 'completed').length;
+      showNotice(completed
+        ? 'اكتمل ' + completed + ' تحليل. الزيارة ما زالت مفتوحة، ويمكن طباعة النتائج المكتملة فقط.'
+        : 'الزيارة لم تكتمل بعد. أكمل نتائج التحاليل المطلوبة أولًا.');
+      await refreshWork();
+    } else {
+      showNotice(error.message || 'تعذر حفظ واعتماد الزيارة.', true);
+    }
   } finally {
     setBusy(button, false);
   }
