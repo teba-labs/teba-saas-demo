@@ -47,7 +47,7 @@ test('test cards open inline in the same workbench instead of forcing navigation
  assert.match(layout,/function testLauncher\(node,record,kind,workspace\)/);
  assert.match(layout,/test-detail/);
  assert.match(layout,/placeholder\.replaceWith\(node\)/);
- assert.doesNotMatch(d,/location\.href=url\.href/);
+ assert.doesNotMatch(layout,/location\.href=url\.href/);
 });
 test('dedicated result entry page exposes visit-wide save, approval and preview controls',()=>{
  assert.match(layout,/حفظ النتائج واعتماد الزيارة/);
