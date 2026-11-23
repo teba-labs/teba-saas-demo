@@ -61,7 +61,10 @@ test('individual and profile result forms open in an accessible same-screen moda
  assert.match(layout,/role','dialog'/);
  assert.match(layout,/aria-modal','true'/);
  assert.match(layout,/رجوع دون فقد المدخلات/);
- assert.match(layout,/taibaSaveAndMaybeApproveVisit/);
+ assert.match(layout,/window\.taibaSaveAndMaybeApproveVisit\(record\.visitId,node\.dataset\.testId\)/);
+ assert.doesNotMatch(layout,/taibaSaveAndCompleteTest/);
+ assert.match(layout,/taiba:results-work-refresh/);
+ assert.match(js,/window\.taibaSaveAndMaybeApproveVisit = saveAndMaybeApproveVisit/);
  assert.match(js,/approveVisitWithAutoCompletion/);
  assert.match(js,/saveAndMaybeApproveVisit/);
  assert.match(js,/completeVisitTestAtomic/);
