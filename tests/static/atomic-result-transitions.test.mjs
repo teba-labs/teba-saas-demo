@@ -13,7 +13,7 @@ test('staff-facing workflow uses one visit-wide atomic completion and approval R
   assert.ok(repository.includes("rpc('approve_visit_with_auto_completion'"));
   assert.ok(page.includes('await approveVisitWithAutoCompletion('));
   assert.ok(!page.includes('completeVisitTest') && !page.includes('complete-test'));
-  assert.doesNotMatch(repository, /\\.update\\(\\{ status: 'completed' \\}\\)/);
+  assert.ok(!repository.includes(".update({ status: 'completed' })"));
   assert.doesNotMatch(repository, /approved_by_staff_id: staffId/);
 });
 
@@ -63,12 +63,12 @@ test('completed test cards are read-only and the server rejects post-completion 
 
 test('one-action approval checks required visible values, preserves branch security and completes tests atomically',()=>{
  const migration=fs.readFileSync(path.join(root,'database/migrations/103_one_action_visit_approval.sql'),'utf8');
- assert.match(migration,/function public\\.approve_visit_with_auto_completion/);
- assert.match(migration,/private\\.can_access_branch/);
- assert.match(migration,/An active staff identity for this branch is required/);
- assert.match(migration,/نتائج مطلوبة لم تُسجل بعد/);
- assert.match(migration,/completed_by_staff_id=coalesce\\(completed_by_staff_id,p_staff_id\\)/);
- assert.match(migration,/status='approved'/);
- assert.match(migration,/grant execute on function public\\.approve_visit_with_auto_completion/);
- assert.match(migration,/nullif\\(p->'formula','null'::jsonb\\) is null/);
+ assert.ok(migration.includes('function public.approve_visit_with_auto_completion'));
+ assert.ok(migration.includes('private.can_access_branch'));
+ assert.ok(migration.includes('An active staff identity for this branch is required'));
+ assert.ok(migration.includes('نتائج مطلوبة لم تُسجل بعد'));
+ assert.ok(migration.includes('completed_by_staff_id=coalesce(completed_by_staff_id,p_staff_id)'));
+ assert.ok(migration.includes("status='approved'"));
+ assert.ok(migration.includes('grant execute on function public.approve_visit_with_auto_completion'));
+ assert.ok(migration.includes("nullif(p->'formula','null'::jsonb) is null"));
 });
