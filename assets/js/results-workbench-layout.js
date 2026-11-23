@@ -1,6 +1,7 @@
 import { listCatalog } from '../../modules/catalog/repository.js';
 import { addTestToVisit } from '../../modules/reception/repository.js';
 import { listHiddenWorkbenchVisits, setVisitWorkbenchHidden } from '../../modules/laboratory/repository.js';
+import { APP_ENV } from '../../config/environment.js';
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let selectedVisitId = null, catalogCache = null, rebuilding = false;
