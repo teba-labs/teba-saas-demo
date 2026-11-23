@@ -874,6 +874,15 @@ async function approve(button) {
         throw new Error('هناك نتائج محفوظة على الجهاز لم تكتمل مزامنتها. انتظر المزامنة ثم أعد الاعتماد.');
       }
       const inputs = [...section.querySelectorAll('[data-param-code]')];
+      const clearedSaved = inputs.filter(input =>
+        input.dataset.resultSource !== 'calculated' &&
+        input.dataset.resultId &&
+        input.value.trim() === '' &&
+        (input.dataset.originalValue ?? '').trim() !== ''
+      );
+      if (clearedSaved.length) {
+        throw new Error('تم مسح نتيجة محفوظة من أحد الحقول. أعد إدخالها أو استخدم مسار التصحيح الموثق قبل الاعتماد؛ لن نعتمد قيمة قديمة بدل القيمة التي ظهرت فارغة.');
+      }
       const results = inputs
         .filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim() !== '')
         .map(input => ({
