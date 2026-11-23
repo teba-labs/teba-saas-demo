@@ -32,8 +32,8 @@ test('each test opens inline in the selected visit without a page hop; legacy di
  assert.ok(!layout.includes('location.href=url.href'));
  assert.ok(layout.includes("document.body.classList.contains('result-entry-page')"));
  assert.ok(layout.includes('entry.replaceChildren(visitActions,node)'));
- assert.match(layout,/results-workbench\\.html/);
- assert.match(layout,/record\\.patientAge/);
+ assert.ok(layout.includes("'results-workbench.html'"));
+ assert.ok(layout.includes('record.patientAge'));
  assert.match(layout,/الهاتف/);
  assert.match(workbench,/results-workbench-layout\\.js/);
 });
