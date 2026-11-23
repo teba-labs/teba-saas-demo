@@ -873,12 +873,12 @@ async function saveVisitDrafts(visitId) {
   if (savedCount || queuedCount || completedTestCount) state.previewedVisits.delete(visitId);
   return { savedCount, queuedCount, completedTestCount };
 }
-async function saveAndMaybeApproveVisit(visitId) {
+async function saveAndMaybeApproveVisit(visitId, testId = null) {
   if (!visitId) throw new Error('تعذر تحديد الزيارة.');
   const saved = await saveVisitDrafts(visitId);
   if (saved.queuedCount) {
     showNotice('تم حفظ المدخلات محليًا بأمان. الاعتماد النهائي سيتم بعد المزامنة واكتمال نتائج الزيارة.');
-    return { saved: true, queued: true };
+    return { saved: true, queued: true, completed: false };
   }
   try {
     await approveVisitWithAutoCompletion({
@@ -888,8 +888,8 @@ async function saveAndMaybeApproveVisit(visitId) {
       staffId: $('staffSelect').value
     });
     state.previewedVisits.delete(visitId);
-    showNotice('تم حفظ النتيجة واعتماد الزيارة تلقائيًا بعد التحقق من اكتمال كل النتائج المطلوبة. يمكنك معاينة التقرير الآن.');
-    return { saved: true, visitApproved: true };
+    showNotice('تم حفظ النتيجة واعتماد الزيارة تلقائيًا بعد اكتمال كل النتائج المطلوبة. يمكنك معاينة التقرير الآن.');
+    return { saved: true, visitApproved: true, completed: !testId || state.work.some(item => item.id === testId && item.status === 'completed') };
   } catch (error) {
     const detail = error.message || 'تعذر إكمال اعتماد الزيارة.';
     const missingRequired = /required|missing|مفقود|ناقص|غير مكتمل/i.test(detail);
@@ -898,11 +898,10 @@ async function saveAndMaybeApproveVisit(visitId) {
       showNotice(completed
         ? 'تم حفظ النتائج وإكمال ' + completed + ' تحليل. يمكنك طباعة النتائج المكتملة الآن، والزيارة ستظل مفتوحة لاستكمال الباقي.'
         : 'تم حفظ النتائج. الزيارة ما زالت مفتوحة لحين اكتمال التحاليل المطلوبة: ' + detail);
-      await refreshWork();
     } else {
       showNotice('تم حفظ نتيجة التحليل، لكن تعذر اعتماد الزيارة الآن. النتائج محفوظة ولم تُفقد: ' + detail, true);
     }
-    return { saved: true, visitApproved: false, approvalError: detail };
+    return { saved: true, visitApproved: false, completed: Boolean(testId && state.work.some(item => item.id === testId && item.status === 'completed')), approvalError: detail };
   }
 }
 window.taibaSaveAndMaybeApproveVisit = saveAndMaybeApproveVisit;
