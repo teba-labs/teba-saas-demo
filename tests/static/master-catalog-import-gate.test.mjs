@@ -9,11 +9,11 @@ const migration = await readFile(new URL('database/migrations/087_gate_master_ca
 
 test('customer master library exposes only centrally reviewed complete definitions', () => {
   assert.match(repository, /eq\('clinical_review_status','verified'\)/);
-  assert.match(repository, /row\\.unreviewed_parameters===0/);
-  assert.match(repository, /row\\.placeholder_parameters===0/);
-  assert.match(repository, /row\\.missing_numeric_ranges===0/);
-  assert.match(repository, /row\\.missing_units===0/);
-  assert.match(repository, /row\\.missing_formulas===0/);
+  assert.match(repository, /row\.unreviewed_parameters===0/);
+  assert.match(repository, /row\.placeholder_parameters===0/);
+  assert.match(repository, /row\.missing_numeric_ranges===0/);
+  assert.match(repository, /row\.missing_units===0/);
+  assert.match(repository, /row\.missing_formulas===0/);
 });
 
 test('central import is guarded on the server and imported copies start inactive', () => {
