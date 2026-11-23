@@ -47,6 +47,13 @@ function testLauncher(node,record,kind,workspace){
   if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ النتائج الحالية أولًا قبل فتح تحليل آخر.');return;}
   const list=workspace.querySelector('.test-launch-list');
   if(!list)return;
+  const previous=workspace.querySelector('.test-detail');
+  if(previous){
+   const previousNode=previous.querySelector('.parameter[data-test-id]');
+   const previousMarker=previousNode?.previousSibling;
+   if(previousNode&&previousMarker?.nodeType===8)previousMarker.replaceWith(previousNode);
+   previous.remove();list.hidden=false;
+  }
   const placeholder=document.createComment('test-card-placeholder');
   node.before(placeholder);
   const detail=document.createElement('section');detail.className='test-detail';
