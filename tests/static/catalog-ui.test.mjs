@@ -24,7 +24,7 @@ test('catalog screen uses authenticated tenant context and owner-only price edit
     assert.ok(html.includes('id="'+control+'"'), 'missing doctor-friendly editor control '+control);
   }
   assert.doesNotMatch(html, /id="parameterRanges"/);
-  assert.doesNotMatch(js, /parseJsonField\\('parameterRanges'/);
+  assert.ok(!js.includes("parseJsonField('parameterRanges'"), 'reference ranges must not use JSON text entry');
   assert.match(js, /readRangeRows\\(/);
   assert.match(js, /readDisplayRules\\(/);
   assert.match(js, /resultInputMode/);
