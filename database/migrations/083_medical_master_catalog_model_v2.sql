@@ -558,12 +558,12 @@ begin
     for v_option in select jsonb_array_elements_text(v_selected) loop
       if not coalesce(p_choices,'[]'::jsonb) @> jsonb_build_array(v_option) then return false; end if;
       if v_mode='graded_multi_choice' then
-        if jsonb_typeof(p_result_config->'choice_scores'->v_option) <> 'number' then return false; end if;
+        if coalesce(jsonb_typeof(p_result_config->'choice_scores'->v_option),'null') <> 'number' then return false; end if;
         v_expected_score := v_expected_score + (p_result_config->'choice_scores'->>v_option)::numeric;
       end if;
     end loop;
     if v_mode='graded_multi_choice' then
-      if jsonb_typeof(v_payload->'score') <> 'number' then return false; end if;
+      if coalesce(jsonb_typeof(v_payload->'score'),'null') <> 'number' then return false; end if;
       if (v_payload->>'score')::numeric <> v_expected_score then return false; end if;
     end if;
     return true;
@@ -613,6 +613,14 @@ begin
   end if;
   if v_test.status = 'cancelled' then raise exception 'Cancelled test cannot be completed'; end if;
   if v_test.status = 'completed' then raise exception 'Test is already completed'; end if;
+
+  delete from public.test_results tr
+   using jsonb_array_elements(coalesce(v_test.technical_snapshot->'parameters','[]'::jsonb)) p
+   where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id
+     and tr.parameter_code=p->>'code'
+     and not private.result_parameter_is_visible(
+       p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb
+     );
 
   if exists (
     select 1
@@ -675,6 +683,16 @@ begin
   if v_total = 0 or v_incomplete > 0 then
     raise exception 'Every requested test must be completed before approval';
   end if;
+
+  delete from public.test_results tr
+   using public.visit_tests vt,
+         jsonb_array_elements(coalesce(vt.technical_snapshot->'parameters','[]'::jsonb)) p
+   where vt.tenant_id=p_tenant_id and vt.branch_id=p_branch_id and vt.visit_id=p_visit_id
+     and vt.status <> 'cancelled'
+     and tr.tenant_id=p_tenant_id and tr.visit_test_id=vt.id and tr.parameter_code=p->>'code'
+     and not private.result_parameter_is_visible(
+       p_tenant_id,vt.id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb
+     );
 
   if exists (
     select 1
