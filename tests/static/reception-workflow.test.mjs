@@ -63,6 +63,9 @@ test('new patient keyboard flow advances Enter and accepts missing phone while s
   assert.match(html,/id="patientDob"/);
   assert.match(js,/dateOfBirth/);
   assert.match(js,/syncAgeFromDob/);
+  assert.match(js,/unit:'days'/);
+  assert.match(js,/unit:'months'/);
+  assert.match(js,/unit:'years'/);
   assert.match(js,/newPatientForm'\)\.addEventListener\('keydown'/);
   assert.match(js,/fields\[index\+1\]/);
   assert.match(js,/\(next\|\|\$\('createPatient'\)\)\.focus\(\)/);
