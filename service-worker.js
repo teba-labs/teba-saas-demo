@@ -9,7 +9,7 @@ const APP_SHELL = [
   './core/supabase-client.js', './core/auth/session.js', './core/tenant/context.js', './core/tenant/workspace-selection.js', './core/data/schema-contract.js', './config/environment.js',
   './offline/database.js', './offline/outbox.js', './offline/cache.js', './offline/backup.js', './offline/supabase-adapters.js', './offline/background-sync.js',
   './modules/ui/keyboard-navigation.js', './modules/dashboard/financial-import-engine.js', './modules/catalog/repository.js', './modules/results/culture-repository.js', './modules/catalog/formula-engine.js', './modules/migration/workbook-inspector.js', './modules/migration/catalog-importer.js', './modules/migration/price-importer.js', './modules/dashboard/expense-breakdown.js', './modules/dashboard/live-status.js', './modules/files/repository.js', './modules/reception/repository.js', './modules/expenses/repository.js', './modules/laboratory/repository.js',
-  './modules/results/repository.js', './modules/results/input-values.js', './modules/reports/repository.js', './modules/settings/repository.js', './modules/settings/assets-repository.js', './modules/settings/audit-repository.js', './modules/settings/cloud-backup-repository.js', './modules/staff/repository.js',
+  './modules/results/repository.js', './modules/results/input-mode.js', './modules/reports/repository.js', './modules/settings/repository.js', './modules/settings/assets-repository.js', './modules/settings/audit-repository.js', './modules/settings/cloud-backup-repository.js', './modules/staff/repository.js',
   './modules/workday/repository.js', './dashboard/repository.js', './dashboard/owner-financial-repository.js', './website/cms-repository.js', './website/public-site.js'
 ];
 
