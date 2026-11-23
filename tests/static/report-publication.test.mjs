@@ -6,6 +6,7 @@ const migration = await readFile(new URL('../../database/migrations/003_atomic_r
 const edge = await readFile(new URL('../../supabase/functions/publish-report/index.ts', import.meta.url), 'utf8');
 const repo = await readFile(new URL('../../modules/reports/repository.js', import.meta.url), 'utf8');
 const config = await readFile(new URL('../../supabase/config.toml', import.meta.url), 'utf8');
+const optIn = await readFile(new URL('../../database/migrations/108_block_partial_report_publication.sql', import.meta.url), 'utf8');
 
  test('publication is a single authenticated database transaction', () => {
   assert.match(migration, /create or replace function public\.publish_report_version/i);
@@ -60,4 +61,11 @@ test('staff publication endpoint keeps JWT verification enabled', () => {
   assert.match(repo, /functions\.invoke\('publish-report'/);
   assert.match(repo, /rpc\('correct_published_result'/);
   assert.doesNotMatch(repo, /from\('report_versions'\)\s*\.insert/);
+});
+
+test('patient portal is optional and final publication is blocked until all requested tests are complete', () => {
+  assert.match(optIn,/alter column portal_settings set default jsonb_build_object[\\s\\S]*'enabled', false/);
+  assert.match(optIn,/ss\\.portal_settings @> '\\{"enabled":true\\}'::jsonb/);
+  assert.match(optIn,/All visit tests must be completed before report publication/);
+  assert.doesNotMatch(optIn,/patient_portal_enabled/);
 });
