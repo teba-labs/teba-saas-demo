@@ -7,6 +7,7 @@ const repository = await readFile(new URL('modules/catalog/repository.js', root)
 const ui = await readFile(new URL('assets/js/catalog.js', root), 'utf8');
 const migration = await readFile(new URL('database/migrations/087_gate_master_catalog_import.sql', root), 'utf8');
 const activation = await readFile(new URL('database/migrations/088_guard_master_import_activation.sql', root), 'utf8');
+const hormoneSeed = await readFile(new URL('database/migrations/089_complete_reproductive_hormone_profiles.sql', root), 'utf8');
 
 test('customer master library exposes only centrally reviewed complete definitions', () => {
   assert.match(repository, /eq\('clinical_review_status','verified'\)/);
@@ -35,4 +36,11 @@ test('a tenant cannot activate an imported test with incomplete active parameter
   assert.match(activation, /لا يمكن اعتماد التحليل/);
   assert.match(activation, /reference_ranges/);
   assert.match(activation, /result_source = 'calculated' and p.formula is null/);
+});
+
+test('reproductive hormone profiles carry source-backed intervals without pretending local validation', () => {
+  for (const code of ['FEMALE_CYCLE_HORMONE_PROFILE','MALE_FERTILITY_HORMONE_PROFILE']) assert.ok(hormoneSeed.includes(code));
+  for (const source of ['MAYO-FSH-602753','MAYO-LH-602752','MAYO-ESTS-8575','MAYO-PGSN-8141','MAYO-PRL-800091','MAYO-TTST-8533']) assert.ok(hormoneSeed.includes(source));
+  assert.match(hormoneSeed, /reference_interval_status='local_verification_required'/);
+  assert.match(hormoneSeed, /external_source_suggested/);
 });
