@@ -146,15 +146,11 @@ async function loadParameters({tenantId=state.tenant?.id,testId=state.selectedTe
 function renderMasterCatalog(){
  const term=$('masterCatalogSearch').value.trim().toLocaleLowerCase();
  const rows=state.masterTests.filter(t=>!term||`${t.canonical_name} ${t.master_code} ${(t.alternate_names||[]).join(' ')}`.toLocaleLowerCase().includes(term));
- $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف · ${state.masterTests.filter(t=>t.clinical_review_status==='verified').length} موثق مركزيًا · ${state.masterTests.filter(t=>!t.parameter_count).length} بدون بارامترات — قابلة للاستكمال محليًا`;
+ $('masterCatalogCount').textContent=`${state.masterTests.length} تحليل/بروفايل جاهز للاستيراد بعد المراجعة الطبية المركزية`;
  $('masterCatalogList').innerHTML=rows.length?rows.map(t=>{
   const parameterCount=Number(t.parameter_count||0);
-  const missingRanges=Number(t.missing_numeric_ranges||0),unreviewed=Number(t.unreviewed_parameters||0),placeholderCount=Number(t.placeholder_parameters||0);
-  const completeness=placeholderCount?placeholderCount+' حقل مبدئي عام — حدّد النوع والوحدة والرينج محليًا':parameterCount?parameterCount+' بارامتر · '+(missingRanges?missingRanges+' بدون رينج رقمي (قابل للتعديل محليًا)':'لا توجد رينجات رقمية ناقصة')+' · '+(unreviewed?unreviewed+' تحتاج مراجعة':'البارامترات مراجعَة'):'لا توجد بارامترات — أضفها محليًا بعد الاستيراد';
-  const requiresLocalSetup=!parameterCount||placeholderCount>0||missingRanges>0||unreviewed>0;
-  const review=t.clinical_review_status==='verified'?'مراجع مركزيًا':'غير معتمد مركزيًا — يحتاج مراجعة محلية';
-  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'مجموعة':'فردي'} · ${esc(t.category||'غير مصنف')} · إصدار ${esc(t.release?.version||'—')}</small><small>${completeness} · ${review}</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}">${requiresLocalSetup?'استيراد واستكمال محليًا':'استيراد للمعمل'}</button></div>`;
- }).join(''):'<p class="empty">لا توجد تعريفات منشورة مطابقة.</p>';
+  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'بروفايل / مجموعة':'تحليل فردي'} · ${esc(t.category||'غير مصنف')} · ${parameterCount} بارامتر · إصدار ${esc(t.release?.version||'—')}</small><small>مكتمل ومراجع مركزيًا؛ لا يحتاج استكمال رينجات أو معادلات قبل الاستيراد. بعد الاستيراد راجع سعر المعمل ثم اعتمده للتشغيل.</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}">استيراد للمراجعة والاعتماد</button></div>`;
+ }).join(''):'<p class="empty">لا توجد حاليًا تحاليل مكتملة ومراجعة مركزيًا تطابق البحث. التعريفات الناقصة لا تظهر للعميل حتى تكتمل مراجعتها.</p>';
 }
 async function loadMasterCatalog(){
  try{state.masterTests=await listMasterCatalogTests();renderMasterCatalog();}
@@ -253,7 +249,7 @@ $('masterCatalogList').addEventListener('click',async e=>{
  const btn=e.target.closest('[data-import-master]');if(!btn||state.role!=='owner')return;
  btn.disabled=true;
  try{requireOnline();const testId=await importMasterCatalogTest({tenantId:state.tenant.id,masterTestId:btn.dataset.importMaster});
-  await loadCatalog();await selectTest(testId);notice('تم استيراد نسخة مستقلة إلى كتالوج المعمل. يمكنك استكمال السعر والرينجات والبيانات الفنية قبل اعتمادها للتشغيل.');
+  await loadCatalog();await selectTest(testId);notice('تم استيراد نسخة مستقلة وموقوفة مؤقتًا. راجع سعر المعمل ثم فعّل التحليل من بياناته لاعتماده للتشغيل.');
  }catch(error){notice(error.message||'تعذر استيراد تعريف التحليل.',true);}finally{btn.disabled=false;}
 });
 $('priceBranchSelect').addEventListener('change',()=>loadPrice());

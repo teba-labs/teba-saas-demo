@@ -1,0 +1,59 @@
+name: Taiba catalog approval preview
+
+on:
+  push:
+    branches: [feature/tenant-test-approval-workflow]
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/catalog.html"
+      - "assets/js/catalog.js"
+      - "modules/catalog/repository.js"
+      - "database/migrations/087_gate_master_catalog_import.sql"
+      - "database/migrations/088_guard_master_import_activation.sql"
+      - "database/migrations/089_complete_reproductive_hormone_profiles.sql"
+      - "service-worker.js"
+      - "scripts/build-netlify.sh"
+      - ".github/workflows/catalog-approval-preview.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taiba-catalog-approval-preview
+  cancel-in-progress: true
+
+jobs:
+  draft-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+    steps:
+      - name: Check out exact feature commit
+        uses: actions/checkout@v4
+      - name: Check preview credentials
+        id: credentials
+        shell: bash
+        run: |
+          if [[ -n "$NETLIFY_AUTH_TOKEN" && -n "$NETLIFY_SITE_ID" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Preview skipped: Netlify credentials are not configured."
+          fi
+      - name: Set up Node.js
+        if: steps.credentials.outputs.available == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+      - name: Build browser-only deployment
+        if: steps.credentials.outputs.available == 'true'
+        run: bash scripts/build-netlify.sh
+      - name: Publish non-production catalog preview
+        if: steps.credentials.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes netlify-cli@27.20.0 deploy --dir=dist --no-build --alias=taiba-catalog-approval-preview --json | tee netlify-catalog-preview.json
