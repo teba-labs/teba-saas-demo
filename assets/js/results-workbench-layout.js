@@ -61,7 +61,7 @@ function testLauncher(node,record,kind,workspace){
   const footer=document.createElement('footer');footer.className='result-entry-modal-foot';
   const save=button('حفظ النتيجة','button button-primary result-entry-modal-save');
   const back=button('رجوع دون فقد المدخلات','button button-secondary');
-  const closeModal=()=>{placeholder.replaceWith(node);overlay.remove();list.hidden=false;open.focus();};
+  const closeModal=()=>{placeholder.replaceWith(node);overlay.remove();list.hidden=false;open.focus();window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));};
   close.addEventListener('click',closeModal);back.addEventListener('click',closeModal);
   overlay.addEventListener('click',event=>{if(event.target===overlay)closeModal();});
   dialog.addEventListener('keydown',event=>{
@@ -78,8 +78,8 @@ function testLauncher(node,record,kind,workspace){
    if(typeof window.taibaSaveAndMaybeApproveVisit!=='function'){window.alert('تعذر تحميل خدمة حفظ واعتماد التحليل.');return;}
    save.disabled=true;save.textContent='جارٍ الحفظ والتحقق…';
    try{
-    const result=await window.taibaSaveAndCompleteTest(record.visitId,node.dataset.testId);
-    if(result?.completed){closeModal();window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));}
+    const result=await window.taibaSaveAndMaybeApproveVisit(record.visitId,node.dataset.testId);
+    if(result?.completed){closeModal();}
     else {save.disabled=false;save.textContent='حفظ واستكمال التحليل';}
    }catch(error){save.disabled=false;save.textContent='حفظ واستكمال التحليل';window.alert(error.message||'تعذر حفظ التحليل أو استكماله.');}
   });
