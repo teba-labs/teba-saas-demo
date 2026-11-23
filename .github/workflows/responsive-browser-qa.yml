@@ -1,0 +1,36 @@
+name: Full application responsive zoom QA
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feature/full-app-zoom-responsive-2026-11-23]
+
+permissions:
+  contents: read
+
+jobs:
+  responsive-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Chromium test runner
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Run every page at browser-zoom-equivalent viewport widths
+        run: node tests/browser/responsive-layout.mjs
+      - name: Upload full-page responsive screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taiba-responsive-zoom-screenshots
+          path: artifacts/responsive-zoom/
+          if-no-files-found: warn
+          retention-days: 14
