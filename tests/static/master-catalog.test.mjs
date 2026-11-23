@@ -23,6 +23,10 @@ test('master medical catalog has read-only global definitions and tenant-owned i
  assert.match(read('database/migrations/087_catalog_import_invoker_permissions.sql'),/security invoker/i);
  assert.match(read('database/migrations/088_publish_editable_legacy_catalog_index.sql'),/taiba-expanded-index-2026\.11\.23-r2/);
  assert.match(read('database/migrations/088_publish_editable_legacy_catalog_index.sql'),/needs_review/);
+ const catalogRepo=read('modules/catalog/repository.js');
+ assert.doesNotMatch(catalogRepo,/eq\('clinical_review_status','verified'\)/);
+ assert.doesNotMatch(catalogRepo,/\.filter\(row=>row\.parameter_count>0/);
+ assert.match(catalogRepo,/Published definitions remain importable even when clinical metadata is incomplete/);
  const importPolicy=read('database/migrations/077_allow_incomplete_master_catalog_import.sql');
  assert.match(importPolicy,/importability is not clinical approval/i);
  assert.doesNotMatch(importPolicy,/clinical_review_status.*verified/);
