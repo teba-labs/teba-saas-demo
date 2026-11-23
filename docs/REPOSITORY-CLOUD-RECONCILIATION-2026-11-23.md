@@ -43,12 +43,13 @@ PR #42 is a draft containing an older 083 migration variant. It is superseded by
 
 Before this reconciliation, the connected primary project reported 73 applied migrations, with `083_medical_master_catalog_model_v2` as the latest. After applying migration 084, the project reports **74 applied migrations**, with `084_medical_result_input_validation_and_conditional_rules` as the latest.
 
-The repository contains 84 migration files. The difference is not 11 pending production migrations:
+The repository contains 85 migration files. A normalized name comparison shows 74 applied migration records, 12 repository-only names, and one applied-only name; this is not a list of 11 pending production migrations:
 
 - Migrations 023–075 are recorded in Supabase under their migration names without the repository's numeric filename prefix.
 - Migrations 076–083 are recorded with their numeric names.
 - Files 001–011 are the original bootstrap/baseline scripts; the live database already has the core tenant, branch, patient, visit, catalog, parameter, result, and workday schema. Do not replay these bootstrap files on the live database.
 - `012_atomic_patient_portal_rate_limit.sql` is an older experimental/TEST restoration file whose own header says not to apply until the chain is reconciled. The active rate-limit migration is already recorded as `016_atomic_patient_portal_rate_limit`. Do not apply the old 012 file.
+- Supabase also records an applied migration named `allow_preapproval_range_corrections` (version `20261120223445`) for which there is no matching SQL file in current `main`. The final `set_visit_parameter_range_override` implementation is represented by migration 061, including pre-approval and published-correction rules. Do not invent or replay a replacement for the missing historical SQL; recover its exact source from a backup/TEST archive if byte-for-byte migration history is required.
 
 Migration 084 was applied successfully to the confirmed primary project `hgqwpykeazuzceeiumjg`. No migration was applied to the legacy project.
 
