@@ -22,14 +22,36 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
     if (!parameter?.code) throw new Error('Every result must identify its parameter code.');
     const rawValue = value === null || value === undefined ? '' : String(value).trim();
     if (!rawValue) throw new Error('A result value is required.');
-    const valueType = parameter.valueType ?? 'numeric';
-    if (!['numeric', 'text', 'boolean', 'choice'].includes(valueType)) throw new Error('Unsupported result value type.');
-    const isText = valueType !== 'numeric';
-    const numeric = isText ? null : Number(rawValue);
-    if (!isText && !Number.isFinite(numeric)) throw new Error('Numeric result is invalid.');
-    if (valueType === 'boolean' && !['true', 'false'].includes(rawValue)) throw new Error('اختر نعم أو لا للنتيجة المنطقية.');
-    if (valueType === 'choice' && (!Array.isArray(parameter.choices) || !parameter.choices.includes(rawValue))) throw new Error('اختر قيمة من القائمة المحددة لهذا البارامتر.');
-    return { parameter_code: parameter.code, value_numeric: numeric, value_text: isText ? rawValue : null, flag };
+    const mode = parameter.inputMode || (
+      parameter.valueType === 'numeric' ? 'numeric_decimal'
+        : parameter.valueType === 'choice' ? 'single_choice' : parameter.valueType || 'text'
+    );
+    const numericMode = mode === 'numeric_integer' || mode === 'numeric_decimal';
+    const numeric = numericMode ? Number(rawValue) : null;
+    if (numericMode && !Number.isFinite(numeric)) throw new Error('Numeric result is invalid.');
+    if (mode === 'numeric_integer' && !Number.isInteger(numeric)) throw new Error('أدخل عددًا صحيحًا بدون كسور.');
+    if (mode === 'numeric_comparator' && !/^(<=|>=|<|>|≤|≥)\s*-?(\d+(\.\d+)?|\.\d+)$/.test(rawValue)) {
+      throw new Error('اكتب علامة مقارنة ثم رقمًا، مثل: > 5 أو ≤ 3.2');
+    }
+    if (mode === 'boolean' && !['true', 'false'].includes(rawValue.toLowerCase())) throw new Error('اختر نعم أو لا للنتيجة المنطقية.');
+    if (mode === 'positive_negative' && !['positive','negative','equivocal','trace','weak positive','weak negative'].includes(rawValue.toLowerCase())
+      && !(Array.isArray(parameter.choices) && parameter.choices.includes(rawValue))) {
+      throw new Error('اختر نتيجة موجبة أو سالبة من القائمة.');
+    }
+    if (mode === 'single_choice' && (!Array.isArray(parameter.choices) || !parameter.choices.includes(rawValue))) {
+      throw new Error('اختر قيمة من القائمة المحددة لهذا البارامتر.');
+    }
+    if (mode === 'multi_choice' || mode === 'graded_multi_choice') {
+      let payload;
+      try { payload = JSON.parse(rawValue); } catch { throw new Error('الاختيارات المتعددة غير محفوظة بصيغة صحيحة.'); }
+      const selected = Array.isArray(payload) ? payload : payload?.selected;
+      if (!Array.isArray(selected) || !selected.length || !Array.isArray(parameter.choices)
+        || selected.some(choice => !parameter.choices.includes(choice))) {
+        throw new Error('اختر قيمة واحدة على الأقل من الاختيارات المتاحة.');
+      }
+    }
+    if (mode === 'text' && !rawValue) throw new Error('اكتب النتيجة النصية.');
+    return { parameter_code: parameter.code, value_numeric: numeric, value_text: numericMode ? null : rawValue, flag };
   });
   if (new Set(prepared.map(item => item.parameter_code)).size !== prepared.length) {
     throw new Error('لا يمكن إرسال البارامتر نفسه أكثر من مرة في عملية الحفظ.');
