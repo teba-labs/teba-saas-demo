@@ -519,6 +519,7 @@ declare
   v_payload jsonb;
   v_selected jsonb;
   v_option text;
+  v_expected_score numeric := 0;
 begin
   if p_text is null and p_numeric is null then return false; end if;
   if v_mode='numeric_integer' then return p_numeric is not null and p_numeric=trunc(p_numeric) and p_text is null; end if;
@@ -550,9 +551,21 @@ begin
       return false;
     end if;
     if jsonb_array_length(v_selected)=0 then return false; end if;
+    if jsonb_array_length(v_selected) <>
+       (select count(distinct value) from jsonb_array_elements_text(v_selected) as selected(value)) then
+      return false;
+    end if;
     for v_option in select jsonb_array_elements_text(v_selected) loop
       if not coalesce(p_choices,'[]'::jsonb) @> jsonb_build_array(v_option) then return false; end if;
+      if v_mode='graded_multi_choice' then
+        if jsonb_typeof(p_result_config->'choice_scores'->v_option) <> 'number' then return false; end if;
+        v_expected_score := v_expected_score + (p_result_config->'choice_scores'->>v_option)::numeric;
+      end if;
     end loop;
+    if v_mode='graded_multi_choice' then
+      if jsonb_typeof(v_payload->'score') <> 'number' then return false; end if;
+      if (v_payload->>'score')::numeric <> v_expected_score then return false; end if;
+    end if;
     return true;
   end if;
   return false;
@@ -749,6 +762,15 @@ begin
   ) then raise exception 'A result was submitted for a field hidden by its display rules'; end if;
 
   if exists (
+    select 1
+      from jsonb_to_recordset(p_results) x(parameter_code text)
+     where not exists (
+       select 1 from jsonb_array_elements(coalesce(v_snapshot->'parameters','[]'::jsonb)) p
+        where p->>'code'=x.parameter_code
+     )
+  ) then raise exception 'A submitted parameter does not exist in the visit technical snapshot'; end if;
+
+  if exists (
     select 1 from jsonb_to_recordset(p_results) x(parameter_code text)
     join jsonb_array_elements(coalesce(v_snapshot->'parameters','[]'::jsonb)) p on p->>'code'=x.parameter_code
     where coalesce(p->>'result_source','manual')='calculated'
@@ -760,6 +782,15 @@ begin
   on conflict (visit_test_id,parameter_code) do update set
     value_numeric=excluded.value_numeric,value_text=excluded.value_text,flag=excluded.flag,
     entered_by=excluded.entered_by,entered_by_staff_id=excluded.entered_by_staff_id,updated_at=now();
+
+  -- Remove previously stored values for parameters that became hidden after a controller value changed.
+  delete from public.test_results tr
+   using jsonb_array_elements(coalesce(v_snapshot->'parameters','[]'::jsonb)) p
+   where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id
+     and tr.parameter_code=p->>'code'
+     and not private.result_parameter_is_visible(
+       p_tenant_id,p_visit_test_id,coalesce(p->'display_rules','[]'::jsonb),'[]'::jsonb
+     );
 
   select coalesce(jsonb_object_agg(tr.parameter_code,tr.value_numeric),'{}'::jsonb) into v_values
     from public.test_results tr
