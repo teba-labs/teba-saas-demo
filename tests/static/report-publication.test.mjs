@@ -51,6 +51,7 @@ test('Edge Function accepts only bounded PDF files and reports RPC success', () 
   assert.match(edge, /%PDF-/);
   assert.match(edge, /userClient\.rpc\('publish_report_version'/);
   assert.match(edge, /versionNumber: version\.version_number/);
+  assert.match(edge, /بوابة المرضى غير مفعلة لهذا المعمل/);
 });
 
 test('staff publication endpoint keeps JWT verification enabled', () => {
