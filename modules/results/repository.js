@@ -1,8 +1,8 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
+import { prepareResultInput } from './input-mode.js';
 import { TABLES } from '../../core/data/schema-contract.js';
 import { enqueueOperation } from '../../offline/outbox.js';
 import { cacheRows, getCachedRows } from '../../offline/cache.js';
-import { prepareResultInputValue } from './input-values.js';
 const db = () => getSupabaseClient();
 
 export async function listResults({ tenantId, visitTestId } = {}) {
@@ -19,7 +19,14 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
   if (!tenantId || !branchId || !visitTestId || !staffId || !Array.isArray(results) || !results.length) {
     throw new Error('tenantId, branchId, visitTestId, staffId and at least one result are required.');
   }
-  const prepared = results.map(({ parameter, value, flag = null }) => prepareResultInputValue(parameter,value,flag));
+  const prepared = results.map(({ parameter, value, flag = null }) => {
+    if (!parameter?.code) throw new Error('Every result must identify its parameter code.');
+    return {
+      parameter_code: parameter.code,
+      ...prepareResultInput(parameter, value),
+      flag,
+    };
+  });
   if (new Set(prepared.map(item => item.parameter_code)).size !== prepared.length) {
     throw new Error('لا يمكن إرسال البارامتر نفسه أكثر من مرة في عملية الحفظ.');
   }
