@@ -61,3 +61,7 @@
 @media(max-width:560px){.multi-choice-options{grid-template-columns:1fr}.multi-choice-option{min-height:42px}}
 
 .choice-score-total{display:block;padding:7px 10px;border-radius:8px;background:var(--taiba-surface-soft,#f1f6f5);font-size:12px;font-weight:700;color:var(--taiba-text,#23564f)}
+
+.result-field{display:grid;gap:6px;min-width:0}
+.result-field-name{display:block;font-weight:700;line-height:1.45}
+.result-field>small{display:block;margin:0;color:var(--taiba-muted,#657580);font-size:12px;line-height:1.45}
