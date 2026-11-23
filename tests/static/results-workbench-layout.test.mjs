@@ -50,7 +50,7 @@ test('test cards open inline in the same workbench instead of forcing navigation
  assert.doesNotMatch(layout,/location\.href=url\.href/);
 });
 test('dedicated result entry page exposes visit-wide save, approval and preview controls',()=>{
- assert.match(layout,/حفظ النتائج واعتماد الزيارة/);
+ assert.ok(layout.includes('حفظ كل النتائج'));\n assert.ok(layout.includes('اعتماد الزيارة'));
  assert.match(layout,/window\.taibaApproveVisit/);
  assert.match(layout,/window\.taibaPreviewVisitReport/);
 });
