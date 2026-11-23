@@ -65,7 +65,7 @@ test('results UI renders all configured input modes and saves conditional and mu
  assert.match(repo,/prepareResultInput/);
  assert.match(js,/data-display-rules/);
  assert.match(js,/class="result-field" data-display-rules/);
- assert.match(js,/aria-label="\\$\\{name\\}"/);
+ assert.ok(js.includes('aria-label="${name}"'));
  assert.doesNotMatch(js,/<label class="result-field"/);
  assert.match(js,/choice-score-total/);
  assert.match(js,/choice_scores/);
