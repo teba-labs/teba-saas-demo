@@ -25,8 +25,8 @@ test('catalog screen uses authenticated tenant context and owner-only price edit
   }
   assert.doesNotMatch(html, /id="parameterRanges"/);
   assert.ok(!js.includes("parseJsonField('parameterRanges'"), 'reference ranges must not use JSON text entry');
-  assert.match(js, /readRangeRows\\(/);
-  assert.match(js, /readDisplayRules\\(/);
+  assert.ok(js.includes('readRangeRows('));
+  assert.ok(js.includes('readDisplayRules('));
   assert.match(js, /resultInputMode/);
 });
 
