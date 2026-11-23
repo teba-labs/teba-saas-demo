@@ -44,7 +44,6 @@ function testLauncher(node,record,kind,workspace){
  const open=button('', 'test-launch-card');
  open.innerHTML='<span><strong>'+esc(name)+'</strong><small>'+esc(status)+' · '+(kind==='profile'?'بروفايل':'تحليل فردي')+'</small></span><b class="launch-arrow" aria-hidden="true">←</b>';
  open.addEventListener('click',()=>{
-  if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ النتائج الحالية أولًا قبل فتح تحليل آخر.');return;}
   const list=workspace.querySelector('.test-launch-list');
   if(!list)return;
   const previous=workspace.querySelector('.test-detail');
@@ -59,7 +58,6 @@ function testLauncher(node,record,kind,workspace){
   const detail=document.createElement('section');detail.className='test-detail';
   const back=button('رجوع لقائمة التحاليل','button button-secondary test-detail-back');
   back.addEventListener('click',()=>{
-   if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ النتيجة الحالية قبل الرجوع.');return;}
    placeholder.replaceWith(node);detail.remove();list.hidden=false;
   });
   detail.append(back,node);list.hidden=true;workspace.append(detail);
