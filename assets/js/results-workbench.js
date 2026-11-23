@@ -885,7 +885,7 @@ async function saveAndMaybeApproveVisit(visitId) {
     const detail = error.message || 'تعذر إكمال اعتماد الزيارة.';
     const missingRequired = /required|missing|مفقود|ناقص|غير مكتمل/i.test(detail);
     if (missingRequired) {
-      const completed = saved.completedTestCount || 0;
+      const completed = state.work.filter(item => item.visit_id === visitId && item.status === 'completed').length;
       showNotice(completed
         ? 'تم حفظ النتائج وإكمال ' + completed + ' تحليل. يمكنك طباعة النتائج المكتملة الآن، والزيارة ستظل مفتوحة لاستكمال الباقي.'
         : 'تم حفظ النتائج. الزيارة ما زالت مفتوحة لحين اكتمال التحاليل المطلوبة: ' + detail);
