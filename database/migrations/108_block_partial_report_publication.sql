@@ -40,7 +40,10 @@ begin
 
   if p_storage_path is null or p_storage_path !~ (
     '^' || p_tenant_id::text || '/' || p_visit_id::text ||
-    '/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}[.]pdf
+    '/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}[.]pdf' || chr(36)
+  ) then
+    raise exception 'Invalid report storage path';
+  end if;
 
   select * into v_visit from public.visits
     where id=p_visit_id and tenant_id=p_tenant_id and branch_id=p_branch_id
