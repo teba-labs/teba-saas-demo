@@ -29,17 +29,18 @@ This is the acceptance checklist for the small-laboratory operating model. It is
 
 - Phone is optional; DOB field and age calculation are implemented in the reception UI/repository, pending migration 106.
 - Reception owner can enter a missing tenant price inline; no other lab's price is copied.
-- Catalog bootstrap RPC and client call are implemented in migration 105/repository. A rollback-only SaaS TEST rehearsal returned 45 available verified Core tests, installed 43 missing definitions on first call, installed 0 on the second call, and left the database unchanged after rollback (3 catalog rows / 3 links remain).
+- Catalog bootstrap RPC is called on workspace load/refresh. The workspace warms the test catalog and parameter cache after the first online load, so no logout/login or manual import is required. A rollback-only SaaS TEST rehearsal returned 45 available verified Core tests, installed 43 missing definitions on first call, installed 0 on the second call, and left the database unchanged after rollback (3 catalog rows / 3 links remain). All 45 Core tests have specimen/method/category metadata and 352 parameter rows; 11 parameters are calculated.
 - Results workbench calls the atomic per-test completion RPC after saving complete results; visit-level approval remains guarded by the existing atomic all-required-results RPC.
 - Partial report preview is limited to individually completed tests and is visibly marked partial; the visit remains open.
 - Result correction no longer prompts for a typed reason; it sends a fixed system audit label and stores authenticated user/staff identity. Migration 107 permits owner correction of approved unpublished results while keeping employee restrictions.
+- Partial reports contain only completed tests and are labelled partial. Migration 108 and the UI block patient-portal publication until every requested test is complete.
 - Profile reports are given page breaks; physical printer verification is still outstanding.
 
 ## Explicit blockers / not yet verified
 
-- Migrations 105–107 are in the PR only and have **not** been applied to SaaS TEST or production.
+- Migrations 105–108 are in the PR only and have **not** been applied to SaaS TEST or production. All four were rehearsed together inside a transaction and rolled back; the database was confirmed unchanged afterward.
 - No Netlify preview credentials are configured; no live preview URL is available from this PR.
 - No signed-in end-to-end customer session has been tested.
 - The expanded 495-definition index remains needs_review / local_verification_required; it is not part of automatic provisioning.
-- Core reference intervals requiring local verification remain flagged; do not represent them as locally validated.
+- Of the Core numeric parameters, 131 reference intervals still require local verification and 6 have no range. The UI labels proposed source ranges as unapproved locally and does not auto-flag H/L until a range is verified locally.
 - CBC, urine, stool, culture, formula/conditional entry, physical print output, offline sync under interruption, patient portal/WhatsApp delivery and full RLS negative tests still need execution evidence.
