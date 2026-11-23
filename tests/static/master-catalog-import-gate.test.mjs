@@ -14,6 +14,8 @@ const urineSeed = await readFile(new URL('database/migrations/092_complete_urine
 const cbcSeed = await readFile(new URL('database/migrations/093_complete_cbc_indices_and_differential.sql', root), 'utf8');
 const stoolSeed = await readFile(new URL('database/migrations/094_complete_stool_profiles_and_dedupe.sql', root), 'utf8');
 const finalGate = await readFile(new URL('database/migrations/095_finalize_master_import_completeness.sql', root), 'utf8');
+const remainingCore = await readFile(new URL('database/migrations/096_complete_remaining_core_profiles.sql', root), 'utf8');
+const proteinSemen = await readFile(new URL('database/migrations/097_complete_protein_and_semen_profiles.sql', root), 'utf8');
 
 test('customer master library exposes only centrally reviewed complete definitions', () => {
   assert.match(repository, /eq\('clinical_review_status','verified'\)/);
@@ -69,4 +71,11 @@ test('final server import gate checks method, specimen and choice options', () =
   assert.match(repository, /missing_choices/);
   assert.match(repository, /row.definition\?\.method/);
   assert.match(repository, /row.definition\?\.specimen/);
+});
+
+test('all 45 core definitions are supported by source-backed profile migrations', () => {
+  for (const code of ['BONE_PROFILE','ELECTROLYTE_PROFILE','GLYCEMIC_CONTROL_PROFILE','PANCREATIC_ENZYME_PROFILE','AUTOIMMUNE_SCREEN_PROFILE','RHEUMATOLOGY_PROFILE','THYROID_ANTIBODY_PROFILE','PCOS_EVALUATION_PROFILE','ANTENATAL_INFECTION_SCREEN_PROFILE','TORCH_SEROLOGY_PROFILE','CARDIAC_MARKERS_PROFILE']) assert.ok(remainingCore.includes(code));
+  assert.match(proteinSemen, /WHO Laboratory Manual for the Examination and Processing of Human Semen/);
+  assert.match(proteinSemen, /QUEST-7577/);
+  assert.match(proteinSemen, /PEROXIDASE_LEUKOCYTES/);
 });
