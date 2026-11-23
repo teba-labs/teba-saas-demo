@@ -219,7 +219,7 @@ async function renderWork() {
         const code=escapeHtml(p.code),name=escapeHtml(p.name??p.parameter_name??p.code);
         const parameterRange=rangeOverridesByKey.get(item.id+'|'+p.code)?.reference_ranges??p.reference_ranges??{};
         const displayRules=Array.isArray(p.display_rules)?p.display_rules:[];
-        const metadata=`data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit??'')}" data-value-type="${escapeHtml(type)}" data-input-mode="${escapeHtml(mode)}" data-result-config='${escapeHtml(JSON.stringify(p.result_config||{}))}' data-range='${escapeHtml(JSON.stringify(parameterRange))}' data-choices='${escapeHtml(JSON.stringify(resultChoices(p)))}' data-reference-interval-status='${escapeHtml(p.reference_interval_status??'local_verification_required')}' data-patient-age='${escapeHtml(item.visits?.patients?.age_years??'')}' data-patient-sex='${escapeHtml(item.visits?.patients?.sex??'')}' data-critical-range='${escapeHtml(JSON.stringify(p.critical_ranges??[]))}'`;
+        const metadata=`data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit??'')}" data-value-type="${escapeHtml(type)}" data-input-mode="${escapeHtml(mode)}" data-result-config='${escapeHtml(JSON.stringify(p.result_config||{}))}' data-range='${escapeHtml(JSON.stringify(parameterRange))}' data-choices='${escapeHtml(JSON.stringify(resultChoices(p)))}' data-reference-interval-status='${escapeHtml(p.reference_interval_status??'local_verification_required')}' data-patient-age='${escapeHtml(patientAgeInYears(item.visits?.patients||{})??'')}' data-patient-sex='${escapeHtml(item.visits?.patients?.sex??'')}' data-critical-range='${escapeHtml(JSON.stringify(p.critical_ranges??[]))}'`;
         const control=renderResultControl(p,metadata,locked,mode);
         const rangeText = resolveReferenceRange(parameterRange, item.visits?.patients || {}, p.reference_interval_status);
         const rangeEditButton = (isPublished || (group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled'))
@@ -383,12 +383,16 @@ function ageBoundaryInYears(value,unit){
     :['day','days','d'].includes(normalized)?1/365:1;
   return Number(value)*factor;
 }
+function patientAgeInYears(patient={}){
+  if(patient.age_years!=null&&patient.age_years!=='')return Number(patient.age_years);
+  return ageBoundaryInYears(patient.age_value,patient.age_unit||'years');
+}
 function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
   const localPending = status === 'local_verification_required';
   if (localPending && (!value || (Array.isArray(value) && value.length === 0))) return 'لا يوجد مدى مصدر محدد؛ يلزم ضبطه محليًا';
   if (status === 'not_applicable' && !(value && (value.text || Array.isArray(value)))) return 'لا ينطبق';
   if (Array.isArray(value)) {
-    const age = patient?.age_years == null ? null : Number(patient.age_years);
+    const age = patientAgeInYears(patient);
     const sex = String(patient?.sex || '').toLowerCase();
     const matches = value.filter(range => {
       if (range.pregnancy) return false;
