@@ -54,6 +54,7 @@ function renderResultControl(parameter,metadata,locked,mode){
       <input type="hidden" class="multi-choice-value" ${metadata}${disabled} value="" />
       <div class="multi-choice-options">${choices.map(choice=>`<label class="multi-choice-option" data-choice-option><input class="multi-choice-item" type="checkbox" data-choice-value="${escapeHtml(choice)}"${disabled}><span>${escapeHtml(choice)}</span></label>`).join('')}</div>
       ${maximum>0?'<small>اختر بحد أقصى '+maximum+' اختيارات</small>':''}
+      ${mode==='graded_multi_choice'?'<small class="choice-score-total" data-choice-score-total aria-live="polite"></small>':''}
     </div>`;
   }
   return `<textarea rows="2" ${metadata}${disabled} placeholder="اكتب النتيجة هنا"></textarea>`;
@@ -63,6 +64,13 @@ function syncMultiChoiceValue(hiddenInput){
   if(!editor)return;
   const selected=[...editor.querySelectorAll('.multi-choice-item:checked')].map(input=>input.dataset.choiceValue);
   hiddenInput.value=selected.length?JSON.stringify(selected):'';
+  const summary=editor.querySelector('[data-choice-score-total]');
+  if(summary){
+    let config={};try{config=JSON.parse(hiddenInput.dataset.resultConfig||'{}');}catch{}
+    const scores=config.choice_scores||{};
+    const total=selected.reduce((sum,choice)=>sum+Number(scores[choice]||0),0);
+    summary.textContent=selected.length?'الدرجة المحتسبة: '+total:'';
+  }
 }
 function setMultiChoiceValue(hiddenInput,rawValue){
   if(!hiddenInput)return;
@@ -70,6 +78,7 @@ function setMultiChoiceValue(hiddenInput,rawValue){
   hiddenInput.value=selected.length?JSON.stringify(selected):'';
   const editor=hiddenInput.closest('[data-multi-choice-editor]');
   if(editor)editor.querySelectorAll('.multi-choice-item').forEach(input=>{input.checked=selected.includes(input.dataset.choiceValue);});
+  syncMultiChoiceValue(hiddenInput);
 }
 function evaluateDisplayRules(section){
   if(!section)return;
@@ -625,8 +634,19 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
       if (!result) return '';
       const parameterName = result.parameter_name_snapshot || parameter.name || parameter.parameter_name || code;
       let value = result.value_numeric ?? result.value_text ?? '—';
-      if(['multi_choice','graded_multi_choice'].includes(resultInputMode(parameter))){
-        try{const selected=JSON.parse(String(value));if(Array.isArray(selected))value=selected.join('، ');}catch{}
+      const reportMode=resultInputMode(parameter);
+      if(['multi_choice','graded_multi_choice'].includes(reportMode)){
+        try{
+          const selected=JSON.parse(String(value));
+          if(Array.isArray(selected)){
+            value=selected.join('، ');
+            if(reportMode==='graded_multi_choice'){
+              const scores=parameter.result_config?.choice_scores||{};
+              const total=selected.reduce((sum,choice)=>sum+Number(scores[choice]||0),0);
+              value+=' · الدرجة: '+total;
+            }
+          }
+        }catch{}
       }
       const unit = result.unit_snapshot || parameter.unit || '';
       const reference = resolveReferenceRange(result.reference_range_snapshot ?? parameter.reference_ranges, patient, parameter.reference_interval_status);
