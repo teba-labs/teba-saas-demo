@@ -47,8 +47,11 @@ function resultInputConfig(input){
  try{return JSON.parse(input.dataset.resultConfig||'{}');}catch{return {};}
 }
 function getResultInputValue(input){
- if(input.multiple){
-  const selected=[...input.selectedOptions].map(option=>option.value);
+ let selected=[];
+ if(input.dataset.multiChoice==='true'){
+  selected=[...(input.closest('label')?.querySelectorAll('[data-choice-option]:checked')||[])].map(option=>option.value);
+ }else if(input.multiple)selected=[...input.selectedOptions].map(option=>option.value);
+ if(input.dataset.multiChoice==='true'||input.multiple){
   if(!selected.length)return '';
   if(input.dataset.resultInputMode==='graded_multi_choice'){
    const scores=resultInputConfig(input).choice_scores||{};
@@ -61,10 +64,12 @@ function getResultInputValue(input){
 }
 function setResultInputValue(input,stored){
  const value=stored===null||stored===undefined?'':String(stored);
- if(input.multiple){
+ if(input.dataset.multiChoice==='true'||input.multiple){
   let selected=[];
   try{const parsed=JSON.parse(value);selected=Array.isArray(parsed)?parsed:Array.isArray(parsed?.selected)?parsed.selected:[];}catch{}
-  for(const option of input.options)option.selected=selected.includes(option.value);
+  if(input.dataset.multiChoice==='true'){
+   for(const option of input.closest('label')?.querySelectorAll('[data-choice-option]')||[])option.checked=selected.includes(option.value);
+  }else for(const option of input.options)option.selected=selected.includes(option.value);
  }else input.value=value;
  input.dataset.originalValue=getResultInputValue(input);
 }
@@ -84,7 +89,8 @@ function applyConditionalFields(section){
   label.hidden=!matches;
   const input=label.querySelector('[data-param-code]');
   if(input&&!matches){
-   if(input.multiple){for(const option of input.options)option.selected=false;}
+   if(input.dataset.multiChoice==='true'){for(const option of input.closest('label')?.querySelectorAll('[data-choice-option]')||[])option.checked=false;}
+   else if(input.multiple){for(const option of input.options)option.selected=false;}
    else input.value='';
    input.dataset.originalValue='';
    delete input.dataset.resultId;
@@ -93,6 +99,14 @@ function applyConditionalFields(section){
   if(!input||!matches||!rules.length||!input.tagName.match(/SELECT/i))continue;
   const activeRule=[...rules].reverse().find(rule=>Array.isArray(rule.choices)&&rule.choices.length);
   if(!activeRule)continue;
+  if(input.dataset.multiChoice==='true'){
+   for(const option of input.closest('label')?.querySelectorAll('[data-choice-option]')||[]){
+    const permitted=activeRule.choices.includes(option.value);
+    option.closest('.choice-option').hidden=!permitted;
+    if(!permitted)option.checked=false;
+   }
+   continue;
+  }
   const fullChoices=(()=>{try{return JSON.parse(input.dataset.choices||'[]');}catch{return [];}})();
   const permitted=fullChoices.filter(value=>activeRule.choices.includes(value));
   const current=input.multiple?[...input.selectedOptions].map(option=>option.value):[input.value];
@@ -234,7 +248,10 @@ async function renderWork() {
         } else if (mode === 'single_choice') {
           control = `<select ${metadata}${locked ? ' disabled' : ''}><option value="">اختر النتيجة</option>${choices.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('')}</select>`;
         } else if (mode === 'multi_choice' || mode === 'graded_multi_choice') {
-          control = `<select multiple size="3" ${metadata}${locked ? ' disabled' : ''} aria-label="${name} — اختر إجابة أو أكثر">${choices.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}${mode==='graded_multi_choice'&&config.choice_scores?.[value]!=null?' · درجة '+escapeHtml(config.choice_scores[value]):''}</option>`).join('')}</select><small>يمكن تحديد أكثر من اختيار باستخدام Ctrl أو الضغط المطوّل على الهاتف</small>`;
+          control = `<input type="hidden" ${metadata} data-multi-choice="true" ${locked ? 'disabled' : ''} />
+            <div class="choice-checkbox-list" data-choice-options aria-label="${name} — اختر إجابة أو أكثر">
+              ${choices.map((value,index)=>`<div class="choice-option"><input type="checkbox" data-choice-option value="${escapeHtml(value)}" id="choice-${code}-${index}" ${locked ? 'disabled' : ''}><span>${escapeHtml(value)}${mode==='graded_multi_choice'&&config.choice_scores?.[value]!=null?' · درجة '+escapeHtml(config.choice_scores[value]):''}</span></div>`).join('')}
+            </div>`;
         } else if (mode === 'numeric_integer' || mode === 'numeric_decimal') {
           const decimals = mode==='numeric_integer'?0:Math.max(0, Math.min(6, Number(p.decimal_places ?? 2)));
           control = `<input type="number" step="${decimals === 0 ? '1' : String(10 ** -decimals)}" ${metadata}${locked ? ' disabled' : ''} placeholder="أدخل النتيجة" />`;
@@ -266,7 +283,7 @@ async function renderWork() {
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
       <p class="danger-note">التصحيح بعد النشر يحتاج سببًا موثقًا، ويجب إدخال التصحيح من مسار التصحيح المعتمد قبل رفع النسخة الجديدة.</p>`;
     host.append(card);
-    card.querySelectorAll('[data-param-code]').forEach(input=>{
+    card.querySelectorAll('[data-param-code], [data-choice-option]').forEach(input=>{
       input.addEventListener('input',()=>applyConditionalFields(input.closest('.parameter')));
       input.addEventListener('change',()=>applyConditionalFields(input.closest('.parameter')));
     });
