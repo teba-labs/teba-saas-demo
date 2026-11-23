@@ -48,11 +48,13 @@ test('save and correction actions resolve the containing test card, not the acti
   assert.match(script, /const inputs = \[\.\.\.section\.querySelectorAll\('\[data-param-code\]'\)\]/);
 });
 
-test('operator can save every test in a visit and approve once without per-test completion clicks', () => {
+test('operator can complete ready tests, print partial results and approve the visit after all required results', () => {
   assert.match(script, /async function approve\(button\)/);
   assert.match(script, /state\.work\.filter\(item => item\.visit_id === visitId/);
   assert.match(script, /await saveDraftResults\(/);
+  assert.match(script, /await completeVisitTestAtomic\(/);
   assert.match(script, /await approveVisitWithAutoCompletion\(/);
-  assert.doesNotMatch(script, /complete-test|completeTest|completeVisitTest/);
+  assert.match(script, /partialReport/);
+  assert.match(repository, /complete_visit_test_atomic/);
   assert.match(repository, /approve_visit_with_auto_completion/);
 });
