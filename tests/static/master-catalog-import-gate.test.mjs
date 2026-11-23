@@ -25,7 +25,7 @@ test('customer master library exposes all published definitions and labels revie
   assert.match(repository, /Published definitions remain importable even when clinical metadata is incomplete/);
 });
 
-test('central import stays tenant-owner scoped while missing clinical metadata remains optional', () => {
+test('central import stays tenant-owner scoped while missing clinical metadata remains optional', async () => {
   assert.match(migration, /Only the tenant owner may import master catalog tests/);
   assert.match(migration, /Only tests in a published master release can be imported/);
   assert.doesNotMatch(migration, /method and specimen must be defined/);
