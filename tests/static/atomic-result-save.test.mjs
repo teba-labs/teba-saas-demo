@@ -5,10 +5,12 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '../..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('results UI submits all non-empty parameter values in one atomic repository call', () => {
+test('visit approval saves all non-empty values from every test before one atomic visit transition', () => {
   const ui = read('assets/js/results-workbench.js');
-  assert.match(ui, /saveDraftResults\(\{ tenantId: state\.tenant\.id, branchId: state\.branch\.id,[\s\S]*?results, staffId/);
-  assert.doesNotMatch(ui, /for\s*\(const input of inputs\)[\s\S]*?await saveDraftResult/);
+  assert.ok(ui.includes('for (const item of items)'));
+  assert.ok(ui.includes('await saveDraftResults('));
+  assert.ok(ui.includes('await approveVisitWithAutoCompletion('));
+  assert.ok(!ui.includes('await saveDraftResult('));
 });
 
 test('result repository sends one tenant, branch, visit-test and staff scoped RPC request', () => {

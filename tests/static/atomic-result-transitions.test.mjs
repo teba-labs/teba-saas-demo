@@ -9,12 +9,12 @@ const worklist = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js
 const page = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'database/migrations/017_atomic_result_transitions.sql'), 'utf8');
 
-test('result completion and visit approval use atomic server RPCs', () => {
-  assert.match(repository, /rpc\('complete_visit_test_atomic'/);
-  assert.match(repository, /rpc\('approve_visit_atomic'/);
-  assert.doesNotMatch(repository, /\.update\(\{ status: 'completed' \}\)/);
+test('staff-facing workflow uses one visit-wide atomic completion and approval RPC', () => {
+  assert.ok(repository.includes("rpc('approve_visit_with_auto_completion'"));
+  assert.ok(page.includes('await approveVisitWithAutoCompletion('));
+  assert.ok(!page.includes('completeVisitTest') && !page.includes('complete-test'));
+  assert.ok(!repository.includes(".update({ status: 'completed' })"));
   assert.doesNotMatch(repository, /approved_by_staff_id: staffId/);
-  assert.match(page, /branchId: state\.branch\.id, visitTestId: button\.dataset\.testId, staffId:/);
 });
 
 test('atomic result transitions validate branch access and active operational staff', () => {
@@ -59,4 +59,16 @@ test('completed test cards are read-only and the server rejects post-completion 
   assert.ok(screen.includes("disabled=locked?"));
   assert.ok(screen.includes('${metadata}${disabled}'));
   assert.match(screen, /التحليل مكتمل — النتائج للعرض فقط/);
+});
+
+test('one-action approval checks required visible values, preserves branch security and completes tests atomically',()=>{
+ const migration=fs.readFileSync(path.join(root,'database/migrations/103_one_action_visit_approval.sql'),'utf8');
+ assert.ok(migration.includes('function public.approve_visit_with_auto_completion'));
+ assert.ok(migration.includes('private.can_access_branch'));
+ assert.ok(migration.includes('An active staff identity for this branch is required'));
+ assert.ok(migration.includes('نتائج مطلوبة لم تُسجل بعد'));
+ assert.ok(migration.includes('completed_by_staff_id=coalesce(completed_by_staff_id,p_staff_id)'));
+ assert.ok(migration.includes("status='approved'"));
+ assert.ok(migration.includes('grant execute on function public.approve_visit_with_auto_completion'));
+ assert.ok(migration.includes("nullif(p->'formula','null'::jsonb) is null"));
 });

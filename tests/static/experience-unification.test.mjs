@@ -59,6 +59,7 @@ test('clinical result entry queues draft saves safely while keeping completion a
   const repository = read('modules/results/repository.js');
   assert.doesNotMatch(ui, /requireCloudConnection\('حفظ النتائج'\)/);
   assert.match(ui, /requireCloudConnection\('اعتماد الزيارة'\)/);
+  assert.match(ui, /approveVisitWithAutoCompletion/);
   assert.match(ui, /طباعة مسودة غير معتمدة/);
   assert.match(ui, /لا تُسلّم باعتبارها تقريرًا نهائيًا/);
   assert.match(ui, /Save as PDF/);
@@ -67,7 +68,6 @@ test('clinical result entry queues draft saves safely while keeping completion a
   assert.match(repository, /p_tenant_id: tenantId/);
   assert.match(repository, /enqueueOperation/);
   assert.match(ui, /محفوظ محليًا — بانتظار المزامنة/);
-  assert.match(ui, /requireCloudConnection\('إنهاء التحليل'\)/);
 });
 
 test('approved report publication and WhatsApp handoff use the private tenant report path and patient portal', () => {

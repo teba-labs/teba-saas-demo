@@ -26,7 +26,7 @@ test('individual catalog and panel catalog add to the selected visit without lea
 });
 
 test('visit preview is available without automatically invoking print',()=>{
- assert.ok(layout.includes('معاينة نتائج الزيارة'));
+ assert.ok(layout.includes('معاينة التقرير قبل الطباعة'));
  assert.ok(js.includes('autoPrint = true'));
  assert.ok(js.includes('if (autoPrint) win.print()'));
  assert.ok(js.includes('taibaPreviewVisitReport'));
@@ -41,4 +41,17 @@ test('hide and restore are branch-scoped, audited, and never hard-delete medical
 
 test('WhatsApp shares only the patient portal lookup route after publication and with a valid phone',()=>{
  for(const value of ['record.published','wa.me','tenantSlug','portal/index.html']) assert.ok(layout.includes(value),value);
+});
+
+test('test cards open inline in the same workbench instead of forcing navigation to another page',()=>{
+ assert.match(layout,/function testLauncher\(node,record,kind,workspace\)/);
+ assert.match(layout,/test-detail/);
+ assert.match(layout,/placeholder\.replaceWith\(node\)/);
+ assert.doesNotMatch(layout,/location\.href=url\.href/);
+});
+test('dedicated result entry page exposes visit-wide save, approval and preview controls',()=>{
+ assert.ok(layout.includes('حفظ كل النتائج'));
+ assert.ok(layout.includes('اعتماد الزيارة'));
+ assert.match(layout,/window\.taibaApproveVisit/);
+ assert.match(layout,/window\.taibaPreviewVisitReport/);
 });

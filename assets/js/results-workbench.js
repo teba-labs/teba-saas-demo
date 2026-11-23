@@ -3,7 +3,7 @@ import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/ses
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listBranchWorkPage, listVisitWorkForReport } from '../../modules/laboratory/repository.js';
-import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, completeVisitTest, approveVisit } from '../../modules/results/repository.js';
+import { listResultsForVisitTests, listVisitParameterRangeOverrides, saveVisitParameterRangeOverride, saveDraftResults, approveVisitWithAutoCompletion } from '../../modules/results/repository.js';
 import { listPendingDraftResults } from '../../offline/outbox.js';
 import { offlineDb } from '../../offline/database.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
@@ -240,11 +240,11 @@ async function renderWork() {
       return `<section class="parameter" data-test-id="${escapeHtml(item.id)}" data-visit-id="${escapeHtml(visitId)}" data-test-status="${escapeHtml(item.status)}" data-published="${String(isPublished)}" data-test-code="${escapeHtml(item.test_code_snapshot || '')}" data-test-kind="${escapeHtml(item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind || 'individual')}">
         <div class="card-head"><strong>${escapeHtml(item.test_name_snapshot)}</strong><span class="pill">${escapeHtml(item.status)}</span></div>
         <div class="parameter-grid">${parameterControls}</div>${cultureEditor}
-        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة منشورة</button>' : locked && group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled' ? '<button class="button button-secondary correct-unpublished-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة محفوظة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : '<button class="button button-secondary save-test" data-test-id="' + escapeHtml(item.id) + '">حفظ النتائج</button><button class="button button-secondary complete-test" data-test-id="' + escapeHtml(item.id) + '">إنهاء التحليل</button>'}</div>
+        <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة منشورة</button>' : locked && group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled' ? '<button class="button button-secondary correct-unpublished-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة محفوظة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : ''}</div>
       </section>`;
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
-      <div class="actions"><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
+      <div class="actions"><button class="button button-secondary save-visit-drafts" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>حفظ كل النتائج</button><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
       <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>طباعة التقرير بإعدادات المعمل / حفظ PDF</button></div>
       <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
       <div class="file-row"><label>ملف PDF النهائي للنشر<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!group.visit?.status || (!isPublished && group.visit.status !== 'approved') ? 'disabled' : ''}><small>عاين التقرير واطبعه أولًا باستخدام Save as PDF، ثم اختر ملف PDF المحفوظ هنا للنشر في بوابة المريض.</small></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
@@ -275,8 +275,7 @@ async function renderWork() {
   }
   host.querySelectorAll('.parameter[data-test-id]').forEach(section=>evaluateDisplayRules(section));
 
-  host.querySelectorAll('.save-test').forEach(btn => btn.addEventListener('click', () => saveTest(btn)));
-  host.querySelectorAll('.complete-test').forEach(btn => btn.addEventListener('click', () => completeTest(btn)));
+  host.querySelectorAll('.save-visit-drafts').forEach(btn => btn.addEventListener('click', () => saveVisitDraftsAction(btn)));
   host.querySelectorAll('.correct-test, .correct-unpublished-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
   host.querySelectorAll('.publish-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
@@ -649,17 +648,23 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
         }catch{}
       }
       const unit = result.unit_snapshot || parameter.unit || '';
-      const reference = resolveReferenceRange(result.reference_range_snapshot ?? parameter.reference_ranges, patient, parameter.reference_interval_status);
+      const rawReference = result.reference_range_snapshot ?? parameter.reference_ranges;
+      const hasReference = Array.isArray(rawReference) ? rawReference.length > 0
+        : rawReference && typeof rawReference === 'object' ? Object.keys(rawReference).length > 0
+        : rawReference !== null && rawReference !== undefined && String(rawReference).trim() !== '';
+      const reference = hasReference ? resolveReferenceRange(rawReference, patient, parameter.reference_interval_status) : '';
       const calculatedFlag=computeReferenceFlag(result.value_numeric,result.reference_range_snapshot ?? parameter.reference_ranges,patient.age_years,patient.sex,parameter.reference_interval_status,'numeric');
       const displayFlag=calculatedFlag || result.flag;
       const flag = displayFlag ? ' · ' + displayFlag : '';
       return '<tr><td>' + escapeHtml(parameterName) + '</td><td>' + escapeHtml(value) + '</td><td>' + escapeHtml(unit) + '</td><td>' + escapeHtml(reference) + '</td><td>' + escapeHtml(flag) + '</td></tr>';
     }).filter(Boolean).join('');
     const cultureHtml = cultureRows.isolates.filter(isolate=>isolate.visit_test_id===item.id).map(isolate=>{const ast=cultureRows.susceptibilities.filter(row=>row.isolate_id===isolate.id);const astLines=ast.map(row=>'<tr><td>'+escapeHtml(row.antimicrobial_agent)+'</td><td>'+escapeHtml(row.test_method)+'</td><td>'+escapeHtml(row.measured_value??'—')+' '+escapeHtml(row.measured_unit??'')+'</td><td>'+escapeHtml(row.interpretation)+'</td><td>'+escapeHtml(row.breakpoint_standard)+' '+escapeHtml(row.breakpoint_edition)+'</td><td>'+escapeHtml(row.qc_status)+'</td></tr>').join('');return '<h3>العزلة '+isolate.isolate_number+': '+escapeHtml(isolate.organism_name)+'</h3><p>النمو: '+escapeHtml(isolate.growth_description||'—')+' · العد: '+escapeHtml(isolate.colony_count??'—')+' '+escapeHtml(isolate.colony_count_unit)+' · التعريف: '+escapeHtml(isolate.identification_method||'—')+'</p><table><thead><tr><th>المضاد الحيوي</th><th>الطريقة</th><th>القيمة</th><th>التفسير</th><th>معيار/إصدار القطع</th><th>ضبط الجودة</th></tr></thead><tbody>'+(astLines||'<tr><td colspan="6">لا توجد نتائج حساسية مسجلة</td></tr>')+'</tbody></table>'+(isolate.notes?'<p>'+escapeHtml(isolate.notes)+'</p>':'');}).join('');
-    return { kind: item.technical_snapshot?.test_kind || 'individual', html: '<section class="test ' + ((item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind) === 'panel' ? 'profile-report' : 'individual-test') + '"><h2>' + escapeHtml(item.test_name_snapshot || 'Test') + ' <small class="section-status">' + (item.status === 'completed' ? 'مكتمل' : 'غير مكتمل') + '</small></h2><table><thead><tr><th>Test / Parameter</th><th>Result</th><th>Unit</th><th>Reference Interval</th><th>Flag</th></tr></thead><tbody>' + (lines || '<tr><td colspan="5">No results recorded</td></tr>') + '</tbody></table>' + cultureHtml + '</section>' };
+    const kind = item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind || 'individual';
+    const hasContent = Boolean(lines || cultureHtml);
+    return { kind, hasContent, html: '<section class="test ' + (kind === 'panel' ? 'profile-report' : 'individual-test') + '"><h2>' + escapeHtml(item.test_name_snapshot || 'Test') + ' <small class="section-status">' + (item.status === 'completed' ? 'مكتمل' : 'غير مكتمل') + '</small></h2><table><thead><tr><th>Test / Parameter</th><th>Result</th><th>Unit</th><th>Reference Interval</th><th>Flag</th></tr></thead><tbody>' + lines + '</tbody></table>' + cultureHtml + '</section>' };
   });
-  const individualHtml = testSections.filter(section => section.kind !== 'panel').map(section => section.html).join('');
-  const profileHtml = testSections.filter(section => section.kind === 'panel').map(section => section.html).join('');
+  const individualHtml = testSections.filter(section => section.kind !== 'panel' && section.hasContent).map(section => section.html).join('');
+  const profileHtml = testSections.filter(section => section.kind === 'panel' && section.hasContent).map(section => section.html).join('');
   const groupedTestSections = (individualHtml ? '<section class="report-group individual-report"><h2>INDIVIDUAL TESTS</h2>' + individualHtml + '</section>' : '') + profileHtml;
   const historicalSections=selectedHistoricalRows.map(row=>{
     const payload=row.result_data||{},parameters=payload.parameters&&typeof payload.parameters==='object'?Object.entries(payload.parameters):[];
@@ -669,15 +674,16 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const performedAt = 'تم إجراء التحاليل بفرع: ' + (branch.name || '—');
   const showPrintHeader = print.showHeader !== false;
   const showPrintFooter = print.showFooter !== false;
-  const pageTopMargin = showPrintHeader ? 54 : 12;
-  const pageBottomMargin = showPrintFooter ? 42 : 12;
+  const pageTopMargin = showPrintHeader ? 36 : 12;
+  const pageBottomMargin = showPrintFooter ? 24 : 12;
   const html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' +
     '@page{size:' + paper + ' ' + orientation + ';margin:' + pageTopMargin + 'mm ' + margin + 'mm ' + pageBottomMargin + 'mm ' + margin + 'mm}' +
-    'body{position:relative;font-family:Tahoma,Arial,sans-serif;color:#1d2e3a;font-size:12px;line-height:1.65;background:#fff}body>*:not(.watermark-image):not(.watermark-text){position:relative;z-index:1}.watermark-image{position:fixed;top:28%;left:0;right:0;z-index:0;text-align:center;pointer-events:none;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + '}.watermark-image img{width:' + (print.watermarkSize==='large'?'62%':print.watermarkSize==='small'?'28%':'42%') + ';max-height:48vh;object-fit:contain}.watermark-text{position:fixed;top:42%;left:8%;right:8%;z-index:0;text-align:center;font-size:' + (print.watermarkSize==='large'?'76px':print.watermarkSize==='small'?'38px':'56px') + ';font-weight:800;color:#173f58;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + ';pointer-events:none}header.report-header{border-bottom:2px solid #168f9a;padding:0 0 8px;margin-bottom:14px;background:#fff}.header-grid{display:grid;grid-template-columns:1fr 120px 1fr;align-items:center;gap:10px}.identity-zone{display:grid;gap:3px;font-size:13px}.identity-zone strong{font-size:17px;color:#173f58}.identity-zone span{color:#435864}.header-right{text-align:right}.header-left{text-align:left}.logo-zone{text-align:center}.lab-logo{max-width:110px;max-height:72px;object-fit:contain}.logo-placeholder{font-weight:800;color:#173f58;font-size:12px}h1{font-size:19px;margin:10px 0 4px;text-align:center;color:#173f58}h2{font-size:15px;margin:12px 0 6px;color:#173f58}.report-title{text-align:center;font-weight:700;color:#16818b;font-size:13px}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;margin:10px 0 18px}.meta span{padding:6px 8px;background:#f3f7f8;border-radius:5px}.report-group{margin-top:8px}.profile-report{break-before:page}.test{break-inside:avoid;margin:0 0 10px}.individual-report>.test{break-inside:avoid}.historical-test{border:2px dashed #8a6d3b;padding:8px;margin-top:18px}.historical-test h2{color:#765a27}table{width:100%;border-collapse:collapse;margin-bottom:12px;direction:ltr}th,td{border:1px solid #cbd5dc;padding:6px;text-align:left}th{background:#eaf2f4;color:#173f58}td{background:#fff}.branch-performed{font-weight:700;color:#315c66;margin-top:7px;padding:5px 0;border-top:1px solid #dce5e8;font-size:11px}.report-footer{display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;border-top:1px solid #168f9a;margin-top:20px;padding-top:10px;align-items:start;font-size:10px;line-height:1.35}.footer-right,.footer-left{display:grid;gap:4px}.footer-center{text-align:center}.footer-qr{display:grid;justify-items:center;gap:3px;color:#173f58;text-decoration:none}.footer-qr img{width:76px;height:76px;object-fit:contain}.footer-center-message{font-size:11px;font-weight:700}.signature{max-width:130px;max-height:65px;object-fit:contain}.preview-controls{display:flex;gap:8px;justify-content:center;padding:10px;margin-bottom:12px}.preview-controls button{border:0;border-radius:7px;padding:8px 14px;background:#173f58;color:#fff;font:inherit;cursor:pointer}.preview-controls button+button{background:#e7f1f2;color:#173f58}.report-pages{display:block}.report-extra-footer{grid-column:1/-1;text-align:center;border-top:1px solid #e1e8eb;padding-top:4px;margin-top:4px;font-size:9px}@media print{.preview-controls{display:none}'+(showPrintHeader?'header.report-header{position:fixed;top:-50mm;left:0;right:0;z-index:2;background:#fff}':'header.report-header{position:static;top:auto;border:0;padding:0;margin-bottom:14px}')+(showPrintFooter?'.report-footer{position:fixed;bottom:-38mm;left:0;right:0;z-index:2;background:#fff}':'.report-footer{display:none}')+'.profile-report{break-before:page}.report-pages>.profile-report:first-child{break-before:auto}.report-footer{break-inside:avoid}}' +
+    'body{position:relative;font-family:Tahoma,Arial,sans-serif;color:#1d2e3a;font-size:12px;line-height:1.65;background:#fff}body>*:not(.watermark-image):not(.watermark-text){position:relative;z-index:1}.watermark-image{position:fixed;top:28%;left:0;right:0;z-index:0;text-align:center;pointer-events:none;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + '}.watermark-image img{width:' + (print.watermarkSize==='large'?'62%':print.watermarkSize==='small'?'28%':'42%') + ';max-height:48vh;object-fit:contain}.watermark-text{position:fixed;top:42%;left:8%;right:8%;z-index:0;text-align:center;font-size:' + (print.watermarkSize==='large'?'76px':print.watermarkSize==='small'?'38px':'56px') + ';font-weight:800;color:#173f58;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + ';pointer-events:none}header.report-header{border-bottom:2px solid #168f9a;padding:0 0 4px;margin:0;background:#fff}.report-cover-meta{margin:10px 0 14px}.report-cover-meta h1{font-size:19px;margin:4px 0;text-align:center;color:#173f58}.report-cover-meta .header-grid{display:grid;grid-template-columns:1fr 120px 1fr;align-items:center;gap:10px}.identity-zone{display:grid;gap:3px;font-size:13px}.identity-zone strong{font-size:17px;color:#173f58}.identity-zone span{color:#435864}.header-right{text-align:right}.header-left{text-align:left}.logo-zone{text-align:center}.lab-logo{max-width:110px;max-height:72px;object-fit:contain}.logo-placeholder{font-weight:800;color:#173f58;font-size:12px}h2{font-size:15px;margin:12px 0 6px;color:#173f58}.report-title{text-align:center;font-weight:700;color:#16818b;font-size:13px}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;margin:10px 0 10px}.meta span{padding:6px 8px;background:#f3f7f8;border-radius:5px}.report-group{margin-top:8px}.profile-report{break-before:auto}.test{break-inside:auto;margin:0 0 8px}.individual-report>.test{break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}h2,h3{break-after:avoid;page-break-after:avoid}.historical-test{border:2px dashed #8a6d3b;padding:8px;margin-top:18px}.historical-test h2{color:#765a27}table{width:100%;border-collapse:collapse;margin-bottom:12px;direction:ltr}th,td{border:1px solid #cbd5dc;padding:6px;text-align:left}th{background:#eaf2f4;color:#173f58}td{background:#fff}.branch-performed{font-weight:700;color:#315c66;margin-top:7px;padding:5px 0;border-top:1px solid #dce5e8;font-size:11px}.report-footer{display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;border-top:1px solid #168f9a;margin-top:20px;padding-top:10px;align-items:start;font-size:10px;line-height:1.35}.footer-right,.footer-left{display:grid;gap:4px}.footer-center{text-align:center}.footer-qr{display:grid;justify-items:center;gap:3px;color:#173f58;text-decoration:none}.footer-qr img{width:76px;height:76px;object-fit:contain}.footer-center-message{font-size:11px;font-weight:700}.signature{max-width:130px;max-height:65px;object-fit:contain}.preview-controls{display:flex;gap:8px;justify-content:center;padding:10px;margin-bottom:12px}.preview-controls button{border:0;border-radius:7px;padding:8px 14px;background:#173f58;color:#fff;font:inherit;cursor:pointer}.preview-controls button+button{background:#e7f1f2;color:#173f58}.report-pages{display:block}.report-extra-footer{grid-column:1/-1;text-align:center;border-top:1px solid #e1e8eb;padding-top:4px;margin-top:4px;font-size:9px}@media print{.preview-controls{display:none}'+(showPrintHeader?'header.report-header{position:fixed;top:-29mm;left:0;right:0;z-index:2;background:#fff}':'header.report-header{position:static;top:auto;border:0;padding:0;margin-bottom:14px}')+(showPrintFooter?'.report-footer{position:fixed;bottom:-18mm;left:0;right:0;z-index:2;background:#fff}':'.report-footer{display:none}')+'.profile-report{break-before:auto}.report-footer{break-inside:avoid}}' +
     '</style></head><body>' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
     '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">' + (localOffline ? 'طباعة مسودة غير معتمدة' : 'طباعة التقرير') + '</button>' : '<button disabled>اعتمد الزيارة أولًا للطباعة</button>') + '<button onclick="window.close()">إغلاق المعاينة</button></div>' +
     (localOffline ? '<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">نسخة عمل غير معتمدة — محفوظة على هذا الجهاز — تنتظر المزامنة والمراجعة والاعتماد. لا تُسلّم باعتبارها تقريرًا نهائيًا.</div>' : '') +
-    '<header class="report-header">' + (showPrintHeader ? '<div class="header-grid"><div class="header-right">' + headerRight + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-left">' + headerLeft + '</div></div>' : '') + '<h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="meta"><span>اسم المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>تاريخ الزيارة: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></header>' +
+    (showPrintHeader ? '<header class="report-header"><div class="header-grid"><div class="header-right">' + headerRight + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-left">' + headerLeft + '</div></div></header>' : '') +
+    '<section class="report-cover-meta"><h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="meta"><span>اسم المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>تاريخ الزيارة: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></section>' +
     '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
     ((signature || stamp || reviewerName) ? '<section class="report-approval" style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:14px 0 8px">' + (signature ? '<div style="display:grid;gap:4px"><img style="max-width:130px;max-height:65px;object-fit:contain" src="' + escapeHtml(signature) + '" alt="التوقيع"><small>التوقيع</small></div>' : '') + (stamp ? '<div style="display:grid;gap:4px"><img style="max-width:100px;max-height:100px;object-fit:contain" src="' + escapeHtml(stamp) + '" alt="الختم"><small>ختم المعمل</small></div>' : '') + (reviewerName ? '<div style="display:grid;gap:4px"><strong style="border-top:1px solid #667;padding-top:4px;min-width:120px">' + escapeHtml(reviewerName) + '</strong><small>المراجع / المعتمد</small></div>' : '') + '</section>' : '') +
     (showPrintFooter ? '<footer class="report-footer" style="grid-template-columns:' + footerGridColumns + '"><div class="footer-right">' + footerAddresses + '</div>' + footerCenterMarkup + '<div class="footer-left">' + footerContacts + '</div>' + (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</footer>' : '') + '</body></html>';
@@ -744,38 +750,98 @@ function classifyResultFlag(input) {
  return computeReferenceFlag(input.value,ranges,input.dataset.patientAge,input.dataset.patientSex,input.dataset.referenceIntervalStatus,'numeric');
 }
 
-async function saveTest(button) {
-  try {
-    setBusy(button, true, 'جارٍ الحفظ…');
-    const section = button.closest('.parameter[data-test-id]');
-    const testId = button.dataset.testId;
+async function saveVisitDrafts(visitId) {
+  const items = state.work.filter(item => item.visit_id === visitId && item.status !== 'cancelled');
+  let savedCount = 0, queuedCount = 0;
+  for (const item of items) {
+    if (item.status === 'completed') continue;
+    const section = document.querySelector('[data-test-id="' + CSS.escape(item.id) + '"]');
+    if (!section) continue;
     const inputs = [...section.querySelectorAll('[data-param-code]')];
-    const results = inputs.filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim()).map(input => ({
-      parameter: { code: input.dataset.paramCode,name:input.dataset.paramName,unit:input.dataset.unit,
-        valueType:input.dataset.valueType,inputMode:input.dataset.inputMode,
-        resultConfig:JSON.parse(input.dataset.resultConfig||'{}'),
-        referenceRange:JSON.parse(input.dataset.range||'{}'),
-        choices:JSON.parse(input.dataset.choices||'[]') },
-      value: input.value, flag: classifyResultFlag(input),
-    }));
-    if (!results.length) throw new Error('أدخل نتيجة واحدة على الأقل قبل الحفظ.');
-    const workItem=state.work.find(row=>row.id===testId);
-    const savedRows = await saveDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id,
-      visitTestId: testId, results, staffId: $('staffSelect').value,
-      dependsOn: workItem?.local_intake_operation_id ? [workItem.local_intake_operation_id] : [] });
+    const dirty = inputs.filter(input =>
+      input.dataset.resultSource !== 'calculated' &&
+      input.value.trim() !== (input.dataset.originalValue ?? '').trim()
+    );
+    if (section.dataset.localPending === 'true') {
+      if (dirty.length) throw new Error('هذه الزيارة بها نتائج محفوظة محليًا تنتظر المزامنة. انتظر المزامنة قبل تعديلها مرة أخرى.');
+      queuedCount++;
+      continue;
+    }
+    const clearedSaved = inputs.filter(input =>
+      input.dataset.resultSource !== 'calculated' && input.dataset.resultId &&
+      input.value.trim() === '' && (input.dataset.originalValue ?? '').trim() !== ''
+    );
+    if (clearedSaved.length) {
+      throw new Error('تم مسح نتيجة محفوظة من أحد الحقول. أعد إدخالها أو استخدم مسار التصحيح الموثق قبل الحفظ.');
+    }
+    const results = inputs
+      .filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim() !== '')
+      .map(input => ({
+        parameter: {
+          code: input.dataset.paramCode,
+          name: input.dataset.paramName,
+          unit: input.dataset.unit,
+          valueType: input.dataset.valueType,
+          inputMode: input.dataset.inputMode,
+          resultConfig: JSON.parse(input.dataset.resultConfig || '{}'),
+          referenceRange: JSON.parse(input.dataset.range || '{}'),
+          choices: JSON.parse(input.dataset.choices || '[]')
+        },
+        value: input.value,
+        flag: classifyResultFlag(input)
+      }));
+    if (!results.length || !dirty.length) continue;
+    const savedRows = await saveDraftResults({
+      tenantId: state.tenant.id,
+      branchId: state.branch.id,
+      visitTestId: item.id,
+      results,
+      staffId: $('staffSelect').value,
+      dependsOn: item.local_intake_operation_id ? [item.local_intake_operation_id] : []
+    });
     if (savedRows?.queued) {
       section.dataset.localPending = 'true';
-      for (const input of inputs) if (input.value.trim()) { input.dataset.originalValue = input.value; input.dataset.localPending = 'true'; }
-      const pill = section.querySelector('.card-head .pill'); if (pill) pill.textContent = 'محفوظ محليًا — بانتظار المزامنة';
-      showNotice('تم حفظ النتائج على هذا الجهاز بأمان. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ لا تعتمد التحليل قبل اكتمال المزامنة.');
+      for (const input of inputs) if (input.value.trim() && input.dataset.resultSource !== 'calculated') {
+        input.dataset.originalValue = input.value;
+        input.dataset.localPending = 'true';
+      }
+      const pill = section.querySelector('.card-head .pill');
+      if (pill) pill.textContent = 'محفوظ محليًا — بانتظار المزامنة';
+      queuedCount++;
     } else {
-      for (const row of savedRows) { const input=section.querySelector(`[data-param-code="${CSS.escape(row.parameter_code)}"]`); if(input){input.value=row.value_numeric??row.value_text??'';input.dataset.resultId=row.id;input.dataset.originalValue=input.value;delete input.dataset.localPending;} }
+      for (const row of savedRows || []) {
+        const input = section.querySelector('[data-param-code="' + CSS.escape(row.parameter_code) + '"]');
+        if (!input) continue;
+        input.value = row.value_numeric ?? row.value_text ?? '';
+        input.dataset.resultId = row.id;
+        input.dataset.originalValue = input.value;
+        delete input.dataset.localPending;
+      }
       delete section.dataset.localPending;
-      showNotice('تم حفظ النتائج اليدوية وحساب البارامترات المشتقة تلقائيًا على السحابة.');
+      const pill = section.querySelector('.card-head .pill');
+      if (pill) pill.textContent = 'تم حفظ النتائج';
+      savedCount++;
     }
-    const affectedVisit=state.work.find(row=>row.id===testId)?.visit_id;if(affectedVisit)state.previewedVisits.delete(affectedVisit);
-  } catch (error) { showNotice(error.message || 'تعذر حفظ النتائج.', true); }
-  finally { setBusy(button, false); }
+  }
+  if (savedCount || queuedCount) state.previewedVisits.delete(visitId);
+  return { savedCount, queuedCount };
+}
+async function saveVisitDraftsAction(button) {
+  try {
+    setBusy(button, true, 'جارٍ حفظ كل النتائج…');
+    const result = await saveVisitDrafts(button.dataset.visitId);
+    if (!result.savedCount && !result.queuedCount) {
+      showNotice('لا توجد نتائج جديدة للحفظ. أدخل القيم أولًا.');
+    } else if (result.queuedCount) {
+      showNotice('تم حفظ النتائج على الجهاز بأمان. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ الاعتماد النهائي يحتاج اكتمال المزامنة.');
+    } else {
+      showNotice('تم حفظ كل النتائج وحساب البارامترات المشتقة تلقائيًا على السحابة. يمكنك الآن اعتماد الزيارة عند الانتهاء.');
+    }
+  } catch (error) {
+    showNotice(error.message || 'تعذر حفظ نتائج الزيارة.', true);
+  } finally {
+    setBusy(button, false);
+  }
 }
 async function correctTest(button) {
   const section=button.closest('.parameter[data-test-id]');
@@ -847,13 +913,35 @@ async function downloadAttachment(button) {
   finally { setBusy(button,false); }
 }
 
-async function completeTest(button) {
-  try { requireCloudConnection('إنهاء التحليل'); if (button.closest('.work-card')?.querySelector('[data-local-pending="true"]')) throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد. انتظر المزامنة ثم أعد إنهاء التحليل.'); const visitId=state.work.find(row=>row.id===button.dataset.testId)?.visit_id;if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها أولًا قبل إنهاء التحليل.'); setBusy(button, true, 'جارٍ الإنهاء…'); await completeVisitTest({ tenantId: state.tenant.id, branchId: state.branch.id, visitTestId: button.dataset.testId, staffId: $('staffSelect').value }); showNotice('تم إنهاء التحليل بعد التحقق من النتائج المطلوبة.'); await refreshWork(); }
-  catch (error) { showNotice(error.message || 'تعذر إنهاء التحليل.', true); } finally { setBusy(button, false); }
-}
 async function approve(button) {
-  try { requireCloudConnection('اعتماد الزيارة'); if (button.closest('.work-card')?.querySelector('[data-local-pending="true"]')) throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد. انتظر المزامنة ثم أعد اعتماد الزيارة.'); if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ كل النتائج التي أدخلتها قبل اعتماد الزيارة.'); setBusy(button, true, 'جارٍ الاعتماد…'); await approveVisit({ tenantId: state.tenant.id, branchId: state.branch.id, visitId: button.dataset.visitId, staffId: $('staffSelect').value }); showNotice('تم اعتماد الزيارة. يمكنك الآن رفع ملف PDF.'); await refreshWork(); }
-  catch (error) { showNotice(error.message || 'تعذر اعتماد الزيارة.', true); } finally { setBusy(button, false); }
+  const visitId = button.dataset.visitId;
+  try {
+    requireCloudConnection('اعتماد الزيارة');
+    if (!visitId) throw new Error('تعذر تحديد الزيارة المراد اعتمادها.');
+    const dirtyOutside = window.taibaGetDirtyResultInputs?.().filter(input =>
+      input.closest('.parameter[data-visit-id]')?.dataset.visitId !== visitId
+    ) || [];
+    if (dirtyOutside.length) throw new Error('هناك نتيجة غير محفوظة في زيارة أخرى. احفظها أولًا حتى لا تختلط الحالات.');
+
+    setBusy(button, true, 'جارٍ حفظ واعتماد الزيارة…');
+    const saved = await saveVisitDrafts(visitId);
+    if (saved.queuedCount) {
+      throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد؛ انتظر اكتمال المزامنة ثم أعد الاعتماد.');
+    }
+    await approveVisitWithAutoCompletion({
+      tenantId: state.tenant.id,
+      branchId: state.branch.id,
+      visitId,
+      staffId: $('staffSelect').value
+    });
+    state.previewedVisits.delete(visitId);
+    showNotice('تم حفظ النتائج واعتماد الزيارة مرة واحدة. يمكنك الآن معاينة التقرير وطباعته.');
+    await refreshWork();
+  } catch (error) {
+    showNotice(error.message || 'تعذر حفظ واعتماد الزيارة.', true);
+  } finally {
+    setBusy(button, false);
+  }
 }
 async function publish(button) {
   try {
@@ -909,6 +997,18 @@ $('refreshButton').addEventListener('click', async () => { try { await refreshWo
 
 try { await startWorkspace(); window.dispatchEvent(new CustomEvent('taiba:results-context',{detail:{tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug}})); } catch (error) { showNotice(error.message || 'تعذر تهيئة شاشة التشغيل.', true); }
 window.taibaPreviewVisitReport = async visitId => { const dirty=window.taibaGetDirtyResultInputs?.()||[];if(dirty.length){showNotice('هناك نتائج تم تغييرها ولم تُحفظ بعد. احفظها أولًا ثم أعد المعاينة.',true);return;} const win=window.open('','_blank'); if(!win){showNotice('اسمح بفتح نافذة المعاينة من إعدادات المتصفح.',true);return;} try{await printVisitReport(visitId,win,{autoPrint:false});state.previewedVisits.add(visitId);window.dispatchEvent(new CustomEvent('taiba:visit-report-previewed',{detail:{visitId}}));showNotice('تم تجهيز معاينة التقرير. راجعها قبل الطباعة أو النشر.');}catch(error){win.close();showNotice(error.message||'تعذر تجهيز المعاينة.',true);} };
+window.taibaApproveVisit = (visitId, button) => {
+  const control = button || document.createElement('button');
+  control.dataset.visitId = visitId;
+  if (!control.textContent) control.textContent = 'حفظ النتائج واعتماد الزيارة';
+  return approve(control);
+};
+window.taibaSaveVisitDrafts = (visitId, button) => {
+  const control = button || document.createElement('button');
+  control.dataset.visitId = visitId;
+  if (!control.textContent) control.textContent = 'حفظ كل النتائج';
+  return saveVisitDraftsAction(control);
+};
 
 $('prevWorkPage').addEventListener('click', async () => {
   if (state.workPage <= 0) return;

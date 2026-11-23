@@ -82,6 +82,22 @@ export async function approveVisit({ tenantId, branchId, visitId, staffId } = {}
   return data;
 }
 
+/** One-action visit approval. The server validates all required visible results,
+ * completes every eligible test, and approves the visit in one transaction. */
+export async function approveVisitWithAutoCompletion({ tenantId, branchId, visitId, staffId } = {}) {
+  if (!tenantId || !branchId || !visitId || !staffId) {
+    throw new Error('tenantId, branchId, visitId and staffId are required.');
+  }
+  const { data, error } = await db().rpc('approve_visit_with_auto_completion', {
+    p_tenant_id: tenantId,
+    p_branch_id: branchId,
+    p_visit_id: visitId,
+    p_staff_id: staffId,
+  });
+  if (error) throw error;
+  return data;
+}
+
 /** Fetch all visible result values for the current worklist in one tenant-scoped query. */
 export async function listResultsForVisitTests({ tenantId, visitTestIds } = {}) {
   if (!tenantId || !Array.isArray(visitTestIds)) throw new Error('tenantId and visitTestIds are required.');

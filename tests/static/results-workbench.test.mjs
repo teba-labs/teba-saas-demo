@@ -22,8 +22,8 @@ test('results workbench is a separate authenticated page and imports tenant-scop
 
 test('workbench separates draft entry, approval, audited correction and PDF publication actions', () => {
   assert.match(script, /saveDraftResults/);
-  assert.match(script, /completeVisitTest/);
-  assert.match(script, /approveVisit/);
+  assert.match(script, /approveVisitWithAutoCompletion/);
+  assert.match(script, /approveVisitWithAutoCompletion/);
   assert.match(script, /correctVisitResultWithFlag/);
   assert.match(script, /publishReportVersion/);
   assert.match(script, /صحح نتيجة واحدة في كل مرة/);
@@ -43,7 +43,16 @@ test('result repository supports numeric and non-numeric catalog parameter types
 });
 
 test('save and correction actions resolve the containing test card, not the action button itself', () => {
-  assert.equal((script.match(/button\.closest\('\.parameter\[data-test-id\]'\)/g) || []).length, 2);
+  assert.equal(script.split("button.closest('.parameter[data-test-id]')").length - 1, 1);
   assert.doesNotMatch(script, /button\.closest\('\[data-test-id\]'\)/);
   assert.match(script, /const inputs = \[\.\.\.section\.querySelectorAll\('\[data-param-code\]'\)\]/);
+});
+
+test('operator can save every test in a visit and approve once without per-test completion clicks', () => {
+  assert.match(script, /async function approve\(button\)/);
+  assert.match(script, /state\.work\.filter\(item => item\.visit_id === visitId/);
+  assert.match(script, /await saveDraftResults\(/);
+  assert.match(script, /await approveVisitWithAutoCompletion\(/);
+  assert.doesNotMatch(script, /complete-test|completeTest|completeVisitTest/);
+  assert.match(repository, /approve_visit_with_auto_completion/);
 });
