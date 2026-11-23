@@ -14,6 +14,9 @@ test('public portal config endpoint is origin restricted and returns presentatio
  assert.match(edge,/PORTAL_ALLOWED_ORIGINS/);
  assert.match(edge,/SUPABASE_SERVICE_ROLE_KEY/);
  assert.match(edge,/select\('portal_settings'\)/);
+ assert.match(edge,/enabled: false/);
+ assert.match(edge,/settings\.enabled=settings\.enabled===true/);
+ assert.match(manager,/const portalDefaults=\{enabled:false/);
  assert.doesNotMatch(edge,/from\('patients'\)|from\('visits'\)|from\('report_versions'\)/);
 });
 test('portal applies tenant presentation settings without changing report lookup inputs',()=>{
