@@ -54,3 +54,16 @@ test('reception exposes working keyboard, catalog, billing, payment and print co
   assert.match(css, /@media\(max-width:620px\)/);
   assert.match(css, /:focus-visible/);
 });
+
+test('new patient keyboard flow advances Enter and accepts missing phone while supporting date of birth',()=>{
+  const html=read('app/reception.html');
+  const js=read('assets/js/reception.js');
+  assert.match(html,/id="patientPhone"[^>]*>/);
+  assert.doesNotMatch(html,/id="patientPhone"[^>]*required/);
+  assert.match(html,/id="patientDob"/);
+  assert.match(js,/dateOfBirth/);
+  assert.match(js,/syncAgeFromDob/);
+  assert.match(js,/newPatientForm'\)\.addEventListener\('keydown'/);
+  assert.match(js,/fields\[index\+1\]/);
+  assert.match(js,/\(next\|\|\$\('createPatient'\)\)\.focus\(\)/);
+});
