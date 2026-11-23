@@ -69,8 +69,6 @@ test('patient portal is optional and final publication is blocked until all requ
   assert.ok(optIn.includes("'enabled', false"));
   assert.ok(optIn.includes("ss.portal_settings @> '{\"enabled\":true}'::jsonb"));
   assert.ok(optIn.includes('All visit tests must be completed before report publication'));
-  assert.ok(optIn.includes('/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}[.]pdf
-});
-));
+  assert.ok(optIn.includes("[.]pdf' || chr(36)"));
   assert.ok(!optIn.includes('patient_portal_enabled'));
 });
