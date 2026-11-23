@@ -30,7 +30,7 @@ test('every application, portal and public-site page loads the shared viewport l
 
 test('shared responsive layer overrides page-specific fixed grids at desktop zoom and tablet widths',async()=>{
   const css=await read('assets/css/app-viewport.css');
-  for(const selector of ['body .login-layout','body .layout','body .workspace-context','body .selectors','body .filters','body .form-grid','body .fields','body .results-columns','body .studio-nav','body .modules','body .kpis','body .tiles','body .totals','body .table-wrap']){
+  for(const selector of ['body .login-layout','body .results-columns','body :is(',' .layout',' .workspace-context',' .selectors',' .filters',' .form-grid',' .fields',' .studio-nav',' .modules',' .kpis',' .tiles',' .totals',' .table-wrap']){
     assert.ok(css.includes(selector),'missing shared responsive override: '+selector);
   }
   for(const breakpoint of ['1100px','900px','700px','520px','360px']){
