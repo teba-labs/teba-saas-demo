@@ -366,9 +366,21 @@ function resolveReferenceRange(value, patient = {}, status = 'local_verification
       if (range.pregnancy) return false;
       if (range.sex && String(range.sex).toLowerCase() !== sex) return false;
       if (range.age) {
-        if (age === null || (range.age.unit && !['year','years','y'].includes(String(range.age.unit).toLowerCase()))) return false;
-        if (range.age.min != null && age < Number(range.age.min)) return false;
-        if (range.age.max != null && age > Number(range.age.max)) return false;
+        if (age === null) return false;
+        const asYears=(value,unit)=>{
+          if(value==null)return null;
+          const normalized=String(unit||range.age.unit||'years').toLowerCase();
+          if(['year','years','y'].includes(normalized))return Number(value);
+          if(['month','months','mo'].includes(normalized))return Number(value)/12;
+          if(['day','days','d'].includes(normalized))return Number(value)/365.25;
+          return NaN;
+        };
+        const minimum=asYears(range.age.min,range.age.min_unit);
+        const maximum=asYears(range.age.max,range.age.max_unit);
+        if(range.age.min!=null&&!Number.isFinite(minimum))return false;
+        if(range.age.max!=null&&!Number.isFinite(maximum))return false;
+        if(minimum!=null&&age<minimum)return false;
+        if(maximum!=null&&age>maximum)return false;
       }
       return true;
     });
@@ -664,7 +676,15 @@ function computeReferenceFlag(value,rangesInput,ageValue,sexValue,status,valueTy
  const matches=ranges.filter(range=>{
   if(range.pregnancy)return false;
   if(range.sex&&String(range.sex).toLowerCase()!==sex)return false;
-  if(range.age){if(!Number.isFinite(age))return false;if(range.age.min!=null&&age<Number(range.age.min))return false;if(range.age.max!=null&&age>Number(range.age.max))return false;}
+  if(range.age){
+   if(!Number.isFinite(age))return false;
+   const asYears=(value,unit)=>{if(value==null)return null;const u=String(unit||range.age.unit||'years').toLowerCase();if(['year','years','y'].includes(u))return Number(value);if(['month','months','mo'].includes(u))return Number(value)/12;if(['day','days','d'].includes(u))return Number(value)/365.25;return NaN;};
+   const minimum=asYears(range.age.min,range.age.min_unit),maximum=asYears(range.age.max,range.age.max_unit);
+   if(range.age.min!=null&&!Number.isFinite(minimum))return false;
+   if(range.age.max!=null&&!Number.isFinite(maximum))return false;
+   if(minimum!=null&&age<minimum)return false;
+   if(maximum!=null&&age>maximum)return false;
+  }
   return true;
  });
  if(matches.length!==1)return null;
