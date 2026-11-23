@@ -20,7 +20,14 @@ test('catalog screen uses authenticated tenant context and owner-only price edit
   assert.match(js, /\$\('priceForm'\)\.hidden=state\.role!=='owner'/);
   assert.match(js, /if\(state\.role!=='owner'\|\|!state\.selectedTest\)return/);
   assert.match(js, /requireOnline\(\)/);
-  assert.match(js, /parseJsonField\('parameterRanges','المدى المرجعي',true\)/);
+  for (const control of ['parameterInputMode','parameterRangeRows','addReferenceRange','parameterMaxSelections','conditionParameterCode','conditionVisibleValues']) {
+    assert.ok(html.includes('id="'+control+'"'), 'missing doctor-friendly editor control '+control);
+  }
+  assert.doesNotMatch(html, /id="parameterRanges"/);
+  assert.doesNotMatch(js, /parseJsonField\\('parameterRanges'/);
+  assert.match(js, /readRangeRows\\(/);
+  assert.match(js, /readDisplayRules\\(/);
+  assert.match(js, /resultInputMode/);
 });
 
 test('catalog UI uses tenant-scoped repository methods and deactivation instead of deletion', () => {
