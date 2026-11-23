@@ -13,6 +13,7 @@ test('catalog screen is Arabic RTL and exposes test, parameter and price managem
 });
 
 test('catalog screen uses authenticated tenant context and owner-only price editing', () => {
+  const html = read('app/catalog.html');
   const js = read('assets/js/catalog.js');
   assert.match(js, /loadMyTenantContext/);
   assert.match(js, /accountType==='owner'/);
