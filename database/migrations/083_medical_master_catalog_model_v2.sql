@@ -602,9 +602,8 @@ begin
   if jsonb_array_length(p_rules)=0 then return true; end if;
 
   for v_rule in select value from jsonb_array_elements(p_rules) loop
-    if jsonb_typeof(v_rule->'choices') <> 'array' or jsonb_array_length(v_rule->'choices')=0 then
-      continue;
-    end if;
+    if coalesce(jsonb_typeof(v_rule->'choices'),'null') <> 'array' then continue; end if;
+    if jsonb_array_length(v_rule->'choices')=0 then continue; end if;
     v_source := nullif(btrim(v_rule->>'source_parameter_code'),'');
     v_expected := coalesce(v_rule->>'value','');
     v_operator := coalesce(v_rule->>'operator','equals');
