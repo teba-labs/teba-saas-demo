@@ -128,89 +128,103 @@ export async function setCatalogTestActive({ tenantId, testId, isActive } = {}) 
   return data;
 }
 
+const inputModes = new Set([
+  'numeric_integer','numeric_decimal','numeric_comparator','text',
+  'positive_negative','boolean','single_choice','multi_choice','graded_multi_choice',
+]);
+const valueTypeForMode = mode => ({
+  numeric_integer:'numeric',numeric_decimal:'numeric',numeric_comparator:'text',
+  text:'text',positive_negative:'choice',boolean:'boolean',
+  single_choice:'choice',multi_choice:'choice',graded_multi_choice:'choice',
+}[mode] || 'numeric');
+
 const validateParameter = parameter => {
   const code = String(parameter?.code ?? '').trim();
   const name = String(parameter?.name ?? '').trim();
   required(code, 'parameter.code'); required(name, 'parameter.name');
   if (code.length > 40 || name.length > 160) throw new Error('Parameter code/name is too long.');
-
-  const legacyType = parameter.valueType ?? 'numeric';
-  const inputMode = parameter.inputMode || (
-    legacyType === 'numeric' ? (Number(parameter.decimalPlaces ?? 2) === 0 ? 'numeric_integer' : 'numeric_decimal')
-      : legacyType === 'choice' ? 'single_choice' : legacyType
-  );
-  const supportedModes = ['numeric_integer','numeric_decimal','numeric_comparator','text','positive_negative','boolean','single_choice','multi_choice','graded_multi_choice'];
-  if (!supportedModes.includes(inputMode)) throw new Error('طريقة إدخال النتيجة غير مدعومة.');
-  const valueType = (inputMode === 'numeric_integer' || inputMode === 'numeric_decimal') ? 'numeric'
-    : inputMode === 'boolean' ? 'boolean' : inputMode === 'single_choice' ? 'choice' : 'text';
-
+  const resultInputMode = parameter.resultInputMode
+    || ({numeric:'numeric_decimal',text:'text',boolean:'boolean',choice:'single_choice'}[parameter.valueType] || 'numeric_decimal');
+  if (!inputModes.has(resultInputMode)) throw new Error('نوع إدخال النتيجة غير مدعوم.');
+  const valueType = valueTypeForMode(resultInputMode);
   const decimalPlaces = Number(parameter.decimalPlaces ?? 2);
   const displayOrder = Number(parameter.displayOrder ?? 0);
   if (!Number.isInteger(decimalPlaces) || decimalPlaces < 0 || decimalPlaces > 6) throw new Error('decimalPlaces must be from 0 to 6.');
   if (!Number.isInteger(displayOrder) || displayOrder < 0 || displayOrder > 10000) throw new Error('displayOrder must be a whole number from 0 to 10000.');
-
   const resultSource = parameter.resultSource ?? 'manual';
   if (!['manual','calculated'].includes(resultSource)) throw new Error('Unsupported parameter result source.');
   const formula = parameter.formula ?? null;
-  if (resultSource === 'calculated' && (!['numeric_integer','numeric_decimal'].includes(inputMode) || !formula || typeof formula !== 'object' || Array.isArray(formula))) {
-    throw new Error('المعادلات المحسوبة تحتاج بارامترًا رقميًا ومعادلة صحيحة.');
+  if (resultSource === 'calculated'
+      && (!['numeric_integer','numeric_decimal'].includes(resultInputMode)
+        || !formula || typeof formula !== 'object' || Array.isArray(formula))) {
+    throw new Error('المعادلة التلقائية تحتاج بارامترًا رقميًا ومعادلة صحيحة.');
   }
   if (resultSource === 'manual' && formula !== null) throw new Error('Manual parameters cannot have a formula.');
-
   const ranges = parameter.referenceRanges ?? [];
-  const referenceIntervalStatus = parameter.referenceIntervalStatus || (valueType === 'numeric' ? 'local_verification_required' : 'not_applicable');
+  if (!Array.isArray(ranges)) throw new Error('يجب أن تكون المديات المرجعية قائمة.');
+  const referenceIntervalStatus = parameter.referenceIntervalStatus
+    || (['numeric_integer','numeric_decimal'].includes(resultInputMode) ? 'local_verification_required' : 'not_applicable');
   if (!['not_applicable','local_verification_required','verified_local'].includes(referenceIntervalStatus)) throw new Error('Unsupported reference interval status.');
   const sourceReferences = parameter.sourceReferences ?? [];
   if (!Array.isArray(sourceReferences)) throw new Error('المراجع العلمية يجب أن تكون قائمة.');
-  const numericMode = ['numeric_integer','numeric_decimal'].includes(inputMode);
-  const rangeRows = Array.isArray(ranges) ? ranges : (ranges && typeof ranges === 'object' ? [ranges] : []);
-  if (!Array.isArray(ranges) && (!ranges || typeof ranges !== 'object')) throw new Error('المدى المرجعي غير صالح.');
-  if (referenceIntervalStatus === 'verified_local' && numericMode && (!rangeRows.length || !sourceReferences.length)) {
-    throw new Error('اعتماد المدى محليًا يتطلب مدى واحدًا على الأقل ومرجعًا علميًا موثقًا.');
+  if (referenceIntervalStatus === 'verified_local'
+      && ['numeric_integer','numeric_decimal'].includes(resultInputMode)
+      && (!ranges.length || !sourceReferences.length)) {
+    throw new Error('اعتماد المدى محليًا يتطلب مدى واحدًا على الأقل ومرجعًا علميًا.');
   }
-  for (const range of rangeRows) {
-    if (!range || typeof range !== 'object' || Array.isArray(range)) throw new Error('كل مدى مرجعي يجب أن يكون سجلًا صحيحًا.');
+  for (const range of ranges) {
+    if (!range || typeof range !== 'object' || Array.isArray(range)) throw new Error('كل مدى مرجعي يجب أن يكون صحيحًا.');
     const low = range.lower ?? range.low ?? range.min;
     const high = range.upper ?? range.high ?? range.max;
     if (low != null && !Number.isFinite(Number(low))) throw new Error('الحد الأدنى للمدى المرجعي يجب أن يكون رقمًا.');
     if (high != null && !Number.isFinite(Number(high))) throw new Error('الحد الأعلى للمدى المرجعي يجب أن يكون رقمًا.');
     if (low != null && high != null && Number(low) > Number(high)) throw new Error('الحد الأدنى لا يمكن أن يتجاوز الحد الأعلى.');
-    if (range.age?.min != null && range.age?.max != null
-      && Number(range.age.min) > Number(range.age.max)
-      && (range.age.min_unit || range.age.unit) === (range.age.max_unit || range.age.unit)) {
+    if (range.age?.min != null && range.age?.max != null && Number(range.age.min) > Number(range.age.max)) {
       throw new Error('نطاق العمر المرجعي غير صحيح.');
     }
   }
-
   const choices = parameter.choices ?? [];
-  const choiceModes = ['single_choice','multi_choice','graded_multi_choice'];
-  if (!Array.isArray(choices) || choiceModes.includes(inputMode) && (!choices.length || choices.some(choice => typeof choice !== 'string' || !choice.trim()))) {
-    throw new Error('أضف اختيارًا صحيحًا لكل سطر في قائمة الاختيارات.');
+  const choiceModes = ['positive_negative','single_choice','multi_choice','graded_multi_choice'];
+  if (!Array.isArray(choices) || (choiceModes.includes(resultInputMode)
+      && (!choices.length || choices.some(choice => typeof choice !== 'string' || !choice.trim())))) {
+    throw new Error('أضف الاختيارات المطلوبة لهذا النوع من النتائج.');
   }
-  if (new Set(choices.map(choice => choice.trim())).size !== choices.length) throw new Error('لا يمكن تكرار الاختيار نفسه.');
-
-  const resultConfig = parameter.resultConfig && typeof parameter.resultConfig === 'object' && !Array.isArray(parameter.resultConfig)
-    ? parameter.resultConfig : {};
-  if (inputMode === 'graded_multi_choice') {
-    const scores = resultConfig.choice_scores || {};
-    for (const choice of choices) if (!Number.isFinite(Number(scores[choice]))) throw new Error('كل اختيار متدرج يحتاج درجة رقمية.');
+  if (new Set(choices.map(choice => String(choice).trim())).size !== choices.length) {
+    throw new Error('لا يمكن تكرار الاختيار نفسه.');
   }
-
+  const resultConfig = parameter.resultConfig ?? {};
+  if (!resultConfig || typeof resultConfig !== 'object' || Array.isArray(resultConfig)) {
+    throw new Error('إعدادات النتيجة غير صحيحة.');
+  }
+  if (resultConfig.max_selections != null) {
+    const maxSelections = Number(resultConfig.max_selections);
+    if (!Number.isInteger(maxSelections) || maxSelections < 1 || maxSelections > Math.max(choices.length,1)) {
+      throw new Error('الحد الأقصى للاختيارات غير صحيح.');
+    }
+  }
+  if (resultInputMode === 'graded_multi_choice') {
+    const scores = resultConfig.choice_scores;
+    if (!scores || typeof scores !== 'object' || Array.isArray(scores)) {
+      throw new Error('أدخل درجة لكل اختيار في النوع المتدرج.');
+    }
+    const keys = Object.keys(scores);
+    if (keys.length !== choices.length
+        || choices.some(choice => !Object.hasOwn(scores, choice) || !Number.isFinite(Number(scores[choice])))) {
+      throw new Error('درجة كل اختيار يجب أن تكون رقمًا، ويجب تغطية كل الاختيارات.');
+    }
+  }
   const displayRules = parameter.displayRules ?? [];
-  if (!Array.isArray(displayRules) || displayRules.length > 5) throw new Error('قواعد الإظهار غير صالحة.');
+  if (!Array.isArray(displayRules)) throw new Error('قواعد إظهار الاختيارات يجب أن تكون قائمة.');
   for (const rule of displayRules) {
-    if (!rule || typeof rule.source_parameter_code !== 'string' || !rule.source_parameter_code.trim()
-      || !['equals','not_equals','is_not_empty'].includes(rule.operator)) {
-      throw new Error('قاعدة إظهار البارامتر غير مكتملة.');
-    }
-    if (rule.operator !== 'is_not_empty' && !String(rule.value ?? '').trim()) throw new Error('أدخل قيمة شرط الإظهار.');
-    if (rule.choices != null && (!Array.isArray(rule.choices) || rule.choices.some(value => !choices.includes(value)))) {
-      throw new Error('اختيارات الشرط يجب أن تكون من نفس قائمة اختيارات البارامتر.');
+    if (!rule?.when?.parameter_code || !['equals','not_equals'].includes(rule.when.operator)
+        || !String(rule.when.value ?? '').trim() || !Array.isArray(rule.visible_values)) {
+      throw new Error('قاعدة الإظهار الشرطي غير مكتملة.');
     }
   }
-
-  return { code, name, valueType, inputMode, decimalPlaces, displayOrder, ranges, choices, resultSource, formula,
-    referenceIntervalStatus, sourceReferences, resultConfig, displayRules };
+  return {
+    code,name,valueType,resultInputMode,decimalPlaces,displayOrder,ranges,choices,
+    resultSource,formula,referenceIntervalStatus,sourceReferences,resultConfig,displayRules,
+  };
 };
 
 /** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
@@ -221,11 +235,11 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     ...(id ? { id } : {}), tenant_id: tenantId, test_id: testId,
     parameter_code: valid.code, parameter_name: valid.name,
     unit: parameter.unit?.trim() || null, value_type: valid.valueType,
+    result_input_mode: valid.resultInputMode, result_config: valid.resultConfig, display_rules: valid.displayRules,
+    formula_expression: parameter.formulaExpression?.trim() || null,
     decimal_places: valid.decimalPlaces, reference_ranges: valid.ranges,
     choices: valid.choices, display_order: valid.displayOrder,
     result_source: valid.resultSource, formula: valid.formula,
-    result_input_mode: valid.inputMode, result_config: valid.resultConfig,
-    display_rules: valid.displayRules, formula_expression: parameter.formulaExpression?.trim() || null,
     unit_ucum: parameter.unitUcum?.trim() || null, alternate_units: parameter.alternateUnits ?? [],
     critical_ranges: parameter.criticalRanges ?? {}, interpretation_rules: parameter.interpretationRules ?? [],
     applicability: parameter.applicability ?? {}, method_notes: parameter.methodNotes?.trim() || null, clinical_metadata: parameter.clinicalMetadata ?? {},
