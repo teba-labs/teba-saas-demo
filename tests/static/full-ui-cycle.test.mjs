@@ -30,7 +30,7 @@ test('each test opens inline in the selected visit without a page hop; legacy di
  assert.match(layout,/test-detail/);
  assert.ok(layout.includes('placeholder.replaceWith(node)'));
  assert.ok(!layout.includes('location.href=url.href'));
- assert.match(layout,/classList\\.contains\\('result-entry-page'\\)/);
+ assert.ok(layout.includes("document.body.classList.contains('result-entry-page')"));
  assert.ok(layout.includes('entry.replaceChildren(visitActions,node)'));
  assert.match(layout,/results-workbench\\.html/);
  assert.match(layout,/record\\.patientAge/);
