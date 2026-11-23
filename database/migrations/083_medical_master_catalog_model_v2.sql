@@ -721,7 +721,7 @@ begin
    returning * into v_test;
   return v_test;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.approve_visit_atomic(p_tenant_id uuid, p_branch_id uuid, p_visit_id uuid, p_staff_id uuid)
@@ -798,7 +798,7 @@ begin
    returning * into v_visit;
   return v_visit;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.save_draft_results_atomic(p_tenant_id uuid, p_branch_id uuid, p_visit_test_id uuid, p_staff_id uuid, p_results jsonb)
@@ -938,7 +938,7 @@ begin
    where tr.tenant_id=p_tenant_id and tr.visit_test_id=p_visit_test_id
    order by tr.parameter_code;
 end;
-$function$
+$function$;
 
 
 commit;
