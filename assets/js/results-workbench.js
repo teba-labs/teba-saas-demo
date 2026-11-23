@@ -83,6 +83,13 @@ function applyConditionalFields(section){
   const matches=rules.every(rule=>conditionalRuleMatches(rule,section));
   label.hidden=!matches;
   const input=label.querySelector('[data-param-code]');
+  if(input&&!matches){
+   if(input.multiple){for(const option of input.options)option.selected=false;}
+   else input.value='';
+   input.dataset.originalValue='';
+   delete input.dataset.resultId;
+   delete input.dataset.localPending;
+  }
   if(!input||!matches||!rules.length||!input.tagName.match(/SELECT/i))continue;
   const activeRule=[...rules].reverse().find(rule=>Array.isArray(rule.choices)&&rule.choices.length);
   if(!activeRule)continue;
