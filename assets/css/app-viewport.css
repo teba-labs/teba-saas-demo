@@ -247,3 +247,22 @@ body :is(.match,.selected,.visit-row,.movement,.attachment-item,.hidden-visit-ro
   body :is(.topbar,.brand,.top-actions){gap:7px}
   body :is(button,.button,.btn){padding-inline:10px}
 }
+
+
+/* Browser zoom reflow: override page-level fixed three-column specificity. */
+@media(max-width:1050px){
+  body .results-columns{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
+  body .results-columns>.visits-column{grid-column:1/-1}
+  body .results-columns .visit-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));max-height:32vh}
+}
+@media(max-width:680px){
+  body .results-columns{grid-template-columns:minmax(0,1fr)!important}
+  body .results-columns>.visits-column{grid-column:auto}
+  body .results-columns .visit-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));max-height:34vh}
+  body .results-actionbar-buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr))}
+}
+/* Keep navigation and settings tabs in a wrapping grid as the CSS viewport narrows. */
+@media(max-width:900px){
+  body :is(.tabs,.settings-tabs,[role=tablist]){display:flex;flex-wrap:wrap;align-items:stretch;gap:7px}
+  body :is(.tabs,.settings-tabs,[role=tablist])>*{flex:1 1 145px;min-width:0;max-width:100%}
+}
