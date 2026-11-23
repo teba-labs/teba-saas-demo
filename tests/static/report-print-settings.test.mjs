@@ -17,7 +17,7 @@ assert.match(js,/reference_range_snapshot/);
 assert.match(js,/paperSize/);
 assert.match(js,/orientation/);
 assert.match(js,/signaturePath/);
-assert.match(js,/win\.print\(\)/);
+assert.match(js,/win\.print\(\)/);\nassert.match(js,/pageTopMargin = showPrintHeader \? 36 : 12/);\nassert.match(js,/pageBottomMargin = showPrintFooter \? 24 : 12/);\nassert.doesNotMatch(js,/break-before:page/);
 assert.match(worker,/taiba-smart-lab-shell-v\d+/);
 assert.match(worker,/modules\/settings\/assets-repository\.js/);
 console.log('PASS: approved visit results can be rendered and printed using tenant and branch print settings.');
