@@ -69,6 +69,12 @@ function testLauncher(node,record,kind,workspace){
 }
 function selectRecord(record,records,shell){
  if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ نتائج الزيارة الحالية قبل تغيير الاختيار أو الانتقال إلى زيارة أخرى.');return;}
+ // Restore any open editor to its source card before rebuilding the selected visit.
+ shell.querySelectorAll('.test-detail').forEach(detail=>{
+  const node=detail.querySelector('.parameter[data-test-id]'),marker=node?.previousSibling;
+  if(node&&marker?.nodeType===8)marker.replaceWith(node);
+  detail.remove();
+ });
  selectedVisitId=record.visitId;window.taibaLastSelectedVisitId=selectedVisitId;window.taibaResultsContext=window.taibaGetResultsContext?.()||window.taibaResultsContext||{};
  shell.querySelectorAll('.visit-select-button').forEach(b=>b.classList.toggle('active',b.dataset.visitId===selectedVisitId));
  shell.querySelector('[data-selected-visit-label]').textContent=record.title;
@@ -82,11 +88,13 @@ function selectRecord(record,records,shell){
   $('entryContext').textContent=[record.title,record.visitDate,record.patientSex==='male'?'ذكر':record.patientSex==='female'?'أنثى':'',record.patientAge?('العمر '+record.patientAge+' '+({days:'يوم',months:'شهر',years:'سنة'}[record.patientAgeUnit]||'')):'',record.phone?'الهاتف '+record.phone:''].filter(Boolean).join(' · ');
   const back=new URL('results-workbench.html',location.href);back.searchParams.set('visit_id',record.visitId);$('entryBack').href=back.href;
   const visitActions=document.createElement('div');visitActions.className='entry-visit-actions';
-  const approveButton=button('حفظ النتائج واعتماد الزيارة','button button-primary');
+  const saveButton=button('حفظ كل النتائج','button button-secondary');
+  saveButton.addEventListener('click',()=>window.taibaSaveVisitDrafts?.(record.visitId,saveButton));
+  const approveButton=button('اعتماد الزيارة','button button-primary');
   approveButton.addEventListener('click',()=>window.taibaApproveVisit?.(record.visitId,approveButton));
   const previewButton=button('معاينة التقرير','button button-preview');
   previewButton.addEventListener('click',()=>window.taibaPreviewVisitReport?.(record.visitId));
-  visitActions.append(approveButton,previewButton);
+  visitActions.append(saveButton,approveButton,previewButton);
   entry.replaceChildren(visitActions,node);view.hidden=false;shell.hidden=true;return;
  }
  const ih=shell.querySelector('[data-individual-workspace]'),ph=shell.querySelector('[data-profile-workspace]');ih.replaceChildren();ph.replaceChildren();
