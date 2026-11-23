@@ -46,7 +46,7 @@ export function prepareResultInput(parameter, value) {
     return { value_numeric: numeric, value_text: null };
   }
   if (mode === 'numeric_comparator') {
-    if (!/^(<=|>=|<|>)[\\s]*[+-]?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)$/.test(rawValue)) {
+    if (!/^(<=|>=|<|>)[\s]*[+-]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$/.test(rawValue)) {
       throw new Error('اكتب نتيجة مقارنة مثل <5 أو <=10 أو >300 أو >=1.2.');
     }
     return { value_numeric: null, value_text: rawValue };
