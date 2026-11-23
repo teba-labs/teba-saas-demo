@@ -22,23 +22,16 @@
 /* Optional owner-only master library and adaptive catalog workspace. */
 .master-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.master-panel[hidden]{display:none!important}.master-item>div{min-width:0}.master-item small{line-height:1.65}.layout{align-items:start}.list-panel,.editor-panel{min-width:0}@media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.test-list,.parameter-list{max-height:32vh}}@media(min-width:901px){.layout{grid-template-columns:minmax(260px,.72fr) minmax(0,1.6fr)}}
 
-/* Doctor-friendly parameter editor */
-.range-editor,.condition-editor{grid-column:1/-1;border:1px solid #d7e3e7;border-radius:12px;padding:14px;background:#f8fbfc;min-width:0}
-.range-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-.range-editor-head>div{display:grid;gap:4px}
-.range-editor-head strong,.condition-editor>strong{font-size:13px;color:#174f55}
-.range-editor-head small,.condition-editor .muted{display:block;color:#617580;font-size:11px;line-height:1.6}
-.range-editor-rows{display:grid;gap:10px}
-.range-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:12px;border:1px solid #dce5e8;border-radius:10px;background:#fff}
-.range-row-top{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
-.range-row-top strong{font-size:12px;color:#174f55}
-.range-row label{min-width:0}
-.range-row input,.range-row select{width:100%;min-width:0}
-.range-row .range-pregnancy-label{display:flex;align-items:center;gap:7px;align-self:end;padding:9px 0}
-.range-pregnancy{width:17px;min-height:17px;margin:0}
-.range-remove{border:1px solid #ead4d1;border-radius:8px;background:#fff6f4;color:#8c3b31;padding:6px 9px;font:inherit;font-size:11px;cursor:pointer}
-.condition-editor{margin:4px 0}
-.condition-editor>strong{display:block}
-.condition-editor>.form-grid{margin-top:10px}
-@media(max-width:760px){.range-row{grid-template-columns:repeat(2,minmax(0,1fr))}.range-editor-head{align-items:flex-start;flex-direction:column}}
-@media(max-width:480px){.range-row{grid-template-columns:1fr}.range-row-top{grid-column:auto}}
+/* Clinician-friendly reference-range and conditional-display editors */
+.range-editor,.conditional-editor{border:1px solid var(--taiba-border,#d8e2e7);border-radius:14px;padding:14px;background:var(--taiba-surface-soft,#f7fafb);min-width:0}
+.range-editor-rows{display:grid;gap:12px}
+.range-editor-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:12px;border:1px solid var(--taiba-border,#d8e2e7);border-radius:12px;background:var(--taiba-surface,#fff);min-width:0}
+.range-editor-row label,.conditional-editor label{min-width:0}
+.range-editor-row input,.range-editor-row select,.conditional-editor input,.conditional-editor select{width:100%;min-width:0}
+.range-editor-row .wide{grid-column:1/-1}
+.range-editor .section-head{align-items:center;gap:12px}
+.range-editor .section-head small{display:block;margin-top:4px;color:var(--taiba-muted,#64748b)}
+.conditional-editor>strong{display:block;margin-bottom:5px}
+.conditional-editor>.muted{margin-top:0}
+@media(max-width:900px){.range-editor-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.range-editor-row{grid-template-columns:minmax(0,1fr)}.range-editor-row .wide{grid-column:auto}}
