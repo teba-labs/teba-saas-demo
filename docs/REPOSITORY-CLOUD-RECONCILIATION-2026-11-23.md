@@ -7,6 +7,7 @@
 - Primary Supabase project: `hgqwpykeazuzceeiumjg`
 - Primary project URL: `https://hgqwpykeazuzceeiumjg.supabase.co`
 - The legacy project `khjzoleiuiipyodpkieg` is not a target for this reconciliation.
+- The connected Supabase branch inventory exposed only `main`; it did not expose a branch named `TEST`. This is a limitation of the connected view, not proof that no TEST branch exists in the dashboard. No changes were made to an unverified branch.
 
 ## Current main features already integrated
 
