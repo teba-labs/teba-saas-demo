@@ -70,3 +70,14 @@ test('new patient keyboard flow advances Enter and accepts missing phone while s
   assert.match(js,/fields\[index\+1\]/);
   assert.match(js,/\(next\|\|\$\('createPatient'\)\)\.focus\(\)/);
 });
+
+
+test('outstanding balances can be queued offline without printing a final receipt before server acknowledgement',()=>{
+  const js=read('assets/js/reception.js');
+  const repo=read('modules/reception/repository.js');
+  assert.match(js,/recordPayment\(\{tenantId:state\.tenant\.id,branchId:state\.branch\.id,visitId:card\.dataset\.balanceVisit/);
+  assert.match(js,/payment\?\.queued/);
+  assert.match(js,/لا تطبع إيصالًا نهائيًا قبل تأكيد الخادم/);
+  assert.doesNotMatch(js,/التحصيل اللاحق من هذه الشاشة يحتاج اتصالًا حاليًا/);
+  assert.match(repo,/entityType: 'payment', action: 'create'/);
+});
