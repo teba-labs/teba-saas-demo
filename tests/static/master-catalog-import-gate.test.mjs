@@ -106,6 +106,6 @@ test('tenant catalog bootstraps reviewed Core tests idempotently before receptio
  assert.match(repository,/rpc\('ensure_tenant_core_catalog'/);
  assert.match(home,/prepareTenantCatalog\(state\.tenant\.id\)/);
  assert.match(home,/warmCatalogParameters/);
- assert.match(home,/لا تحتاج إلى استيراد يدوي/);
+ assert.match(home,/تم تجهيزها للعمل دون اتصال بعد أول مزامنة/);
  assert.doesNotMatch(home,/signOut\(\).*catalog/);
 });
