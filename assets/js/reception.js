@@ -331,7 +331,6 @@ async function collectBalance(button){
   if(!Number.isFinite(amount)||amount<=0||amount>remaining){notice('أدخل مبلغًا أكبر من صفر ولا يتجاوز الرصيد المتبقي.',true);return;}
   if(!state.workday){notice('افتح يوم العمل قبل تسجيل التحصيل.',true);return;}
   if(!currentStaff()){notice('لا توجد هوية موظف نشطة مرتبطة بهذا الحساب.',true);return;}
-  if(navigator.onLine===false){notice('التحصيل اللاحق من هذه الشاشة يحتاج اتصالًا حاليًا. لم يتم تسجيل أي مبلغ.',true);return;}
   busy(button,true,'جارٍ تسجيل التحصيل…');
   try{
     const method=card.querySelector('.balance-method').value;
