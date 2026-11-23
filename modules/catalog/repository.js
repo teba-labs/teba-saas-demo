@@ -368,7 +368,7 @@ export async function listMasterCatalogTests() {
   if (!releases?.length) return [];
   const { data, error } = await db().from('master_catalog_tests')
     .select('id, release_id, master_code, canonical_name, alternate_names, test_kind, category, service_type, clinical_review_status, source_name, definition')
-    .in('release_id', releases.map(row=>row.id)).eq('clinical_review_status','verified').order('canonical_name');
+    .in('release_id', releases.map(row=>row.id)).order('canonical_name');
   if (error) throw error;
   const rows = data ?? [];
   const ids = rows.map(row=>row.id);
@@ -401,7 +401,7 @@ export async function listMasterCatalogTests() {
     missing_formulas: parameterCounts.get(row.id)?.missing_formulas || 0,
     missing_choices: parameterCounts.get(row.id)?.missing_choices || 0,
     release: byRelease.get(row.release_id),
-  })).filter(row=>row.parameter_count>0 && row.unreviewed_parameters===0 && row.placeholder_parameters===0 && row.missing_numeric_ranges===0 && row.missing_units===0 && row.missing_formulas===0 && row.missing_choices===0 && Boolean(row.definition?.method?.trim()) && Boolean(row.definition?.specimen?.trim()));
+  })); // Published definitions remain importable even when clinical metadata is incomplete.
 }
 
 export async function importMasterCatalogTest({ tenantId, masterTestId } = {}) {
