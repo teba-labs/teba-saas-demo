@@ -59,7 +59,7 @@ export async function warmCatalogParameters({ tenantId, testIds = [] } = {}) {
     const chunk = ids.slice(start, start + 100);
     for (let offset = 0; ; offset += 500) {
       const { data, error } = await db().from(TABLES.parameters)
-        .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status')
+        .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression')
         .eq('tenant_id', tenantId).in('test_id', chunk)
         .order('test_id').order('display_order').range(offset, offset + 499);
       if (error) throw error;
@@ -75,7 +75,7 @@ export async function listTestParameters({ tenantId, testId, includeInactive = f
   required(tenantId, 'tenantId'); required(testId, 'testId');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order);
   let query = db().from(TABLES.parameters)
-    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status')
+    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression')
     .eq('tenant_id', tenantId).eq('test_id', testId)
     .order('display_order');
   const { data, error } = await query;
@@ -96,7 +96,7 @@ export async function saveCatalogTest({ tenantId, test, id } = {}) {
     throw new Error('turnaroundMinutes must be a whole number from 0 to 10080.');
   }
   const testKind = test?.testKind ?? 'individual';
-  if (!['individual', 'panel'].includes(testKind)) throw new Error('testKind must be individual or panel.');
+  if (!['individual', 'panel', 'group'].includes(testKind)) throw new Error('testKind must be individual, panel or group.');
   const payload = {
     ...(id ? { id } : {}), tenant_id: tenantId, code, name, test_kind: testKind,
     category: test.category?.trim() || null, specimen: test.specimen?.trim() || null,
@@ -128,13 +128,25 @@ export async function setCatalogTestActive({ tenantId, testId, isActive } = {}) 
   return data;
 }
 
+const inputModes = new Set([
+  'numeric_integer','numeric_decimal','numeric_comparator','text',
+  'positive_negative','boolean','single_choice','multi_choice','graded_multi_choice',
+]);
+const valueTypeForMode = mode => ({
+  numeric_integer:'numeric',numeric_decimal:'numeric',numeric_comparator:'text',
+  text:'text',positive_negative:'choice',boolean:'boolean',
+  single_choice:'choice',multi_choice:'choice',graded_multi_choice:'choice',
+}[mode] || 'numeric');
+
 const validateParameter = parameter => {
   const code = String(parameter?.code ?? '').trim();
   const name = String(parameter?.name ?? '').trim();
   required(code, 'parameter.code'); required(name, 'parameter.name');
   if (code.length > 40 || name.length > 160) throw new Error('Parameter code/name is too long.');
-  const valueType = parameter.valueType ?? 'numeric';
-  if (!['numeric', 'text', 'boolean', 'choice'].includes(valueType)) throw new Error('Unsupported parameter valueType.');
+  const resultInputMode = parameter.resultInputMode
+    || ({numeric:'numeric_decimal',text:'text',boolean:'boolean',choice:'single_choice'}[parameter.valueType] || 'numeric_decimal');
+  if (!inputModes.has(resultInputMode)) throw new Error('نوع إدخال النتيجة غير مدعوم.');
+  const valueType = valueTypeForMode(resultInputMode);
   const decimalPlaces = Number(parameter.decimalPlaces ?? 2);
   const displayOrder = Number(parameter.displayOrder ?? 0);
   if (!Number.isInteger(decimalPlaces) || decimalPlaces < 0 || decimalPlaces > 6) throw new Error('decimalPlaces must be from 0 to 6.');
@@ -142,31 +154,66 @@ const validateParameter = parameter => {
   const resultSource = parameter.resultSource ?? 'manual';
   if (!['manual','calculated'].includes(resultSource)) throw new Error('Unsupported parameter result source.');
   const formula = parameter.formula ?? null;
-  if (resultSource === 'calculated' && (valueType !== 'numeric' || !formula || typeof formula !== 'object' || Array.isArray(formula))) throw new Error('Calculated parameters require a numeric formula.');
+  if (resultSource === 'calculated'
+      && (!['numeric_integer','numeric_decimal'].includes(resultInputMode)
+        || !formula || typeof formula !== 'object' || Array.isArray(formula))) {
+    throw new Error('المعادلة التلقائية تحتاج بارامترًا رقميًا ومعادلة صحيحة.');
+  }
   if (resultSource === 'manual' && formula !== null) throw new Error('Manual parameters cannot have a formula.');
   const ranges = parameter.referenceRanges ?? [];
-  const referenceIntervalStatus = parameter.referenceIntervalStatus || (valueType === 'numeric' ? 'local_verification_required' : 'not_applicable');
+  if (!Array.isArray(ranges)) throw new Error('يجب أن تكون المديات المرجعية قائمة.');
+  const referenceIntervalStatus = parameter.referenceIntervalStatus
+    || (['numeric_integer','numeric_decimal'].includes(resultInputMode) ? 'local_verification_required' : 'not_applicable');
   if (!['not_applicable','local_verification_required','verified_local'].includes(referenceIntervalStatus)) throw new Error('Unsupported reference interval status.');
   const sourceReferences = parameter.sourceReferences ?? [];
-  if (!Array.isArray(sourceReferences)) throw new Error('المراجع العلمية يجب أن تكون قائمة JSON.');
-  if (referenceIntervalStatus === 'verified_local' && valueType === 'numeric' && (!Array.isArray(ranges) || !ranges.length)) throw new Error('لا يمكن اعتماد المدى محليًا دون إدخال مدى موثق واحد على الأقل.');
-  if (referenceIntervalStatus === 'verified_local' && valueType === 'numeric' && !sourceReferences.length) throw new Error('اعتماد المدى محليًا يتطلب مرجعًا علميًا موثقًا.');
-  const rangeRows = Array.isArray(ranges) ? ranges : (ranges && typeof ranges === 'object' ? [ranges] : []);
-  for (const range of rangeRows) {
-    if (!range || typeof range !== 'object' || Array.isArray(range)) throw new Error('كل مدى مرجعي يجب أن يكون كائن JSON.');
+  if (!Array.isArray(sourceReferences)) throw new Error('المراجع العلمية يجب أن تكون قائمة.');
+  if (referenceIntervalStatus === 'verified_local'
+      && ['numeric_integer','numeric_decimal'].includes(resultInputMode)
+      && (!ranges.length || !sourceReferences.length)) {
+    throw new Error('اعتماد المدى محليًا يتطلب مدى واحدًا على الأقل ومرجعًا علميًا.');
+  }
+  for (const range of ranges) {
+    if (!range || typeof range !== 'object' || Array.isArray(range)) throw new Error('كل مدى مرجعي يجب أن يكون صحيحًا.');
     const low = range.lower ?? range.low ?? range.min;
     const high = range.upper ?? range.high ?? range.max;
     if (low != null && !Number.isFinite(Number(low))) throw new Error('الحد الأدنى للمدى المرجعي يجب أن يكون رقمًا.');
     if (high != null && !Number.isFinite(Number(high))) throw new Error('الحد الأعلى للمدى المرجعي يجب أن يكون رقمًا.');
     if (low != null && high != null && Number(low) > Number(high)) throw new Error('الحد الأدنى لا يمكن أن يتجاوز الحد الأعلى.');
-    if (range.age && range.age.min != null && range.age.max != null && Number(range.age.min) > Number(range.age.max)) throw new Error('نطاق العمر المرجعي غير صحيح.');
+    if (range.age?.min != null && range.age?.max != null && Number(range.age.min) > Number(range.age.max)) {
+      throw new Error('نطاق العمر المرجعي غير صحيح.');
+    }
   }
   const choices = parameter.choices ?? [];
-  const validRanges = Array.isArray(ranges) || (ranges !== null && typeof ranges === 'object');
-  if (!validRanges || !Array.isArray(choices)) throw new Error('referenceRanges must be an object or array, and choices must be an array.');
-  if (valueType === 'choice' && (choices.length === 0 || choices.some(choice => typeof choice !== 'string' || !choice.trim()))) throw new Error('Choice parameters require at least one choice, and each choice must be non-empty text.');
-  if (valueType === 'choice' && new Set(choices.map(choice => choice.trim())).size !== choices.length) throw new Error('Choice parameters cannot contain duplicate choices.');
-  return { code, name, valueType, decimalPlaces, displayOrder, ranges, choices, resultSource, formula, referenceIntervalStatus, sourceReferences };
+  const choiceModes = ['positive_negative','single_choice','multi_choice','graded_multi_choice'];
+  if (!Array.isArray(choices) || (choiceModes.includes(resultInputMode)
+      && (!choices.length || choices.some(choice => typeof choice !== 'string' || !choice.trim())))) {
+    throw new Error('أضف الاختيارات المطلوبة لهذا النوع من النتائج.');
+  }
+  if (new Set(choices.map(choice => String(choice).trim())).size !== choices.length) {
+    throw new Error('لا يمكن تكرار الاختيار نفسه.');
+  }
+  const resultConfig = parameter.resultConfig ?? {};
+  if (!resultConfig || typeof resultConfig !== 'object' || Array.isArray(resultConfig)) {
+    throw new Error('إعدادات النتيجة غير صحيحة.');
+  }
+  if (resultConfig.max_selections != null) {
+    const maxSelections = Number(resultConfig.max_selections);
+    if (!Number.isInteger(maxSelections) || maxSelections < 1 || maxSelections > Math.max(choices.length,1)) {
+      throw new Error('الحد الأقصى للاختيارات غير صحيح.');
+    }
+  }
+  const displayRules = parameter.displayRules ?? [];
+  if (!Array.isArray(displayRules)) throw new Error('قواعد إظهار الاختيارات يجب أن تكون قائمة.');
+  for (const rule of displayRules) {
+    if (!rule?.when?.parameter_code || !['equals','not_equals'].includes(rule.when.operator)
+        || !String(rule.when.value ?? '').trim() || !Array.isArray(rule.visible_values)) {
+      throw new Error('قاعدة الإظهار الشرطي غير مكتملة.');
+    }
+  }
+  return {
+    code,name,valueType,resultInputMode,decimalPlaces,displayOrder,ranges,choices,
+    resultSource,formula,referenceIntervalStatus,sourceReferences,resultConfig,displayRules,
+  };
 };
 
 /** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
@@ -177,6 +224,8 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     ...(id ? { id } : {}), tenant_id: tenantId, test_id: testId,
     parameter_code: valid.code, parameter_name: valid.name,
     unit: parameter.unit?.trim() || null, value_type: valid.valueType,
+    result_input_mode: valid.resultInputMode, result_config: valid.resultConfig, display_rules: valid.displayRules,
+    formula_expression: parameter.formulaExpression?.trim() || null,
     decimal_places: valid.decimalPlaces, reference_ranges: valid.ranges,
     choices: valid.choices, display_order: valid.displayOrder,
     result_source: valid.resultSource, formula: valid.formula,
