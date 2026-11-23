@@ -401,7 +401,7 @@ export async function listMasterCatalogTests() {
     missing_formulas: parameterCounts.get(row.id)?.missing_formulas || 0,
     missing_choices: parameterCounts.get(row.id)?.missing_choices || 0,
     release: byRelease.get(row.release_id),
-  })).filter(row=>row.parameter_count>0 && row.unreviewed_parameters===0 && row.placeholder_parameters===0 && row.missing_numeric_ranges===0 && row.missing_units===0 && row.missing_formulas===0 && row.missing_choices===0 && Boolean(row.definition?.method?.trim()) && Boolean(row.definition?.specimen?.trim()));
+  })); // Published definitions remain importable even when clinical metadata is incomplete.
 }
 
 export async function importMasterCatalogTest({ tenantId, masterTestId } = {}) {
