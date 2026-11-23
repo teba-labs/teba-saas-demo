@@ -26,12 +26,12 @@ test('each test opens inline in the selected visit without a page hop; legacy di
  const workbench=read('app/results-workbench.html');
  assert.match(page,/class="result-entry-page"/);
  for(const id of ['entryView','entryTitle','entryContext','entryBack','entryWorkspace','workList'])assert.match(page,new RegExp('id="'+id+'"'));
- assert.match(layout,/function testLauncher\\(node,record,kind,workspace\\)/);
+ assert.ok(layout.includes('function testLauncher(node,record,kind,workspace)'));
  assert.match(layout,/test-detail/);
- assert.match(layout,/placeholder\\.replaceWith\\(node\\)/);
- assert.doesNotMatch(layout,/location\\.href=url\\.href/);
+ assert.ok(layout.includes('placeholder.replaceWith(node)'));
+ assert.ok(!layout.includes('location.href=url.href'));
  assert.match(layout,/classList\\.contains\\('result-entry-page'\\)/);
- assert.match(layout,/entry\\.replaceChildren\\(visitActions,node\\)/);
+ assert.ok(layout.includes('entry.replaceChildren(visitActions,node)'));
  assert.match(layout,/results-workbench\\.html/);
  assert.match(layout,/record\\.patientAge/);
  assert.match(layout,/الهاتف/);
