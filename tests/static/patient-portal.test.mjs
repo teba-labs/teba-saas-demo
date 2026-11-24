@@ -15,7 +15,7 @@ test('patient portal keeps privileged credentials server-side', () => {
   assert.match(edge, /PORTAL_HASH_SECRET/);
 });
 
-test('portal lookup is exact, tenant-scoped, and only returns published reports', () => {
+test('portal lookup is exact, tenant-scoped, and only returns published final or partial report versions', () => {
   assert.match(edge, /\.eq\('slug', slug\)/);
   assert.match(edge, /\.eq\('tenant_id', tenant\.id\)/);
   assert.match(edge, /normalizeName\(String\(\(row\.patients/);
@@ -23,6 +23,11 @@ test('portal lookup is exact, tenant-scoped, and only returns published reports'
   assert.match(edge, /portalConfig\?\.portal_settings\?\.enabled !== true/);
   assert.match(edge, /Patient portal enablement check failed/);
   assert.match(edge, /\.order\('version_number', \{ ascending: false \}\)/);
+  assert.match(edge, /publication_type/);
+  assert.match(edge, /isPartial/);
+  assert.doesNotMatch(edge, /\.eq\('visit_number', visitNumber\)\.eq\('is_published', true\)/);
+  assert.match(client, /data\.isPartial/);
+  assert.match(page, /data-portal-partial/);
 });
 
 test('portal uses short-lived private report links and generic lookup failures', () => {
