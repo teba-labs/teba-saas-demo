@@ -1,5 +1,5 @@
 /* Shared application viewport and adaptive layout rules.
-   Breakpoints respond to the CSS viewport, including browser zoom; no navigation/tab switching. */
+   Breakpoints respond to the CSS viewport, including browser zoom; focused workbenches may use mobile section tabs. */
 :root{scrollbar-gutter:stable}
 html{min-width:320px;min-height:100%;scroll-behavior:auto}
 body{min-width:320px;min-height:100dvh;max-width:100%;overflow-x:hidden}
