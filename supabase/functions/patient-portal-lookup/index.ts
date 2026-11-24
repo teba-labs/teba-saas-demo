@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 
-const GENERIC_FAILURE = { ok: false, message: 'تعذر العثور على تقرير مطابق. راجع الاسم ورقم الزيارة وحاول مرة أخرى.' };
+const GENERIC_FAILURE = { ok: false, message: 'لا توجد نتائج منشورة متاحة بهذه البيانات حاليًا. قد تكون التحاليل قيد الاختبار والمراجعة.' };
 
 function json(body: unknown, status = 200, origin = '') {
   const headers: Record<string, string> = {
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503, origin);
   }
   if (!rateLimit.allowed) {
-    return json({ ok: false, message: 'محاولات كثيرة. انتظر 15 دقيقة ثم حاول مرة أخرى.' }, 429, origin);
+    return json({ ok: false, message: 'تم إيقاف المحاولات مؤقتًا لحماية البوابة. حاول مرة أخرى بعد ساعة.' }, 429, origin);
   }
   const attemptId = String(rateLimit.attempt_id ?? '');
 

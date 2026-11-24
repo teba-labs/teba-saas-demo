@@ -55,6 +55,6 @@ test('results workbench has desktop columns and actual mobile section tabs', asy
 
 test('service worker cache version is bumped and Supabase responses remain uncached', async () => {
   const sw = await readFile('service-worker.js', 'utf8');
-  assert.match(sw, /taiba-smart-lab-shell-v47/);
+  assert.match(sw, /taiba-smart-lab-shell-v48/);
   assert.match(sw, /\.supabase\.co.*Never cache authenticated API or patient data/i);
 });

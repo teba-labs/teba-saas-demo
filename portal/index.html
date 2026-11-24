@@ -24,10 +24,9 @@
   <main>
     <div class="mark" aria-hidden="true">✚</div>
     <h1 id="portalTitle">بوابة نتائج التحاليل</h1>
-    <p id="portalIntro">أدخل اسم المريض ورقم الزيارة كما هو موضح في إيصال المعمل لعرض أحدث تقرير معتمد.</p>
+    <p id="portalIntro">أدخل اسم المريض ورقم الزيارة كما هو موضح في إيصال المعمل لعرض النتائج المنشورة فقط.</p>
     <form data-portal-form>
-      <label for="slug">رمز المعمل</label>
-      <input id="slug" name="slug" autocomplete="organization" required minlength="3" maxlength="64" pattern="[a-zA-Z0-9-]+" placeholder="مثال: teba-labs">
+      <input id="slug" name="slug" type="hidden">
       <label id="portalNameLabel" for="patientName">اسم المريض بالكامل</label>
       <input id="patientName" name="patientName" autocomplete="name" required minlength="2" maxlength="160" placeholder="الاسم كما هو مسجل بالمعمل">
       <label id="portalVisitLabel" for="visitNumber">رقم الزيارة</label>
