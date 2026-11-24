@@ -67,12 +67,15 @@ test('lab branding repeats separately from first-page patient and visit metadata
 });
 
 
-test('partial results can be printed but never published to the patient portal before all tests complete',()=>{
- const publication=fs.readFileSync(new URL('database/migrations/108_block_partial_report_publication.sql',root),'utf8');
- assert.match(js,/const hasPendingTests = group\.items\.some/);
- assert.match(js,/const partialReport = globalThis\.navigator/);
- assert.match(js,/allVisitItems\.some\(item => item\.status !== 'completed'\)/);
- assert.match(js,/لا يمكن نشر تقرير نهائي قبل اكتمال جميع التحاليل/);
- assert.match(js,/التقرير الجزئي للطباعة فقط/);
- assert.match(publication,/All visit tests must be completed before report publication/);
+test('any saved result can be printed as a marked partial report while final publication stays gated',()=>{
+ const finalPublication=fs.readFileSync(new URL('database/migrations/108_block_partial_report_publication.sql',root),'utf8');
+ const partialPublication=fs.readFileSync(new URL('database/migrations/110_partial_report_publication.sql',root),'utf8');
+ assert.match(js,/const hasAnySavedResults = group\\.items\\.some/);
+ assert.match(js,/const partialReport = globalThis\\.navigator/);
+ assert.match(js,/rows\\.some\\(row => row\\.visit_test_id === item\\.id\\)/);
+ assert.match(js,/لا يمكن نشر التقرير النهائي قبل اكتمال جميع التحاليل/);
+ assert.match(js,/تقرير جزئي — بعض النتائج لم تصدر بعد/);
+ assert.match(finalPublication,/All visit tests must be completed before report publication/);
+ assert.match(partialPublication,/publish_partial_report_version/);
+ assert.match(partialPublication,/set_config\\('app\\.report_publication','partial',true\\)/);
 });
