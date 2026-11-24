@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '../..');
-const sql = fs.readFileSync(path.join(root, 'database/migrations/20261124165000_published_master_catalog_read_policies.sql'), 'utf8');
+const sql = fs.readFileSync(path.join(root, 'database/migrations/20261124143652_published_master_catalog_read_policies.sql'), 'utf8');
 
 test('authenticated lab users can read published master catalog only', () => {
   for (const policy of [
