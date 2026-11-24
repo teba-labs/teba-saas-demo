@@ -23,7 +23,7 @@ export function renderPublicSite(data){
  const contact=$('contactCta');if(contact){contact.href=phone?'tel:'+phone:'#branches';contact.textContent=phoneDisplay?'اتصل بنا · '+phoneDisplay:'تواصل معنا';}
  const facebook=safeUrl(content.facebook_url);const facebookLink=$('facebookCta');if(facebookLink){facebookLink.hidden=!facebook;if(facebook)facebookLink.href=facebook;}
  const contactDetails=$('contactDetails');if(contactDetails){const parts=[];if(phone)parts.push('<a href="tel:'+esc(phone)+'">'+esc(phoneDisplay)+'</a>');if(wa)parts.push('<a href="https://wa.me/'+esc(wa)+'" target="_blank" rel="noopener">واتساب '+esc(waDisplay)+'</a>');if(content.address)parts.push(esc(content.address));contactDetails.innerHTML=parts.join(' · ');}
- const hours=$('branchHoursPublic');if(hours)hours.textContent=content.branch_hours_text||'';
+ const hours=$('branchHoursPublic');if(hours)hours.innerHTML=String(content.branch_hours_text||'').split(/\r?\n/).map(esc).join('<br>');
  $('patientAccess').href='../portal/index.html?lab='+encodeURIComponent(tenant.slug||'');
  $('employeeAccess').href='../app/index.html';$('ownerAccess').href='../app/index.html';
  $('year').textContent=new Date().getFullYear();$('aboutTextPublic').textContent=content.about_text||'نحرص على تقديم خدمة طبية دقيقة وتجربة مريحة لكل مريض.';$('servicesTextPublic').textContent=content.services_text||'خدمات معملية متكاملة مع اهتمام بجودة الخدمة وسهولة الوصول.';$('homeSamplingTextPublic').textContent=content.home_sampling_text||'يمكنك طلب سحب العينة من المنزل والتواصل مع فريق المعمل.';const samplingPhone=String(content.home_sampling_phone||'').replace(/\D/g,'');$('homeSamplingLink').href=samplingPhone?'https://wa.me/'+samplingPhone:'#';$('homeSamplingLink').hidden=!samplingPhone;
