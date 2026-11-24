@@ -33,3 +33,48 @@
 
 /* Inline owner-only pricing for newly provisioned catalog tests. */
 .quick-price{grid-column:1/-1;display:flex;gap:6px;align-items:center;margin-top:6px}.quick-price input{min-width:0;max-width:150px;padding:7px}.quick-price button{padding:7px 10px;font-size:12px}.price-missing{grid-column:1/-1;color:#8a5a16}@media(max-width:620px){.quick-price{flex-wrap:wrap}.quick-price input{flex:1;max-width:none}}
+
+
+/* Full-viewport reception workspace with independent scrolling columns. */
+body.reception-page{height:100dvh;overflow:hidden}
+.reception-page>.topbar{position:sticky;top:0;z-index:30;min-height:64px}
+.reception-page>.reception-shell{width:100%;max-width:none;height:calc(100dvh - 64px);margin:0;padding:14px 16px 24px;overflow-y:auto;overscroll-behavior:contain}
+.reception-shell .intake-content{display:grid;grid-template-columns:minmax(280px,1.02fr) minmax(270px,.98fr) minmax(290px,1.08fr);gap:12px;align-items:stretch;height:min(72dvh,820px);min-height:420px;overflow:hidden}
+.reception-shell .intake-column{display:flex;flex-direction:column;min-width:0;min-height:0;height:100%;border:1px solid var(--taiba-border);border-radius:16px;background:var(--taiba-surface);overflow:hidden}
+.reception-shell .intake-column>summary{display:none}
+.reception-shell .intake-column-body{display:flex!important;flex:1;flex-direction:column;gap:10px;min-height:0;padding:10px;overflow-y:auto;overscroll-behavior:contain}
+.reception-shell .intake-block{flex:0 0 auto;min-width:0;margin:0;padding:13px;border:1px solid var(--taiba-border);border-radius:14px;background:var(--taiba-surface)}
+.reception-shell .intake-block .catalog-list{max-height:none;min-height:180px;overflow-y:auto}
+.reception-shell .patient-block,.reception-shell .visit-block,.reception-shell .tests-block,.reception-shell .billing-block{grid-column:auto}
+.reception-shell .cart-column .billing-block{border-top:1px solid var(--taiba-border)}
+.selected-tests-list{display:grid;gap:8px}
+.selected-test-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:10px;border:1px solid var(--taiba-border);border-radius:12px;background:var(--taiba-surface-soft)}
+.selected-test-main{min-width:0;display:grid;gap:3px}
+.selected-test-main strong{font-size:13px;overflow-wrap:anywhere}
+.selected-test-main small{color:var(--muted);font-size:11px}
+.selected-test-price{white-space:nowrap;font-size:12px}
+.selected-test-remove{min-height:34px!important;padding:6px 9px!important;font-size:11px}
+@media (min-width:768px) and (max-width:1099px){
+  .reception-shell .intake-content{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr);height:72dvh}
+  .reception-shell .patient-column{grid-column:1/-1}
+  .reception-shell .cart-column,.reception-shell .catalog-column{grid-column:auto}
+}
+@media (max-width:767px){
+  body.reception-page{overflow:hidden}
+  .reception-page>.topbar{min-height:56px;padding:8px 12px}
+  .reception-page>.reception-shell{height:calc(100dvh - 56px);padding:10px 8px 20px}
+  .reception-shell .intake-content{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;height:auto;min-height:0;overflow:visible}
+  .reception-shell .intake-column{height:auto;min-height:0;overflow:hidden}
+  .reception-shell .intake-column>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:12px 14px;cursor:pointer;list-style:none;font-weight:800;color:var(--taiba-text);background:var(--taiba-surface-soft)}
+  .reception-shell .intake-column>summary::-webkit-details-marker{display:none}
+  .reception-shell .intake-column>summary::after{content:'＋';font-size:18px;color:var(--taiba-primary)}
+  .reception-shell .intake-column[open]>summary::after{content:'−'}
+  .reception-shell .intake-column:not([open])>.intake-column-body{display:none!important}
+  .reception-shell .intake-column[open]>.intake-column-body{display:flex!important;max-height:calc(100dvh - 230px);overflow-y:auto}
+  .reception-shell .intake-block{padding:11px}
+  .reception-shell .intake-block .catalog-list{max-height:45dvh}
+  .selected-test-row{grid-template-columns:minmax(0,1fr) auto}
+  .selected-test-price{grid-column:2;grid-row:1}
+  .selected-test-remove{grid-column:1/-1;width:100%}
+  .reception-shell .intake-block .main-actions .button{width:100%}
+}
