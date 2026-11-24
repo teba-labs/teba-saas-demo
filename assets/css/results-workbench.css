@@ -88,3 +88,26 @@
 .result-entry-modal-foot{border-top:1px solid var(--border,#dce5e8);border-bottom:0;justify-content:flex-start}
 .result-entry-modal-foot .result-entry-modal-save{margin-inline-start:auto}
 @media(max-width:640px){.result-entry-modal{padding:0;align-items:stretch}.result-entry-dialog{width:100%;max-height:100dvh;height:100dvh;border-radius:0}.result-entry-modal-head,.result-entry-modal-foot{padding:12px}.result-entry-modal-head strong{font-size:16px}.result-entry-modal-body{padding:10px}.result-entry-modal-foot{flex-wrap:wrap}.result-entry-modal-foot button{flex:1}.result-entry-modal-foot .result-entry-modal-save{margin-inline-start:0}}
+
+
+/* Responsive workbench: three working columns on desktop, two on tablet,
+   and real section tabs on phones (never a long stacked page). */
+.results-mobile-tabs{display:none}
+.results-columns{display:grid!important;grid-template-columns:minmax(245px,.86fr) minmax(0,1.22fr) minmax(245px,1fr)!important;gap:12px;min-height:0;height:min(72dvh,820px);overflow:hidden}
+.results-column{min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+@media (min-width:768px) and (max-width:1099px){
+  .results-columns{grid-template-columns:minmax(220px,.8fr) minmax(0,1.2fr)!important;grid-template-rows:minmax(170px,.32fr) minmax(0,1fr);height:72dvh}
+  .results-columns>.visits-column{grid-column:1/-1;max-height:190px}
+  .results-columns>.individual-column,.results-columns>.profiles-column{max-height:none}
+}
+@media (max-width:767px){
+  .results-mobile-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0;position:sticky;top:0;z-index:12}
+  .results-mobile-tabs button{min-width:0;padding:10px 5px;border:1px solid var(--border,#d7dde5);border-radius:10px;background:var(--surface,#fff);color:var(--text,#1f2937);font:inherit;font-size:12px;font-weight:700}
+  .results-mobile-tabs button[aria-pressed="true"]{background:var(--primary-soft,#eaf1ff);border-color:var(--primary,#4778c7);color:var(--primary-strong,#244e8a)}
+  .results-columns{display:block!important;height:calc(100dvh - 265px);min-height:260px;overflow:hidden}
+  .results-columns>.results-column{display:none!important;width:100%;height:100%;max-height:none!important;min-height:0;overflow-y:auto}
+  .results-columns>.results-column.is-mobile-active{display:flex!important;flex-direction:column}
+  .results-column .test-workspace{min-height:0;overflow-y:auto}
+  .result-entry-modal{position:fixed;inset:0;z-index:1000;padding:0}
+  .result-entry-dialog{width:100%;max-width:none;height:100dvh;max-height:100dvh;border-radius:0}
+}
