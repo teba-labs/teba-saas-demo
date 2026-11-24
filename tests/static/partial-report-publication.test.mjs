@@ -32,7 +32,9 @@ test('partial printing includes saved results from incomplete tests and never in
   assert.match(workbench, /rows\.some\(row => row\.visit_test_id === item\.id\)/);
   assert.match(workbench, /تقرير جزئي — بعض النتائج لم تصدر بعد/);
   assert.match(workbench, /return '';/);
-  assert.match(workbench, /const canPublishPartial = hasAnySavedResults/);
+  assert.match(workbench, /state\.portalEnabled && hasAnySavedResults/);
+  assert.match(workbench, /from\('site_settings'\)/);
+  assert.match(workbench, /state\.portalEnabled && group\.visit\?\.patients\?\.phone/);
 });
 
 test('portal lookup accepts a published partial version without marking the visit final', () => {
