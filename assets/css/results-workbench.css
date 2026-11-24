@@ -111,3 +111,12 @@
   .result-entry-modal{position:fixed;inset:0;z-index:1000;padding:0}
   .result-entry-dialog{width:100%;max-width:none;height:100dvh;max-height:100dvh;border-radius:0}
 }
+
+body.results-workbench-page{height:100dvh;overflow:hidden}
+.results-workbench-page>.topbar{position:sticky;top:0;z-index:30}
+.results-workbench-page>.shell{width:100%;max-width:none;height:calc(100dvh - 64px);margin:0;padding:14px 16px 24px;overflow-y:auto;overscroll-behavior:contain}
+.results-workbench-page .work-list{min-height:0}
+@media(max-width:767px){
+ .results-workbench-page>.topbar{min-height:56px}
+ .results-workbench-page>.shell{height:calc(100dvh - 56px);padding:10px 8px 18px}
+}
