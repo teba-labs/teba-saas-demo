@@ -267,8 +267,8 @@ async function renderWork() {
     const hasPendingTests = group.items.some(item => item.status !== 'completed');
     const hasAnySavedResults = group.items.some(item => (resultsByTest.get(item.id)||[]).length>0);
     const isPartialPublished = state.partialPublishedVisits.has(visitId);
-    const canPrintPartial = hasAnySavedResults && !isPublished && group.visit?.status !== 'approved';
-    const canPublishPartial = hasAnySavedResults && !isPublished && group.visit?.status !== 'approved';
+    const canPrintPartial = hasAnySavedResults && !isPublished && (hasPendingTests || group.visit?.status !== 'approved');
+    const canPublishPartial = hasAnySavedResults && !isPublished && (hasPendingTests || group.visit?.status !== 'approved');
     const canPublishReport = (group.visit?.status === 'approved' || isPublished) && !hasPendingTests;
     const itemsMarkup = group.items.map(item => {
       const locked = item.status === 'completed';
@@ -751,7 +751,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     ((signature || stamp || reviewerName) ? '<section class="report-approval" style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:14px 0 8px">' + (signature ? '<div style="display:grid;gap:4px"><img style="max-width:130px;max-height:65px;object-fit:contain" src="' + escapeHtml(signature) + '" alt="التوقيع"><small>التوقيع</small></div>' : '') + (stamp ? '<div style="display:grid;gap:4px"><img style="max-width:100px;max-height:100px;object-fit:contain" src="' + escapeHtml(stamp) + '" alt="الختم"><small>ختم المعمل</small></div>' : '') + (reviewerName ? '<div style="display:grid;gap:4px"><strong style="border-top:1px solid #667;padding-top:4px;min-width:120px">' + escapeHtml(reviewerName) + '</strong><small>المراجع / المعتمد</small></div>' : '') + '</section>' : '') +
     (showPrintFooter ? '<footer class="report-footer" style="grid-template-columns:' + footerGridColumns + '"><div class="footer-right">' + footerAddresses + '</div>' + footerCenterMarkup + '<div class="footer-left">' + footerContacts + '</div>' + (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</footer>' : '') + '</body></html>';
   const reportHtml = partialReport
-    ? html.replace('<div class="report-cover-meta">','<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">تقرير جزئي — بعض النتائج لم تصدر بعد. هذه النسخة لا تمثل اعتمادًا نهائيًا للزيارة.</div><div class="report-cover-meta">')
+    ? html.replace('<section class="report-cover-meta">','<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">تقرير جزئي — بعض النتائج لم تصدر بعد. هذه النسخة لا تمثل اعتمادًا نهائيًا للزيارة.</div><section class="report-cover-meta">')
     : html;
   state.reportPreviewHtml.set(visitId,reportHtml);
   win.document.open(); win.document.write(reportHtml); win.document.close();
@@ -1092,7 +1092,7 @@ async function publish(button) {
     const visitId=button.dataset.visitId;
     const visitState=state.work.find(item=>item.visit_id===visitId)?.visits;
     if(!visitState)throw new Error('تعذر تحديد الزيارة المراد نشرها.');
-    if(partial && (visitState.is_published || visitState.status==='approved'))throw new Error('الزيارة معتمدة بالفعل؛ استخدم مسار نشر التقرير النهائي أو التصحيح.');
+    if(partial && visitState.is_published)throw new Error('الزيارة منشورة نهائيًا بالفعل؛ استخدم مسار تصحيح التقرير.');
     if(!partial && visitState.status!=='approved'&&!visitState.is_published)throw new Error('اعتمد الزيارة بالكامل قبل نشر التقرير.');
     if(!state.previewedVisits.has(visitId))throw new Error('افتح معاينة نتائج الزيارة وراجع التقرير قبل النشر.');
     const reportHtml=state.reportPreviewHtml.get(visitId);
@@ -1143,7 +1143,7 @@ async function publish(button) {
 
 async function sharePartialReport(button){
   const card=button.closest('.work-card');
-  const phone=String(card?.dataset.patientPhone||'').replace(/\\D/g,'');
+  const phone=String(card?.dataset.patientPhone||'').replace(/\D/g,'');
   const patientName=String(card?.dataset.patientName||'').trim();
   const visitNumber=String(card?.dataset.visitNumber||'').trim();
   if(!phone||!patientName||!visitNumber){showNotice('رقم الهاتف أو بيانات الزيارة غير مكتملة لإرسال واتساب.',true);return;}
@@ -1153,7 +1153,7 @@ async function sharePartialReport(button){
   if(whatsappNumber.length<10){showNotice('رقم الهاتف غير صالح لإرسال واتساب.',true);return;}
   const portalUrl=new URL('../portal/',globalThis.location.href);
   portalUrl.searchParams.set('lab',state.tenant.slug);
-  const message='تم إصدار تقرير جزئي من '+(state.tenant.name||'المعمل')+'، وبعض النتائج لم تصدر بعد.\\nاسم المريض: '+patientName+'\\nرقم الزيارة: '+visitNumber+'\\nللاطلاع على التقرير، افتح بوابة النتائج وأدخل الاسم ورقم الزيارة:\\n'+portalUrl.href;
+  const message='تم إصدار تقرير جزئي من '+(state.tenant.name||'المعمل')+'، وبعض النتائج لم تصدر بعد.\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\nللاطلاع على التقرير، افتح بوابة النتائج وأدخل الاسم ورقم الزيارة:\n'+portalUrl.href;
   const url='https://wa.me/'+whatsappNumber+'?text='+encodeURIComponent(message);
   window.open(url,'_blank','noopener,noreferrer');
 }
