@@ -51,8 +51,16 @@ function showMessage(message, kind = 'info') {
 }
 
 form?.querySelector('[name="slug"]')?.addEventListener('blur', event => loadPortalConfig(event.target.value));
-const initialSlug = new URLSearchParams(window.location.search).get('lab');
-if (initialSlug) { const slugInput = form?.querySelector('[name="slug"]'); if (slugInput) slugInput.value = initialSlug; loadPortalConfig(initialSlug); }
+const initialSlug = String(new URLSearchParams(window.location.search).get('lab') || '').trim().toLowerCase();
+const slugInput = form?.querySelector('[name="slug"]');
+if (slugInput) slugInput.value = initialSlug;
+if (initialSlug) {
+  loadPortalConfig(initialSlug);
+} else {
+  const submit = form?.querySelector('button[type="submit"]');
+  if (submit) submit.disabled = true;
+  showMessage('افتح بوابة النتائج من الموقع الرسمي للمعمل حتى يتم تحديد المعمل الصحيح.', 'error');
+}
 
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -67,6 +75,7 @@ form?.addEventListener('submit', async (event) => {
   try {
     const formData = new FormData(form);
     const slug = String(formData.get('slug') ?? '').trim().toLowerCase();
+    if (!slug) { showMessage('افتح بوابة النتائج من الموقع الرسمي للمعمل حتى يتم تحديد المعمل الصحيح.', 'error'); return; }
     const patientName = String(formData.get('patientName') ?? '').trim();
     const visitNumber = String(formData.get('visitNumber') ?? '').trim();
     await loadPortalConfig(slug);
