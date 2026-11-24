@@ -62,8 +62,10 @@ test('clinical result entry queues draft saves safely while keeping completion a
   assert.match(ui, /approveVisitWithAutoCompletion/);
   assert.match(ui, /طباعة مسودة غير معتمدة/);
   assert.match(ui, /لا تُسلّم باعتبارها تقريرًا نهائيًا/);
-  assert.match(ui, /Save as PDF/);
-  assert.match(ui, /ملف PDF النهائي للنشر/);
+  assert.match(ui, /reportPreviewHtml\.set/);
+  assert.match(ui, /outputPdf\('blob'\)/);
+  assert.match(ui, /publishReportVersion/);
+  assert.doesNotMatch(ui, /data-report-file/);
   assert.match(repository, /save_draft_results_idempotent/);
   assert.match(repository, /p_tenant_id: tenantId/);
   assert.match(repository, /enqueueOperation/);
