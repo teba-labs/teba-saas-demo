@@ -90,7 +90,13 @@ form?.addEventListener('submit', async (event) => {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok || !data.reportUrl) {
-      showMessage(data.message || 'تعذر العثور على تقرير مطابق. راجع البيانات وحاول مرة أخرى.', 'error');
+      if (response.status === 429) {
+        showMessage('تم إيقاف المحاولات مؤقتًا لحماية البوابة. حاول مرة أخرى بعد ساعة.', 'error');
+      } else if (response.status === 400 || response.status === 200) {
+        showMessage('لا توجد نتائج منشورة متاحة بهذه البيانات حاليًا. قد تكون التحاليل قيد الاختبار والمراجعة.', 'error');
+      } else {
+        showMessage(data.message || 'تعذر الاتصال بالخدمة الآن. حاول مرة أخرى لاحقًا.', 'error');
+      }
       return;
     }
     labName.textContent = data.laboratoryName;
