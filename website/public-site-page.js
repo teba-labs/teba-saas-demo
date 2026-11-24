@@ -1,7 +1,11 @@
 import { loadPublishedSite } from './public-site.js';
 import { getCmsSettings, listCmsItems, cmsCollectionNames } from './cms-repository.js';
 import { loadMyTenantContext } from '../core/tenant/context.js';
-const $=id=>document.getElementById(id);\nconst accessDialog=$('accessDialog');\n$('portalLink')?.addEventListener('click',()=>accessDialog?.showModal());\n$('closeAccessDialog')?.addEventListener('click',()=>accessDialog?.close());\naccessDialog?.addEventListener('click',event=>{if(event.target===accessDialog)accessDialog.close();});
+const $=id=>document.getElementById(id);
+const accessDialog=$('accessDialog');
+$('portalLink')?.addEventListener('click',()=>accessDialog?.showModal());
+$('closeAccessDialog')?.addEventListener('click',()=>accessDialog?.close());
+accessDialog?.addEventListener('click',event=>{if(event.target===accessDialog)accessDialog.close();});
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeUrl=v=>{try{const u=new URL(String(v),location.href);return ['https:','http:'].includes(u.protocol)?u.href:''}catch{return ''}};
 function cards(id,items,html){const node=$(id),section=node.closest('section');if(section)section.hidden=!items.length;node.innerHTML=items.map(html).join('');}
@@ -14,7 +18,8 @@ export function renderPublicSite(data){
  $('heroTitle').textContent=content.hero_title||content.title||'تحاليل دقيقة… واهتمام يليق بك';$('heroText').textContent=content.hero_description||content.description||'نقدم خدمات التحاليل الطبية وفق معايير جودة دقيقة، مع اهتمام بتجربة المريض وسهولة الوصول إلى النتائج.';
  $('heroEyebrow').textContent=content.hero_eyebrow||'رعاية أدق تبدأ من هنا';$('heroCta').textContent=content.hero_button_text||'اكتشف خدماتنا';$('footerText').textContent=content.footer_text||content.contact_text||'نسعد بتواصلكم وزيارتكم في أحد فروعنا.';
  const logo=safeUrl(content.logo_url||content.logo_path);if(logo)$('logo').innerHTML='<img src="'+esc(logo)+'" alt="">';
- $('patientAccess').href='../portal/index.html?lab='+encodeURIComponent(tenant.slug||'');\n $('employeeAccess').href='../app/index.html';$('ownerAccess').href='../app/index.html';
+ $('patientAccess').href='../portal/index.html?lab='+encodeURIComponent(tenant.slug||'');
+ $('employeeAccess').href='../app/index.html';$('ownerAccess').href='../app/index.html';
  $('year').textContent=new Date().getFullYear();$('aboutTextPublic').textContent=content.about_text||'نحرص على تقديم خدمة طبية دقيقة وتجربة مريحة لكل مريض.';$('servicesTextPublic').textContent=content.services_text||'خدمات معملية متكاملة مع اهتمام بجودة الخدمة وسهولة الوصول.';$('homeSamplingTextPublic').textContent=content.home_sampling_text||'يمكنك طلب سحب العينة من المنزل والتواصل مع فريق المعمل.';const samplingPhone=String(content.home_sampling_phone||'').replace(/\D/g,'');$('homeSamplingLink').href=samplingPhone?'https://wa.me/'+samplingPhone:'#';$('homeSamplingLink').hidden=!samplingPhone;
  const allSections=data.sections||[];const sections=allSections.filter(x=>x.is_visible!==false&&x.is_published!==false).sort((a,b)=>(a.display_order||0)-(b.display_order||0));const sectionVisibility=new Map(allSections.map(x=>[x.section_key,x.is_visible!==false&&x.is_published!==false]));
  const builtIn={hero:'hero',about:'about',services:'services',home_sampling:'home_sampling',offers:'offers',packages:'packages',tests:'tests',articles:'articles',faqs:'faq',testimonials:'testimonials',branches:'branches'};
