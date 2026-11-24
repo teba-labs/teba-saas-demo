@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+const root=path.resolve(import.meta.dirname,'../..');
+const html=fs.readFileSync(path.join(root,'app/cms-editor.html'),'utf8');
+const editor=fs.readFileSync(path.join(root,'assets/js/cms-editor.js'),'utf8');
+const page=fs.readFileSync(path.join(root,'website/public-site-page.js'),'utf8');
+const migration=fs.readFileSync(path.join(root,'supabase/migrations/20261125000300_import_legacy_announcement_ticker.sql'),'utf8');
+test('legacy announcement ticker is imported, editable and independently switchable',()=>{
+ assert.match(html,/id="announcementMessages"/);
+ assert.match(html,/id="announcementEnabled"/);
+ assert.match(editor,/announcement_messages/);
+ assert.match(editor,/announcement_enabled/);
+ assert.match(page,/announcementBar/);
+ assert.match(page,/announcementMessages\.join/);
+ assert.match(migration,/t\.slug='teba-labs'/);
+ assert.match(migration,/announcement_messages/);
+ assert.match(migration,/announcement_enabled/);
+ assert.match(migration,/jsonb_typeof\(s\.public_content->'announcement_messages'\)='array'/);
+});
