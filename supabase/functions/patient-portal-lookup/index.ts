@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 
-const GENERIC_FAILURE = { ok: false, message: 'تعذر العثور على تقرير مطابق. راجع الاسم ورقم الزيارة وحاول مرة أخرى.' };
+const GENERIC_FAILURE = { ok: false, message: 'لا توجد نتائج منشورة متاحة بهذه البيانات حاليًا. قد تكون التحاليل قيد الاختبار والمراجعة.' };
 
 function json(body: unknown, status = 200, origin = '') {
   const headers: Record<string, string> = {
