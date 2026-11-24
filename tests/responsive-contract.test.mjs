@@ -7,6 +7,7 @@ const pages = [
   'app/reception.html',
   'app/results-workbench.html',
   'app/result-entry.html',
+  'app/result-entry.html',
   'app/catalog.html',
   'app/workday.html',
   'app/dashboard.html',
@@ -44,9 +45,9 @@ test('reception has a three-column desktop and collapsible mobile intake layout'
 });
 
 test('results workbench has desktop columns and actual mobile section tabs', async () => {
-  const html = await readFile('app/results-workbench.html', 'utf8');
+  const js = await readFile('assets/js/results-workbench-layout.js', 'utf8');
   const css = await readFile('assets/css/results-workbench.css', 'utf8');
-  assert.match(html, /results-mobile-tabs/);
+  assert.match(js, /results-mobile-tabs/);
   assert.match(css, /\.results-mobile-tabs\s*\{\s*display:\s*none/);
   assert.match(css, /\.results-column\.is-mobile-active/);
   assert.match(css, /max-width:\s*767px/);
