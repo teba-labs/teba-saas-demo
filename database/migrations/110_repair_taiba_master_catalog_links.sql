@@ -13,8 +13,7 @@ SET
       WHERE tp.tenant_id = tc.tenant_id AND tp.test_id = tc.id
     ), '[]'::jsonb)
   ),
-  sync_status = 'current',
-  last_synced_at = now()
+  sync_status = 'current'
 FROM public.tests_catalog tc
 JOIN public.master_catalog_tests mt
   ON mt.master_code = tc.code
