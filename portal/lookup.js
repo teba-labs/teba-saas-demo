@@ -42,6 +42,7 @@ const status = document.querySelector('[data-portal-status]');
 const result = document.querySelector('[data-portal-result]');
 const link = document.querySelector('[data-portal-download]');
 const labName = document.querySelector('[data-portal-lab]');
+const partialNotice = document.querySelector('[data-portal-partial]');
 
 function showMessage(message, kind = 'info') {
   status.textContent = message;
@@ -56,6 +57,7 @@ if (initialSlug) { const slugInput = form?.querySelector('[name="slug"]'); if (s
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
   result.hidden = true;
+  if(partialNotice)partialNotice.hidden=true;
   link.removeAttribute('href');
   const submit = form.querySelector('button[type="submit"]');
   submit.disabled = true;
@@ -84,8 +86,9 @@ form?.addEventListener('submit', async (event) => {
     }
     labName.textContent = data.laboratoryName;
     link.href = data.reportUrl;
+    if(partialNotice)partialNotice.hidden=!data.isPartial;
     result.hidden = false;
-    showMessage('تم العثور على التقرير. رابط التحميل صالح لمدة دقيقتين.', 'success');
+    showMessage(data.isPartial ? 'تم العثور على تقرير جزئي. بعض النتائج لم تصدر بعد؛ رابط التحميل صالح لمدة دقيقتين.' : 'تم العثور على التقرير. رابط التحميل صالح لمدة دقيقتين.', 'success');
   } catch (error) {
     console.error('Patient portal request failed.', error);
     showMessage('تعذر الاتصال بالخدمة الآن. تأكد من الإنترنت وحاول مرة أخرى.', 'error');
