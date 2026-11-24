@@ -38,8 +38,9 @@ test('central import stays tenant-owner scoped while missing clinical metadata r
 });
 
 test('catalog UI lets owners import incomplete definitions and complete them later', () => {
-  assert.match(ui, /قابل للمراجعة والاستكمال داخل المعمل/);
-  assert.match(ui, /يمكنك الاستيراد الآن وإكمال البيانات لاحقًا/);
+  assert.match(ui, /مراجعة البيانات إرشادية وغير مانعة/);
+  assert.match(ui, /الاستيراد متاح دون اعتماد محلي/);
+  assert.match(ui, /استيراد كل التعريفات/);
   assert.match(ui, /استيراد الآن/);
   assert.doesNotMatch(ui, /التعريفات الناقصة لا تظهر للعميل/);
 });
@@ -79,22 +80,25 @@ test('partial catalog definitions are available to tenant import without fabrica
   assert.match(repository, /missing_numeric_ranges/);
 });
 
-test('an imported inactive catalog definition can be activated with one isolated action and without changing prices',async()=>{
+test('master imports are active immediately; manually deactivated tests can still be re-enabled without changing prices',async()=>{
  const catalogHtml=await readFile(new URL('app/catalog.html',root),'utf8');
+ const currentImport=await readFile(new URL('database/migrations/109_promote_verified_profiles_enable_zero_price_and_master_import.sql',root),'utf8');
  assert.match(catalogHtml,/id="activateCatalogTest"/);
  assert.match(ui,/setCatalogTestActive\(\{tenantId:state\.tenant\.id,testId:state\.selectedTest,isActive:true\}\)/);
- assert.match(ui,/تم اعتماد تعريف التحليل وإتاحته للاستخدام/);
+ assert.match(ui,/تم تفعيل التحليل/);
  assert.match(repository,/export async function setCatalogTestActive/);
+ assert.match(currentImport,/v_test_id := public\.import_master_catalog_test_unchecked/);
+ assert.doesNotMatch(currentImport,/set is_active\s*=\s*false/i);
 });
 
-test('new master imports start inactive while repeat imports preserve their existing activation state',async()=>{
- const activationFix=await readFile(new URL('database/migrations/104_imported_catalog_starts_inactive.sql',root),'utf8');
- assert.match(activationFix,/select test_id into v_existing[\s\S]*from public\.tenant_catalog_master_links/);
- assert.match(activationFix,/if v_existing is null then[\s\S]*update public\.tests_catalog[\s\S]*set is_active = false/);
- assert.match(activationFix,/public\.import_master_catalog_test_unchecked\(p_tenant_id, p_master_test_id\)/);
- assert.match(activationFix,/grant execute on function public\.import_master_catalog_test\(uuid, uuid\) to authenticated/);
+test('new master imports stay active and receive a zero base price without a local approval step',async()=>{
+ const currentImport=await readFile(new URL('database/migrations/109_promote_verified_profiles_enable_zero_price_and_master_import.sql',root),'utf8');
+ assert.match(currentImport,/import_master_catalog_test_unchecked/);
+ assert.match(currentImport,/ensure_zero_base_price_for_new_test/);
+ assert.match(currentImport,/selling_price, is_current[\s\S]*?0, true/);
+ assert.doesNotMatch(currentImport,/set is_active\s*=\s*false/i);
+ assert.match(currentImport,/Only the tenant owner can import a master catalog test/);
 });
-
 
 test('tenant catalog bootstraps reviewed Core tests idempotently before reception catalog listing',async()=>{
  const migration=await readFile(new URL('database/migrations/105_auto_provision_verified_core_catalog.sql',root),'utf8');
