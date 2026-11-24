@@ -43,14 +43,25 @@ function buildShell(host,cards){
  const columns=document.createElement('div');columns.className='results-columns';
  const visits=document.createElement('section');visits.className='results-column visits-column';
  visits.innerHTML='<div class="results-column-head"><h2>الزيارات</h2><span class="pill" data-visit-count></span></div><input class="visit-filter" type="search" placeholder="ابحث باسم المريض أو رقم الزيارة"><button type="button" class="button button-secondary hidden-visits-toggle">الحالات المخفية</button><div class="hidden-visits-list" hidden></div><div class="visit-list" data-visit-list></div>';
- const individual=document.createElement('section');individual.className='results-column tests-column';
+ const individual=document.createElement('section');individual.className='results-column individual-column';
  individual.innerHTML='<div class="results-column-head"><h2>التحاليل الفردية</h2><span class="pill" data-individual-count>0</span></div><div class="catalog-tools"><input type="search" placeholder="بحث في التحاليل الفردية" data-catalog-search><button type="button" class="button button-secondary" data-catalog-toggle>+ إضافة تحليل</button></div><div class="catalog-results" data-catalog-results hidden></div><div class="test-workspace" data-individual-workspace><div class="empty">اختر زيارة لعرض التحاليل الفردية.</div></div>';
- const profiles=document.createElement('section');profiles.className='results-column tests-column';
+ const profiles=document.createElement('section');profiles.className='results-column profiles-column';
  profiles.innerHTML='<div class="results-column-head"><h2>البروفايلات</h2><span class="pill" data-profile-count>0</span></div><div class="catalog-tools"><input type="search" placeholder="بحث في البروفايلات" data-catalog-search><button type="button" class="button button-secondary" data-catalog-toggle>+ إضافة بروفايل</button></div><div class="catalog-results" data-catalog-results hidden></div><div class="test-workspace" data-profile-workspace><div class="empty">اختر زيارة لعرض البروفايلات.</div></div>';
- columns.append(visits,individual,profiles);shell.append(bar,columns);host.append(shell);
+ const mobileTabs=document.createElement('nav');
+ mobileTabs.className='results-mobile-tabs';
+ mobileTabs.setAttribute('aria-label','أقسام شاشة النتائج');
+ mobileTabs.innerHTML='<button type="button" data-results-tab="visits" aria-pressed="true">الزيارات</button><button type="button" data-results-tab="individual" aria-pressed="false">التحاليل الفردية</button><button type="button" data-results-tab="profiles" aria-pressed="false">البروفايلات</button>';
+ const setMobileColumn=name=>{
+  const columnsByName={visits,individual,profiles};
+  Object.entries(columnsByName).forEach(([key,column])=>column.classList.toggle('is-mobile-active',key===name));
+  mobileTabs.querySelectorAll('[data-results-tab]').forEach(tab=>tab.setAttribute('aria-pressed',String(tab.dataset.resultsTab===name)));
+ };
+ mobileTabs.addEventListener('click',event=>{const tab=event.target.closest('[data-results-tab]');if(tab)setMobileColumn(tab.dataset.resultsTab);});
+ columns.append(visits,individual,profiles);shell.append(bar,mobileTabs,columns);host.append(shell);
+ setMobileColumn('visits');
  const source=document.createElement('div');source.className='results-source-records';source.hidden=true;records.forEach(r=>source.append(r.card));host.append(source);
  const list=visits.querySelector('[data-visit-list]');
- records.forEach(record=>{const b=button(record.title+' · '+record.status,'visit-select-button');b.dataset.visitId=record.visitId;b.addEventListener('click',()=>selectRecord(record,records,shell));list.append(b);});
+ records.forEach(record=>{const b=button(record.title+' · '+record.status,'visit-select-button');b.dataset.visitId=record.visitId;b.addEventListener('click',()=>selectRecord(record,records,shell,setMobileColumn));list.append(b);});
  visits.querySelector('.visit-filter').addEventListener('input',e=>{const q=e.target.value.trim().toLowerCase();list.querySelectorAll('button').forEach(b=>b.hidden=!b.textContent.toLowerCase().includes(q));});
  visits.querySelector('[data-visit-count]').textContent=String(records.length);
  visits.querySelector('.hidden-visits-toggle').addEventListener('click',()=>loadHiddenVisits(visits));
@@ -62,7 +73,7 @@ function testLauncher(node,record,kind,workspace){
  const name=node.querySelector('.card-head strong')?.textContent?.trim()||'تحليل';
  const status=node.querySelector('.card-head .pill')?.textContent?.trim()||'قيد العمل';
  const open=button('', 'test-launch-card');
- open.innerHTML='<span><strong>'+esc(name)+'</strong><small>'+esc(status)+' · '+(kind==='profile'?'بروفايل':'تحليل فردي')+'</small></span><b class="launch-arrow" aria-hidden="true">←</b>';
+ open.innerHTML='<span><strong>'+esc(name)+'</strong><small>'+esc(status)+' · '+(node.dataset.testKind==='group'?'مجموعة تحاليل':kind==='profile'?'بروفايل':'تحليل فردي')+'</small></span><b class="launch-arrow" aria-hidden="true">←</b>';
  open.addEventListener('click',()=>{
   const list=workspace.querySelector('.test-launch-list');
   if(!list||document.querySelector('.result-entry-modal'))return;
@@ -110,7 +121,7 @@ function testLauncher(node,record,kind,workspace){
  });
  return open;
 }
-function selectRecord(record,records,shell){
+function selectRecord(record,records,shell,setMobileColumn){
  if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ نتائج الزيارة الحالية قبل تغيير الاختيار أو الانتقال إلى زيارة أخرى.');return;}
  // Restore any open editor to its source card before rebuilding the selected visit.
  shell.querySelectorAll('.test-detail').forEach(detail=>{
@@ -121,7 +132,7 @@ function selectRecord(record,records,shell){
  selectedVisitId=record.visitId;window.taibaLastSelectedVisitId=selectedVisitId;window.taibaResultsContext=window.taibaGetResultsContext?.()||window.taibaResultsContext||{};
  shell.querySelectorAll('.visit-select-button').forEach(b=>b.classList.toggle('active',b.dataset.visitId===selectedVisitId));
  shell.querySelector('[data-selected-visit-label]').textContent=record.title;
- const individual=record.tests.filter(node=>node.dataset.testKind!=='panel'),panels=record.tests.filter(node=>node.dataset.testKind==='panel');
+ const individual=record.tests.filter(node=>!['panel','group'].includes(node.dataset.testKind)),panels=record.tests.filter(node=>['panel','group'].includes(node.dataset.testKind));
  if(document.body.classList.contains('result-entry-page')){
   const requested=new URLSearchParams(location.search).get('visit_test_id');
   const node=record.tests.find(item=>item.dataset.testId===requested);
@@ -163,6 +174,7 @@ function selectRecord(record,records,shell){
  });
  whatsapp.addEventListener('click',()=>{if(whatsapp.disabled)return;const portal=new URL('../portal/index.html',location.href).href;const message='نتائج تحاليلك جاهزة من معامل '+(window.taibaResultsContext?.tenantSlug||'')+'. لعرض التقرير افتح بوابة النتائج: '+portal+' ثم أدخل رمز المعمل ورقم الزيارة '+record.visitNumber+' واسم المريض كما هو مسجل.';window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent(message),'_blank','noopener');});
  actions.prepend(whatsapp);actions.prepend(hide);actions.prepend(preview);
+ if(setMobileColumn)setMobileColumn(individual.length?'individual':'profiles');
  shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
  const canAdd=record.visitStatus!=='approved'&&!record.published;shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>{b.disabled=!canAdd;b.title=canAdd?'إضافة تحليل لهذه الزيارة':'لا يمكن إضافة تحاليل بعد اعتماد الزيارة أو نشرها';});
 }
