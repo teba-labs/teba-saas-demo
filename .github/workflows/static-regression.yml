@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, 'work/one-cycle-full-implementation-2026-11-24']
   workflow_dispatch:
 
 permissions:
