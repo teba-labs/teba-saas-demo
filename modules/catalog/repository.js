@@ -110,7 +110,7 @@ export async function saveCatalogTest({ tenantId, test, id } = {}) {
     throw new Error('turnaroundMinutes must be a whole number from 0 to 10080.');
   }
   const testKind = test?.testKind ?? 'individual';
-  if (!['individual', 'panel'].includes(testKind)) throw new Error('testKind must be individual or panel.');
+  if (!['individual', 'panel', 'group'].includes(testKind)) throw new Error('testKind must be individual, panel, or group.');
   const payload = {
     ...(id ? { id } : {}), tenant_id: tenantId, code, name, test_kind: testKind,
     category: test.category?.trim() || null, specimen: test.specimen?.trim() || null,
@@ -230,9 +230,14 @@ const validateParameter = parameter => {
   const displayRules = parameter.displayRules ?? [];
   if (!Array.isArray(displayRules)) throw new Error('قواعد إظهار الاختيارات يجب أن تكون قائمة.');
   for (const rule of displayRules) {
-    if (!rule?.when?.parameter_code || !['equals','not_equals'].includes(rule.when.operator)
-        || !String(rule.when.value ?? '').trim() || !Array.isArray(rule.visible_values)) {
+    const supportedOperators = ['equals','not_equals','lt','lte','gt','gte'];
+    if (!rule?.when?.parameter_code || !supportedOperators.includes(rule.when.operator)
+        || rule.when.value === undefined || rule.when.value === null
+        || !String(rule.when.value).trim() || !Array.isArray(rule.visible_values)) {
       throw new Error('قاعدة الإظهار الشرطي غير مكتملة.');
+    }
+    if (['lt','lte','gt','gte'].includes(rule.when.operator) && !Number.isFinite(Number(rule.when.value))) {
+      throw new Error('المقارنة الرقمية تحتاج قيمة رقمية صحيحة.');
     }
   }
   return {
@@ -375,6 +380,17 @@ export async function addBasePriceIfMissing({ tenantId, testId, sellingPrice } =
 }
 
 /** Published global master catalog; definitions are read-only and imported as tenant-owned copies. */
+function parseMasterFormulaAst(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function listMasterCatalogTests() {
   const { data: releases, error: releaseError } = await db().from('master_catalog_releases')
     .select('id, version, title, published_at').eq('status','published').order('published_at',{ascending:false});
@@ -399,7 +415,7 @@ export async function listMasterCatalogTests() {
       if (parameter.clinical_review_status !== 'verified') stats.unreviewed_parameters += 1;
       if (parameter.clinical_metadata?.template_placeholder === true) stats.placeholder_parameters += 1;
       if (parameter.value_type === 'numeric' && !parameter.unit) stats.missing_units += 1;
-      if (parameter.result_source === 'calculated' && (!parameter.formula || typeof parameter.formula !== 'object')) stats.missing_formulas += 1;
+      if (parameter.result_source === 'calculated' && !parseMasterFormulaAst(parameter.formula)) stats.missing_formulas += 1;
       if (parameter.value_type === 'choice' && (!Array.isArray(parameter.choices) || parameter.choices.length === 0)) stats.missing_choices += 1;
       parameterCounts.set(parameter.master_test_id, stats);
     }
