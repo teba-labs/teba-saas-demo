@@ -393,7 +393,7 @@ WHERE NOT EXISTS (
     AND p.branch_id IS NULL
 )
 ON CONFLICT (tenant_id, test_id)
-  WHERE (is_current = true AND branch_id IS NULL)
+  WHERE (is_current AND branch_id IS NULL)
 DO NOTHING;
 
 CREATE OR REPLACE FUNCTION private.ensure_zero_base_price_for_new_test()
@@ -408,7 +408,7 @@ BEGIN
   )
   VALUES (NEW.tenant_id, NEW.id, NULL, 0, true)
   ON CONFLICT (tenant_id, test_id)
-    WHERE (is_current = true AND branch_id IS NULL)
+    WHERE (is_current AND branch_id IS NULL)
   DO NOTHING;
 
   RETURN NEW;
