@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
   for (let offset = 0; ; offset += 500) {
     const { data: visitRows, error: visitError } = await admin.from('visits')
       .select('id, tenant_id, branch_id, visit_number, is_published, patients!inner(full_name)')
-      .eq('tenant_id', tenant.id).eq('visit_number', visitNumber).eq('is_published', true)
+      .eq('tenant_id', tenant.id).eq('visit_number', visitNumber)
       .order('id', { ascending: true }).range(offset, offset + 499);
     if (visitError) {
       console.error('Portal visit lookup failed.', visitError.message);
@@ -101,33 +101,44 @@ Deno.serve(async (req) => {
     matchingVisits.push(...(visitRows ?? []).filter(row =>
       normalizeName(String((row.patients as { full_name?: string })?.full_name ?? '')) === wantedName
     ));
-    // Visit numbers are unique per branch, not per tenant. Never choose the
-    // first matching record across branches: ambiguous matches fail closed.
-    if (matchingVisits.length > 1 || (visitRows ?? []).length < 500) break;
+    // Continue across all branches; the eligible report versions are resolved below.
+    if ((visitRows ?? []).length < 500) break;
   }
-  const visit = matchingVisits.length === 1 ? matchingVisits[0] : undefined;
-
-  let signedUrl: string | null = null;
-  let reportVersion: number | null = null;
-  if (visit) {
-    const { data: report, error: reportError } = await admin.from('report_versions')
-      .select('storage_path, version_number')
-      .eq('tenant_id', tenant.id).eq('visit_id', visit.id).eq('is_published', true)
-      .order('version_number', { ascending: false }).limit(1).maybeSingle();
+  const candidateIds = matchingVisits.map(row => String(row.id));
+  const latestReports = new Map<string, Record<string, unknown>>();
+  if (candidateIds.length) {
+    const { data: reports, error: reportError } = await admin.from('report_versions')
+      .select('visit_id, storage_path, version_number, publication_type')
+      .eq('tenant_id', tenant.id).in('visit_id', candidateIds).eq('is_published', true)
+      .order('version_number', { ascending: false });
     if (reportError) {
       console.error('Portal report lookup failed.', reportError.message);
       return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503, origin);
     }
-    if (report?.storage_path) {
-      const { data: signed, error: signedError } = await admin.storage.from('tenant-reports')
-        .createSignedUrl(report.storage_path, 120);
-      if (signedError) {
-        console.error('Portal signed URL failed.', signedError.message);
-        return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503, origin);
-      }
-      signedUrl = signed.signedUrl;
-      reportVersion = report.version_number;
+    for (const row of reports ?? []) {
+      const id = String(row.visit_id);
+      if (!latestReports.has(id)) latestReports.set(id, row);
     }
+  }
+  // Visit numbers are unique per branch, not per tenant. Only a single
+  // patient match with an actually published report (final or partial) is eligible.
+  const eligibleVisits = matchingVisits.filter(row => latestReports.has(String(row.id)));
+  const visit = eligibleVisits.length === 1 ? eligibleVisits[0] : undefined;
+  const report = visit ? latestReports.get(String(visit.id)) : undefined;
+
+  let signedUrl: string | null = null;
+  let reportVersion: number | null = null;
+  let isPartial = false;
+  if (report?.storage_path) {
+    const { data: signed, error: signedError } = await admin.storage.from('tenant-reports')
+      .createSignedUrl(String(report.storage_path), 120);
+    if (signedError) {
+      console.error('Portal signed URL failed.', signedError.message);
+      return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503, origin);
+    }
+    signedUrl = signed.signedUrl;
+    reportVersion = Number(report.version_number);
+    isPartial = report.publication_type === 'partial';
   }
 
   if (signedUrl && attemptId) {
@@ -142,6 +153,7 @@ Deno.serve(async (req) => {
     laboratoryName: tenant.name,
     visitNumber: visit.visit_number,
     reportVersion,
+    isPartial,
     reportUrl: signedUrl,
     expiresInSeconds: 120,
   }, 200, origin);

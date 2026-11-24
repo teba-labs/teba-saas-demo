@@ -12,7 +12,7 @@ export async function listReportVersions({ tenantId, visitId } = {}) {
 }
 
 /** Uploads the PDF through the authenticated server workflow; never inserts a report row directly. */
-export async function publishReportVersion({ tenantId, branchId, visitId, staffId, file, changeReason = '' } = {}) {
+export async function publishReportVersion({ tenantId, branchId, visitId, staffId, file, changeReason = '', isPartial = false } = {}) {
   need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(visitId, 'visitId');
   need(staffId, 'staffId'); need(file, 'file');
   if (!(file instanceof File) || file.type !== 'application/pdf') throw new Error('A PDF report file is required.');
@@ -23,6 +23,7 @@ export async function publishReportVersion({ tenantId, branchId, visitId, staffI
   form.set('visitId', visitId);
   form.set('staffId', staffId);
   form.set('changeReason', String(changeReason).trim());
+  form.set('partial', isPartial ? 'true' : 'false');
   form.set('report', file, file.name || 'report.pdf');
   const { data, error } = await db().functions.invoke('publish-report', { body: form });
   if (error) throw error;

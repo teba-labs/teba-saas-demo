@@ -49,7 +49,7 @@ test('master catalog supports bulk import, groups, formula text parsing, and num
 
 test('patient portal publishing creates the PDF from the same report preview without manual file upload',async()=>{
   const js=await read('assets/js/results-workbench.js');
-  assert.match(js,/reportPreviewHtml\.set\(visitId,html\)/);
+  assert.match(js,/reportPreviewHtml\.set\(visitId,reportHtml\)/);
   assert.match(js,/ensureHtml2Pdf/);
   assert.match(js,/outputPdf\('blob'\)/);
   assert.match(js,/publishReportVersion\(/);

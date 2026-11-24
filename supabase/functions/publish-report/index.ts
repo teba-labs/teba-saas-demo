@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
   const visitId = String(form.get('visitId') ?? '');
   const staffId = String(form.get('staffId') ?? '');
   const reason = String(form.get('changeReason') ?? '').trim();
+  const isPartial = String(form.get('partial') ?? 'false') === 'true';
   const file = form.get('report');
   if (![tenantId, branchId, visitId, staffId].every(v => UUID.test(v)) || !(file instanceof File)) {
     return reply({ ok: false, message: 'بيانات الطلب غير مكتملة.' }, 400, origin);
@@ -73,14 +74,22 @@ Deno.serve(async (req) => {
     return reply({ ok: false, message: 'تعذر رفع التقرير. تحقق من صلاحيات الفرع وحاول مرة أخرى.' }, 403, origin);
   }
 
-  const { data: version, error: publishError } = await userClient.rpc('publish_report_version', {
-    p_tenant_id: tenantId,
-    p_branch_id: branchId,
-    p_visit_id: visitId,
-    p_storage_path: storagePath,
-    p_change_reason: reason || null,
-    p_staff_id: staffId,
-  });
+  const { data: version, error: publishError } = isPartial
+    ? await userClient.rpc('publish_partial_report_version', {
+        p_tenant_id: tenantId,
+        p_branch_id: branchId,
+        p_visit_id: visitId,
+        p_storage_path: storagePath,
+        p_staff_id: staffId,
+      })
+    : await userClient.rpc('publish_report_version', {
+        p_tenant_id: tenantId,
+        p_branch_id: branchId,
+        p_visit_id: visitId,
+        p_storage_path: storagePath,
+        p_change_reason: reason || null,
+        p_staff_id: staffId,
+      });
 
   if (publishError || !version) {
     // Compensating cleanup is server-side only; the service key never reaches the browser.
@@ -99,6 +108,7 @@ Deno.serve(async (req) => {
     ok: true,
     reportVersionId: version.id,
     versionNumber: version.version_number,
-    message: 'تم نشر التقرير وحفظ سجل النسخة بنجاح.',
+    isPartial,
+    message: isPartial ? 'تم نشر التقرير الجزئي دون اعتماد الزيارة.' : 'تم نشر التقرير وحفظ سجل النسخة بنجاح.',
   }, 200, origin);
 });
