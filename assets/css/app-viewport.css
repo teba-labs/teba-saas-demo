@@ -211,8 +211,9 @@ body :is(.match,.selected,.visit-row,.movement,.attachment-item,.hidden-visit-ro
 
 @media(max-width:900px){
   body .login-layout{grid-template-columns:minmax(0,1fr);min-height:0;padding:24px 0}
-  body :is(.layout,.identity-layout,.collection-layout,.workspace-context,.results-columns){grid-template-columns:minmax(0,1fr)}
-  body .results-columns>.results-column:first-child{grid-column:auto}
+  body :is(.layout,.identity-layout,.collection-layout,.workspace-context){grid-template-columns:minmax(0,1fr)}
+  body .results-columns{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body .results-columns>.visits-column{grid-column:1/-1}
   body :is(.hero,.hero-head,.overview,.panel-heading,.section-head,.head,.view-heading,.owner-dashboard-title,.owner-screen-head){align-items:flex-start}
   body :is(.hero aside,.overview label){min-width:0;max-width:100%}
 }
@@ -231,7 +232,7 @@ body :is(.match,.selected,.visit-row,.movement,.attachment-item,.hidden-visit-ro
 }
 @media(max-width:520px){
   body>.shell,body>main,body>main.shell,body main.shell{width:calc(100% - 16px)}
-  body :is(.layout,.identity-layout,.collection-layout,.workspace-context,.context,.login-layout,.results-columns,.filters,.grid,.form-grid,.fields,.selectors,.parameter-grid,.portal-settings,.studio-nav,.modules){grid-template-columns:minmax(0,1fr)}
+  body :is(.layout,.identity-layout,.collection-layout,.workspace-context,.context,.login-layout,.filters,.grid,.form-grid,.fields,.selectors,.parameter-grid,.portal-settings,.studio-nav,.modules){grid-template-columns:minmax(0,1fr)}
   body :is(.kpis,.secondary-kpis,.metrics,.tiles,.totals,.history-files){grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr))}
   body :is(.wide,.full,.full-width){grid-column:auto}
   body :is(.actions,.toolbar,.form-actions,.button-row,.results-actionbar-buttons)>:is(button,.button,.btn,a.button){flex:1 1 100%;width:100%}
@@ -256,7 +257,7 @@ body :is(.match,.selected,.visit-row,.movement,.attachment-item,.hidden-visit-ro
   body .results-columns .visit-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));max-height:32vh}
 }
 @media(max-width:680px){
-  body .results-columns{grid-template-columns:minmax(0,1fr)!important}
+  body .results-columns{grid-template-columns:repeat(2,minmax(0,1fr))}
   body .results-columns>.visits-column{grid-column:auto}
   body .results-columns .visit-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));max-height:34vh}
   body .results-actionbar-buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr))}
