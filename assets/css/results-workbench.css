@@ -120,3 +120,7 @@ body.results-workbench-page{height:100dvh;overflow:hidden}
  .results-workbench-page>.topbar{min-height:56px}
  .results-workbench-page>.shell{height:calc(100dvh - 56px);padding:10px 8px 18px}
 }
+
+.report-publish-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.report-publish-row p{flex:1;min-width:220px;margin:0}
+@media(max-width:767px){.report-publish-row{flex-direction:column;align-items:stretch}.report-publish-row p{min-width:0}}
