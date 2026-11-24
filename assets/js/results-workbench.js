@@ -113,7 +113,7 @@ function evaluateDisplayRules(section){
         if(['lt','lte','gt','gte'].includes(condition.operator)){
           const left=Number(sourceValue),right=Number(condition.value);
           if(Number.isFinite(left)&&Number.isFinite(right)){
-            isMatch=condition.operator==='lt'?left<right:condition.operator==='lte'?left<=right:condition.operator==='gt'?left>right:left>=right;
+            isMatch=condition.operator==='lt'?left<right:condition.operator==='lte'?left<=right:condition.operator==='gt'?left>right:condition.operator==='gte'?left>=right:false;
           }
         }else if(condition.operator==='not_equals'){
           isMatch=Array.isArray(sourceValue)?!sourceValue.includes(conditionValue):String(sourceValue)!==conditionValue;
