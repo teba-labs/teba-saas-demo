@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = name => readFile(new URL('../../'+name, import.meta.url), 'utf8');
-const migration = await read('database/migrations/110_partial_report_publication.sql');
+const migration = await read('database/migrations/111_partial_report_publication.sql');
 const workbench = await read('assets/js/results-workbench.js');
 const repository = await read('modules/reports/repository.js');
 const publishEdge = await read('supabase/functions/publish-report/index.ts');
