@@ -233,8 +233,8 @@ async function renderWork() {
   const rangeOverrides = await listVisitParameterRangeOverrides({tenantId:state.tenant.id,visitTestIds:state.work.map(item=>item.id)});
   const rangeOverridesByKey = new Map(rangeOverrides.map(row=>[row.visit_test_id+'|'+row.parameter_code,row]));
   try {
-    const {data:portalSettings,error:portalSettingsError}=await getSupabaseClient().from('site_settings').select('portal_settings').eq('tenant_id',state.tenant.id).maybeSingle();
-    state.portalEnabled=!portalSettingsError && portalSettings?.portal_settings?.enabled===true;
+    const {data:portalConfig,error:portalConfigError}=await getSupabaseClient().functions.invoke('patient-portal-config',{body:{slug:state.tenant.slug}});
+    state.portalEnabled=!portalConfigError && portalConfig?.settings?.enabled===true;
   } catch { state.portalEnabled=false; }
   const resultRows = await listResultsForVisitTests({tenantId:state.tenant.id,visitTestIds:state.work.map(item=>item.id)});
   const resultsByTest = new Map();
