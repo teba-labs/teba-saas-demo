@@ -43,9 +43,9 @@ function buildShell(host,cards){
  const columns=document.createElement('div');columns.className='results-columns';
  const visits=document.createElement('section');visits.className='results-column visits-column';
  visits.innerHTML='<div class="results-column-head"><h2>الزيارات</h2><span class="pill" data-visit-count></span></div><input class="visit-filter" type="search" placeholder="ابحث باسم المريض أو رقم الزيارة"><button type="button" class="button button-secondary hidden-visits-toggle">الحالات المخفية</button><div class="hidden-visits-list" hidden></div><div class="visit-list" data-visit-list></div>';
- const individual=document.createElement('section');individual.className='results-column individual-column';
+ const individual=document.createElement('section');individual.className='results-column tests-column individual-column';
  individual.innerHTML='<div class="results-column-head"><h2>التحاليل الفردية</h2><span class="pill" data-individual-count>0</span></div><div class="catalog-tools"><input type="search" placeholder="بحث في التحاليل الفردية" data-catalog-search><button type="button" class="button button-secondary" data-catalog-toggle>+ إضافة تحليل</button></div><div class="catalog-results" data-catalog-results hidden></div><div class="test-workspace" data-individual-workspace><div class="empty">اختر زيارة لعرض التحاليل الفردية.</div></div>';
- const profiles=document.createElement('section');profiles.className='results-column profiles-column';
+ const profiles=document.createElement('section');profiles.className='results-column tests-column profiles-column';
  profiles.innerHTML='<div class="results-column-head"><h2>البروفايلات</h2><span class="pill" data-profile-count>0</span></div><div class="catalog-tools"><input type="search" placeholder="بحث في البروفايلات" data-catalog-search><button type="button" class="button button-secondary" data-catalog-toggle>+ إضافة بروفايل</button></div><div class="catalog-results" data-catalog-results hidden></div><div class="test-workspace" data-profile-workspace><div class="empty">اختر زيارة لعرض البروفايلات.</div></div>';
  const mobileTabs=document.createElement('nav');
  mobileTabs.className='results-mobile-tabs';
