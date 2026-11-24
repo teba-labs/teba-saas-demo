@@ -129,7 +129,7 @@ function updateFormulaFields(){
 }
 
 function currentTest(){return state.tests.find(t=>t.id===state.selectedTest)||null;}
-function renderTests(){const term=$('search').value.trim().toLocaleLowerCase();const visible=state.tests.filter(t=>( $('showInactive').checked || t.is_active ) && (!term || `${t.name} ${t.code}`.toLocaleLowerCase().includes(term)));$('testList').innerHTML=visible.length?visible.map(t=>`<button type="button" class="test-item ${t.id===state.selectedTest?'selected':''}" data-id="${esc(t.id)}"><span><strong>${esc(t.name)}</strong><small>${esc(t.code)}${t.category?` · ${esc(t.category)}`:''} · ${t.test_kind==='panel'?'مجموعة بارامترات':'تحليل فردي'}</small></span><span class="meta"><span class="status ${t.is_active?'active':'inactive'}">${t.is_active?'نشط':'موقوف'}</span></span></button>`).join(''):'<p class="empty">لا توجد تحاليل مطابقة.</p>';}
+function renderTests(){const term=$('search').value.trim().toLocaleLowerCase();const visible=state.tests.filter(t=>( $('showInactive').checked || t.is_active ) && (!term || `${t.name} ${t.code}`.toLocaleLowerCase().includes(term)));$('testList').innerHTML=visible.length?visible.map(t=>`<button type="button" class="test-item ${t.id===state.selectedTest?'selected':''}" data-id="${esc(t.id)}"><span><strong>${esc(t.name)}</strong><small>${esc(t.code)}${t.category?` · ${esc(t.category)}`:''} · ${t.test_kind==='panel'?'بروفايل / مجموعة':t.test_kind==='group'?'مجموعة تحاليل':'تحليل فردي'}</small></span><span class="meta"><span class="status ${t.is_active?'active':'inactive'}">${t.is_active?'نشط':'موقوف'}</span></span></button>`).join(''):'<p class="empty">لا توجد تحاليل مطابقة.</p>';}
 function resetTestForm(){state.selectionRequest++;state.selectedTest=null;$('editorTitle').textContent='إضافة تحليل جديد';$('testForm').reset();$('testActive').checked=true;$('testKind').value='individual';$('testKind').disabled=false;$('testStatus').textContent='تحليل جديد';$('testStatus').className='status';$('activateCatalogTest').hidden=true;$('parameterSection').hidden=true;$('priceSection').hidden=true;state.parameters=[];state.selectedParameter=null;renderTests();}
 function fillTestForm(test){state.selectedTest=test.id;$('editorTitle').textContent=`تعديل: ${test.name}`;$('testCode').value=test.code||'';$('testName').value=test.name||'';$('testKind').value=test.test_kind||'individual';$('testKind').disabled=true;$('testCategory').value=test.category||'';$('testSpecimen').value=test.specimen||'';$('testMethod').value=test.method||'';$('testTurnaround').value=test.turnaround_minutes??'';$('testInstructions').value=test.instructions||'';$('testActive').checked=!!test.is_active;
  $('testShortName').value=test.short_name||'';$('testSynonyms').value=(test.synonyms||[]).join(', ');$('testLoinc').value=test.loinc_code||'';
@@ -145,12 +145,14 @@ async function loadCatalog(requestId=state.tenantRequest){const tenantId=state.t
 async function loadParameters({tenantId=state.tenant?.id,testId=state.selectedTest,requestId=state.selectionRequest}={}){if(!tenantId||!testId)return;const rows=await listTestParameters({tenantId,testId,includeInactive:true});if(requestId!==state.selectionRequest||tenantId!==state.tenant?.id||testId!==state.selectedTest)return;state.parameters=rows;renderParameters();}
 function renderMasterCatalog(){
  const term=$('masterCatalogSearch').value.trim().toLocaleLowerCase();
+ const existingCodes=new Set((state.tests||[]).map(test=>test.code));
  const rows=state.masterTests.filter(t=>!term||`${t.canonical_name} ${t.master_code} ${(t.alternate_names||[]).join(' ')}`.toLocaleLowerCase().includes(term));
  const verified=state.masterTests.filter(t=>t.clinical_review_status==='verified').length;
- $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف متاح للاستيراد · ${verified} مراجَع مركزيًا · والباقي قابل للمراجعة والاستكمال داخل المعمل`;
+ $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف منشور متاح للاستيراد · ${verified} مراجَع مركزيًا · حالة المراجعة لا تمنع الاستيراد أو التشغيل.`;
  $('masterCatalogList').innerHTML=rows.length?rows.map(t=>{
   const parameterCount=Number(t.parameter_count||0);
-  const review=t.clinical_review_status==='verified'?'مراجَع مركزيًا':'يحتاج مراجعة/استكمال محلي';
+  const review=t.clinical_review_status==='verified'?'مراجَع مركزيًا':'مراجعة البيانات إرشادية وغير مانعة';
+  const exists=existingCodes.has(t.master_code);
   const missing=[];
   if(!t.definition?.specimen)missing.push('العينة');
   if(!t.definition?.method)missing.push('الطريقة');
@@ -159,7 +161,7 @@ function renderMasterCatalog(){
   if(t.missing_choices)missing.push(`الاختيارات (${t.missing_choices})`);
   if(t.missing_formulas)missing.push(`المعادلات (${t.missing_formulas})`);
   if(t.placeholder_parameters)missing.push('بارامترات عامة قابلة للتعديل');
-  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'بروفايل / مجموعة':t.test_kind==='group'?'مجموعة تحاليل':'تحليل فردي'} · ${esc(t.category||'غير مصنف')} · ${parameterCount} بارامتر · إصدار ${esc(t.release?.version||'—')}</small><small>${review}.${missing.length?' بيانات ناقصة: '+esc(missing.join('، '))+'.':' لا توجد نواقص مسجلة.'} يمكنك الاستيراد الآن وإكمال البيانات لاحقًا؛ لا تُنشأ رينجات أو وحدات تلقائيًا.</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}">استيراد الآن</button></div>`;
+  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'بروفايل / مجموعة':t.test_kind==='group'?'مجموعة تحاليل':'تحليل فردي'} · ${esc(t.category||'غير مصنف')} · ${parameterCount} بارامتر · إصدار ${esc(t.release?.version||'—')}</small><small>${review}.${missing.length?' بيانات تحتاج استكمالًا: '+esc(missing.join('، '))+'.':' لا توجد نواقص مسجلة.'} الاستيراد متاح دون اعتماد محلي؛ لا تُنشأ رينجات أو وحدات بالتخمين.</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}" ${exists?'disabled':''}>${exists?'موجود في المعمل':'استيراد الآن'}</button></div>`;
  }).join(''):'<p class="empty">لا توجد تعريفات منشورة تطابق البحث.</p>';
 }
 async function loadMasterCatalog(){
@@ -225,7 +227,7 @@ $('activateCatalogTest').addEventListener('click',async e=>{
  try{
   requireOnline();
   const activated=await setCatalogTestActive({tenantId:state.tenant.id,testId:state.selectedTest,isActive:true});
-  notice('تم اعتماد تعريف التحليل وإتاحته للاستخدام. لم تتغير الأسعار أو بيانات الفروع، والحقول الفنية غير المتوفرة ظلت كما هي.');
+  notice('تم تفعيل التحليل. لم تتغير الأسعار أو بيانات الفروع.');
   await loadCatalog();await selectTest(activated.id);
  }catch(error){notice(error.message||'تعذر اعتماد تعريف التحليل.',true);}
  finally{button.disabled=false;}
@@ -266,11 +268,50 @@ $('parameterForm').addEventListener('submit',async e=>{
 $('masterCatalogSearch').addEventListener('input',renderMasterCatalog);
 $('openMasterLibrary').addEventListener('click',()=>{state.masterLibraryOpen=true;$('masterCatalogPanel').hidden=false;$('openMasterLibrary').hidden=true;});
 $('closeMasterLibrary').addEventListener('click',()=>{state.masterLibraryOpen=false;$('masterCatalogPanel').hidden=true;$('openMasterLibrary').hidden=state.role!=='owner';});
+$('importAllMasterLibrary').addEventListener('click',async e=>{
+ if(state.role!=='owner'||!state.masterTests.length)return;
+ const button=e.currentTarget;
+ if(button.disabled)return;
+ try{
+  requireOnline();
+  button.disabled=true;
+  const existingCodes=new Set((state.tests||[]).map(test=>test.code));
+  let imported=0,skipped=0;
+  const failures=[];
+  const total=state.masterTests.length;
+  for(let index=0;index<total;index++){
+   const item=state.masterTests[index];
+   button.textContent=`استيراد الكل ${index+1}/${total}`;
+   if(existingCodes.has(item.master_code)){skipped++;continue;}
+   try{
+    await importMasterCatalogTest({tenantId:state.tenant.id,masterTestId:item.id});
+    imported++;
+    existingCodes.add(item.master_code);
+   }catch(error){
+    const message=String(error?.message||error);
+    if(/duplicate|already exists|unique|موجود/i.test(message))skipped++;
+    else failures.push({code:item.master_code,message});
+   }
+   $('masterImportStatus').textContent=`تم استيراد ${imported} · تم تجاوز ${skipped} · أخطاء ${failures.length}`;
+   await new Promise(resolve=>setTimeout(resolve,0));
+  }
+  await loadCatalog();
+  renderMasterCatalog();
+  $('masterImportStatus').textContent=`اكتمل: ${imported} جديد · ${skipped} موجود مسبقًا · ${failures.length} أخطاء`;
+  if(failures.length)notice(`اكتمل الاستيراد مع ${failures.length} أخطاء. أول خطأ: ${failures[0].code} — ${failures[0].message}`,true);
+  else notice(`اكتمل استيراد المكتبة: ${imported} تحليل جديد، و${skipped} موجود مسبقًا. التحاليل الجديدة نشطة وبسعر صفر افتراضيًا.`);
+ }catch(error){
+  notice(error.message||'تعذر استيراد المكتبة المركزية.',true);
+ }finally{
+  button.disabled=false;
+  button.textContent='استيراد كل التعريفات';
+ }
+});
 $('masterCatalogList').addEventListener('click',async e=>{
  const btn=e.target.closest('[data-import-master]');if(!btn||state.role!=='owner')return;
  btn.disabled=true;
  try{requireOnline();const testId=await importMasterCatalogTest({tenantId:state.tenant.id,masterTestId:btn.dataset.importMaster});
-  await loadCatalog();await selectTest(testId);notice('تم استيراد نسخة مستقلة وموقوفة مؤقتًا. راجع سعر المعمل ثم فعّل التحليل من بياناته لاعتماده للتشغيل.');
+  await loadCatalog();await selectTest(testId);notice('تم استيراد نسخة مستقلة نشطة. السعر الأساسي الافتراضي صفر ويمكن تعديله لاحقًا.');
  }catch(error){notice(error.message||'تعذر استيراد تعريف التحليل.',true);}finally{btn.disabled=false;}
 });
 $('priceBranchSelect').addEventListener('change',()=>loadPrice());
