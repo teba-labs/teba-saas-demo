@@ -185,6 +185,19 @@ async function toggleTest(id,checked){
   }else state.selected.delete(id);
   updateTotals();
 }
+function renderSelectedTests(){
+  const host=$('selectedTestsList');
+  if(!host)return;
+  const selected=state.catalog.filter(test=>state.selected.has(test.id));
+  host.innerHTML=selected.length?selected.map(test=>{
+    const price=state.prices.get(test.id);
+    return `<div class="selected-test-row"><div class="selected-test-main"><strong>${escapeHtml(test.name)}</strong><small>${escapeHtml(test.code)} · ${escapeHtml(test.category||'')}</small></div><strong class="selected-test-price">${money(price?.selling_price??0)}</strong><button type="button" class="button button-ghost selected-test-remove" data-remove-selected="${escapeHtml(test.id)}" aria-label="إزالة ${escapeHtml(test.name)}">إزالة</button></div>`;
+  }).join(''):'<p class="muted">لم يتم اختيار تحاليل بعد. اختر التحاليل من الكتالوج في العمود الثالث.</p>';
+  host.querySelectorAll('[data-remove-selected]').forEach(button=>button.addEventListener('click',()=>{
+    state.selected.delete(button.dataset.removeSelected);
+    renderCatalog();
+  }));
+}
 function updateTotals(){
   let gross=0;for(const id of state.selected)gross+=Number(state.prices.get(id)?.selling_price||0);
   const discount=Number($('discount').value||0),net=gross-discount,paid=Number($('initialPayment').value||0),remaining=net-paid;
@@ -192,6 +205,7 @@ function updateTotals(){
   $('selectedCount').textContent=state.selected.size?`تم اختيار ${state.selected.size} تحليل`:'لم يتم اختيار تحاليل';
   const valid=state.patient&&state.workday&&state.selected.size>0&&state.staff.length>0&&Number.isFinite(discount)&&discount>=0&&discount<=gross&&Number.isFinite(paid)&&paid>=0&&paid<=net;
   $('createVisit').disabled=!valid||state.busy;
+  renderSelectedTests();
 }
 let searchTimer;
 async function searchPatients(){

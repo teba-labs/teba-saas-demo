@@ -15,7 +15,7 @@ import { listHistoricalResults } from '../../modules/migration/historical-result
 import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } from '../../modules/results/culture-repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 25, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), stopBackgroundSync: null };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 100, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), reportPreviewHtml: new Map(), stopBackgroundSync: null };
 window.taibaGetResultsContext=()=>({tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug});
 window.taibaGetDirtyResultInputs=()=>[...document.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultSource!=='calculated'&&input.value.trim()!==(input.dataset.originalValue??'').trim());
 window.addEventListener('taiba:results-work-refresh',()=>refreshWork().catch(error=>showNotice(error.message||'تعذر تحديث قائمة النتائج.',true)));
@@ -25,6 +25,21 @@ const showNotice = (message, error = false) => {
 };
 const setBusy = (button, busy, label) => { button.disabled = busy; if (busy) { button.dataset.oldLabel = button.textContent; button.textContent = label || 'جارٍ التنفيذ…'; } else if (button.dataset.oldLabel) { button.textContent = button.dataset.oldLabel; delete button.dataset.oldLabel; } };
 const requireCloudConnection = operation => { if (globalThis.navigator?.onLine === false) throw new Error(`${operation} يتطلب اتصالًا بالإنترنت. لم تُحفظ التغييرات محليًا أو في السحابة.`); };
+let html2pdfLoadPromise=null;
+async function ensureHtml2Pdf(){
+ if(typeof window.html2pdf==='function')return;
+ if(!html2pdfLoadPromise){
+  html2pdfLoadPromise=new Promise((resolve,reject)=>{
+   const script=document.createElement('script');
+   script.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+   script.async=true;script.crossOrigin='anonymous';script.dataset.taibaHtml2pdf='true';
+   script.onload=resolve;script.onerror=()=>reject(new Error('تعذر تحميل محرك إنشاء PDF. تحقق من اتصال الإنترنت ثم أعد المحاولة.'));
+   document.head.append(script);
+  });
+ }
+ await html2pdfLoadPromise;
+ if(typeof window.html2pdf!=='function')throw new Error('محرك إنشاء PDF غير متاح في هذا المتصفح.');
+}
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function resultInputMode(parameter){
   if(parameter?.result_input_mode)return parameter.result_input_mode;
@@ -85,22 +100,33 @@ function evaluateDisplayRules(section){
   for(const field of section.querySelectorAll('[data-display-rules]')){
     let rules=[];try{rules=JSON.parse(field.dataset.displayRules||'[]');}catch{}
     if(!Array.isArray(rules)||!rules.length)continue;
-    const visible=new Set(),conditional=new Set();let matched=false;
+    const visible=new Set(),conditional=new Set();let matched=false,anyControllerValue=false;
     for(const rule of rules){
       const condition=rule?.when||{},source=section.querySelector('[data-param-code="'+CSS.escape(condition.parameter_code||'')+'"]');
       let sourceValue=source?.value??'';
       if(source?.dataset.inputMode==='multi_choice'||source?.dataset.inputMode==='graded_multi_choice'){try{sourceValue=JSON.parse(sourceValue||'[]');}catch{sourceValue=[];}}
       const conditionValue=String(condition.value??'');
       const hasControllerValue=Array.isArray(sourceValue)?sourceValue.length>0:String(sourceValue).trim()!=='';
-      const isMatch=hasControllerValue&&(condition.operator==='not_equals'
-        ? (Array.isArray(sourceValue)?!sourceValue.includes(conditionValue):String(sourceValue)!==conditionValue)
-        : (Array.isArray(sourceValue)?sourceValue.includes(conditionValue):String(sourceValue)===conditionValue));
+      if(hasControllerValue)anyControllerValue=true;
+      let isMatch=false;
+      if(hasControllerValue){
+        if(['lt','lte','gt','gte'].includes(condition.operator)){
+          const left=Number(sourceValue),right=Number(condition.value);
+          if(Number.isFinite(left)&&Number.isFinite(right)){
+            isMatch=condition.operator==='lt'?left<right:condition.operator==='lte'?left<=right:condition.operator==='gt'?left>right:condition.operator==='gte'?left>=right:false;
+          }
+        }else if(condition.operator==='not_equals'){
+          isMatch=Array.isArray(sourceValue)?!sourceValue.includes(conditionValue):String(sourceValue)!==conditionValue;
+        }else{
+          isMatch=Array.isArray(sourceValue)?sourceValue.includes(conditionValue):String(sourceValue)===conditionValue;
+        }
+      }
       for(const value of (rule.visible_values||[])){conditional.add(String(value));if(isMatch)visible.add(String(value));}
       if(isMatch)matched=true;
     }
     field.querySelectorAll('[data-option-value], [data-choice-value]').forEach(option=>{
       const value=option.dataset.optionValue??option.dataset.choiceValue??'';
-      const shouldHide=matched?!visible.has(value):conditional.has(value);
+      const shouldHide=matched?!visible.has(value):anyControllerValue&&conditional.has(value);
       if(option.tagName==='OPTION'){
         option.hidden=shouldHide;option.disabled=shouldHide;
         if(shouldHide&&option.selected&&option.closest('select'))option.closest('select').value='';
@@ -252,7 +278,7 @@ async function renderWork() {
       <div class="actions"><button class="button button-secondary save-visit-drafts" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>حفظ كل النتائج</button><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
       <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' && !hasCompletedTests ? 'disabled' : ''}>${canPrintPartial ? 'طباعة النتائج المتاحة (تقرير جزئي)' : 'طباعة التقرير بإعدادات المعمل / حفظ PDF'}</button></div>
       <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
-      <div class="file-row"><label>ملف PDF النهائي للنشر<input type="file" accept="application/pdf,.pdf" data-report-file="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}><small>عاين التقرير واطبعه أولًا باستخدام Save as PDF، ثم اختر ملف PDF المحفوظ هنا للنشر في بوابة المريض.</small></label><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
+      <div class="file-row report-publish-row"><p class="muted">بعد معاينة التقرير، اضغط نشر؛ النظام ينشئ ملف PDF تلقائيًا من نفس نسخة المعاينة ويرفعه مباشرة إلى بوابة المريض، دون تنزيل أو إعادة رفع يدوي.</p><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
       ${canPrintPartial ? '<p class="muted">التقرير الجزئي للطباعة فقط؛ النشر على بوابة المريض متاح بعد اكتمال جميع التحاليل.</p>' : ''}
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
@@ -705,6 +731,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
     ((signature || stamp || reviewerName) ? '<section class="report-approval" style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:14px 0 8px">' + (signature ? '<div style="display:grid;gap:4px"><img style="max-width:130px;max-height:65px;object-fit:contain" src="' + escapeHtml(signature) + '" alt="التوقيع"><small>التوقيع</small></div>' : '') + (stamp ? '<div style="display:grid;gap:4px"><img style="max-width:100px;max-height:100px;object-fit:contain" src="' + escapeHtml(stamp) + '" alt="الختم"><small>ختم المعمل</small></div>' : '') + (reviewerName ? '<div style="display:grid;gap:4px"><strong style="border-top:1px solid #667;padding-top:4px;min-width:120px">' + escapeHtml(reviewerName) + '</strong><small>المراجع / المعتمد</small></div>' : '') + '</section>' : '') +
     (showPrintFooter ? '<footer class="report-footer" style="grid-template-columns:' + footerGridColumns + '"><div class="footer-right">' + footerAddresses + '</div>' + footerCenterMarkup + '<div class="footer-left">' + footerContacts + '</div>' + (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</footer>' : '') + '</body></html>';
+  state.reportPreviewHtml.set(visitId,html);
   win.document.open(); win.document.write(html); win.document.close();
   const printWhenReady = () => { try { win.focus(); if (autoPrint) win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
   const images = [...win.document.images];
@@ -870,7 +897,7 @@ async function saveVisitDrafts(visitId) {
       }
     }
   }
-  if (savedCount || queuedCount || completedTestCount) state.previewedVisits.delete(visitId);
+  if (savedCount || queuedCount || completedTestCount) state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
   return { savedCount, queuedCount, completedTestCount };
 }
 async function saveAndMaybeApproveVisit(visitId, testId = null) {
@@ -887,7 +914,7 @@ async function saveAndMaybeApproveVisit(visitId, testId = null) {
       visitId,
       staffId: $('staffSelect').value
     });
-    state.previewedVisits.delete(visitId);
+    state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
     showNotice('تم حفظ النتيجة واعتماد الزيارة تلقائيًا بعد اكتمال كل النتائج المطلوبة. يمكنك معاينة التقرير الآن.');
     return { saved: true, visitApproved: true, completed: !testId || state.work.some(item => item.id === testId && item.status === 'completed') };
   } catch (error) {
@@ -951,7 +978,7 @@ async function correctTest(button) {
       await correctVisitResultWithFlag({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,flag:classifyResultFlag(input),reason,staffId:$('staffSelect').value});
       input.dataset.originalValue=input.value;
     }
-    state.previewedVisits.delete(visitId);
+    state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
     section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=true;});
     section.querySelectorAll('.multi-choice-item').forEach(input=>{input.disabled=true;});
     button.dataset.correctionMode='false';button.textContent=isPublished?'تصحيح نتيجة منشورة':'تصحيح نتيجة محفوظة';button.dataset.oldLabel=button.textContent;
@@ -1016,7 +1043,7 @@ async function approve(button) {
       visitId,
       staffId: $('staffSelect').value
     });
-    state.previewedVisits.delete(visitId);
+    state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
     showNotice('تم حفظ النتائج واعتماد الزيارة بالكامل. يمكنك الآن معاينة التقرير وطباعته.');
     await refreshWork();
   } catch (error) {
@@ -1034,28 +1061,53 @@ async function approve(button) {
   }
 }
 async function publish(button) {
+  let reportWindow=null;
   try {
     requireCloudConnection('نشر التقرير');
     if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها قبل نشر التقرير.');
-    const visitId = button.dataset.visitId;
-    const visitState = state.work.find(item=>item.visit_id===visitId)?.visits;
-    if (!visitState || (visitState.status!=='approved' && !visitState.is_published)) throw new Error('اعتمد الزيارة بالكامل قبل نشر التقرير.');
-    if (!state.previewedVisits.has(visitId)) throw new Error('افتح معاينة نتائج الزيارة وراجع التقرير قبل النشر.');
-    const fileInput = document.querySelector(`[data-report-file="${CSS.escape(visitId)}"]`);
-    const file = fileInput?.files?.[0];
-    if (!file) throw new Error('اختر ملف التقرير PDF أولًا.');
-    const allVisitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
-    if (allVisitItems.some(item => item.status !== 'completed')) {
-      throw new Error('لا يمكن نشر تقرير نهائي قبل اكتمال جميع التحاليل. يمكنك طباعة النتائج المكتملة كتقرير جزئي فقط.');
-    }
-    const isCorrection = allVisitItems[0]?.visits?.is_published || state.work.some(item => item.visit_id === visitId && item.visits?.is_published);
-    const reason = isCorrection ? 'إصدار نسخة محدثة بعد تصحيح نتيجة' : '';
-    setBusy(button, true, 'جارٍ النشر…');
-    await publishReportVersion({ tenantId: state.tenant.id, branchId: state.branch.id, visitId,
-      staffId: $('staffSelect').value, file, changeReason: reason });
-    state.previewedVisits.delete(visitId); showNotice('تم إرسال التقرير لمسار النشر.'); await refreshWork();
-  } catch (error) { showNotice(error.message || 'تعذر نشر التقرير.', true); }
-  finally { setBusy(button, false); }
+    const visitId=button.dataset.visitId;
+    const visitState=state.work.find(item=>item.visit_id===visitId)?.visits;
+    if(!visitState||(visitState.status!=='approved'&&!visitState.is_published))throw new Error('اعتمد الزيارة بالكامل قبل نشر التقرير.');
+    if(!state.previewedVisits.has(visitId))throw new Error('افتح معاينة نتائج الزيارة وراجع التقرير قبل النشر.');
+    const reportHtml=state.reportPreviewHtml.get(visitId);
+    if(!reportHtml)throw new Error('معاينة التقرير غير موجودة في الذاكرة. افتح المعاينة مرة أخرى ثم أعد النشر.');
+    setBusy(button,true,'جارٍ إنشاء PDF والنشر…');
+    reportWindow=window.open('','_blank');
+    if(!reportWindow)throw new Error('اسمح بفتح نافذة مؤقتة لإنشاء نسخة التقرير PDF.');
+    reportWindow.document.open();
+    reportWindow.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><body style="font-family:Arial,sans-serif;padding:24px">جارٍ تجهيز التقرير النهائي…</body></html>');
+    reportWindow.document.close();
+
+    const allVisitItems=await listVisitWorkForReport({tenantId:state.tenant.id,branchId:state.branch.id,visitId});
+    if(allVisitItems.some(item=>item.status!=='completed'))throw new Error('لا يمكن نشر تقرير نهائي قبل اكتمال جميع التحاليل. يمكنك طباعة النتائج المكتملة كتقرير جزئي فقط.');
+    const isCorrection=allVisitItems[0]?.visits?.is_published||state.work.some(item=>item.visit_id===visitId&&item.visits?.is_published);
+    const reason=isCorrection?'إصدار نسخة محدثة بعد تصحيح نتيجة':'';
+
+    reportWindow.document.open();reportWindow.document.write(reportHtml);reportWindow.document.close();
+    await reportWindow.document.fonts?.ready;
+    await Promise.all([...reportWindow.document.images].map(img=>img.decode?.().catch(()=>null)));
+    await new Promise(resolve=>setTimeout(resolve,180));
+    await ensureHtml2Pdf();
+    const pdfBlob=await window.html2pdf().set({
+      margin:0,
+      filename:`taiba-report-${visitId}.pdf`,
+      image:{type:'jpeg',quality:0.98},
+      html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',scrollY:0},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      pagebreak:{mode:['css','legacy']}
+    }).from(reportWindow.document.body).outputPdf('blob');
+    if(!(pdfBlob instanceof Blob)||pdfBlob.size<1000)throw new Error('تعذر إنشاء ملف PDF صالح من معاينة التقرير.');
+    const file=new File([pdfBlob],`taiba-report-${visitId}.pdf`,{type:'application/pdf'});
+    await publishReportVersion({tenantId:state.tenant.id,branchId:state.branch.id,visitId,staffId:$('staffSelect').value,file,changeReason:reason});
+    state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
+    showNotice('تم إنشاء PDF من نفس معاينة التقرير ورفعه تلقائيًا إلى بوابة المريض.');
+    try{await refreshWork();}catch(error){showNotice('تم نشر التقرير بنجاح، لكن تعذر تحديث قائمة النتائج تلقائيًا.',true);}
+  } catch(error) {
+    showNotice(error.message||'تعذر إنشاء التقرير أو نشره.',true);
+  } finally {
+    if(reportWindow&&!reportWindow.closed)reportWindow.close();
+    setBusy(button,false);
+  }
 }
 
 async function searchHistorical(){

@@ -14,9 +14,9 @@
   <section id="workspace" hidden>
     <section class="panel context"><div><span class="eyebrow">إدارة بيانات المعمل</span><h1>كتالوج التحاليل</h1><p id="userLine" class="muted"></p></div><label>المعمل<select id="tenantSelect"></select></label><div id="roleNotice" class="role-notice"></div><button id="openMasterLibrary" class="button button-secondary" type="button" hidden>فتح مكتبة الماستر العلمية</button></section>
     <section id="masterCatalogPanel" class="panel master-panel" hidden>
-      <div class="section-head"><div><h2>مكتبة الماستر العلمية</h2><p class="muted">مكتبة المنصة المرجعية؛ افتحها عند الحاجة فقط. الاستيراد ينشئ نسخة مستقلة قابلة للتعديل داخل المعمل.</p></div><div class="master-head-actions"><span id="masterCatalogCount" class="status">تحميل المكتبة…</span><button id="closeMasterLibrary" class="button button-light" type="button">إخفاء المكتبة</button></div></div>
+      <div class="section-head"><div><h2>مكتبة الماستر العلمية</h2><p class="muted">مكتبة المنصة المرجعية. يمكنك استيراد التعريفات كلها مرة واحدة؛ كل نسخة تصبح مستقلة ونشطة داخل المعمل، وحالة المراجعة لا تمنع التشغيل.</p></div><div class="master-head-actions"><span id="masterCatalogCount" class="status">تحميل المكتبة…</span><button id="importAllMasterLibrary" class="button button-primary" type="button">استيراد كل التعريفات</button><button id="closeMasterLibrary" class="button button-light" type="button">إخفاء المكتبة</button></div></div>
       <label>بحث في المكتبة<input id="masterCatalogSearch" type="search" placeholder="اسم التحليل أو الكود"></label>
-      <div id="masterCatalogList" class="master-catalog-list"><p class="empty">جارٍ تحميل الإصدارات المنشورة…</p></div>
+      <p id="masterImportStatus" class="muted" aria-live="polite"></p><div id="masterCatalogList" class="master-catalog-list"><p class="empty">جارٍ تحميل الإصدارات المنشورة…</p></div>
     </section>
     <div class="layout">
       <section class="panel list-panel"><div class="section-head"><div><h2>قائمة التحاليل</h2><p class="muted">اختر تحليلًا لإدارة بياناته وبارامتراته.</p></div><button id="newTest" class="button" type="button">＋ تحليل جديد</button></div>
@@ -29,7 +29,7 @@
         <form id="testForm" class="form-grid">
           <label>كود التحليل *<input id="testCode" maxlength="40" required></label>
           <label>اسم التحليل *<input id="testName" maxlength="160" required></label>
-          <label>نوع التحليل<select id="testKind"><option value="individual">تحليل فردي — نتيجة واحدة</option><option value="panel">مجموعة تحاليل — عدة بارامترات</option></select><small>النوع يحدد طريقة تنظيم النتائج في شاشة تسجيل النتائج.</small></label>
+          <label>نوع التحليل<select id="testKind"><option value="individual">تحليل فردي — نتيجة واحدة</option><option value="panel">بروفايل — عدة بارامترات</option><option value="group">مجموعة تحاليل مترابطة</option></select><small>النوع يحدد طريقة تنظيم النتائج في شاشة تسجيل النتائج.</small></label>
           <label>التصنيف<input id="testCategory" maxlength="100"></label>
           <label>نوع العينة<input id="testSpecimen" maxlength="100" placeholder="Serum / EDTA / Urine"></label>
           <label>الطريقة<input id="testMethod" maxlength="120"></label>
@@ -57,7 +57,7 @@
             </div>
           </details>
           <label class="check-line wide"><input id="testActive" type="checkbox" checked> التحليل نشط ومتاح للاستقبال</label>
-          <div class="wide actions"><button class="button" type="submit">حفظ بيانات التحليل</button><button id="activateCatalogTest" class="button button-primary" type="button" hidden>اعتماد التعريف وإتاحته للاستخدام</button><button id="resetTest" class="button button-light" type="button">تفريغ النموذج</button></div>
+          <div class="wide actions"><button class="button" type="submit">حفظ بيانات التحليل</button><button id="activateCatalogTest" class="button button-primary" type="button" hidden>تفعيل التحليل</button><button id="resetTest" class="button button-light" type="button">تفريغ النموذج</button></div>
         </form>
         <div class="divider"></div>
         <section id="parameterSection" hidden>
@@ -94,7 +94,7 @@
                 <p class="muted">مثال: لا تظهر اختيارات البلورات إلا بعد تحديد قيمة pH مناسبة. لن يتم إخفاء أي اختيار ما لم تضف قاعدة هنا.</p>
                 <div class="form-grid">
                   <label>البارامتر المتحكم<select id="conditionParameterCode"><option value="">بدون شرط</option></select></label>
-                  <label>المقارنة<select id="conditionOperator"><option value="equals">يساوي</option><option value="not_equals">لا يساوي</option></select></label>
+                  <label>المقارنة<select id="conditionOperator"><option value="equals">يساوي</option><option value="not_equals">لا يساوي</option><option value="lt">أقل من</option><option value="lte">أقل من أو يساوي</option><option value="gt">أكبر من</option><option value="gte">أكبر من أو يساوي</option></select></label>
                   <label>القيمة المطلوبة<input id="conditionValue" placeholder="مثال: Acidic"></label>
                   <label class="wide">الاختيارات التي تظهر عند تحقق الشرط<textarea id="conditionVisibleValues" rows="2" placeholder="اختيار 1&#10;اختيار 2"></textarea></label>
                 </div>

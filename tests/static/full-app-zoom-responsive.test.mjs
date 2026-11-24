@@ -41,8 +41,11 @@ test('shared responsive layer overrides page-specific fixed grids at desktop zoo
   assert.match(css,/flex-wrap:wrap/);
 });
 
-test('results workbench keeps its three-column desktop desk and collapses at tablet widths',async()=>{
+test('results workbench keeps three desktop columns, reflows at tablet, and uses phone tabs',async()=>{
   const css=await read('assets/css/app-viewport.css');
   assert.match(css,/body \.results-columns\{\s*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(css,/@media\(max-width:900px\)[\s\S]*?body :is\(\.layout,\.identity-layout,\.collection-layout,\.workspace-context,\.results-columns\)\{grid-template-columns:minmax\(0,1fr\)\}/);
+  assert.match(css,/@media\(max-width:900px\)[\s\S]*?body \.results-columns\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/);
+  const pageCss=await read('assets/css/results-workbench.css');
+  assert.match(pageCss,/\.results-mobile-tabs\{display:grid/);
+  assert.match(pageCss,/\.results-workbench-page \.results-columns\{display:block!important/);
 });

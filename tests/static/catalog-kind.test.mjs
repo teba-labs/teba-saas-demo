@@ -31,5 +31,5 @@ test('new individual tests receive one distinct result parameter automatically; 
   assert.ok(js.includes('parameterRangeRows'));
   assert.ok(!js.includes("parseJsonField('parameterRanges'"));
   assert.match(js, /testKind.*disabled=busy\|\|!!state\.selectedTest/);
-  assert.match(js, /مجموعة بارامترات/);
+  assert.match(js, /مجموعة تحاليل/);
 });
