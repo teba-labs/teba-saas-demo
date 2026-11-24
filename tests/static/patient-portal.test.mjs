@@ -32,7 +32,7 @@ test('portal lookup is exact, tenant-scoped, and only returns published final or
 
 test('portal uses short-lived private report links and generic lookup failures', () => {
   assert.match(edge, /createSignedUrl\(String\(report\.storage_path\), 120\)/);
-  assert.match(edge, /تعذر العثور على تقرير مطابق/);
+  assert.match(edge, /التحاليل قيد الاختبار والمراجعة/);
   assert.match(edge, /rpc\('consume_patient_portal_attempt'/);
   assert.match(edge, /rateLimit\.allowed/);
   assert.doesNotMatch(edge, /from\('portal_access_attempts'\)\s*\.select/);
