@@ -64,7 +64,7 @@ test('catalog UI exposes the master library and structured medical metadata edit
  assert.match(html,/id="openMasterLibrary"/);
  assert.match(html,/id="closeMasterLibrary"/);
  assert.match(js,/masterLibraryOpen/);
- assert.match(js,/قابل للمراجعة والاستكمال داخل المعمل/);
+ assert.match(js,/مراجعة البيانات إرشادية وغير مانعة/);
  assert.match(js,/يمكنك الاستيراد الآن وإكمال البيانات لاحقًا/);assert.doesNotMatch(js,/\$\{D\}/);
 });
 
