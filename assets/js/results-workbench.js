@@ -1099,7 +1099,6 @@ async function publish(button) {
     const file=new File([pdfBlob],`taiba-report-${visitId}.pdf`,{type:'application/pdf'});
     await publishReportVersion({tenantId:state.tenant.id,branchId:state.branch.id,visitId,staffId:$('staffSelect').value,file,changeReason:reason});
     state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
-    state.reportPreviewHtml.delete(visitId);
     showNotice('تم إنشاء PDF من نفس معاينة التقرير ورفعه تلقائيًا إلى بوابة المريض.');
     try{await refreshWork();}catch(error){showNotice('تم نشر التقرير بنجاح، لكن تعذر تحديث قائمة النتائج تلقائيًا.',true);}
   } catch(error) {
