@@ -100,13 +100,14 @@ function evaluateDisplayRules(section){
   for(const field of section.querySelectorAll('[data-display-rules]')){
     let rules=[];try{rules=JSON.parse(field.dataset.displayRules||'[]');}catch{}
     if(!Array.isArray(rules)||!rules.length)continue;
-    const visible=new Set(),conditional=new Set();let matched=false;
+    const visible=new Set(),conditional=new Set();let matched=false,anyControllerValue=false;
     for(const rule of rules){
       const condition=rule?.when||{},source=section.querySelector('[data-param-code="'+CSS.escape(condition.parameter_code||'')+'"]');
       let sourceValue=source?.value??'';
       if(source?.dataset.inputMode==='multi_choice'||source?.dataset.inputMode==='graded_multi_choice'){try{sourceValue=JSON.parse(sourceValue||'[]');}catch{sourceValue=[];}}
       const conditionValue=String(condition.value??'');
       const hasControllerValue=Array.isArray(sourceValue)?sourceValue.length>0:String(sourceValue).trim()!=='';
+      if(hasControllerValue)anyControllerValue=true;
       let isMatch=false;
       if(hasControllerValue){
         if(['lt','lte','gt','gte'].includes(condition.operator)){
@@ -125,7 +126,7 @@ function evaluateDisplayRules(section){
     }
     field.querySelectorAll('[data-option-value], [data-choice-value]').forEach(option=>{
       const value=option.dataset.optionValue??option.dataset.choiceValue??'';
-      const shouldHide=matched?!visible.has(value):conditional.has(value);
+      const shouldHide=matched?!visible.has(value):anyControllerValue&&conditional.has(value);
       if(option.tagName==='OPTION'){
         option.hidden=shouldHide;option.disabled=shouldHide;
         if(shouldHide&&option.selected&&option.closest('select'))option.closest('select').value='';
