@@ -15,7 +15,7 @@ import { listHistoricalResults } from '../../modules/migration/historical-result
 import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } from '../../modules/results/culture-repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 100, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), reportPreviewHtml: new Map(), stopBackgroundSync: null };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 100, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), partialPublishedVisits: new Set(), reportPreviewHtml: new Map(), stopBackgroundSync: null };
 window.taibaGetResultsContext=()=>({tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug});
 window.taibaGetDirtyResultInputs=()=>[...document.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultSource!=='calculated'&&input.value.trim()!==(input.dataset.originalValue??'').trim());
 window.addEventListener('taiba:results-work-refresh',()=>refreshWork().catch(error=>showNotice(error.message||'تعذر تحديث قائمة النتائج.',true)));
@@ -232,6 +232,25 @@ async function renderWork() {
   if (!state.work.length) { host.innerHTML = '<div class="empty">لا توجد تحاليل قيد العمل في هذا الفرع حاليًا.</div>'; return; }
   const rangeOverrides = await listVisitParameterRangeOverrides({tenantId:state.tenant.id,visitTestIds:state.work.map(item=>item.id)});
   const rangeOverridesByKey = new Map(rangeOverrides.map(row=>[row.visit_test_id+'|'+row.parameter_code,row]));
+  const resultRows = await listResultsForVisitTests({tenantId:state.tenant.id,visitTestIds:state.work.map(item=>item.id)});
+  const resultsByTest = new Map();
+  for (const result of resultRows) {
+    if (!resultsByTest.has(result.visit_test_id)) resultsByTest.set(result.visit_test_id, []);
+    resultsByTest.get(result.visit_test_id).push(result);
+  }
+  if (globalThis.navigator?.onLine !== false && state.work.length) {
+    try {
+      const {data,error}=await getSupabaseClient().from('report_versions')
+        .select('visit_id,publication_type,version_number').eq('tenant_id',state.tenant.id)
+        .eq('is_published',true).in('visit_id',state.work.map(item=>item.visit_id))
+        .order('version_number',{ascending:false});
+      if(!error){
+        state.partialPublishedVisits.clear();
+        const seen=new Set();
+        for(const version of data||[]){if(seen.has(version.visit_id))continue;seen.add(version.visit_id);if(version.publication_type==='partial')state.partialPublishedVisits.add(version.visit_id);}
+      }
+    } catch {}
+  }
   const byVisit = new Map();
   for (const item of state.work) {
     const visit = item.visits;
@@ -241,12 +260,15 @@ async function renderWork() {
   }
   host.innerHTML = '';
   for (const [visitId, group] of byVisit) {
-    const card = document.createElement('article'); card.className = 'work-card'; card.dataset.visitId = visitId; card.dataset.patientPhone = group.visit?.patients?.phone || ''; card.dataset.patientAge = group.visit?.patients?.age_value ?? group.visit?.patients?.age_years ?? ''; card.dataset.patientAgeUnit = group.visit?.patients?.age_unit || (group.visit?.patients?.age_years != null ? 'years' : ''); card.dataset.patientSex = group.visit?.patients?.sex || ''; card.dataset.visitDate = group.visit?.visit_work_date || ''; card.dataset.visitNumber = group.visit?.visit_number || ''; card.dataset.published = String(Boolean(group.visit?.is_published)); card.dataset.visitStatus = group.visit?.status || 'open';
+    const card = document.createElement('article'); card.className = 'work-card'; card.dataset.visitId = visitId; card.dataset.patientPhone = group.visit?.patients?.phone || ''; card.dataset.patientName = group.visit?.patients?.full_name || ''; card.dataset.patientAge = group.visit?.patients?.age_value ?? group.visit?.patients?.age_years ?? ''; card.dataset.patientAgeUnit = group.visit?.patients?.age_unit || (group.visit?.patients?.age_years != null ? 'years' : ''); card.dataset.patientSex = group.visit?.patients?.sex || ''; card.dataset.visitDate = group.visit?.visit_work_date || ''; card.dataset.visitNumber = group.visit?.visit_number || ''; card.dataset.published = String(Boolean(group.visit?.is_published)); card.dataset.visitStatus = group.visit?.status || 'open';
     const visitTitle = `زيارة ${group.visit?.visit_number ?? '—'} · ${group.visit?.patients?.full_name ?? 'مريض'}`;
     const isPublished = Boolean(group.visit?.is_published);
     const hasCompletedTests = group.items.some(item => item.status === 'completed');
     const hasPendingTests = group.items.some(item => item.status !== 'completed');
-    const canPrintPartial = hasCompletedTests && hasPendingTests;
+    const hasAnySavedResults = group.items.some(item => (resultsByTest.get(item.id)||[]).length>0);
+    const isPartialPublished = state.partialPublishedVisits.has(visitId);
+    const canPrintPartial = hasAnySavedResults && !isPublished && group.visit?.status !== 'approved';
+    const canPublishPartial = hasAnySavedResults && !isPublished && group.visit?.status !== 'approved';
     const canPublishReport = (group.visit?.status === 'approved' || isPublished) && !hasPendingTests;
     const itemsMarkup = group.items.map(item => {
       const locked = item.status === 'completed';
@@ -276,10 +298,11 @@ async function renderWork() {
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
       <div class="actions"><button class="button button-secondary save-visit-drafts" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>حفظ كل النتائج</button><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
-      <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' && !hasCompletedTests ? 'disabled' : ''}>${canPrintPartial ? 'طباعة النتائج المتاحة (تقرير جزئي)' : 'طباعة التقرير بإعدادات المعمل / حفظ PDF'}</button></div>
+      <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' && !hasCompletedTests && !hasAnySavedResults ? 'disabled' : ''}>${canPrintPartial ? 'طباعة النتائج المحفوظة (تقرير جزئي)' : 'طباعة التقرير بإعدادات المعمل / حفظ PDF'}</button></div>
       <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
-      <div class="file-row report-publish-row"><p class="muted">بعد معاينة التقرير، اضغط نشر؛ النظام ينشئ ملف PDF تلقائيًا من نفس نسخة المعاينة ويرفعه مباشرة إلى بوابة المريض، دون تنزيل أو إعادة رفع يدوي.</p><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير'}</button></div>
-      ${canPrintPartial ? '<p class="muted">التقرير الجزئي للطباعة فقط؛ النشر على بوابة المريض متاح بعد اكتمال جميع التحاليل.</p>' : ''}
+      <div class="file-row report-publish-row"><p class="muted">بعد معاينة التقرير النهائي واعتماد الزيارة، انشر النسخة النهائية على بوابة المريض.</p><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير النهائي'}</button></div>
+      ${canPublishPartial ? '<div class="file-row report-publish-row"><p class="muted">يمكن نشر النتائج المحفوظة الآن كتقرير جزئي دون اعتماد الزيارة أو إغلاقها.</p><button class="button button-secondary publish-partial-report" data-partial="true" data-visit-id="' + escapeHtml(visitId) + '">' + (isPartialPublished ? 'نشر تحديث جزئي' : 'نشر تقرير جزئي') + '</button></div>' : ''}
+      ${isPartialPublished && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-partial-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط التقرير الجزئي عبر واتساب</button></div>' : ''}
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
       <p class="danger-note">اسم المستخدم الذي أجرى التصحيح يُسجل تلقائيًا في سجل المراجعة، ولا يحتاج الفني إلى كتابة سبب للتصحيح.</p>`;
@@ -310,15 +333,12 @@ async function renderWork() {
   host.querySelectorAll('.save-visit-drafts').forEach(btn => btn.addEventListener('click', () => saveVisitDraftsAction(btn)));
   host.querySelectorAll('.correct-test, .correct-unpublished-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
-  host.querySelectorAll('.publish-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
+  host.querySelectorAll('.publish-report, .publish-partial-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
+  host.querySelectorAll('.share-partial-report').forEach(btn => btn.addEventListener('click', () => sharePartialReport(btn)));
   host.querySelectorAll('.upload-attachment').forEach(btn => btn.addEventListener('click', () => uploadAttachment(btn)));
   host.querySelectorAll('.list-attachments').forEach(btn => btn.addEventListener('click', () => loadAttachments(btn.dataset.visitId)));
   host.querySelectorAll('.attachment-download').forEach(btn => btn.addEventListener('click', () => downloadAttachment(btn)));
-  // Populate all existing values with one scoped query instead of N+1 requests.
-  const resultRows = await listResultsForVisitTests({
-    tenantId: state.tenant.id,
-    visitTestIds: state.work.map(item => item.id),
-  });
+  // Populate all existing values from the single scoped query loaded above.
   const cultureWork = state.work.filter(item => String(item.test_code_snapshot || '').startsWith('CULTURE_'));
   if (cultureWork.length) {
     const cultureRows = await listCultureResults({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:cultureWork.map(item=>item.id)});
@@ -327,11 +347,6 @@ async function renderWork() {
   }
   host.querySelectorAll('.select-historical-report').forEach(btn => btn.addEventListener('click', () => loadHistoricalReportPicker(btn)));
   host.querySelectorAll('.print-visit-report').forEach(btn => btn.addEventListener('click', () => window.taibaPreviewVisitReport(btn.dataset.visitId)));
-  const resultsByTest = new Map();
-  for (const result of resultRows) {
-    if (!resultsByTest.has(result.visit_test_id)) resultsByTest.set(result.visit_test_id, []);
-    resultsByTest.get(result.visit_test_id).push(result);
-  }
   for (const item of state.work) {
     const section = host.querySelector(`[data-test-id="${CSS.escape(item.id)}"]`);
     if (!section) continue;
@@ -429,7 +444,7 @@ function patientAgeInYears(patient={}){
 }
 function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
   const localPending = status === 'local_verification_required';
-  if (localPending && (!value || (Array.isArray(value) && value.length === 0))) return 'لا يوجد مدى مصدر محدد؛ يلزم ضبطه محليًا';
+  if (localPending && (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0))) return '';
   if (status === 'not_applicable' && !(value && (value.text || Array.isArray(value)))) return 'لا ينطبق';
   if (Array.isArray(value)) {
     const age = patientAgeInYears(patient);
@@ -555,13 +570,17 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const hasPendingTests = allVisitItems.some(item => item.status !== 'completed');
   const localOffline = !visitApproved && (globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || allVisitItems.some(item => item.local_offline));
   const serverApproved = visitApproved && !hasPendingTests;
-  // Even if the visit header was approved earlier, unfinished tests must never
-  // be silently represented as a complete final report.
-  const partialReport = globalThis.navigator?.onLine !== false && hasCompletedTests && hasPendingTests;
-  const visitItems = partialReport ? allVisitItems.filter(item => item.status === 'completed') : allVisitItems;
-  const canPrint = serverApproved || localOffline || partialReport;
   const patient = visit.patients || {};
-  const rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: visitItems.map(item => item.id) });
+  let rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: allVisitItems.map(item => item.id) });
+  const hasSavedResults = rows.length > 0;
+  // Any cloud-saved result may be issued as a clearly marked partial report;
+  // the final approval state remains untouched until every required result is complete.
+  const partialReport = globalThis.navigator?.onLine !== false && !serverApproved && (hasSavedResults || hasCompletedTests);
+  const visitItems = partialReport
+    ? allVisitItems.filter(item => item.status === 'completed' || rows.some(row => row.visit_test_id === item.id))
+    : allVisitItems;
+  if (partialReport) rows = rows.filter(row => visitItems.some(item => item.id === row.visit_test_id));
+  const canPrint = serverApproved || localOffline || partialReport;
   if (globalThis.navigator?.onLine === false || localOffline) {
     const pending = await listPendingDraftResults({ tenantId: state.tenant.id, branchId: state.branch.id });
     const maps = await offlineDb.sync_meta.toArray();
@@ -731,8 +750,11 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
     ((signature || stamp || reviewerName) ? '<section class="report-approval" style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:14px 0 8px">' + (signature ? '<div style="display:grid;gap:4px"><img style="max-width:130px;max-height:65px;object-fit:contain" src="' + escapeHtml(signature) + '" alt="التوقيع"><small>التوقيع</small></div>' : '') + (stamp ? '<div style="display:grid;gap:4px"><img style="max-width:100px;max-height:100px;object-fit:contain" src="' + escapeHtml(stamp) + '" alt="الختم"><small>ختم المعمل</small></div>' : '') + (reviewerName ? '<div style="display:grid;gap:4px"><strong style="border-top:1px solid #667;padding-top:4px;min-width:120px">' + escapeHtml(reviewerName) + '</strong><small>المراجع / المعتمد</small></div>' : '') + '</section>' : '') +
     (showPrintFooter ? '<footer class="report-footer" style="grid-template-columns:' + footerGridColumns + '"><div class="footer-right">' + footerAddresses + '</div>' + footerCenterMarkup + '<div class="footer-left">' + footerContacts + '</div>' + (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</footer>' : '') + '</body></html>';
-  state.reportPreviewHtml.set(visitId,html);
-  win.document.open(); win.document.write(html); win.document.close();
+  const reportHtml = partialReport
+    ? html.replace('<div class="report-cover-meta">','<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">تقرير جزئي — بعض النتائج لم تصدر بعد. هذه النسخة لا تمثل اعتمادًا نهائيًا للزيارة.</div><div class="report-cover-meta">')
+    : html;
+  state.reportPreviewHtml.set(visitId,reportHtml);
+  win.document.open(); win.document.write(reportHtml); win.document.close();
   const printWhenReady = () => { try { win.focus(); if (autoPrint) win.print(); } catch (error) { showNotice('تم فتح التقرير؛ استخدم أمر الطباعة من المتصفح.', true); } };
   const images = [...win.document.images];
   if (!images.length) setTimeout(printWhenReady, 250);
@@ -946,6 +968,7 @@ async function saveVisitDraftsAction(button) {
       await refreshWork();
     } else {
       showNotice('تم حفظ النتائج وحساب البارامترات المشتقة تلقائيًا على السحابة. أكمل بقية النتائج ثم اعتمد الزيارة.');
+      await refreshWork();
     }
   } catch (error) {
     showNotice(error.message || 'تعذر حفظ نتائج الزيارة.', true);
@@ -1062,12 +1085,15 @@ async function approve(button) {
 }
 async function publish(button) {
   let reportWindow=null;
+  const partial=button.dataset.partial==='true';
   try {
     requireCloudConnection('نشر التقرير');
     if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ النتائج التي أدخلتها قبل نشر التقرير.');
     const visitId=button.dataset.visitId;
     const visitState=state.work.find(item=>item.visit_id===visitId)?.visits;
-    if(!visitState||(visitState.status!=='approved'&&!visitState.is_published))throw new Error('اعتمد الزيارة بالكامل قبل نشر التقرير.');
+    if(!visitState)throw new Error('تعذر تحديد الزيارة المراد نشرها.');
+    if(partial && (visitState.is_published || visitState.status==='approved'))throw new Error('الزيارة معتمدة بالفعل؛ استخدم مسار نشر التقرير النهائي أو التصحيح.');
+    if(!partial && visitState.status!=='approved'&&!visitState.is_published)throw new Error('اعتمد الزيارة بالكامل قبل نشر التقرير.');
     if(!state.previewedVisits.has(visitId))throw new Error('افتح معاينة نتائج الزيارة وراجع التقرير قبل النشر.');
     const reportHtml=state.reportPreviewHtml.get(visitId);
     if(!reportHtml)throw new Error('معاينة التقرير غير موجودة في الذاكرة. افتح المعاينة مرة أخرى ثم أعد النشر.');
@@ -1079,7 +1105,11 @@ async function publish(button) {
     reportWindow.document.close();
 
     const allVisitItems=await listVisitWorkForReport({tenantId:state.tenant.id,branchId:state.branch.id,visitId});
-    if(allVisitItems.some(item=>item.status!=='completed'))throw new Error('لا يمكن نشر تقرير نهائي قبل اكتمال جميع التحاليل. يمكنك طباعة النتائج المكتملة كتقرير جزئي فقط.');
+    if(!allVisitItems.length)throw new Error('لا توجد تحاليل مرتبطة بهذه الزيارة.');
+    if(partial){
+      const savedResults=await listResultsForVisitTests({tenantId:state.tenant.id,visitTestIds:allVisitItems.map(item=>item.id)});
+      if(!savedResults.length)throw new Error('احفظ نتيجة واحدة على الأقل قبل نشر التقرير الجزئي.');
+    }else if(allVisitItems.some(item=>item.status!=='completed'))throw new Error('لا يمكن نشر التقرير النهائي قبل اكتمال جميع التحاليل.');
     const isCorrection=allVisitItems[0]?.visits?.is_published||state.work.some(item=>item.visit_id===visitId&&item.visits?.is_published);
     const reason=isCorrection?'إصدار نسخة محدثة بعد تصحيح نتيجة':'';
 
@@ -1098,9 +1128,10 @@ async function publish(button) {
     }).from(reportWindow.document.body).outputPdf('blob');
     if(!(pdfBlob instanceof Blob)||pdfBlob.size<1000)throw new Error('تعذر إنشاء ملف PDF صالح من معاينة التقرير.');
     const file=new File([pdfBlob],`taiba-report-${visitId}.pdf`,{type:'application/pdf'});
-    await publishReportVersion({tenantId:state.tenant.id,branchId:state.branch.id,visitId,staffId:$('staffSelect').value,file,changeReason:reason});
+    await publishReportVersion({tenantId:state.tenant.id,branchId:state.branch.id,visitId,staffId:$('staffSelect').value,file,changeReason:reason,isPartial:partial});
+    if(partial)state.partialPublishedVisits.add(visitId);else state.partialPublishedVisits.delete(visitId);
     state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
-    showNotice('تم إنشاء PDF من نفس معاينة التقرير ورفعه تلقائيًا إلى بوابة المريض.');
+    showNotice(partial?'تم نشر التقرير الجزئي على بوابة المريض. الزيارة ما زالت مفتوحة وغير معتمدة.':'تم إنشاء PDF من نفس معاينة التقرير ورفعه تلقائيًا إلى بوابة المريض.');
     try{await refreshWork();}catch(error){showNotice('تم نشر التقرير بنجاح، لكن تعذر تحديث قائمة النتائج تلقائيًا.',true);}
   } catch(error) {
     showNotice(error.message||'تعذر إنشاء التقرير أو نشره.',true);
@@ -1108,6 +1139,23 @@ async function publish(button) {
     if(reportWindow&&!reportWindow.closed)reportWindow.close();
     setBusy(button,false);
   }
+}
+
+async function sharePartialReport(button){
+  const card=button.closest('.work-card');
+  const phone=String(card?.dataset.patientPhone||'').replace(/\\D/g,'');
+  const patientName=String(card?.dataset.patientName||'').trim();
+  const visitNumber=String(card?.dataset.visitNumber||'').trim();
+  if(!phone||!patientName||!visitNumber){showNotice('رقم الهاتف أو بيانات الزيارة غير مكتملة لإرسال واتساب.',true);return;}
+  let whatsappNumber=phone;
+  if(whatsappNumber.startsWith('0'))whatsappNumber='20'+whatsappNumber.slice(1);
+  else if(whatsappNumber.startsWith('1')&&whatsappNumber.length===10)whatsappNumber='20'+whatsappNumber;
+  if(whatsappNumber.length<10){showNotice('رقم الهاتف غير صالح لإرسال واتساب.',true);return;}
+  const portalUrl=new URL('../portal/',globalThis.location.href);
+  portalUrl.searchParams.set('lab',state.tenant.slug);
+  const message='تم إصدار تقرير جزئي من '+(state.tenant.name||'المعمل')+'، وبعض النتائج لم تصدر بعد.\\nاسم المريض: '+patientName+'\\nرقم الزيارة: '+visitNumber+'\\nللاطلاع على التقرير، افتح بوابة النتائج وأدخل الاسم ورقم الزيارة:\\n'+portalUrl.href;
+  const url='https://wa.me/'+whatsappNumber+'?text='+encodeURIComponent(message);
+  window.open(url,'_blank','noopener,noreferrer');
 }
 
 async function searchHistorical(){
