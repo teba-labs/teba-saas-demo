@@ -33,7 +33,7 @@ test('partial printing includes saved results from incomplete tests and never in
   assert.match(workbench, /تقرير جزئي — بعض النتائج لم تصدر بعد/);
   assert.match(workbench, /return '';/);
   assert.match(workbench, /state\.portalEnabled && hasAnySavedResults/);
-  assert.match(workbench, /from\('site_settings'\)/);
+  assert.match(workbench, /functions\.invoke\('patient-portal-config'/);
   assert.match(workbench, /state\.portalEnabled && group\.visit\?\.patients\?\.phone/);
 });
 
