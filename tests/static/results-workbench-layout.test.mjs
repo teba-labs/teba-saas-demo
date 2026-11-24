@@ -39,13 +39,13 @@ test('hide and restore are branch-scoped, audited, and never hard-delete medical
  assert.ok(!layout.includes('.delete('));
 });
 
-test('WhatsApp shares only the patient portal lookup route after publication and with a valid phone',()=>{
- for(const value of ['record.published','wa.me','tenantSlug','portal/index.html']) assert.ok(layout.includes(value),value);
+test('WhatsApp sharing stays disabled unless the optional patient portal is enabled',()=>{
+ for(const value of ['record.published','wa.me','tenantSlug','portal/index.html','isPatientPortalEnabled','settings?.enabled === true','whatsapp.disabled=true','APP_ENV.supabase.url','/^20\\d{9,11}$/']) assert.ok(layout.includes(value),value);
 });
 
-test('test cards open inline in the same workbench instead of forcing navigation to another page',()=>{
+test('test cards open in a same-screen modal instead of navigating to another page',()=>{
  assert.match(layout,/function testLauncher\(node,record,kind,workspace\)/);
- assert.match(layout,/test-detail/);
+ assert.match(layout,/result-entry-modal/);
  assert.match(layout,/placeholder\.replaceWith\(node\)/);
  assert.doesNotMatch(layout,/location\.href=url\.href/);
 });
@@ -54,4 +54,25 @@ test('dedicated result entry page exposes visit-wide save, approval and preview 
  assert.ok(layout.includes('اعتماد الزيارة'));
  assert.match(layout,/window\.taibaApproveVisit/);
  assert.match(layout,/window\.taibaPreviewVisitReport/);
+});
+
+test('individual and profile result forms open in an accessible same-screen modal with preserved return and save-complete actions',()=>{
+ assert.match(layout,/result-entry-modal/);
+ assert.match(layout,/role','dialog'/);
+ assert.match(layout,/aria-modal','true'/);
+ assert.match(layout,/رجوع دون فقد المدخلات/);
+ assert.match(layout,/window\.taibaSaveAndMaybeApproveVisit\(record\.visitId,node\.dataset\.testId\)/);
+ assert.doesNotMatch(layout,/taibaSaveAndCompleteTest/);
+ assert.match(layout,/taiba:results-work-refresh/);
+ assert.match(layout,/node\.dataset\.resultSaved/);
+ assert.match(layout,/node\.addEventListener\('input'/);
+ assert.match(js,/window\.taibaSaveAndMaybeApproveVisit = saveAndMaybeApproveVisit/);
+ assert.match(js,/approveVisitWithAutoCompletion/);
+ assert.match(js,/saveAndMaybeApproveVisit/);
+ assert.match(js,/completeVisitTestAtomic/);
+ assert.match(js,/partialReport/);
+ assert.match(js,/طباعة النتائج المكتملة فقط/);
+ assert.doesNotMatch(js,/سبب تصحيح النتيجة المنشورة/);
+ assert.match(read('assets/css/results-workbench.css'),/\.result-entry-modal/);
+ assert.doesNotMatch(layout,/className='test-detail'/);
 });

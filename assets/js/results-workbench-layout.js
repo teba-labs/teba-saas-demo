@@ -1,9 +1,26 @@
 import { listCatalog } from '../../modules/catalog/repository.js';
 import { addTestToVisit } from '../../modules/reception/repository.js';
 import { listHiddenWorkbenchVisits, setVisitWorkbenchHidden } from '../../modules/laboratory/repository.js';
+import { APP_ENV } from '../../config/environment.js';
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let selectedVisitId = null, catalogCache = null, rebuilding = false;
+const portalEnabledCache = new Map();
+async function isPatientPortalEnabled(slug) {
+  if (!slug) return false;
+  if (!portalEnabledCache.has(slug)) {
+    const request = fetch(APP_ENV.supabase.url + '/functions/v1/patient-portal-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: APP_ENV.supabase.publishableKey },
+      body: JSON.stringify({ slug })
+    }).then(async response => {
+      const data = await response.json().catch(() => ({}));
+      return response.ok && data.ok === true && data.settings?.enabled === true;
+    }).catch(() => false);
+    portalEnabledCache.set(slug, request);
+  }
+  return portalEnabledCache.get(slug);
+}
 function button(label, cls='button button-secondary'){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;return b;}
 if($('entryBack'))$('entryBack').addEventListener('click',event=>{
  if(window.taibaGetDirtyResultInputs?.().length){event.preventDefault();window.alert('احفظ كل نتائج الزيارة أولًا قبل الرجوع حتى لا تفقد أي قيمة أدخلتها.');}
@@ -48,23 +65,48 @@ function testLauncher(node,record,kind,workspace){
  open.innerHTML='<span><strong>'+esc(name)+'</strong><small>'+esc(status)+' · '+(kind==='profile'?'بروفايل':'تحليل فردي')+'</small></span><b class="launch-arrow" aria-hidden="true">←</b>';
  open.addEventListener('click',()=>{
   const list=workspace.querySelector('.test-launch-list');
-  if(!list)return;
-  const previous=workspace.querySelector('.test-detail');
-  if(previous){
-   const previousNode=previous.querySelector('.parameter[data-test-id]');
-   const previousMarker=previousNode&&document.querySelector('[data-test-placeholder="'+CSS.escape(previousNode.dataset.testId)+'"]');
-   if(previousNode&&previousMarker)previousMarker.replaceWith(previousNode);
-   previous.remove();list.hidden=false;
-  }
+  if(!list||document.querySelector('.result-entry-modal'))return;
   const placeholder=document.createElement('span');placeholder.hidden=true;placeholder.dataset.testPlaceholder=node.dataset.testId;
   node.before(placeholder);
-  const detail=document.createElement('section');detail.className='test-detail';
-  const back=button('رجوع لقائمة التحاليل','button button-secondary test-detail-back');
-  back.addEventListener('click',()=>{
-   placeholder.replaceWith(node);detail.remove();list.hidden=false;
+  const overlay=document.createElement('div');overlay.className='result-entry-modal';overlay.setAttribute('role','presentation');
+  const dialog=document.createElement('section');dialog.className='result-entry-dialog';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-labelledby','resultEntryModalTitle');
+  const head=document.createElement('header');head.className='result-entry-modal-head';
+  const heading=document.createElement('div');heading.innerHTML='<strong id="resultEntryModalTitle">'+esc(name)+'</strong><small>'+esc(record.title)+' · '+esc(record.visitDate||'')+'</small>';
+  const close=button('رجوع','button button-secondary result-entry-modal-close');close.setAttribute('aria-label','الرجوع لقائمة التحاليل');
+  head.append(heading,close);
+  const body=document.createElement('div');body.className='result-entry-modal-body';body.append(node);
+  const footer=document.createElement('footer');footer.className='result-entry-modal-foot';
+  const save=button('حفظ النتيجة','button button-primary result-entry-modal-save');
+  const back=button('رجوع دون فقد المدخلات','button button-secondary');
+  node.addEventListener('input',()=>{delete node.dataset.resultSaved;},true);
+  node.addEventListener('change',()=>{delete node.dataset.resultSaved;},true);
+  const closeModal=(forceRefresh=false)=>{const shouldRefresh=forceRefresh||node.dataset.resultSaved==='true';placeholder.replaceWith(node);overlay.remove();list.hidden=false;open.focus();if(shouldRefresh)window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));};
+  close.addEventListener('click',closeModal);back.addEventListener('click',closeModal);
+  overlay.addEventListener('click',event=>{if(event.target===overlay)closeModal();});
+  dialog.addEventListener('keydown',event=>{
+   if(event.key==='Escape'){event.preventDefault();closeModal();return;}
+   if(event.key==='Tab'){
+    const focusable=[...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')].filter(el=>!el.hidden);
+    if(!focusable.length)return;
+    const first=focusable[0],last=focusable[focusable.length-1];
+    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+   }
   });
-  detail.append(back,node);list.hidden=true;workspace.append(detail);
-  node.scrollIntoView({behavior:'smooth',block:'start'});
+  save.addEventListener('click',async()=>{
+   if(typeof window.taibaSaveAndMaybeApproveVisit!=='function'){window.alert('تعذر تحميل خدمة حفظ واعتماد التحليل.');return;}
+   save.disabled=true;save.textContent='جارٍ الحفظ والتحقق…';
+   try{
+    const result=await window.taibaSaveAndMaybeApproveVisit(record.visitId,node.dataset.testId);
+    if(result?.saved)node.dataset.resultSaved='true';
+    if(result?.completed){closeModal(true);}
+    else {save.disabled=false;save.textContent='حفظ واستكمال التحليل';}
+   }catch(error){save.disabled=false;save.textContent='حفظ واستكمال التحليل';window.alert(error.message||'تعذر حفظ التحليل أو استكماله.');}
+  });
+  footer.append(back,save);dialog.append(head,body,footer);overlay.append(dialog);document.body.append(overlay);
+  list.hidden=true;
+  const firstInput=node.querySelector('[data-param-code]:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)');
+  (firstInput||close).focus();
  });
  return open;
 }
@@ -112,9 +154,14 @@ function selectRecord(record,records,shell){
  const whatsapp=button('إرسال واتساب للنتائج','button button-secondary');
  const rawPhone=String(record.phone||'').replace(/[^0-9+]/g,'');let waPhone=rawPhone.replace(/^00/,'');
  if(waPhone.startsWith('0'))waPhone='20'+waPhone.slice(1);else if(waPhone.startsWith('+'))waPhone=waPhone.slice(1);
- const shareReady=record.published&&/^20\\d{9,11}$/.test(waPhone)&&Boolean(window.taibaResultsContext?.tenantSlug);
- whatsapp.disabled=!shareReady;whatsapp.title=shareReady?'إرسال رابط بوابة المريض عبر واتساب':'يتطلب رقم هاتف صالحًا وتقريرًا منشورًا ورمز معمل';
- whatsapp.addEventListener('click',()=>{if(!shareReady)return;const portal=new URL('../portal/index.html',location.href).href;const message='نتائج تحاليلك جاهزة من معامل '+(window.taibaResultsContext?.tenantSlug||'')+'. لعرض التقرير افتح بوابة النتائج: '+portal+' ثم أدخل رمز المعمل ورقم الزيارة '+record.visitNumber+' واسم المريض كما هو مسجل.';window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent(message),'_blank','noopener');});
+ const baseShareReady=record.published&&/^20\d{9,11}$/.test(waPhone)&&Boolean(window.taibaResultsContext?.tenantSlug);
+ whatsapp.disabled=true;whatsapp.title=baseShareReady?'جارٍ التحقق من تفعيل بوابة المريض…':'يتطلب رقم هاتف صالحًا وتقريرًا منشورًا ورمز معمل';
+ if(baseShareReady)isPatientPortalEnabled(window.taibaResultsContext.tenantSlug).then(enabled=>{
+   const shareReady=baseShareReady&&enabled;
+   whatsapp.disabled=!shareReady;
+   whatsapp.title=shareReady?'إرسال رابط بوابة المريض عبر واتساب':enabled?'تعذر تجهيز رابط البوابة الآن':'بوابة المريض غير مفعلة لهذا المعمل';
+ });
+ whatsapp.addEventListener('click',()=>{if(whatsapp.disabled)return;const portal=new URL('../portal/index.html',location.href).href;const message='نتائج تحاليلك جاهزة من معامل '+(window.taibaResultsContext?.tenantSlug||'')+'. لعرض التقرير افتح بوابة النتائج: '+portal+' ثم أدخل رمز المعمل ورقم الزيارة '+record.visitNumber+' واسم المريض كما هو مسجل.';window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent(message),'_blank','noopener');});
  actions.prepend(whatsapp);actions.prepend(hide);actions.prepend(preview);
  shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
  const canAdd=record.visitStatus!=='approved'&&!record.published;shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>{b.disabled=!canAdd;b.title=canAdd?'إضافة تحليل لهذه الزيارة':'لا يمكن إضافة تحاليل بعد اعتماد الزيارة أو نشرها';});

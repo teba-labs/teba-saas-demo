@@ -20,6 +20,8 @@ test('portal lookup is exact, tenant-scoped, and only returns published reports'
   assert.match(edge, /\.eq\('tenant_id', tenant\.id\)/);
   assert.match(edge, /normalizeName\(String\(\(row\.patients/);
   assert.match(edge, /\.eq\('is_published', true\)/);
+  assert.match(edge, /portalConfig\?\.portal_settings\?\.enabled !== true/);
+  assert.match(edge, /Patient portal enablement check failed/);
   assert.match(edge, /\.order\('version_number', \{ ascending: false \}\)/);
 });
 

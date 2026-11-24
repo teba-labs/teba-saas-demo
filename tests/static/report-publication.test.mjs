@@ -6,6 +6,7 @@ const migration = await readFile(new URL('../../database/migrations/003_atomic_r
 const edge = await readFile(new URL('../../supabase/functions/publish-report/index.ts', import.meta.url), 'utf8');
 const repo = await readFile(new URL('../../modules/reports/repository.js', import.meta.url), 'utf8');
 const config = await readFile(new URL('../../supabase/config.toml', import.meta.url), 'utf8');
+const optIn = await readFile(new URL('../../database/migrations/108_block_partial_report_publication.sql', import.meta.url), 'utf8');
 
  test('publication is a single authenticated database transaction', () => {
   assert.match(migration, /create or replace function public\.publish_report_version/i);
@@ -50,6 +51,7 @@ test('Edge Function accepts only bounded PDF files and reports RPC success', () 
   assert.match(edge, /%PDF-/);
   assert.match(edge, /userClient\.rpc\('publish_report_version'/);
   assert.match(edge, /versionNumber: version\.version_number/);
+  assert.match(edge, /بوابة المرضى غير مفعلة لهذا المعمل/);
 });
 
 test('staff publication endpoint keeps JWT verification enabled', () => {
@@ -60,4 +62,13 @@ test('staff publication endpoint keeps JWT verification enabled', () => {
   assert.match(repo, /functions\.invoke\('publish-report'/);
   assert.match(repo, /rpc\('correct_published_result'/);
   assert.doesNotMatch(repo, /from\('report_versions'\)\s*\.insert/);
+});
+
+test('patient portal is optional and final publication is blocked until all requested tests are complete', () => {
+  assert.ok(optIn.includes('alter column portal_settings set default'));
+  assert.ok(optIn.includes("'enabled', false"));
+  assert.ok(optIn.includes("ss.portal_settings @> '{\"enabled\":true}'::jsonb"));
+  assert.ok(optIn.includes('All visit tests must be completed before report publication'));
+  assert.ok(optIn.includes("[.]pdf' || chr(36)"));
+  assert.ok(!optIn.includes('patient_portal_enabled'));
 });

@@ -22,7 +22,7 @@ export async function findPatients({ tenantId, branchId, search, limit = 30 } = 
   const safeTerm = term.replace(/[%,_*]/g, ' ').replace(/\\s+/g, ' ').trim();
   if (safeTerm.length < 2) return [];
   const safeLimit = Math.min(Math.max(Number(limit) || 30, 1), 100);
-  const columns = 'id, tenant_id, branch_id, patient_number, full_name, phone, age_years, age_value, age_unit, sex, created_at';
+  const columns = 'id, tenant_id, branch_id, patient_number, full_name, phone, date_of_birth, age_years, age_value, age_unit, sex, created_at';
   const [byName, byPhone, byNumber] = await Promise.all([
     db().from(TABLES.patients).select(columns).eq('tenant_id', tenantId).eq('branch_id', branchId).ilike('full_name', `%${safeTerm}%`).order('full_name').limit(safeLimit),
     db().from(TABLES.patients).select(columns).eq('tenant_id', tenantId).eq('branch_id', branchId).ilike('phone', `%${safeTerm}%`).order('full_name').limit(safeLimit),
@@ -46,10 +46,16 @@ export async function createPatient({ tenantId, branchId, patient } = {}) {
   if (ageValue !== null && (!Number.isFinite(ageValue) || ageValue < 0 || ageValue > (ageUnit === 'days' ? 43800 : ageUnit === 'months' ? 1440 : 120))) {
     throw new Error('العمر المدخل خارج النطاق المسموح.');
   }
+  const dateOfBirth = patient.dateOfBirth || null;
+  if (dateOfBirth) {
+    const parsedDob = new Date(String(dateOfBirth) + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (Number.isNaN(parsedDob.getTime()) || parsedDob > today) throw new Error('تاريخ الميلاد غير صحيح.');
+  }
   const payload = {
     id: patient.id ?? uuid(), tenant_id: tenantId, branch_id: branchId,
     patient_number: patient.patientNumber ?? referenceCode('P'),
-    full_name: String(patient.fullName).trim(), phone: patient.phone ?? null,
+    full_name: String(patient.fullName).trim(), phone: patient.phone ?? null, date_of_birth: dateOfBirth,
     age_value: ageValue, age_unit: ageUnit, age_years: ageInYears(ageValue, ageUnit),
     sex: patient.sex ?? 'unknown', created_by_staff_id: patient.createdByStaffId ?? null,
   };

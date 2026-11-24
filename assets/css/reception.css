@@ -30,3 +30,6 @@
 .intake-block .post-save-actions{border-radius:16px;box-shadow:0 8px 24px #168C8C16}
 @media(max-width:850px){.shell{width:calc(100% - 24px)}.workspace-context{grid-template-columns:1fr}.selectors{grid-template-columns:repeat(2,minmax(0,1fr))}.intake-content{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.intake-block{padding:13px}}
 @media(max-width:620px){.shell{width:calc(100% - 14px)}.topbar{align-items:flex-start;flex-wrap:wrap}.top-actions{width:100%;flex-wrap:wrap}.selectors,.patient-fields,.visit-meta,.form-grid{grid-template-columns:1fr}.intake-content{grid-template-columns:1fr}.patient-block,.visit-block,.tests-block,.billing-block{grid-column:1}.intake-block{padding:12px}.intake-block .billing{grid-template-columns:1fr}.intake-block .main-actions .button{width:100%}.intake-block .post-save-actions .actions{display:grid;grid-template-columns:1fr;width:100%}}
+
+/* Inline owner-only pricing for newly provisioned catalog tests. */
+.quick-price{grid-column:1/-1;display:flex;gap:6px;align-items:center;margin-top:6px}.quick-price input{min-width:0;max-width:150px;padding:7px}.quick-price button{padding:7px 10px;font-size:12px}.price-missing{grid-column:1/-1;color:#8a5a16}@media(max-width:620px){.quick-price{flex-wrap:wrap}.quick-price input{flex:1;max-width:none}}

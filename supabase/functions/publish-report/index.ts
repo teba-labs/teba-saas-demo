@@ -90,7 +90,9 @@ Deno.serve(async (req) => {
     console.error('Atomic report publication failed:', publishError?.message);
     return reply({ ok: false, message: publishError?.message?.includes('reason')
       ? 'اكتب سبب التصحيح قبل نشر نسخة جديدة.'
-      : 'لم يتم نشر التقرير. راجع اكتمال النتائج واعتماد الزيارة وصلاحيات الفرع.' }, 409, origin);
+      : publishError?.message?.includes('Patient portal is disabled')
+        ? 'بوابة المرضى غير مفعلة لهذا المعمل. يمكنك طباعة التقرير وتسليمه دون نشره على البوابة.'
+        : 'لم يتم نشر التقرير. راجع اكتمال النتائج واعتماد الزيارة وصلاحيات الفرع.' }, 409, origin);
   }
 
   return reply({

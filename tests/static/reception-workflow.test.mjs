@@ -54,3 +54,30 @@ test('reception exposes working keyboard, catalog, billing, payment and print co
   assert.match(css, /@media\(max-width:620px\)/);
   assert.match(css, /:focus-visible/);
 });
+
+test('new patient keyboard flow advances Enter and accepts missing phone while supporting date of birth',()=>{
+  const html=read('app/reception.html');
+  const js=read('assets/js/reception.js');
+  assert.match(html,/id="patientPhone"[^>]*>/);
+  assert.doesNotMatch(html,/id="patientPhone"[^>]*required/);
+  assert.match(html,/id="patientDob"/);
+  assert.match(js,/dateOfBirth/);
+  assert.match(js,/syncAgeFromDob/);
+  assert.match(js,/unit:'days'/);
+  assert.match(js,/unit:'months'/);
+  assert.match(js,/unit:'years'/);
+  assert.match(js,/newPatientForm'\)\.addEventListener\('keydown'/);
+  assert.match(js,/fields\[index\+1\]/);
+  assert.match(js,/\(next\|\|\$\('createPatient'\)\)\.focus\(\)/);
+});
+
+
+test('outstanding balances can be queued offline without printing a final receipt before server acknowledgement',()=>{
+  const js=read('assets/js/reception.js');
+  const repo=read('modules/reception/repository.js');
+  assert.match(js,/recordPayment\(\{tenantId:state\.tenant\.id,branchId:state\.branch\.id,visitId:card\.dataset\.balanceVisit/);
+  assert.match(js,/payment\?\.queued/);
+  assert.match(js,/لا تطبع إيصالًا نهائيًا قبل تأكيد الخادم/);
+  assert.doesNotMatch(js,/التحصيل اللاحق من هذه الشاشة يحتاج اتصالًا حاليًا/);
+  assert.match(repo,/entityType: 'payment', action: 'create'/);
+});

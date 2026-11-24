@@ -76,3 +76,15 @@
 .button-primary{background:#176b5b;color:#fff;border:0;border-radius:9px;padding:12px 18px;font:inherit;font-weight:800;cursor:pointer}
 .button-primary:disabled{opacity:.55;cursor:not-allowed}
 @media(max-width:620px){.test-detail .parameter-grid{grid-template-columns:1fr}.entry-visit-actions{display:grid;grid-template-columns:1fr}.entry-visit-actions>*{width:100%}}
+
+/* Same-screen result-entry modal */
+.result-entry-modal{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vw,24px);background:rgba(9,20,28,.66);backdrop-filter:blur(3px)}
+.result-entry-dialog{display:flex;flex-direction:column;width:min(1040px,100%);max-height:min(92dvh,980px);background:var(--surface,#fff);color:var(--text,#17212b);border:1px solid var(--border,#dce5e8);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.28);overflow:hidden}
+.result-entry-modal-head,.result-entry-modal-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:var(--surface,#fff);border-bottom:1px solid var(--border,#dce5e8)}
+.result-entry-modal-head>div{display:grid;gap:5px}.result-entry-modal-head strong{font-size:18px}.result-entry-modal-head small{color:var(--muted,#64748b);font-size:12px}
+.result-entry-modal-body{padding:16px;overflow:auto;overscroll-behavior:contain}
+.result-entry-modal-body>.parameter{margin:0;box-shadow:none;border:0;padding:0}
+.result-entry-modal-body .parameter-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}
+.result-entry-modal-foot{border-top:1px solid var(--border,#dce5e8);border-bottom:0;justify-content:flex-start}
+.result-entry-modal-foot .result-entry-modal-save{margin-inline-start:auto}
+@media(max-width:640px){.result-entry-modal{padding:0;align-items:stretch}.result-entry-dialog{width:100%;max-height:100dvh;height:100dvh;border-radius:0}.result-entry-modal-head,.result-entry-modal-foot{padding:12px}.result-entry-modal-head strong{font-size:16px}.result-entry-modal-body{padding:10px}.result-entry-modal-foot{flex-wrap:wrap}.result-entry-modal-foot button{flex:1}.result-entry-modal-foot .result-entry-modal-save{margin-inline-start:0}}

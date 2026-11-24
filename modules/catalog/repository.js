@@ -5,8 +5,22 @@ import { cacheRows, getCachedRows, replaceCachedRows, replaceCachedCurrentPrices
 const db = () => getSupabaseClient();
 const required = (value, name) => { if (!value) throw new Error(`${name} is required.`); };
 
+export async function ensureTenantCoreCatalog(tenantId) {
+  required(tenantId, 'tenantId');
+  if (globalThis.navigator?.onLine === false) return { installed_count: 0, skipped: true };
+  const { data, error } = await db().rpc('ensure_tenant_core_catalog', { p_tenant_id: tenantId });
+  if (error && /PGRST202|could not find the function|schema cache/i.test(error.message || '')) {
+    return { installed_count: 0, available_count: 0, unavailable: true };
+  }
+  if (error) throw error;
+  return Array.isArray(data) ? (data[0] || { installed_count: 0 }) : (data || { installed_count: 0 });
+}
+
 export async function listCatalog({ tenantId, includeInactive = false } = {}) {
   required(tenantId, 'tenantId');
+  // Provision the reviewed Core library before listing tenant tests. This RPC is
+  // idempotent and only inserts missing definitions; it never overwrites tenant edits.
+  await ensureTenantCoreCatalog(tenantId);
   let query = db().from(TABLES.catalog)
     .select('id, tenant_id, code, name, test_kind, category, specimen, method, turnaround_minutes, instructions, is_active, updated_at, short_name, synonyms, loinc_code, clinical_category, clinical_purpose, service_type, patient_preparation, collection_requirements, specimen_requirements, transport_requirements, stability_requirements, rejection_criteria, biosafety_notes, critical_result_policy, reporting_notes, source_references, clinical_review_status, catalog_version')
     .eq('tenant_id', tenantId).order('name');

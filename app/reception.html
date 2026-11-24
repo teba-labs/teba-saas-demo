@@ -63,9 +63,10 @@
         <form id="newPatientForm" class="new-patient-form">
           <div class="form-grid patient-fields">
             <label for="patientName">اسم المريض <b>*</b><input id="patientName" maxlength="160" required autocomplete="off" placeholder="الاسم بالكامل"></label>
-            <label for="patientPhone">رقم الهاتف<input id="patientPhone" type="tel" inputmode="tel" maxlength="30" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
+            <label for="patientPhone">رقم الهاتف (اختياري)<input id="patientPhone" type="tel" inputmode="tel" maxlength="30" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
+            <label for="patientDob">تاريخ الميلاد (اختياري)<input id="patientDob" type="date" autocomplete="bday"></label>
             <label for="patientAge">العمر
-              <span class="age-control"><input id="patientAge" type="number" min="0" step="any" inputmode="decimal" placeholder="مثال: 5"><select id="patientAgeUnit" aria-label="وحدة العمر"><option value="years">سنة</option><option value="months">شهر</option><option value="days">يوم</option></select></span>
+              <span class="age-control"><input id="patientAge" type="number" min="0" step="any" inputmode="decimal" placeholder="يُحسب من تاريخ الميلاد عند إدخاله"><select id="patientAgeUnit" aria-label="وحدة العمر"><option value="years">سنة</option><option value="months">شهر</option><option value="days">يوم</option></select></span>
             </label>
             <label for="patientSex">النوع<select id="patientSex" required><option value="" disabled selected>اختر النوع</option><option value="male">ذكر</option><option value="female">أنثى</option><option value="unknown">غير محدد</option></select></label>
           </div>

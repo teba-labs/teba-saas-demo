@@ -1,7 +1,7 @@
 import { getCurrentSession, signInWithEmail, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
-import { listCatalog, listCurrentPrices, listTestParameters, saveCatalogTest, saveTestParameter, setTestParameterActive, setCurrentPrice, setBranchPrice, listMasterCatalogTests, importMasterCatalogTest } from '../../modules/catalog/repository.js';
+import { listCatalog, listCurrentPrices, listTestParameters, saveCatalogTest, saveTestParameter, setTestParameterActive, setCurrentPrice, setBranchPrice, listMasterCatalogTests, importMasterCatalogTest, setCatalogTestActive } from '../../modules/catalog/repository.js';
 import { parseFormulaExpression, formulaToExpression } from '../../modules/catalog/formula-engine.js';
 
 const $ = id => document.getElementById(id);
@@ -130,7 +130,7 @@ function updateFormulaFields(){
 
 function currentTest(){return state.tests.find(t=>t.id===state.selectedTest)||null;}
 function renderTests(){const term=$('search').value.trim().toLocaleLowerCase();const visible=state.tests.filter(t=>( $('showInactive').checked || t.is_active ) && (!term || `${t.name} ${t.code}`.toLocaleLowerCase().includes(term)));$('testList').innerHTML=visible.length?visible.map(t=>`<button type="button" class="test-item ${t.id===state.selectedTest?'selected':''}" data-id="${esc(t.id)}"><span><strong>${esc(t.name)}</strong><small>${esc(t.code)}${t.category?` · ${esc(t.category)}`:''} · ${t.test_kind==='panel'?'مجموعة بارامترات':'تحليل فردي'}</small></span><span class="meta"><span class="status ${t.is_active?'active':'inactive'}">${t.is_active?'نشط':'موقوف'}</span></span></button>`).join(''):'<p class="empty">لا توجد تحاليل مطابقة.</p>';}
-function resetTestForm(){state.selectionRequest++;state.selectedTest=null;$('editorTitle').textContent='إضافة تحليل جديد';$('testForm').reset();$('testActive').checked=true;$('testKind').value='individual';$('testKind').disabled=false;$('testStatus').textContent='تحليل جديد';$('testStatus').className='status';$('parameterSection').hidden=true;$('priceSection').hidden=true;state.parameters=[];state.selectedParameter=null;renderTests();}
+function resetTestForm(){state.selectionRequest++;state.selectedTest=null;$('editorTitle').textContent='إضافة تحليل جديد';$('testForm').reset();$('testActive').checked=true;$('testKind').value='individual';$('testKind').disabled=false;$('testStatus').textContent='تحليل جديد';$('testStatus').className='status';$('activateCatalogTest').hidden=true;$('parameterSection').hidden=true;$('priceSection').hidden=true;state.parameters=[];state.selectedParameter=null;renderTests();}
 function fillTestForm(test){state.selectedTest=test.id;$('editorTitle').textContent=`تعديل: ${test.name}`;$('testCode').value=test.code||'';$('testName').value=test.name||'';$('testKind').value=test.test_kind||'individual';$('testKind').disabled=true;$('testCategory').value=test.category||'';$('testSpecimen').value=test.specimen||'';$('testMethod').value=test.method||'';$('testTurnaround').value=test.turnaround_minutes??'';$('testInstructions').value=test.instructions||'';$('testActive').checked=!!test.is_active;
  $('testShortName').value=test.short_name||'';$('testSynonyms').value=(test.synonyms||[]).join(', ');$('testLoinc').value=test.loinc_code||'';
  $('testClinicalCategory').value=test.clinical_category||'';$('testClinicalPurpose').value=test.clinical_purpose||'';$('testServiceType').value=test.service_type||'laboratory_test';
@@ -139,7 +139,7 @@ function fillTestForm(test){state.selectedTest=test.id;$('editorTitle').textCont
  $('testStability').value=displayJson(test.stability_requirements);$('testRejection').value=(test.rejection_criteria||[]).join(', ');
  $('testCriticalPolicy').value=displayJson(test.critical_result_policy);$('testBiosafety').value=test.biosafety_notes||'';
  $('testReportingNotes').value=test.reporting_notes||'';$('testSources').value=displayJson(test.source_references);
- $('testReviewStatus').value=test.clinical_review_status||'needs_review';$('testStatus').textContent=test.is_active?'نشط':'موقوف';$('testStatus').className=`status ${test.is_active?'active':'inactive'}`;$('parameterSection').hidden=false;$('priceSection').hidden=false;renderTests();}
+ $('testReviewStatus').value=test.clinical_review_status||'needs_review';$('activateCatalogTest').hidden=!!test.is_active;$('testStatus').textContent=test.is_active?'نشط':'موقوف';$('testStatus').className=`status ${test.is_active?'active':'inactive'}`;$('parameterSection').hidden=false;$('priceSection').hidden=false;renderTests();}
 async function selectTest(id){const test=state.tests.find(t=>t.id===id);if(!test)return;const requestId=++state.selectionRequest;const tenantId=state.tenant.id;fillTestForm(test);state.selectedParameter=null;$('parameterForm').hidden=true;await Promise.all([loadParameters({tenantId,testId:test.id,requestId}),loadPrice()]);}
 async function loadCatalog(requestId=state.tenantRequest){const tenantId=state.tenant.id;const tests=await listCatalog({tenantId,includeInactive:true});if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.tests=tests;const ids=tests.map(t=>t.id);const priceBranchId=state.role==='owner'?null:state.tenant.branches?.[0]?.id||null;const prices=ids.length?await listCurrentPrices({tenantId,branchId:priceBranchId,testIds:ids}):[];if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.prices=new Map(prices.map(p=>[priceKey(p.test_id,p.branch_id),p]));renderTests();if(state.selectedTest){const found=state.tests.find(t=>t.id===state.selectedTest);if(found)await selectTest(found.id);else resetTestForm();}}
 async function loadParameters({tenantId=state.tenant?.id,testId=state.selectedTest,requestId=state.selectionRequest}={}){if(!tenantId||!testId)return;const rows=await listTestParameters({tenantId,testId,includeInactive:true});if(requestId!==state.selectionRequest||tenantId!==state.tenant?.id||testId!==state.selectedTest)return;state.parameters=rows;renderParameters();}
@@ -219,6 +219,17 @@ $('testForm').addEventListener('submit',async e=>{e.preventDefault();if(state.bu
  stabilityRequirements:parseJsonObjectField('testStability','الثبات'),rejectionCriteria:$('testRejection').value.split(',').map(x=>x.trim()).filter(Boolean),
  criticalResultPolicy:parseJsonObjectField('testCriticalPolicy','سياسة النتائج الحرجة'),biosafetyNotes:$('testBiosafety').value,
  reportingNotes:$('testReportingNotes').value,sourceReferences:parseJsonArrayField('testSources','المراجع العلمية'),clinicalReviewStatus:$('testReviewStatus').value}});if(isNew&&testKind==='individual'){await saveTestParameter({tenantId:state.tenant.id,testId:saved.id,parameter:{code:(`RES_${saved.code}`).slice(0,40),name:saved.name,valueType:'numeric',decimalPlaces:2,displayOrder:0,referenceRanges:[],choices:[],isRequired:true,isActive:true}});}notice(isNew&&testKind==='individual'?'تم إنشاء التحليل وإضافة خانة نتيجته تلقائيًا.':'تم حفظ بيانات التحليل.');await loadCatalog();await selectTest(saved.id);}catch(err){notice(err.message||'تعذر حفظ التحليل.',true);}finally{state.busy=false;setBusy(e.currentTarget,false);}});
+$('activateCatalogTest').addEventListener('click',async e=>{
+ const button=e.currentTarget;if(!state.selectedTest||button.disabled)return;
+ button.disabled=true;
+ try{
+  requireOnline();
+  const activated=await setCatalogTestActive({tenantId:state.tenant.id,testId:state.selectedTest,isActive:true});
+  notice('تم اعتماد تعريف التحليل وإتاحته للاستخدام. لم تتغير الأسعار أو بيانات الفروع، والحقول الفنية غير المتوفرة ظلت كما هي.');
+  await loadCatalog();await selectTest(activated.id);
+ }catch(error){notice(error.message||'تعذر اعتماد تعريف التحليل.',true);}
+ finally{button.disabled=false;}
+});
 $('parameterSection').addEventListener('click',async e=>{const edit=e.target.closest('[data-edit-param]');if(edit){editParameter(edit.dataset.editParam);return;}const toggle=e.target.closest('[data-toggle-param]');if(toggle){const p=state.parameters.find(x=>x.id===toggle.dataset.toggleParam);if(!p)return;try{requireOnline();await setTestParameterActive({tenantId:state.tenant.id,testId:state.selectedTest,parameterId:p.id,isActive:!p.is_active});notice(p.is_active?'تم إيقاف البارامتر.':'تم تنشيط البارامتر.');await loadParameters();}catch(err){notice(err.message,true);}}});
 $('newParameter').addEventListener('click',()=>{resetParameterForm();$('parameterForm').hidden=false;$('parameterForm').scrollIntoView({behavior:'smooth',block:'nearest'});});$('cancelParameter').addEventListener('click',resetParameterForm);
 $('parameterSource').addEventListener('change',updateFormulaFields);

@@ -8,7 +8,7 @@ const html=fs.readFileSync(new URL('app/settings.html',root),'utf8');
 const assets=fs.readFileSync(new URL('modules/settings/assets-repository.js',root),'utf8');
 
 test('report groups all individual tests together and renders every panel as its own page',()=>{
- for(const value of ["individualHtml = testSections.filter(section => section.kind !== 'panel' && section.hasContent)","profileHtml = testSections.filter(section => section.kind === 'panel' && section.hasContent)",'profile-report','groupedTestSections']) assert.ok(js.includes(value),value);
+ for(const value of ["individualHtml = testSections.filter(section => section.kind !== 'panel' && section.hasContent)","const profileSections = testSections.filter(section => section.kind === 'panel' && section.hasContent)",'profileSections.map','profile-report','groupedTestSections']) assert.ok(js.includes(value),value);
 });
 
 test('print settings include configurable three-zone header, footer, logo source and watermark',()=>{
@@ -23,7 +23,8 @@ test('print settings persist and reload the newly added options as structured JS
  assert.ok(settings.includes('savePrintSettings'));
  assert.ok(settings.includes('printWatermarkOpacity'));
  assert.ok(js.includes('canPrint ?'));
- assert.ok(js.includes('اعتمد الزيارة أولًا للطباعة'));
+ assert.ok(js.includes('أكمل تحليلًا واحدًا على الأقل قبل الطباعة الجزئية'));
+ assert.ok(js.includes('partialReport'));
  assert.ok(js.includes('state.previewedVisits.has(visitId)'));
  assert.ok(js.includes('identity-extra'));
  assert.ok(js.includes('print.showStamp'));
@@ -53,9 +54,9 @@ test('preprinted letterhead settings independently suppress lab header and foote
  assert.ok(settings.includes('فوتر المعمل مخفي'));
 });
 
-test('report uses compact continuous pagination and does not force every profile onto a new page',()=>{
- assert.ok(js.includes("'.profile-report{break-before:auto}"));
- assert.ok(!js.includes('break-before:page'));
+test('each profile starts on a separate page while the first profile avoids a blank leading page',()=>{
+ assert.ok(js.includes(".profile-report{break-before:page;page-break-before:always}"));
+ assert.ok(js.includes(".profile-report.first-profile{break-before:auto;page-break-before:auto}"));
  assert.ok(js.includes('hasContent'));
  assert.ok(js.includes('const reference = hasReference ?'));
  assert.ok(js.includes("'<section class=\"report-cover-meta\">"));
@@ -63,4 +64,15 @@ test('report uses compact continuous pagination and does not force every profile
 test('lab branding repeats separately from first-page patient and visit metadata',()=>{
  assert.ok(js.includes("'<header class=\"report-header\"><div class=\"header-grid\">"));
  assert.ok(js.includes("'<section class=\"report-cover-meta\"><h1>LABORATORY REPORT</h1>"));
+});
+
+
+test('partial results can be printed but never published to the patient portal before all tests complete',()=>{
+ const publication=fs.readFileSync(new URL('database/migrations/108_block_partial_report_publication.sql',root),'utf8');
+ assert.match(js,/const hasPendingTests = group\.items\.some/);
+ assert.match(js,/const partialReport = globalThis\.navigator/);
+ assert.match(js,/allVisitItems\.some\(item => item\.status !== 'completed'\)/);
+ assert.match(js,/لا يمكن نشر تقرير نهائي قبل اكتمال جميع التحاليل/);
+ assert.match(js,/التقرير الجزئي للطباعة فقط/);
+ assert.match(publication,/All visit tests must be completed before report publication/);
 });
