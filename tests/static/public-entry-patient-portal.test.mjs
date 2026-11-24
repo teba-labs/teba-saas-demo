@@ -32,7 +32,7 @@ test('visit number keeps the existing tenant/branch generator and stored value',
   assert.match(reception, /const visitNumber=\$\('visitNumber'\)\.value\|\|makeCode\('V'\)/);
   assert.match(reception, /visitNumber,staffId:currentStaff\(\)/);
   assert.match(results, /dataset\.visitNumber = group\.visit\?\.visit_number/);
-  assert.match(results, /const visitNumber=String\(card\?\.dataset\.visitNumber\|\|'\)\.trim\(\)/);
+  assert.match(results, /const visitNumber=String\\(card\\?\\.dataset\\.visitNumber\\|\\|''\\)\\.trim\\(\\)/);
 });
 
 test('WhatsApp sends the exact saved visit number and tenant portal link', () => {
