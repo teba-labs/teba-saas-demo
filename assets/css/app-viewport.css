@@ -267,3 +267,100 @@ body :is(.match,.selected,.visit-row,.movement,.attachment-item,.hidden-visit-ro
   body :is(.tabs,.settings-tabs,[role=tablist]){display:flex;flex-wrap:wrap;align-items:stretch;gap:7px}
   body :is(.tabs,.settings-tabs,[role=tablist])>*{flex:1 1 145px;min-width:0;max-width:100%}
 }
+
+
+/* Taiba-wide adaptive layout contract (all internal workspaces).
+   These rules are intentionally loaded after page CSS. CSS viewport width changes
+   with browser zoom, so cards, forms, tabs and work areas reflow rather than shrink. */
+body :is(.apps-grid,.owner-links,.owner-report-grid,.kpis,.secondary-kpis,.metrics,.modules,.cards){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));
+  min-width:0;
+}
+body :is(.fields,.form-grid,.filters,.selectors,.portal-settings,.parameter-grid,.culture-isolate-form,.culture-ast-form){
+  min-width:0;
+}
+body :is(.fields,.form-grid,.filters,.selectors,.portal-settings){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));
+}
+body :is(.settings-tabs,.tabs,.subtabs,[role=tablist]){
+  display:flex;
+  flex-wrap:wrap;
+  align-items:stretch;
+  gap:8px;
+  min-width:0;
+  max-width:100%;
+  overflow:visible;
+}
+body :is(.settings-tabs,.tabs,.subtabs,[role=tablist])>*{
+  flex:1 1 145px;
+  min-width:0;
+  max-width:100%;
+  white-space:normal;
+}
+body :is(.collection-layout,.identity-layout,.layout,.workspace-context,.login-layout){
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));
+}
+body :is(.intake-content,.results-columns){
+  min-width:0;
+}
+body :is(.item-editor,.collection-layout>*,.side,.history-analysis-results,.portal-preview){
+  min-width:0;
+  max-width:100%;
+}
+body :is(.item-editor,.panel,.hero,.work-card,.app-card,.owner-link,.kpi,.module-card){
+  overflow-wrap:anywhere;
+}
+body :is(.table-wrap,.table-scroll,.table-responsive){
+  display:block;
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+body :is(input,select,textarea){
+  width:auto;
+  min-width:0;
+  max-width:100%;
+}
+@media(max-width:1099px){
+  body :is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards){
+    grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));
+  }
+  body :is(.fields,.form-grid,.filters,.selectors,.portal-settings){
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:767px){
+  body :is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards,.fields,.form-grid,.filters,.selectors,.portal-settings,.collection-layout,.identity-layout,.layout,.workspace-context,.login-layout){
+    grid-template-columns:minmax(0,1fr);
+  }
+  body :is(.settings-tabs,.tabs,.subtabs,[role=tablist])>*{
+    flex:1 1 125px;
+  }
+  body :is(.topbar,.hero,.head,.heading,.section-head,.view-heading,.collection-toolbar,.workspace-heading){
+    height:auto;
+    min-height:0;
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+  body :is(.topbar,.hero,.head,.heading,.section-head,.view-heading,.collection-toolbar,.workspace-heading)>*{
+    min-width:0;
+    max-width:100%;
+  }
+  body :is(.panel,.card,.work-card,.editor-panel,.list-panel,.report-panel){
+    padding:clamp(11px,3vw,16px);
+  }
+}
+@media(max-width:420px){
+  body :is(.apps-grid,.owner-links,.owner-report-grid,.kpis,.secondary-kpis,.metrics,.modules,.cards,.fields,.form-grid,.filters,.selectors,.portal-settings){
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  body :is(.settings-tabs,.tabs,.subtabs,[role=tablist])>*{
+    flex-basis:100%;
+  }
+  body :is(.actions,.toolbar,.form-actions,.button-row)>:is(button,.button,.btn,a.button){
+    flex:1 1 100%;
+    width:100%;
+  }
+}
