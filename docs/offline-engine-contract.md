@@ -10,8 +10,7 @@ Last reviewed: 2026-11-25
 - The durable Outbox uses secure UUID operation IDs, tenant/branch scope, dependency ordering, expiring leases, bounded exponential retry, conflict records, and explicit server acknowledgement before an operation is removed.
 - Server adapters currently cover patient creation, visit intake, payment, expense, draft-result batches, culture isolates, and culture susceptibility rows. Their server writes use existing idempotent RPCs or stable row identities.
 - The reception/results path can create a local patient and visit, queue draft results behind intake, map local visit/test IDs to server IDs, restore pending draft values after navigation/reload, calculate supported formula ASTs locally for provisional display, and print an explicitly unapproved working copy.
-- Sync Center exposes queue counts, retry, conflict review, a versioned local-device backup/restore, browser storage durability/quota status, and an explicit branch-preparation action.
-- Branch preparation validates the signed-in user's tenant/branch access, then warms the active catalog, current branch prices, all active test-parameter snapshots, active staff, open workday, expense categories, lab identity, print settings, up to 10,000 patient rows, up to 500 worklist items, their result/culture data, the current cash snapshot, and latest closing. It reports missing prices, missing staff/workday, and any truncated data instead of falsely declaring the device ready. Backup restore is a tenant/branch-checked merge with SHA-256 integrity validation; it is not a full cloud backup and does not include remote Storage objects or records never cached on this device.
+- Sync Center exposes queue counts, retry, conflict review, and a versioned local-device backup/restore. Backup restore is a tenant/branch-checked merge with SHA-256 integrity validation; it is not a full cloud backup and does not include remote Storage objects or records never cached on this device.
 
 ## Hardening in this development branch
 
@@ -21,6 +20,7 @@ Last reviewed: 2026-11-25
 - The service worker uses a bounded network-first request and falls back to cached content after timeout or network failure.
 - A static integrity test verifies every local application-shell asset exists and all offline-critical modules are precached.
 - Sync Center requests persistent browser storage only after an explicit user click and reports browser quota; it never deletes local data when storage is low or persistence is denied.
+- Branch preparation validates the signed-in user's tenant/branch access, then warms the active catalog, current branch prices, all active test-parameter snapshots, active staff, open workday, expense categories, lab identity, print settings, up to 10,000 patient rows, up to 500 worklist items, their result/culture data, the current cash snapshot, and latest closing. It reports missing prices, missing staff/workday, and any truncated data instead of falsely declaring the device ready.
 - Service-worker network-first requests are time-bounded and fall back to cached assets when the connection stalls.
 - Outbox re-enqueue, dependency scope, and lease ownership are hardened against duplicate calls and stale concurrent sync attempts.
 
