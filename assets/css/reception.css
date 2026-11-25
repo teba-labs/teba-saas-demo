@@ -118,3 +118,91 @@ body.reception-page{height:100dvh;overflow:hidden}
  .reception-shell .intake-block{padding:13px}
  .reception-shell .section-divider p{font-size:11px}
 }
+
+
+/* Compact reception workbench: accordion navigation keeps the daily workflow in one viewport. */
+.reception-shell .intake-content.intake-flow{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-areas:"patient catalog cart";
+  align-items:start;
+  gap:12px;
+  height:min(66dvh,700px);
+  min-height:360px;
+  overflow:hidden;
+}
+.reception-shell .intake-column{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  min-height:0;
+  height:100%;
+  overflow:hidden;
+  border:1px solid var(--taiba-border);
+  border-radius:15px;
+  background:var(--taiba-surface);
+}
+.reception-shell .intake-column>summary{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:3px;
+  min-height:68px;
+  padding:12px 14px;
+  cursor:pointer;
+  list-style:none;
+  color:var(--taiba-text);
+  background:var(--taiba-surface-soft);
+  border-bottom:1px solid var(--taiba-border);
+  font-weight:900;
+}
+.reception-shell .intake-column>summary::-webkit-details-marker{display:none}
+.reception-shell .intake-column>summary::after{
+  content:"＋";
+  position:absolute;
+  inset-inline-end:14px;
+  top:18px;
+  color:var(--taiba-primary);
+  font-size:17px;
+}
+.reception-shell .intake-column>summary{position:relative;padding-inline-end:42px}
+.reception-shell .intake-column[open]>summary{background:var(--taiba-accent-soft)}
+.reception-shell .intake-column[open]>summary::after{content:"−"}
+.reception-shell .intake-column>summary span{font-size:13px}
+.reception-shell .intake-column>summary small{font-size:10px;color:var(--muted);font-weight:500}
+.reception-shell .intake-column-body{
+  display:grid!important;
+  flex:1;
+  align-content:start;
+  gap:10px;
+  min-height:0;
+  padding:11px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+.reception-shell .intake-column:not([open])>.intake-column-body{display:none!important}
+.reception-shell .intake-block{min-width:0;padding:13px;box-shadow:none}
+.reception-shell .intake-block .catalog-list{max-height:calc(66dvh - 260px);min-height:130px;overflow:auto}
+.reception-shell .patient-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.reception-shell .visit-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
+.reception-shell .billing{grid-template-columns:repeat(2,minmax(0,1fr))}
+.reception-shell .selected-tests-list{max-height:220px;overflow:auto}
+.reception-shell .section-divider{margin:0 0 12px}
+.reception-shell .intake-block .section-divider h3{font-size:14px}
+.reception-shell .intake-block .section-divider p{font-size:10px}
+.reception-shell .new-patient-form{padding:5px 8px 10px}
+.reception-shell .main-actions .button{width:100%}
+@media(max-width:1050px){
+ .reception-shell .intake-content.intake-flow{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"patient patient" "catalog cart";height:68dvh}
+ .reception-shell .patient-column{grid-area:patient}
+ .reception-shell .catalog-column{grid-area:catalog}
+ .reception-shell .cart-column{grid-area:cart}
+}
+@media(max-width:700px){
+ .reception-page>.reception-shell{height:auto;min-height:calc(100dvh - 56px);overflow:visible}
+ .reception-shell .intake-content.intake-flow{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"patient" "catalog" "cart";height:auto;min-height:0;overflow:visible}
+ .reception-shell .intake-column{height:auto;min-height:0}
+ .reception-shell .intake-column-body{max-height:58dvh;overflow:auto}
+ .reception-shell .patient-fields,.reception-shell .visit-meta{grid-template-columns:minmax(0,1fr)}
+ .reception-shell .billing{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
