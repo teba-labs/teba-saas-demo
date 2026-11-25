@@ -313,6 +313,7 @@ async function renderWork() {
       <div class="file-row report-publish-row"><p class="muted">بعد معاينة التقرير النهائي واعتماد الزيارة، انشر النسخة النهائية على بوابة المريض.</p><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${!state.portalEnabled ? 'بوابة المريض غير مفعلة' : isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير النهائي'}</button></div>
       ${canPublishPartial ? '<div class="file-row report-publish-row"><p class="muted">يمكن نشر النتائج المحفوظة الآن كتقرير جزئي دون اعتماد الزيارة أو إغلاقها.</p><button class="button button-secondary publish-partial-report" data-partial="true" data-visit-id="' + escapeHtml(visitId) + '">' + (isPartialPublished ? 'نشر تحديث جزئي' : 'نشر تقرير جزئي') + '</button></div>' : ''}
       ${isPartialPublished && state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-partial-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط التقرير الجزئي عبر واتساب</button></div>' : ''}
+      ${isPublished && state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-published-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط التقرير النهائي عبر واتساب</button></div>' : ''}
       ${hasAnySavedResults && !state.portalEnabled ? '<p class="muted">الطباعة الجزئية متاحة الآن؛ فعّل بوابة المريض من إعدادات الموقع لإتاحة النشر وواتساب.</p>' : ''}
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
@@ -347,6 +348,7 @@ async function renderWork() {
   host.querySelectorAll('.mark-work-copy-delivered').forEach(btn => btn.addEventListener('click', () => markWorkCopyDelivered(btn)));
   host.querySelectorAll('.publish-report, .publish-partial-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
   host.querySelectorAll('.share-partial-report').forEach(btn => btn.addEventListener('click', () => sharePartialReport(btn)));
+  host.querySelectorAll('.share-published-report').forEach(btn => btn.addEventListener('click', () => sharePublishedReport(btn)));
   host.querySelectorAll('.upload-attachment').forEach(btn => btn.addEventListener('click', () => uploadAttachment(btn)));
   host.querySelectorAll('.list-attachments').forEach(btn => btn.addEventListener('click', () => loadAttachments(btn.dataset.visitId)));
   host.querySelectorAll('.attachment-download').forEach(btn => btn.addEventListener('click', () => downloadAttachment(btn)));
@@ -1169,22 +1171,37 @@ async function publish(button) {
   }
 }
 
-async function sharePartialReport(button){
-  if(globalThis.navigator?.onLine===false){showNotice('إرسال رابط التقرير عبر واتساب يحتاج اتصالًا بالإنترنت.',true);return;}
+function normalizeWhatsAppNumber(value) {
+  let phone=String(value||'').replace(/\D/g,'');
+  if(phone.startsWith('00'))phone=phone.slice(2);
+  if(phone.startsWith('0'))phone='20'+phone.slice(1);
+  else if(phone.length===10&&/^1[0125]/.test(phone))phone='20'+phone;
+  if(!/^\d{10,15}$/.test(phone))throw new Error('رقم الهاتف غير صالح لإرسال واتساب. راجع رقم المريض في الاستقبال.');
+  return phone;
+}
+function sharePortalLinkViaWhatsApp(button, publicationType) {
+  if(globalThis.navigator?.onLine===false)throw new Error('إرسال رابط التقرير عبر واتساب يحتاج اتصالًا بالإنترنت.');
   const card=button.closest('.work-card');
-  const phone=String(card?.dataset.patientPhone||'').replace(/\D/g,'');
   const patientName=String(card?.dataset.patientName||'').trim();
   const visitNumber=String(card?.dataset.visitNumber||'').trim();
-  if(!phone||!patientName||!visitNumber){showNotice('رقم الهاتف أو بيانات الزيارة غير مكتملة لإرسال واتساب.',true);return;}
-  let whatsappNumber=phone;
-  if(whatsappNumber.startsWith('0'))whatsappNumber='20'+whatsappNumber.slice(1);
-  else if(whatsappNumber.startsWith('1')&&whatsappNumber.length===10)whatsappNumber='20'+whatsappNumber;
-  if(whatsappNumber.length<10){showNotice('رقم الهاتف غير صالح لإرسال واتساب.',true);return;}
+  const phone=normalizeWhatsAppNumber(card?.dataset.patientPhone||'');
+  if(!patientName||!visitNumber)throw new Error('اسم المريض أو رقم الزيارة غير مكتمل.');
   const portalUrl=new URL('../portal/',globalThis.location.href);
   portalUrl.searchParams.set('lab',state.tenant.slug);
-  const message='تم إصدار تقرير جزئي من '+(state.tenant.name||'المعمل')+'، وبعض النتائج لم تصدر بعد.\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\nللاطلاع على التقرير، افتح بوابة النتائج وأدخل الاسم ورقم الزيارة:\n'+portalUrl.href;
-  const url='https://wa.me/'+whatsappNumber+'?text='+encodeURIComponent(message);
+  const intro=publicationType==='partial'
+    ? 'تم إصدار تقرير جزئي من '+(state.tenant.name||'المعمل')+'، وبعض النتائج لم تصدر بعد.'
+    : 'تم نشر التقرير النهائي من '+(state.tenant.name||'المعمل')+'. يمكنك الآن الاطلاع على النتائج وتحميل التقرير.';
+  const message=intro+'\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\nافتح بوابة النتائج وأدخل الاسم ورقم الزيارة لعرض التقرير وتحميله:\n'+portalUrl.href;
+  const url='https://wa.me/'+phone+'?text='+encodeURIComponent(message);
   window.open(url,'_blank','noopener,noreferrer');
+}
+async function sharePartialReport(button){
+  try{sharePortalLinkViaWhatsApp(button,'partial');}
+  catch(error){showNotice(error.message||'تعذر تجهيز رسالة واتساب.',true);}
+}
+async function sharePublishedReport(button){
+  try{sharePortalLinkViaWhatsApp(button,'final');}
+  catch(error){showNotice(error.message||'تعذر تجهيز رسالة واتساب.',true);}
 }
 
 async function searchHistorical(){
