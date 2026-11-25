@@ -75,7 +75,7 @@ Deno.serve(async(request:Request)=>{
         final_publication:Boolean(visit.is_published),
       },
       reason:visit.is_published?'Printed copy of an already published report handed over.':'Printed work copy handed over; this event is not a final report approval or publication.',
-      occurred_at:deliveredAt,
+      occurred_at:new Date().toISOString(),
     };
     const {data:existing,error:existingError}=await admin.from('audit_logs')
       .select('id,tenant_id,branch_id,actor_user_id,actor_staff_id,action,record_id,new_data')
