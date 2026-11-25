@@ -8,6 +8,11 @@ const js=readFileSync(path.join(root,'website/public-site-page.js'),'utf8');
 const css=readFileSync(path.join(root,'website/site.css'),'utf8');
 const ui=readFileSync(path.join(root,'website/public-site-ui.js'),'utf8');
 const workflow=readFileSync(path.join(root,'.github/workflows/public-website-preview.yml'),'utf8');
+const migration=readFileSync(path.join(root,'database/migrations/113_public_site_booking_requests.sql'),'utf8');
+const edge=readFileSync(path.join(root,'supabase/functions/submit-site-request/index.ts'),'utf8');
+const repository=readFileSync(path.join(root,'website/cms-repository.js'),'utf8');
+const studio=readFileSync(path.join(root,'app/cms-editor.html'),'utf8');
+const editor=readFileSync(path.join(root,'assets/js/cms-editor.js'),'utf8');
 
 test('public website uses the approved Taiba premium design system',()=>{
   assert.match(html,/family=Almarai/);
@@ -37,4 +42,30 @@ test('preview deployment uses GitHub Pages from main without Netlify credentials
   assert.match(workflow,/actions\/deploy-pages@v4/);
   assert.match(workflow,/enablement: true/);
   assert.doesNotMatch(workflow,/NETLIFY_|netlify-cli/);
+});
+
+test('home sampling and package inquiry requests are submitted to the secure cloud endpoint',()=>{
+  assert.match(html,/id="homeSamplingRequest"/);
+  assert.match(html,/id="siteRequestForm"/);
+  assert.match(js,/functions\.invoke\('submit-site-request'/);
+  assert.match(js,/data-package-request/);
+  assert.match(edge,/submit-site-request|site_booking_requests/);
+  assert.match(edge,/PORTAL_HASH_SECRET/);
+  assert.match(edge,/consume_site_request_attempt/);
+  assert.match(edge,/\.eq\('tenant_id', tenant\.id\)/);
+});
+test('public request data is private to the tenant owner and rate limited',()=>{
+  assert.match(migration,/create table if not exists public\.site_booking_requests/i);
+  assert.match(migration,/enable row level security/i);
+  assert.match(migration,/private\.is_tenant_owner\(tenant_id\)/);
+  assert.match(migration,/revoke all on table public\.site_booking_requests from public, anon/i);
+  assert.match(migration,/consume_site_request_attempt/);
+  assert.doesNotMatch(migration,/grant .* to anon/i);
+});
+test('website studio can review requests and update status without deleting them',()=>{
+  assert.match(studio,/id="view-requests"/);
+  assert.match(editor,/listSiteRequests/);
+  assert.match(editor,/updateSiteRequestStatus/);
+  assert.match(repository,/\.eq\('tenant_id', tenantId\)/);
+  assert.doesNotMatch(repository,/\.delete\(\)/);
 });
