@@ -87,6 +87,10 @@ async function refreshOperationalStatus() {
   }
 }
 async function prepareTenantCatalog(tenantId) {
+  if (globalThis.navigator?.onLine === false) {
+    const tests = await listCatalog({ tenantId });
+    return { bootstrap: { skipped: true, unavailable: tests.length === 0, available_count: tests.length, offline_cache: true }, tests };
+  }
   const bootstrap = await ensureTenantCoreCatalog(tenantId);
   const tests = await listCatalog({ tenantId });
   if (globalThis.navigator?.onLine !== false && tests.length) {
