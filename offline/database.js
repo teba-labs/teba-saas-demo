@@ -33,3 +33,39 @@ export async function assertOfflineDatabaseReady() {
   await offlineDb.open();
   return offlineDb.tables.map(table => table.name);
 }
+
+
+/**
+ * Report browser storage durability and quota without modifying or deleting
+ * any local records. Persistent storage is best-effort and browser-controlled.
+ */
+export async function getOfflineStorageHealth() {
+  const storage = globalThis.navigator?.storage;
+  if (!storage) return { supported: false, persistent: false, usage: null, quota: null, remaining: null, usageRatio: null };
+
+  let persistent = false;
+  let estimate = {};
+  try { if (typeof storage.persisted === 'function') persistent = await storage.persisted(); } catch { /* report unknown as not persistent */ }
+  try { if (typeof storage.estimate === 'function') estimate = await storage.estimate(); } catch { /* quota may be unavailable */ }
+
+  const usage = Number.isFinite(estimate.usage) ? estimate.usage : null;
+  const quota = Number.isFinite(estimate.quota) ? estimate.quota : null;
+  const remaining = usage !== null && quota !== null ? Math.max(0, quota - usage) : null;
+  const usageRatio = usage !== null && quota > 0 ? usage / quota : null;
+  return {
+    supported: typeof storage.persist === 'function',
+    persistent,
+    usage,
+    quota,
+    remaining,
+    usageRatio,
+  };
+}
+
+/** Call only from an explicit user action; the browser decides whether to grant persistence. */
+export async function requestPersistentOfflineStorage() {
+  const storage = globalThis.navigator?.storage;
+  if (!storage || typeof storage.persist !== 'function') return getOfflineStorageHealth();
+  try { await storage.persist(); } catch { /* return the actual browser-reported state below */ }
+  return getOfflineStorageHealth();
+}
