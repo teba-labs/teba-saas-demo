@@ -126,6 +126,9 @@ async function queueLocalVisitApproval({tenantId,branchId,visitId,staffId}={}) {
   const results=(await getCachedRows('test_results',{tenantId,branchId})).filter(row=>testIds.has(row.visit_test_id));
   const resultFingerprint=await fingerprintVisitResults({visitTests,results});
   const pending=await offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray();
+  const existingApproval=pending.find(row=>row.entity_type==='visit_approval'&&row.payload?.visit_id===visitId);
+  if(existingApproval?.status==='conflict')throw new Error('يوجد اعتماد محلي متعارض لهذه الزيارة؛ راجع مركز المزامنة قبل إعادة الاعتماد.');
+  if(existingApproval)return {queued:true,localApproval:true,operationId:existingApproval.operation_id,approvedAt:existingApproval.payload?.approved_at,alreadyQueued:true};
   const dependsOn=pending.map(row=>row.operation_id);
   if(visit.local_intake_operation_id&&!dependsOn.includes(visit.local_intake_operation_id))dependsOn.push(visit.local_intake_operation_id);
   const operationId=crypto.randomUUID(),approvedAt=new Date().toISOString();
