@@ -127,7 +127,9 @@ async function queueLocalVisitApproval({tenantId,branchId,visitId,staffId}={}) {
   if(!results.length)throw new Error('لا توجد نتائج محفوظة محليًا يمكن اعتمادها؛ أدخل النتائج أولًا.');
   const resultFingerprint=await fingerprintVisitResults({visitTests,results});
   const pending=await offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray();
-  const existingApproval=pending.find(row=>row.entity_type==='visit_approval'&&row.payload?.visit_id===visitId);
+  const visitMaps=await offlineDb.sync_meta.toArray();
+  const existingApproval=pending.find(row=>row.entity_type==='visit_approval'&&(row.payload?.visit_id===visitId
+    ||visitMaps.some(mapping=>mapping.tenant_id===tenantId&&mapping.branch_id===branchId&&mapping.local_visit_id===row.payload?.visit_id&&mapping.server_visit_id===visitId)));
   if(existingApproval?.status==='conflict')throw new Error('يوجد اعتماد محلي متعارض لهذه الزيارة؛ راجع مركز المزامنة قبل إعادة الاعتماد.');
   if(existingApproval)return {queued:true,localApproval:true,operationId:existingApproval.operation_id,approvedAt:existingApproval.payload?.approved_at,alreadyQueued:true};
   const dependsOn=pending.map(row=>row.operation_id);
