@@ -61,7 +61,7 @@ test('new patient requires manually entered age and unit while birth date stays 
   assert.match(html,/id="patientPhone"[^>]*>/);
   assert.doesNotMatch(html,/id="patientPhone"[^>]*required/);
   assert.match(html,/id="patientAge"[^>]*required/);
-  assert.match(html,/id="patientAgeUnit" required/);
+  assert.match(html,/id="patientAgeUnit"[^>]*required/);
   assert.match(html,/id="patientDob"/);
   assert.doesNotMatch(html,/id="patientDob"[^>]*required/);
   assert.match(js,/dateOfBirth/);
