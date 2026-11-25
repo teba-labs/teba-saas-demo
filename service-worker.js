@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v49';
+const CACHE_NAME = 'taiba-smart-lab-shell-v50';
 const APP_SHELL = [
   './app/index.html', './app/site-preview.html', './website/index.html', './website/site.css', './website/public-site-ui.js', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/result-entry.html', './app/sync-center.html',
   './app/dashboard.html', './portal/index.html', './app/cms-editor.html', './app/platform-admin.html', './app/site-management.html', './app/settings.html', './app/data-import.html',
@@ -12,6 +12,16 @@ const APP_SHELL = [
   './modules/results/repository.js', './modules/results/input-mode.js', './modules/reports/repository.js', './modules/settings/repository.js', './modules/settings/assets-repository.js', './modules/settings/audit-repository.js', './modules/settings/cloud-backup-repository.js', './modules/staff/repository.js',
   './modules/workday/repository.js', './dashboard/repository.js', './dashboard/owner-financial-repository.js', './website/cms-repository.js', './website/public-site.js'
 ];
+
+async function fetchWithTimeout(request, timeoutMs = 4500) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(request, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -41,7 +51,7 @@ self.addEventListener('fetch', event => {
       // Network-first prevents a stale cached login/auth module or page from
       // overriding a newly deployed release. The cache is an offline fallback.
       try {
-        const response = await fetch(request);
+        const response = await fetchWithTimeout(request);
         if (response.ok) await cache.put(request, response.clone());
         return response;
       } catch (error) {
