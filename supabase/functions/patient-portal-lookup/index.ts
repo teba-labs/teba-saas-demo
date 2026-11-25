@@ -27,7 +27,7 @@ async function digest(secret: string, value: string) {
 }
 
 Deno.serve(async (req) => {
-  const allowed = (Deno.env.get('PORTAL_ALLOWED_ORIGINS') ?? '').split(',').map(v => v.trim()).filter(Boolean);
+  const allowed = allowedOrigins();
   const origin = req.headers.get('origin') ?? '';
   if (!allowed.length) {
     console.error('Patient portal origin allowlist is not configured.');
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
   }
   if (portalConfig?.portal_settings?.enabled !== true) return json(GENERIC_FAILURE, 200, origin);
 
-  const lookupHash = await digest(pepper, `${slug}|${normalizeName(patientName)}|${visitNumber.toLowerCase()}`);
+  const lookupHash = await digest(pepper, `lookup|${slug}|${normalizeName(patientName)}|${visitNumber.toLowerCase()}`);
   const clientIp = req.headers.get('cf-connecting-ip')?.trim()
     || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || req.headers.get('x-real-ip')?.trim();
