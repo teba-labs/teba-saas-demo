@@ -8,6 +8,19 @@ const db = () => getSupabaseClient();
 async function removeLocalLedgerRow(id) {
   if (id) await offlineDb.financial_ledger.delete(id);
 }
+async function setApprovalMarker(operation,status,serverVisitId=null,reason=null){
+  const p=operation.payload||{};
+  const localVisitId=p.local_visit_id||p.visit_id;
+  const visitId=serverVisitId||localVisitId;
+  const localKey=`approval:${operation.tenant_id}:${operation.branch_id}:${localVisitId}`;
+  const key=`approval:${operation.tenant_id}:${operation.branch_id}:${visitId}`;
+  const existing=await offlineDb.sync_meta.get(localKey)||await offlineDb.sync_meta.get(key);
+  await offlineDb.sync_meta.put({...existing,key,tenant_id:operation.tenant_id,branch_id:operation.branch_id,
+    visit_id:visitId,operation_id:operation.operation_id,approval_status:status,
+    approved_by_staff_id:p.staff_id,approved_at:p.approved_at,server_visit_id:serverVisitId||null,
+    ...(reason?{reason}:{}),updated_at:new Date().toISOString()});
+  if(localKey!==key)await offlineDb.sync_meta.delete(localKey);
+}
 async function getServerWorkday(tenantId, branchId, workDate) {
   return db().from('branch_workdays')
     .select('id,tenant_id,branch_id,work_date,status,opened_at,opened_by_staff_id')
