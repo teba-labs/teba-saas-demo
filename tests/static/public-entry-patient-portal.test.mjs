@@ -50,6 +50,7 @@ test('WhatsApp sends tenant-scoped portal and public-site links without obsolete
 
 test('patient portal asks only for the registered name and visit number', () => {
   assert.match(portalPage, /name="slug" type="hidden"/);
+  assert.match(portalPage, /id="publicSiteLink"/);
   assert.match(portalPage, /name="patientName"/);
   assert.match(portalPage, /name="visitNumber"/);
   assert.doesNotMatch(portalPage, /رمز المعمل/);
