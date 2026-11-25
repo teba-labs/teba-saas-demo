@@ -283,6 +283,7 @@ export function createSupabaseSyncHandlers() {
       for(const localTestId of Object.keys(visitMapping?.visit_test_ids||{}))localTestIds.add(localTestId);
       const newerDrafts=(await offlineDb.outbox.where('[tenant_id+branch_id]').equals([operation.tenant_id,operation.branch_id]).toArray())
         .filter(row=>row.operation_id!==operation.operation_id&&row.entity_type==='draft_results'&&localTestIds.has(row.payload?.visit_test_id));
+      if(newerDrafts.some(row=>row.status==='conflict'))return {conflict:true,reason:'A newer result draft has a synchronization conflict. Resolve it and record a fresh local approval.'};
       if(newerDrafts.length)throw new Error('Local approval is waiting for newer result drafts to synchronize before server validation.');
       let results=[];
       if(ids.length){
