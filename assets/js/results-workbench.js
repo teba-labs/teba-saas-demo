@@ -673,7 +673,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const headerRight = print.identitySide === 'left' ? sideContent : identityHtml;
   const headerLeft = print.identitySide === 'left' ? identityHtml : sideContent;
   const centerLogo = logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '';
-  const qrHtml = print.footerCenterMode === 'qr' && websiteUrl ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="QR للموقع"><small>امسح لزيارة موقع المعمل</small></a>' : '';
+  const qrHtml = !localOffline && print.footerCenterMode === 'qr' && websiteUrl ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="QR للموقع"><small>امسح لزيارة موقع المعمل</small></a>' : '';
   const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
   const branchPhones = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + escapeHtml(row.phone) + '</div>');
   const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(digits) + '</a>' : escapeHtml(value); };
