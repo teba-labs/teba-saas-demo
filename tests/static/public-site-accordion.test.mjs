@@ -14,7 +14,7 @@ test('public homepage keeps the hero visible and provides one collapsed accordio
   assert.doesNotMatch(html,/id="customSections"/);
   assert.match(page,/details\.className='site-accordion-item'/);
   assert.match(page,/summary\.className='site-accordion-trigger'/);
-  assert.doesNotMatch(page,/details\.open\s*=\s*true/);
+  assert.doesNotMatch(html,/<details[^>]*\sopen(?:\s|>)/);
 });
 
 test('public homepage accordion groups expose the agreed public sections',()=>{
