@@ -52,7 +52,8 @@ test('patient portal publishing creates the PDF from the same report preview wit
   const js=await read('assets/js/results-workbench.js');
   assert.match(js,/reportPreviewHtml\.set\(visitId,reportHtml\)/);
   assert.match(js,/ensureHtml2Pdf/);
-  assert.match(js,/outputPdf\('blob'\)/);
+  assert.match(js,/pdf\.output\('blob'\)/);
+  assert.match(js,/\.toPdf\(\)/);
   assert.match(js,/publishReportVersion\(/);
   assert.doesNotMatch(js,/data-report-file/);
 });
