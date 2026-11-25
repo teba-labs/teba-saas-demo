@@ -277,6 +277,9 @@ export function createSupabaseSyncHandlers() {
       if(visitTestsResult.error)throw visitTestsResult.error;
       const visitTests=visitTestsResult.data||[];
       const ids=visitTests.map(row=>row.id);
+      const newerDrafts=(await offlineDb.outbox.where('[tenant_id+branch_id]').equals([operation.tenant_id,operation.branch_id]).toArray())
+        .filter(row=>row.operation_id!==operation.operation_id&&row.entity_type==='draft_results'&&ids.includes(row.payload?.visit_test_id));
+      if(newerDrafts.length)throw new Error('Local approval is waiting for newer result drafts to synchronize before server validation.');
       let results=[];
       if(ids.length){
         const resultsResult=await db().from('test_results')
