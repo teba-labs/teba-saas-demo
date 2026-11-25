@@ -1267,12 +1267,14 @@ function sharePortalLinkViaWhatsApp(button, publicationType) {
   const visitNumber=String(card?.dataset.visitNumber||'').trim();
   const phone=normalizeWhatsAppNumber(card?.dataset.patientPhone||'');
   if(!patientName||!visitNumber)throw new Error('اسم المريض أو رقم الزيارة غير مكتمل.');
-  const portalUrl=new URL('../portal/',globalThis.location.href);
+  const portalUrl=new URL('../portal/index.html',globalThis.location.href);
   portalUrl.searchParams.set('lab',state.tenant.slug);
+  const publicSiteUrl=new URL('../website/index.html',globalThis.location.href);
+  publicSiteUrl.searchParams.set('lab',state.tenant.slug);
   const intro=publicationType==='partial'
     ? 'تم إصدار تقرير جزئي من '+(state.tenant.name||'المعمل')+'، وبعض النتائج لم تصدر بعد.'
     : 'تم نشر التقرير النهائي من '+(state.tenant.name||'المعمل')+'. يمكنك الآن الاطلاع على النتائج وتحميل التقرير.';
-  const message=intro+'\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\nافتح بوابة النتائج وأدخل الاسم ورقم الزيارة لعرض التقرير وتحميله:\n'+portalUrl.href;
+  const message=intro+'\\nاسم المريض: '+patientName+'\\nرقم الزيارة: '+visitNumber+'\\nلعرض التقرير افتح بوابة النتائج:\\n'+portalUrl.href+'\\nوللتعرف على خدمات المعمل وفروعه وعروضه، تفضل بزيارة الموقع الرسمي:\\n'+publicSiteUrl.href;
   const url='https://wa.me/'+phone+'?text='+encodeURIComponent(message);
   window.open(url,'_blank','noopener,noreferrer');
 }
