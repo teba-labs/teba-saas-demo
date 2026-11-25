@@ -13,7 +13,7 @@ function card(title,desc,extra=''){return '<article class="card"><h3>'+esc(title
 export function renderPublicSite(data){
  const tenant=data.tenant||{},settings=data.settings||{},content=settings.public_content||{},theme=settings.theme_json||{};
  const accent=/^#[0-9a-f]{6}$/i.test(theme.accent||theme.primary_color||'')?(theme.accent||theme.primary_color):'#16877f';
- document.documentElement.style.setProperty('--accent',accent);
+ const brandAccent=accent.toLowerCase()==='#16877f'?'#0a6847':accent;document.documentElement.style.setProperty('--accent',brandAccent);document.documentElement.style.setProperty('--teba',brandAccent);
  const name=content.lab_name||content.site_name||tenant.name||'المعمل';$('labName').textContent=name;$('footerName').textContent=name;$('brandTagline').textContent=content.tagline||'الموقع الإلكتروني الرسمي';
  $('heroTitle').textContent=content.hero_title||content.title||'تحاليل دقيقة… واهتمام يليق بك';$('heroText').textContent=content.hero_description||content.description||'نقدم خدمات التحاليل الطبية وفق معايير جودة دقيقة، مع اهتمام بتجربة المريض وسهولة الوصول إلى النتائج.';
  $('heroEyebrow').textContent=content.hero_eyebrow||'رعاية أدق تبدأ من هنا';$('heroCta').textContent=content.hero_button_text||'اكتشف خدماتنا';$('footerText').textContent=content.footer_text||content.contact_text||'نسعد بتواصلكم وزيارتكم في أحد فروعنا.';
