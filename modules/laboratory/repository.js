@@ -69,12 +69,16 @@ export async function listVisitWorkForReport({ tenantId, branchId, visitId } = {
   };
   if (globalThis.navigator?.onLine === false) return localReportWork();
   const { data, error } = await db().from(TABLES.visitTests)
-    .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, tests_catalog(test_kind), visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number, age_years, sex))')
+    .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, tests_catalog(test_kind), visits!inner(id, patient_id, visit_number, visit_work_date, status, is_published, patients!inner(id, full_name, patient_number, phone, age_years, sex))')
     .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('visit_id', visitId)
     .neq('status', 'cancelled').neq('visits.status', 'cancelled')
     .order('created_at').order('id');
   if (error) { if (/fetch|network|offline/i.test(error.message || '')) return localReportWork(); throw error; }
   await cacheRows('visit_tests', data ?? []);
+  const visitRows=new Map();const patientRows=new Map();
+  for(const row of data??[]){const visit=row.visits;if(!visit)continue;visitRows.set(row.visit_id,{...visit,id:row.visit_id,tenant_id:tenantId,branch_id:branchId});if(visit.patients?.id)patientRows.set(visit.patients.id,{...visit.patients,tenant_id:tenantId,branch_id:branchId});}
+  if(visitRows.size)await cacheRows('visits',[...visitRows.values()]);
+  if(patientRows.size)await cacheRows('patients',[...patientRows.values()]);
   return data ?? [];
 }
 
