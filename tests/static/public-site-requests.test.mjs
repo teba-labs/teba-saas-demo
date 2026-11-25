@@ -61,8 +61,8 @@ test('public request data is private to the tenant owner and rate limited',()=>{
   assert.match(migration,/revoke all on table public\.site_booking_requests from public, anon/i);
   assert.match(migration,/consume_site_request_attempt/);
   assert.doesNotMatch(migration,/grant .* to anon/i);
-  assert.match(hardening,/revoke all on table public\\.site_booking_requests from public, anon, authenticated/i);
-  assert.match(hardening,/grant select, update on table public\\.site_booking_requests to authenticated/i);
+  assert.match(hardening,/revoke all on table public\.site_booking_requests from public, anon, authenticated/i);
+  assert.match(hardening,/grant select, update on table public\.site_booking_requests to authenticated/i);
 });
 test('website studio can review requests and update status without deleting them',()=>{
   assert.match(studio,/id="view-requests"/);
