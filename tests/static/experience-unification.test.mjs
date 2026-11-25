@@ -54,12 +54,15 @@ test('tenant branding keeps the product identity separate from the laboratory na
   assert.match(platform, /theme-controller\.js/);
 });
 
-test('clinical result entry queues draft saves safely while keeping completion and approval online-only', () => {
+test('clinical result entry queues drafts and local approval while keeping final publication online-only', () => {
   const ui = read('assets/js/results-workbench.js');
   const repository = read('modules/results/repository.js');
   assert.doesNotMatch(ui, /requireCloudConnection\('حفظ النتائج'\)/);
-  assert.match(ui, /requireCloudConnection\('اعتماد الزيارة'\)/);
+  assert.doesNotMatch(ui, /requireCloudConnection\('اعتماد الزيارة'\)/);
   assert.match(ui, /approveVisitWithAutoCompletion/);
+  assert.match(repository, /entityType:'visit_approval'/);
+  assert.match(ui, /اعتماد محلي/);
+  assert.match(ui, /النشر النهائي يظل خطوة منفصلة/);
   assert.match(ui, /طباعة مسودة غير معتمدة/);
   assert.match(ui, /لا تُسلّم باعتبارها تقريرًا نهائيًا/);
   assert.match(ui, /reportPreviewHtml\.set/);
