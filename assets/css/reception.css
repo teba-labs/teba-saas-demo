@@ -78,3 +78,43 @@ body.reception-page{height:100dvh;overflow:hidden}
   .selected-test-remove{grid-column:1/-1;width:100%}
   .reception-shell .intake-block .main-actions .button{width:100%}
 }
+
+/* Reception: one clear, numbered workflow for non-technical front-desk staff. */
+.reception-page{background:var(--taiba-page,#f4f8f6)}
+.reception-shell .intake-panel{max-width:1180px;margin-inline:auto}
+.reception-shell .intake-content.intake-flow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);grid-template-areas:"patient patient" "catalog cart";height:auto;min-height:0;overflow:visible;gap:14px;align-items:start}
+.reception-shell .patient-column{grid-area:patient}
+.reception-shell .catalog-column{grid-area:catalog}
+.reception-shell .cart-column{grid-area:cart}
+.reception-shell .intake-column{display:block;height:auto;min-height:0;overflow:visible;border:0;background:transparent}
+.reception-shell .intake-column-body{display:grid!important;gap:12px;padding:0;overflow:visible}
+.reception-shell .intake-block{padding:18px;border-radius:16px;box-shadow:0 3px 14px #143c3510}
+.reception-shell .section-divider{margin:0 0 14px;padding:0;border:0}
+.reception-shell .section-divider>span{width:34px;height:34px;border-radius:50%;font-size:14px}
+.reception-shell .section-divider h3{font-size:16px}
+.reception-shell .section-divider p{font-size:12px}
+.reception-shell .patient-fields{grid-template-columns:repeat(3,minmax(0,1fr))}
+.reception-shell .field-hint{font-size:10px;font-weight:500;color:var(--muted)}
+.reception-shell .new-patient-form{padding:8px 14px 14px}
+.reception-shell .catalog-list{grid-template-columns:1fr;max-height:460px;min-height:180px}
+.reception-shell .catalog-item{min-height:58px}
+.reception-shell .selected-tests-list{max-height:280px;overflow:auto}
+.reception-shell .billing{grid-template-columns:repeat(2,minmax(0,1fr))}
+.reception-shell .billing .net-box,.reception-shell .billing .remaining-box{min-height:68px}
+.reception-shell .main-actions{display:grid;grid-template-columns:1fr 1fr}
+.reception-shell .main-actions .button-primary{grid-column:1/-1;min-height:54px;font-size:15px}
+.reception-shell .danger-note{line-height:1.8}
+@media(max-width:850px){
+ .reception-page>.reception-shell{height:auto;max-height:none;overflow:visible}
+ body.reception-page{height:auto;min-height:100dvh;overflow:auto}
+ .reception-shell .intake-content.intake-flow{grid-template-columns:1fr;grid-template-areas:"patient" "catalog" "cart"}
+ .reception-shell .patient-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:560px){
+ .reception-shell .patient-fields{grid-template-columns:1fr}
+ .reception-shell .billing{grid-template-columns:1fr 1fr}
+ .reception-shell .main-actions{grid-template-columns:1fr}
+ .reception-shell .main-actions .button-primary{grid-column:auto}
+ .reception-shell .intake-block{padding:13px}
+ .reception-shell .section-divider p{font-size:11px}
+}
