@@ -2,11 +2,12 @@ import { offlineDb } from './database.js';
 
 export async function getOfflineDashboardSummary({tenantId,monthStart,monthEnd,branchId=null,branches=[]}={}){
   if(!tenantId||!monthStart||!monthEnd)throw new Error('Tenant and month range are required.');
-  const [allVisits,allTests,allLedger,allOutbox]=await Promise.all([
+  const [allVisits,allTests,allLedger,allOutbox,ledgerSnapshot]=await Promise.all([
     offlineDb.visits.where('tenant_id').equals(tenantId).toArray(),
     offlineDb.visit_tests.where('tenant_id').equals(tenantId).toArray(),
     offlineDb.financial_ledger.where('tenant_id').equals(tenantId).toArray(),
     offlineDb.outbox.where('tenant_id').equals(tenantId).toArray(),
+    offlineDb.sync_meta.get(`financial-ledger-month:${tenantId}:${branchId||branches[0]?.id||''}:${monthStart}`),
   ]);
   const allowedBranches=new Set(branchId?[branchId]:branches.map(row=>row.id));
   const inScope=row=>!allowedBranches.size||allowedBranches.has(row.branch_id);
@@ -28,6 +29,7 @@ export async function getOfflineDashboardSummary({tenantId,monthStart,monthEnd,b
     tests:tests.length,collected,expenses,netCash:collected-expenses,
     pending:{total:pending.length,failed:pending.filter(row=>row.status==='failed').length,conflict:pending.filter(row=>row.status==='conflict').length},
     daily:[...dailyMap.values()].sort((a,b)=>a.date.localeCompare(b.date)),
+    ledgerSnapshot:ledgerSnapshot?{cachedRows:ledgerSnapshot.cachedRows,totalRows:ledgerSnapshot.totalRows,truncated:ledgerSnapshot.truncated,preparedAt:ledgerSnapshot.cached_at}:null,
     cachedRows:{visits:allVisits.length,tests:allTests.length,ledger:allLedger.length},
   };
 }
