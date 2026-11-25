@@ -71,3 +71,28 @@ test('Sync Center reports persistent storage and quota without deleting local da
   assert.match(script, /refreshStorageHealth/);
   assert.match(script, /requestPersistentOfflineStorage/);
 });
+
+
+test('offline preparation warms a branch-scoped working set and records its limits', () => {
+  const prepare = read('offline/prepare.js');
+  const reception = read('modules/reception/repository.js');
+  const page = read('app/sync-center.html');
+  const script = read('assets/js/sync-center.js');
+  const sw = read('service-worker.js');
+  assert.match(prepare, /loadMyTenantContext/);
+  assert.match(prepare, /tenant\?\.branches\?\.find/);
+  assert.match(prepare, /warmCatalogParameters/);
+  assert.match(prepare, /listCurrentPrices/);
+  assert.match(prepare, /warmBranchPatients/);
+  assert.match(prepare, /listBranchWorkPage/);
+  assert.match(prepare, /listResultsForVisitTests/);
+  assert.match(prepare, /listCultureResults/);
+  assert.match(prepare, /offline-prepared:/);
+  assert.match(prepare, /maxWorklistRows = 500/);
+  assert.match(reception, /warmBranchPatients/);
+  assert.match(reception, /range\(offset, end\)/);
+  assert.match(page, /id="prepareOffline"/);
+  assert.match(script, /prepareOfflineBranch/);
+  assert.match(script, /getOfflinePreparationStatus/);
+  assert.match(sw, /'\.\/offline\/prepare\.js'/);
+});
