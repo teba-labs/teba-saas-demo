@@ -1,51 +1,56 @@
-name: Taiba public website draft preview
+name: Taiba GitHub Pages preview
 
 on:
   push:
-    branches:
-      - feature/public-website-premium-preview-2026-11-25
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: taiba-public-website-preview
+  group: taiba-public-site-pages
   cancel-in-progress: true
 
 jobs:
-  preview:
+  deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Check out exact preview commit
+      - name: Check out main
         uses: actions/checkout@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
         with:
-          ref: ${{ github.sha }}
-      - name: Check preview credentials
-        id: credentials
-        shell: bash
-        run: |
-          if [[ -n "$NETLIFY_AUTH_TOKEN" && -n "$NETLIFY_SITE_ID" ]]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "Preview skipped: Netlify credentials are not configured."
-          fi
-      - name: Set up Node.js
-        if: steps.credentials.outputs.available == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22.16.0"
-      - name: Build browser-only site
-        if: steps.credentials.outputs.available == 'true'
-        run: bash scripts/build-netlify.sh
-      - name: Publish non-production preview alias
-        if: steps.credentials.outputs.available == 'true'
+          enablement: true
+      - name: Prepare static preview
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes netlify-cli@27.20.0 deploy --dir=dist --no-build --alias=taiba-public-site-preview --json > netlify-preview.json
-          cat netlify-preview.json
+          mkdir -p _site
+          for directory in app assets config core dashboard modules offline portal website; do
+            cp -R "$directory" _site/
+          done
+          cp service-worker.js _site/
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="ar" dir="rtl">
+          <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=website/index.html?lab=teba-labs"><title>معامل طيبة</title></head>
+          <body><p><a href="website/index.html?lab=teba-labs">فتح موقع معامل طيبة</a></p></body>
+          </html>
+          HTML
+          test -s _site/website/index.html
+          test -s _site/core/supabase-client.js
+          test -s _site/config/environment.js
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
