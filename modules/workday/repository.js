@@ -30,6 +30,8 @@ async function queueWorkdayOpen({tenantId,branchId,workDate,staffId}={}) {
 
 export async function openWorkday({tenantId,branchId,workDate,staffId}={}) {
   required(tenantId,'tenantId'); required(branchId,'branchId'); required(workDate,'workDate'); required(staffId,'staffId');
+  const priorClosing=(await getCachedRows('daily_closings',{tenantId,branchId})).find(row=>row.work_date===workDate);
+  if(priorClosing)throw new Error('يوم العمل هذا مغلق بالفعل أو ينتظر تأكيد الإغلاق؛ لا يمكن فتح التاريخ نفسه مرة أخرى.');
   if (globalThis.navigator?.onLine === false) return queueWorkdayOpen({tenantId,branchId,workDate,staffId});
   const {data,error}=await db().rpc(RPC.openBranchWorkday,{p_tenant_id:tenantId,p_branch_id:branchId,p_work_date:workDate,p_staff_id:staffId});
   if(error) { if(isNetworkError(error)) return queueWorkdayOpen({tenantId,branchId,workDate,staffId}); throw error; }
