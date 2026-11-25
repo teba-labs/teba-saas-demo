@@ -22,6 +22,9 @@ test('local approval is distinct from final publication and depends on queued wo
   assert.match(repository,/actor_user_id/);
   assert.match(repository,/dependsOn/);
   assert.match(repository,/local_approval_status:'pending_server_validation'/);
+  assert.match(repository,/key:`approval:/);
+  assert.match(adapters,/setApprovalMarker/);
+  assert.match(ui,/approvalByVisit/);
   assert.match(ui,/اعتماد محلي — بانتظار المزامنة/);
   assert.match(ui,/النشر النهائي يظل خطوة منفصلة/);
   assert.match(reports,/publish_report_version|publishReportVersion/);
