@@ -43,14 +43,14 @@ test('analysis headings are separated from tables and report body is English on 
 });
 
 test('owner settings expose bilingual lab and branch print identity and persist it',()=>{
- for(const id of ['laboratoryNameEn','laboratoryNameAr','printLabNameEn','printLabNameAr','printAddressEn','printAddressAr','printPhoneEn','printPhoneAr','printLogoSource','printShowBranchAddresses','printShowContacts','printWebsiteUrl','printSupportUrl','printFooterCenterMode','printWatermarkMode','printWatermarkOpacity','printWatermarkSize','printWatermarkPosition','printHeaderSideText','printStampFile','printShowStamp','printReviewerName','printShowReviewer']) assert.ok(html.includes('id="'+id+'"'),id);
- for(const key of ['laboratory_name_en','laboratory_name_ar','labNameEn','labNameAr','addressEn','addressAr','phoneEn','phoneAr','savePrintSettings','loadPrintSettings','settings_json']) assert.ok(settings.includes(key),key);
+ for(const id of ['laboratoryNameEn','laboratoryNameAr','printLabNameEn','printLabNameAr','printBranchNameEn','printAddressEn','printAddressAr','printPhoneEn','printPhoneAr','printLogoSource','printShowBranchAddresses','printShowContacts','printWebsiteUrl','printSupportUrl','printFooterCenterMode','printWatermarkMode','printWatermarkOpacity','printWatermarkSize','printWatermarkPosition','printHeaderSideText','printStampFile','printShowStamp','printReviewerName','printShowReviewer']) assert.ok(html.includes('id="'+id+'"'),id);
+ for(const key of ['laboratory_name_en','laboratory_name_ar','labNameEn','labNameAr','branchNameEn','addressEn','addressAr','phoneEn','phoneAr','savePrintSettings','loadPrintSettings','settings_json']) assert.ok(settings.includes(key),key);
  assert.ok(settings.includes("assetKind:'stamp'"));
  assert.ok(assets.includes("['logo','signature','stamp']"));
  assert.ok(settings.includes("uploadPrintStamp"));
  assert.ok(settings.includes('printStampPreview'));
  assert.ok(settings.includes('printReviewerName'));
- assert.ok(settings.includes('patient-header-meta'));
+ assert.ok(settings.includes('preview-patient-meta'));
 });
 
 test('preprinted stationery can hide lab identity/footer while retaining repeating patient details and page numbers',()=>{
