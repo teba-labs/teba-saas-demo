@@ -198,6 +198,45 @@ export function createSupabaseSyncHandlers() {
       await removeLocalLedgerRow(p.local_ledger_id);
       return { acknowledged: true, resultId: data };
     },
+    report_delivery: async operation => {
+      const p=operation.payload;
+      const session=await getCurrentSession();
+      if(!session?.user?.id||session.user.id!==p.actor_user_id){
+        return {conflict:true,reason:'The original staff user must sign in again before this delivery event can synchronize.'};
+      }
+      let visitId=p.visit_id;
+      if(p.local_visit_pending){
+        let mapping=null;
+        for(const dependency of operation.depends_on||[]){
+          const candidate=await offlineDb.sync_meta.get(`visit-map:${dependency}`);
+          if(candidate?.local_visit_id===visitId){mapping=candidate;break;}
+        }
+        if(!mapping){
+          const maps=await offlineDb.sync_meta.toArray();
+          mapping=maps.find(row=>row.tenant_id===operation.tenant_id&&row.branch_id===operation.branch_id&&row.local_visit_id===visitId&&row.server_visit_id);
+        }
+        if(!mapping?.server_visit_id)throw new Error('Delivery status is waiting for its local visit to synchronize.');
+        visitId=mapping.server_visit_id;
+      }
+      const {data,error}=await db().functions.invoke('record-local-delivery',{body:{
+        ...p,visit_id:visitId,operation_id:operation.operation_id,
+        tenant_id:operation.tenant_id,branch_id:operation.branch_id,
+      }});
+      if(error){
+        const status=error.context?.status;
+        if(Number.isInteger(status)&&status>=400&&status<500)return {conflict:true,reason:error.message||'The server rejected the delivery event.'};
+        throw error;
+      }
+      const key=`delivery:${operation.tenant_id}:${operation.branch_id}:${p.local_visit_id||p.visit_id}`;
+      const existing=await offlineDb.sync_meta.get(key);
+      await offlineDb.sync_meta.put({...existing,key,tenant_id:operation.tenant_id,branch_id:operation.branch_id,
+        visit_id:p.local_visit_id||p.visit_id,operation_id:operation.operation_id,delivery_status:'synced',
+        delivery_method:p.delivery_method,delivered_at:p.delivered_at,staff_id:p.staff_id,
+        server_event_id:data?.event_id||operation.operation_id,copy_type:data?.copy_type||null});
+      const localVisit=await offlineDb.visits.get(p.local_visit_id||p.visit_id);
+      if(localVisit)await offlineDb.visits.put({...localVisit,local_delivery_status:'synced',local_delivery_method:p.delivery_method,local_delivery_at:p.delivered_at});
+      return {acknowledged:true,resultId:data?.event_id||operation.operation_id};
+    },
     visit_approval: async operation => {
       const p=operation.payload;
       const session=await getCurrentSession();
