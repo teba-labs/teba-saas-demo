@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
+import { TABLES } from '../../core/data/schema-contract.js';
 import { getCurrentSession } from '../../core/auth/session.js';
 import { enqueueOperation } from '../../offline/outbox.js';
 import { offlineDb } from '../../offline/database.js';
