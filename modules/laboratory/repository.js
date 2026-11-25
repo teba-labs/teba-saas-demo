@@ -29,7 +29,7 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
     return { rows: visible.slice(from, from + safeSize), count: visible.length, page: safePage, pageSize: safeSize, cached: true };
   }
   let query = db().from(TABLES.visitTests)
-    .select('id, tenant_id, branch_id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, tests_catalog(test_kind), visits!inner(visit_number, visit_work_date, status, is_published, workbench_hidden_at, patients!inner(full_name, patient_number, phone, age_years, sex))', { count: 'exact' })
+    .select('id, tenant_id, branch_id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, tests_catalog(test_kind), visits!inner(id, patient_id, visit_number, visit_work_date, status, is_published, workbench_hidden_at, patients!inner(id, full_name, patient_number, phone, age_years, sex))', { count: 'exact' })
     .eq('tenant_id', tenantId).eq('branch_id', branchId)
     .neq('status', 'cancelled').neq('visits.status', 'cancelled').is('visits.workbench_hidden_at', null);
   const requestedVisitId = new URLSearchParams(globalThis.location?.search || '').get('visit_id');
@@ -44,6 +44,10 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
     throw error;
   }
   await cacheRows('visit_tests', data ?? []);
+  const visitRows=new Map();const patientRows=new Map();
+  for(const row of data??[]){const visit=row.visits;if(!visit)continue;visitRows.set(row.visit_id,{...visit,id:row.visit_id,tenant_id:tenantId,branch_id:branchId});if(visit.patients?.id)patientRows.set(visit.patients.id,{...visit.patients,tenant_id:tenantId,branch_id:branchId});}
+  if(visitRows.size)await cacheRows('visits',[...visitRows.values()]);
+  if(patientRows.size)await cacheRows('patients',[...patientRows.values()]);
   return { rows: data ?? [], count: count ?? 0, page: safePage, pageSize: safeSize };
 }
 
