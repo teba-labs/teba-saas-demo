@@ -58,7 +58,7 @@ export async function listVisitWorkForReport({ tenantId, branchId, visitId } = {
       getCachedRows('patients',{tenantId,branchId}),
     ]);
     const visit=visits.find(row=>row.id===visitId);
-    if(!visit)return [];
+    if(!visit||visit.status==='cancelled')return [];
     const patient=patients.find(row=>row.id===visit.patient_id)||visit.patients||{};
     return cached.filter(row=>row.visit_id===visitId&&row.status!=='cancelled'&&row.visits?.status!=='cancelled')
       .map(row=>({...row,visits:{...(row.visits||{}),...visit,patients:patient}}));
