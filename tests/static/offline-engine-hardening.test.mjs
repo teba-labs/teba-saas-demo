@@ -91,6 +91,10 @@ test('offline preparation warms a branch-scoped working set and records its limi
   assert.match(prepare, /maxWorklistRows = 500/);
   assert.match(reception, /warmBranchPatients/);
   assert.match(reception, /range\(offset, end\)/);
+  assert.match(reception, /count: 'exact'/);
+  assert.match(prepare, /يوجد \\d+ تحليلًا دون سعر حالي محفوظ/);
+  assert.match(prepare, /لا يوجد يوم عمل مفتوح محفوظ/);
+  assert.match(prepare, /complete: issues\.length === 0/);
   assert.match(page, /id="prepareOffline"/);
   assert.match(script, /prepareOfflineBranch/);
   assert.match(script, /getOfflinePreparationStatus/);
