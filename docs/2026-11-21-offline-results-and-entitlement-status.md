@@ -11,7 +11,7 @@
 - Draft result batches are saved to IndexedDB when offline or when a request fails due to a transient network error.
 - Each draft batch has a stable UUID. The server receipt is scoped to tenant, branch, user and exact payload; retries after a lost response return the original saved rows instead of inserting duplicates.
 - Unsynced draft values are restored after navigation/reload and clearly marked as waiting for sync.
-- Completion and approval remain online-only and are blocked while local result writes are pending.
+- Draft result writes are cached locally. A user may record a clearly marked local approval intent while offline; it is not an official server approval. After all queued visit/result operations sync, the server rechecks the original user, branch scope and a SHA-256 fingerprint of the clinical result content before running the existing atomic approval RPC. Final publication remains online-only.
 - Reception can create a local patient, visit and visit-test snapshots while offline, then navigate directly to that visit in the results workbench.
 - New local intake records are projected into the same cached worklist shape used by the results page. Patient, visit and result operations are dependency-ordered.
 - After the intake RPC acknowledges the visit, the sync adapter stores a local-to-server visit/test ID map. Draft result operations wait for that mapping and then save against the server's real visit/test IDs.
@@ -28,8 +28,20 @@
 - A stale sync worker cannot overwrite a newer worker's result after losing its lease.
 - Service-worker network-first requests have a bounded timeout and cached fallback.
 - Sync Center reports browser persistent-storage support and quota; it never deletes local data automatically.
-- An explicit branch-preparation action warms catalog, prices, parameter snapshots, staff, open workday, expense categories, lab/print settings, up to 10,000 patients, up to 500 worklist items and their cached results/culture data. It reports missing prices, staff, workday, truncation and entitlement readiness instead of declaring a partial cache ready.
+- An explicit branch-preparation action warms catalog, prices, parameter snapshots, staff, workday state, expense categories, lab/print settings, up to 10,000 patients, up to 500 worklist items, visit-specific range overrides and their cached results/culture data. It reports missing prices, staff, truncation and entitlement readiness instead of declaring a partial cache ready; an open workday is not required at preparation time because the next day can be opened locally.
 - PR #68 now contains the signed entitlement issuer (`issue-offline-entitlement`), client ES256 verification, device-key binding, 35-day maximum lease with a bounded renewal grace, offline session fallback after successful device preparation, and an entitlement gate on new Outbox writes. A key-generation script and Sync Center status/renewal UI are included.
+
+## Phase-two page integration currently in PR #68
+
+- Home and tenant selection use the cached catalog when the network is unavailable and show local patient/visit/test counts.
+- Reception queues patient creation, visit intake, first payment and same-branch payment collection. Local visits and tests are joined back to cached patient data for the results worklist.
+- Results save draft values to IndexedDB, restore them after reload, support a local approval intent pending server validation, and keep final publication/WhatsApp online-only.
+- Report preview reads cached visit/patient/results/range overrides. Every print while offline is a watermarked working copy, even if an earlier approved report is cached.
+- Printed-copy handoff can be recorded locally and later written as an idempotent audit event; it is not report publication.
+- Workday opening, expenses, collections and closing can be queued locally. A queued close depends on all prior branch operations and is reconciled against the server's collected/expenses/net-cash snapshot.
+- Owner dashboard shows a local-only summary for cached visits, tests, cash movements and pending sync operations; receivables, Excel reconciliation and full financial reports remain cloud-only.
+- Settings, staff and expense categories can be read from local cache. Changes to cloud configuration remain online-only.
+- Sync Center displays entitlement state, preparation readiness, storage health and queued operation state.
 
 ## Database and CI evidence
 
@@ -43,8 +55,8 @@
 
 1. **Signed offline entitlement:** implementation is present in PR #68 but is not active yet. The public JWK remains intentionally unset and the private key has not been provisioned in Supabase Edge Function Secrets. Run `scripts/generate-offline-entitlement-key.mjs` locally, commit only the generated public JWK, and store the private JWK under `OFFLINE_ENTITLEMENT_PRIVATE_JWK` in the project Edge Function Secrets. The connected project tools do not expose secret provisioning, so no secret was created or exposed here. Do not merge or claim entitlement activation until the key is configured and the endpoint is runtime-tested.
 2. **Authenticated runtime acceptance:** no live clinical account test has yet demonstrated disconnect after preparation -> browser reload/restart -> local read/write -> local backup/restore -> reconnect -> exact-once server acknowledgement -> retry after lost response -> tenant/branch isolation. The designated TEST database must first be brought to a compatible schema or replaced with an isolated development branch.
-3. **Official final report while offline:** current offline print is deliberately provisional. It does not create an approval, reviewer signature, publication record or patient-portal report. Official completion/approval/publication remains online-only until an auditable offline sign-off and conflict-resolution protocol is designed and tested.
-4. **Offline corrections and status transitions:** range overrides, result corrections, test completion, visit approval and report publication remain online-only because they require immutable audit history, sign-off and conflict handling.
+3. **Official final report while offline:** offline print is deliberately provisional. The local approval intent is pending server validation and does not create a final server approval, reviewer signature or publication record. The server revalidates the clinical fingerprint on reconnect; final patient-portal publication and WhatsApp remain online-only.
+4. **Other clinical status changes:** result corrections, parameter-range edits and direct test-status changes remain online-only. Local approval is the only queued approval intent and is reconciled through the existing atomic server approval function.
 5. **Attachments and portal operations:** uploads, patient portal lookup and WhatsApp publication remain online-only.
 6. **Cross-device recovery:** IndexedDB is device-local. A local queue cannot appear on another device until synchronized. A local backup can preserve queued operations, but moving it to another device requires restore and subsequent authenticated synchronization.
 
@@ -57,8 +69,10 @@
 - Subscription expiry must not prevent login for data export, access to historical records, recovery or pending sync.
 - Never gate `syncOutbox` on subscription state.
 
-## Next gated work after phase one
+## Next gated work
 
-- Generate the ES256 key pair locally, commit only the public verification JWK, provision the private JWK in Edge Function Secrets, then deploy and runtime-test the signed entitlement endpoint in an isolated environment.
-- Bring the designated TEST environment to a compatible migration baseline without touching primary data, then run the authenticated offline acceptance scenario.
-- Phase two will handle the remaining audited business operations and their offline policy; final approval/publication stays online-only unless a separate safe signing design is approved.
+- Generate the ES256 key pair locally, commit only the public verification JWK, provision the private JWK in Edge Function Secrets, deploy the issuer and runtime-test renewal. The repository currently contains no private key and the issuer has not been deployed.
+- Deploy and runtime-test the work-copy delivery audit Edge Function in a safe environment; it has not been deployed.
+- Obtain fresh CI results for the current PR head. The previous CI run was on an earlier commit; no current-head result is available yet.
+- The owner must perform real isolation acceptance on a compatible isolated TEST environment: disconnect/reload, local reception/results/workday/cash/print, backup/restore, reconnect, lost-response retry, exact-once acknowledgement and cross-tenant/branch isolation. The legacy TEST project is incompatible and no paid isolated branch was created.
+- Do not apply migrations, deploy functions or change production data as part of this PR without a separate explicit authorization.
