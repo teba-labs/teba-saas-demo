@@ -8,7 +8,7 @@ create table if not exists public.site_booking_requests (
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   request_type text not null check (request_type in ('home_sampling','package_inquiry')),
   full_name text not null check (char_length(btrim(full_name)) between 2 and 160),
-  phone text not null check (phone ~ '^\\+?[0-9]{7,20}$'),
+  phone text not null check (phone ~ '^\+?[0-9]{7,20}$'),
   branch_id uuid references public.branches(id) on delete set null,
   package_id uuid references public.site_packages(id) on delete set null,
   package_title_snapshot text,
