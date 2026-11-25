@@ -41,7 +41,9 @@ test('mobile navigation and patient access controls are interactive',()=>{
 test('preview deployment uses GitHub Pages from main without Netlify credentials',()=>{
   assert.match(workflow,/branches: \[main\]/);
   assert.match(workflow,/actions\/deploy-pages@v4/);
-  assert.match(workflow,/enablement: true/);
+  assert.match(workflow,/actions\\/configure-pages@v5/);
+  assert.match(workflow,/actions\\/upload-pages-artifact@v4/);
+  assert.doesNotMatch(workflow,/enablement: true/);
   assert.doesNotMatch(workflow,/NETLIFY_|netlify-cli/);
 });
 test('home sampling and package inquiry requests are submitted to the secure cloud endpoint',()=>{
