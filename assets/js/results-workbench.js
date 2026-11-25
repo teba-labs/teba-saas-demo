@@ -455,6 +455,7 @@ function patientAgeInYears(patient={}){
   return ageBoundaryInYears(patient.age_value,patient.age_unit||'years');
 }
 function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
+  const localPending = status === 'local_verification_required';
   if (status === 'not_applicable' && !(value && (value.text || Array.isArray(value)))) return 'لا ينطبق';
   if (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0)) return '';
   if (Array.isArray(value)) {
