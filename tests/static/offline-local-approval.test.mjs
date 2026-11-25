@@ -37,6 +37,18 @@ test('approval sync rechecks original user, visit scope and unchanged clinical r
   assert.match(adapters,/approved_by_staff_id!==p\.staff_id/);
 });
 
+test('offline report preview uses cached patient data, visit ranges and work-copy printing',()=>{
+  const laboratory=read('modules/laboratory/repository.js');
+  const results=read('assets/js/results-workbench.js');
+  const repository=read('modules/results/repository.js');
+  const prepare=read('offline/prepare.js');
+  assert.match(laboratory,/localReportWork/);
+  assert.match(laboratory,/getCachedRows\('patients'/);
+  assert.match(results,/const localOffline = globalThis\.navigator\?\.onLine === false/);
+  assert.match(repository,/range-override:/);
+  assert.match(prepare,/listVisitParameterRangeOverrides/);
+});
+
 test('offline work-copy delivery is an auditable local event and is not final publication',()=>{
   const reports=read('modules/reports/repository.js');
   const adapters=read('offline/supabase-adapters.js');
