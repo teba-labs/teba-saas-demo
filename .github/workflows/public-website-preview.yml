@@ -1,0 +1,51 @@
+name: Taiba public website draft preview
+
+on:
+  push:
+    branches:
+      - feature/public-website-premium-preview-2026-11-25
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taiba-public-website-preview
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+    steps:
+      - name: Check out exact preview commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Check preview credentials
+        id: credentials
+        shell: bash
+        run: |
+          if [[ -n "$NETLIFY_AUTH_TOKEN" && -n "$NETLIFY_SITE_ID" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Preview skipped: Netlify credentials are not configured."
+          fi
+      - name: Set up Node.js
+        if: steps.credentials.outputs.available == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+      - name: Build browser-only site
+        if: steps.credentials.outputs.available == 'true'
+        run: bash scripts/build-netlify.sh
+      - name: Publish non-production preview alias
+        if: steps.credentials.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes netlify-cli@27.20.0 deploy --dir=dist --no-build --alias=taiba-public-site-preview --json > netlify-preview.json
+          cat netlify-preview.json
