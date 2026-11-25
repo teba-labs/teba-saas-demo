@@ -5,7 +5,7 @@ import { getOutboxSummary } from './outbox.js';
 import { listCatalog, listCurrentPrices, warmCatalogParameters } from '../modules/catalog/repository.js';
 import { warmBranchPatients } from '../modules/reception/repository.js';
 import { listBranchStaff } from '../modules/staff/repository.js';
-import { getCurrentWorkday, listExpenseCategories, getWorkdayCashSummary, getLatestClosing } from '../modules/workday/repository.js';
+import { getCurrentWorkday, listExpenseCategories, getWorkdayCashSummary, getLatestClosing, warmBranchFinancialLedger } from '../modules/workday/repository.js';
 import { getLabSettings, getPrintSettings } from '../modules/settings/repository.js';
 import { listBranchWorkPage } from '../modules/laboratory/repository.js';
 import { listResultsForVisitTests, listVisitParameterRangeOverrides } from '../modules/results/repository.js';
@@ -85,7 +85,14 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
     ? await listCultureResults({ tenantId, branchId, visitTestIds })
     : { isolates: [], susceptibilities: [] };
 
-  progress('cash', 'حفظ ملخص اليوم وآخر إغلاق');
+  progress('cash', 'حفظ ملخص اليوم وآخر إغلاق والحركة المالية للشهر');
+  const today=new Date();const pad=value=>String(value).padStart(2,'0');
+  const monthStart=`${today.getFullYear()}-${pad(today.getMonth()+1)}-01`;
+  const nextMonth=new Date(today.getFullYear(),today.getMonth()+1,1);
+  const monthEnd=`${nextMonth.getFullYear()}-${pad(nextMonth.getMonth()+1)}-01`;
+  const ledgerSnapshot=await warmBranchFinancialLedger({tenantId,branchId,fromDate:monthStart,toDate:monthEnd,maxRows:5000});
+  await offlineDb.sync_meta.put({key:`financial-ledger-month:${tenantId}:${branchId}:${monthStart}`,tenant_id:tenantId,branch_id:branchId,
+    from_date:monthStart,to_date:monthEnd,...ledgerSnapshot,cached_at:new Date().toISOString()});
   const [cashSummary, latestClosing] = workday
     ? await Promise.all([
         getWorkdayCashSummary({ tenantId, branchId, workDate: workday.work_date }),
@@ -132,16 +139,20 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
       culture_susceptibilities: culture.susceptibilities?.length ?? 0,
       expense_categories: expenseCategories.length,
       pending_operations: outbox.total,
+      financial_ledger: ledgerSnapshot.cachedRows,
+      financial_ledger_available: ledgerSnapshot.totalRows,
     },
     truncated: {
       patient_directory: patients.truncated,
       worklist: worklistTruncated,
+      financial_ledger: ledgerSnapshot.truncated,
     },
     has_open_workday: Boolean(workday),
     has_lab_settings: Boolean(labSettings),
     has_print_settings: Boolean(printSettings),
     has_cash_snapshot: Boolean(cashSummary),
     has_latest_closing: Boolean(latestClosing),
+    has_financial_month_snapshot: Boolean(ledgerSnapshot),
     storage_persistent: storage.persistent,
     storage_remaining_bytes: storage.remaining,
     entitlement_status: entitlement.status,
