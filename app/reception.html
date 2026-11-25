@@ -25,7 +25,7 @@
 <main class="shell reception-shell">
   <section id="loginPanel" class="panel login-panel">
     <div class="login-symbol">T</div><span class="eyebrow">Taiba Smart Lab</span>
-    <h1>تسجيل دخول المعمل</h1><p class="muted">استخدم حساب المعمل المخصص لك.</p>
+    <h1>تسجيل دخول المعمل</h1><p class="muted">استخدم بيانات الدخول المخصصة لك.</p>
     <form id="loginForm" class="stack">
       <label for="email">البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label>
       <label for="password">كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label>
@@ -49,94 +49,86 @@
         <div><span class="step-kicker">مسار تسجيل الزيارة</span><h2>تسجيل مريض وزيارة جديدة</h2><p class="muted">املأ البيانات بالترتيب، ويمكنك استخدام لوحة المفاتيح من أول خانة حتى الحفظ.</p></div>
         <span class="workday-chip" id="intakeWorkdayChip">يوم العمل</span>
       </div>
-      <div class="intake-content">
-      <details class="intake-column patient-column" name="intake-mobile" open>
-        <summary>بيانات المريض والزيارة</summary>
-        <div class="intake-column-body">
-<section class="intake-block patient-block">
-      <div class="section-divider"><span>01</span><div><h3>بيانات المريض</h3><p>ابحث عن مريض مسجل أو أضف مريضًا جديدًا.</p></div></div>
-      <label for="patientSearch">البحث عن مريض بالاسم أو رقم الهاتف</label>
-      <input id="patientSearch" type="search" placeholder="اكتب حرفين على الأقل من الاسم أو الهاتف" autocomplete="off">
-      <div id="patientMatches" class="matches" role="listbox" aria-label="نتائج البحث عن المرضى"><p class="muted">ابدأ البحث لاختيار مريض مسجل.</p></div>
-      <div id="selectedPatient" class="selected" hidden></div>
-      <section id="patientHistoricalPanel" class="historical-results-panel" hidden><div class="section-head"><div><h3>النتائج التاريخية السابقة</h3><p class="muted">نتائج قديمة للرجوع إليها فقط، ولا تدخل في الزيارة الحالية.</p></div></div><div id="patientHistoricalList"></div></section>
-
-      <details id="newPatientDetails" class="new-patient-box">
-        <summary>＋ تسجيل مريض جديد</summary>
-        <form id="newPatientForm" class="new-patient-form">
-          <div class="form-grid patient-fields">
-            <label for="patientName">اسم المريض <b>*</b><input id="patientName" maxlength="160" required autocomplete="off" placeholder="الاسم بالكامل"></label>
-            <label for="patientPhone">رقم الهاتف (اختياري)<input id="patientPhone" type="tel" inputmode="tel" maxlength="30" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
-            <label for="patientDob">تاريخ الميلاد (اختياري)<input id="patientDob" type="date" autocomplete="bday"></label>
-            <label for="patientAge">العمر
-              <span class="age-control"><input id="patientAge" type="number" min="0" step="any" inputmode="decimal" placeholder="يُحسب من تاريخ الميلاد عند إدخاله"><select id="patientAgeUnit" aria-label="وحدة العمر"><option value="years">سنة</option><option value="months">شهر</option><option value="days">يوم</option></select></span>
-            </label>
-            <label for="patientSex">النوع<select id="patientSex" required><option value="" disabled selected>اختر النوع</option><option value="male">ذكر</option><option value="female">أنثى</option><option value="unknown">غير محدد</option></select></label>
-          </div>
-          <div class="generated-fields"><label for="patientNumberPreview">كود المريض (تلقائي)<input id="patientNumberPreview" readonly tabindex="-1"></label><span class="generated-note">يُنشأ كود فريد عند الحفظ</span></div>
-          <div class="actions"><button id="createPatient" class="button button-secondary" type="submit">حفظ المريض واختياره</button><button id="cancelNewPatient" class="button button-ghost" type="button">إلغاء</button></div>
-        </form>
-      </details>
-
-      </section>
-      <section class="intake-block visit-block">
-      <div class="section-divider"><span>02</span><div><h3>بيانات الزيارة</h3><p>رقم الزيارة وتاريخ يوم العمل يتم إنشاؤهما تلقائيًا.</p></div></div>
-      <div class="form-grid visit-meta">
-        <label for="visitNumber">رقم الزيارة (تلقائي)<input id="visitNumber" readonly></label>
-        <label for="visitDate">تاريخ الزيارة<input id="visitDate" readonly></label>
-        <label for="referredBy">الطبيب / جهة التحويل<input id="referredBy" maxlength="160" placeholder="اختياري"></label>
-      </div>
-      <label for="visitNotes">ملاحظات طبية أو إدارية<textarea id="visitNotes" rows="2" maxlength="1000" placeholder="أي ملاحظات تخص الزيارة…"></textarea></label>
-
-      </section>
+      <div class="intake-content intake-flow">
+        <section class="intake-column patient-column">
+          <div class="intake-column-body">
+            <section class="intake-block patient-block">
+              <div class="section-divider"><span>1</span><div><h3>بيانات المريض</h3><p>ابحث عن مريض مسجل، أو أضف مريضًا جديدًا.</p></div></div>
+              <label for="patientSearch">ابحث بالاسم أو رقم الهاتف</label>
+              <input id="patientSearch" type="search" placeholder="اكتب اسم المريض أو رقم الهاتف" autocomplete="off">
+              <div id="patientMatches" class="matches" role="listbox" aria-label="نتائج البحث عن المرضى"><p class="muted">ابدأ البحث لاختيار مريض مسجل.</p></div>
+              <div id="selectedPatient" class="selected" hidden></div>
+              <section id="patientHistoricalPanel" class="historical-results-panel" hidden><div class="section-head"><div><h3>النتائج التاريخية السابقة</h3><p class="muted">للاطلاع فقط، ولا تدخل في الزيارة الحالية.</p></div></div><div id="patientHistoricalList"></div></section>
+              <details id="newPatientDetails" class="new-patient-box">
+                <summary>＋ تسجيل مريض جديد</summary>
+                <form id="newPatientForm" class="new-patient-form">
+                  <div class="form-grid patient-fields">
+                    <label for="patientName">اسم المريض <b>*</b><input id="patientName" maxlength="160" required autocomplete="off" placeholder="الاسم بالكامل"></label>
+                    <label for="patientPhone">رقم الهاتف (اختياري)<input id="patientPhone" type="tel" inputmode="tel" maxlength="30" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
+                    <label for="patientAge">العمر <b>*</b><input id="patientAge" type="number" min="0" step="any" inputmode="decimal" required placeholder="اكتب العمر"></label>
+                    <label for="patientAgeUnit">وحدة العمر <b>*</b><select id="patientAgeUnit" required><option value="years">سنة</option><option value="months">شهر</option><option value="days">يوم</option></select></label>
+                    <label for="patientDob">تاريخ الميلاد (اختياري)<input id="patientDob" type="date" autocomplete="bday"><small class="field-hint">يمكن تركه فارغًا؛ العمر ووحدته مطلوبان.</small></label>
+                    <label for="patientSex">النوع <b>*</b><select id="patientSex" required><option value="" disabled selected>اختر النوع</option><option value="male">ذكر</option><option value="female">أنثى</option><option value="unknown">غير محدد</option></select></label>
+                  </div>
+                  <div class="generated-fields"><label for="patientNumberPreview">كود المريض (تلقائي)<input id="patientNumberPreview" readonly tabindex="-1"></label><span class="generated-note">يُنشأ تلقائيًا عند الحفظ.</span></div>
+                  <div class="actions"><button id="createPatient" class="button button-secondary" type="submit">حفظ المريض واختياره</button><button id="cancelNewPatient" class="button button-ghost" type="button">إلغاء</button></div>
+                </form>
+              </details>
+            </section>
+            <section class="intake-block visit-block">
+              <div class="section-divider"><span>2</span><div><h3>بيانات الزيارة</h3><p>رقم الزيارة والتاريخ يتحددان تلقائيًا.</p></div></div>
+              <div class="form-grid visit-meta">
+                <label for="visitNumber">رقم الزيارة<input id="visitNumber" readonly></label>
+                <label for="visitDate">تاريخ الزيارة<input id="visitDate" readonly></label>
+                <label for="referredBy">الطبيب / جهة التحويل (اختياري)<input id="referredBy" maxlength="160" placeholder="اسم الطبيب إن وجد"></label>
               </div>
-      </details>
-      <details class="intake-column cart-column" name="intake-mobile">
-        <summary>سلة التحاليل والحساب</summary>
-        <div class="intake-column-body">
-          <section class="intake-block cart-block">
-            <div class="section-divider"><span>03</span><div><h3>سلة التحاليل المختارة</h3><p>راجع التحاليل المختارة واحذف أي تحليل قبل حفظ الزيارة.</p></div></div>
-            <div id="selectedTestsList" class="selected-tests-list"><p class="muted">لم يتم اختيار تحاليل بعد.</p></div>
-          </section>
-<section class="intake-block billing-block">
-      <div class="section-divider"><span>05</span><div><h3>الحسابات والتحصيل</h3><p>راجع الإجمالي والخصم والمبلغ المدفوع قبل الحفظ.</p></div></div>
-      <div class="billing">
-        <div><span>إجمالي التحاليل</span><strong id="grossTotal">0.00 ج.م</strong></div>
-        <label for="discount">الخصم (ج.م)<input id="discount" type="number" min="0" step="0.01" value="0"></label>
-        <div class="net-box"><span>صافي الفاتورة</span><strong id="netTotal">0.00 ج.م</strong></div>
-        <label for="initialPayment">المدفوع الآن (ج.م)<input id="initialPayment" type="number" min="0" step="0.01" value="0"></label>
-        <div class="remaining-box"><span>المتبقي</span><strong id="remainingTotal">0.00 ج.م</strong></div>
-        <label for="initialPaymentMethod">طريقة الدفع<select id="initialPaymentMethod"><option value="cash">نقدي</option><option value="card">بطاقة</option><option value="wallet">محفظة إلكترونية</option><option value="bank_transfer">تحويل بنكي</option><option value="other">أخرى</option></select></label>
+              <label for="visitNotes">ملاحظات (اختياري)<textarea id="visitNotes" rows="2" maxlength="1000" placeholder="أي ملاحظات تخص الزيارة"></textarea></label>
+            </section>
+          </div>
+        </section>
+        <section class="intake-column catalog-column">
+          <div class="intake-column-body">
+            <section class="intake-block tests-block">
+              <div class="section-divider"><span>3</span><div><h3>اختيار التحاليل</h3><p>ابحث عن التحليل واضغط على المربع لاختياره.</p></div></div>
+              <label for="catalogSearch">ابحث عن التحليل</label>
+              <input id="catalogSearch" type="search" placeholder="اسم التحليل أو الكود">
+              <div class="catalog-toolbar"><span id="catalogCount">قائمة التحاليل</span><span id="selectedCount">لم يتم اختيار تحاليل</span></div>
+              <div id="catalogList" class="catalog-list" data-keyboard-list><p class="muted">جارٍ تحميل قائمة التحاليل…</p></div>
+            </section>
+          </div>
+        </section>
+        <section class="intake-column cart-column">
+          <div class="intake-column-body">
+            <section class="intake-block cart-block">
+              <div class="section-divider"><span>4</span><div><h3>التحاليل المختارة</h3><p>راجع القائمة ويمكنك إزالة أي تحليل.</p></div></div>
+              <div id="selectedTestsList" class="selected-tests-list"><p class="muted">لم يتم اختيار تحاليل بعد.</p></div>
+            </section>
+            <section class="intake-block billing-block">
+              <div class="section-divider"><span>5</span><div><h3>الحساب والدفع</h3><p>راجع المبلغ قبل حفظ الزيارة.</p></div></div>
+              <div class="billing">
+                <div><span>إجمالي التحاليل</span><strong id="grossTotal">0.00 ج.م</strong></div>
+                <label for="discount">الخصم (ج.م)<input id="discount" type="number" min="0" step="0.01" value="0"></label>
+                <div class="net-box"><span>صافي الفاتورة</span><strong id="netTotal">0.00 ج.م</strong></div>
+                <label for="initialPayment">المدفوع الآن (ج.م)<input id="initialPayment" type="number" min="0" step="0.01" value="0"></label>
+                <div class="remaining-box"><span>المتبقي</span><strong id="remainingTotal">0.00 ج.م</strong></div>
+                <label for="initialPaymentMethod">طريقة الدفع<select id="initialPaymentMethod"><option value="cash">نقدي</option><option value="card">بطاقة</option><option value="wallet">محفظة إلكترونية</option><option value="bank_transfer">تحويل بنكي</option><option value="other">أخرى</option></select></label>
+              </div>
+              <div class="actions main-actions">
+                <button id="createVisit" class="button button-primary" type="button" disabled>حفظ الزيارة والفاتورة</button>
+                <button id="resetSelection" class="button button-ghost" type="button">مسح التحاليل</button>
+                <button id="clearIntake" class="button button-ghost" type="button">بدء تسجيل جديد</button>
+              </div>
+              <p class="danger-note">لا يمكن الحفظ قبل اختيار المريض وتحليل واحد على الأقل وفتح يوم العمل.</p>
+              <section id="postSaveActions" class="post-save-actions" hidden aria-live="polite">
+                <div><strong id="postSaveTitle">تم حفظ الزيارة بنجاح</strong><p id="postSaveDetail">اختر الخطوة التالية.</p></div>
+                <div class="actions"><button id="goToResults" class="button button-primary" type="button">الانتقال لتسجيل النتائج</button><button id="newPatientAfterSave" class="button button-secondary" type="button">تسجيل مريض جديد</button></div>
+              </section>
+            </section>
+          </div>
+        </section>
       </div>
-      <div class="actions main-actions">
-        <button id="createVisit" class="button button-primary" type="button" disabled>حفظ الزيارة والفاتورة</button>
-        <button id="resetSelection" class="button button-ghost" type="button">مسح التحاليل المختارة</button>
-        <button id="clearIntake" class="button button-ghost" type="button">بدء تسجيل جديد</button>
-      </div>
-      <p class="danger-note">يمكن تسجيل التحليل بسعر صفر إذا لم تحدد له سعرًا. يلزم اختيار المريض وفتح يوم العمل واختيار تحليل واحد على الأقل.</p>
-      <section id="postSaveActions" class="post-save-actions" hidden aria-live="polite">
-        <div><strong id="postSaveTitle">تم حفظ الزيارة بنجاح</strong><p id="postSaveDetail">اختر الخطوة التالية.</p></div>
-        <div class="actions"><button id="goToResults" class="button button-primary" type="button">الانتقال لتسجيل النتائج</button><button id="newPatientAfterSave" class="button button-secondary" type="button">تسجيل مريض جديد</button></div>
-      </section>
-      </section>        
-        </div>
-      </details>
-      <details class="intake-column catalog-column" name="intake-mobile">
-        <summary>كتالوج التحاليل</summary>
-        <div class="intake-column-body">
-<section class="intake-block tests-block">
-      <div class="section-divider"><span>04</span><div><h3>اختيار التحاليل</h3><p>ابحث في الكتالوج وحدد تحليلًا أو أكثر؛ السعر يظهر بجوار كل تحليل.</p></div></div>
-      <label for="catalogSearch">بحث في كتالوج التحاليل</label>
-      <input id="catalogSearch" type="search" placeholder="اسم التحليل أو الكود…">
-      <div class="catalog-toolbar"><span id="catalogCount">قائمة التحاليل</span><span id="selectedCount">لم يتم اختيار تحاليل</span></div>
-      <div id="catalogList" class="catalog-list" data-keyboard-list><p class="muted">جارٍ تحميل قائمة التحاليل…</p></div>
-
-      </section>
-      
-        </div>
-      </details>
-    </div>
     </section>
+
 
     <section id="recentPanel" class="panel">
       <div class="section-head"><div><span class="step-kicker">متابعة الفرع</span><h2>آخر الزيارات المسجلة</h2><p class="muted">آخر الزيارات التي تم تسجيلها في الفرع الحالي.</p></div><button id="refreshRecent" class="button button-secondary" type="button">تحديث القائمة</button></div>
