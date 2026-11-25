@@ -35,7 +35,8 @@
 - PR #35 added migrations `074_offline_draft_results_idempotency` and `075_offline_culture_idempotency`; those migrations are present in the current primary project's migration history.
 - The current designated TEST project `teba-lab` is **not ready for offline integration testing**: it has only 12 recorded migrations, and read-only schema checks found no `staff_directory`, `test_prices`, `private.can_access_branch`, or offline idempotency RPCs. Do not apply isolated offline migrations to this incomplete schema.
 - The primary project has the full current migration history, including 074/075 and later migrations, but it must not be used for test mutations.
-- GitHub CI for the current development branch has passed the static regression suite, browser-only build, JavaScript syntax checks, static contract tests and source packaging. Responsive contract and browser QA checks are being reconciled before acceptance.
+- GitHub CI for commit `d8ff5ef1` passed all five checks: static regression, static contracts, responsive contracts, catalog approval preview, and full browser QA. The browser QA opened the service-worker shell, disconnected the browser, reloaded it, and verified IndexedDB persistence plus outbox idempotency. This is a local browser acceptance test, not yet a live Supabase sync test.
+- Read-only security inspection of the primary database found `private.offline_operation_receipts` has RLS disabled. The same inspection found no direct SELECT/INSERT grants for `anon` or `authenticated`, and the receipt-writing RPCs are `SECURITY DEFINER` functions owned by `postgres`; therefore this inspection does not establish public table access. It remains a security-hardening item: do not enable RLS or add policies blindly; confirm the intended function-only access path and migration behavior first.
 
 ## Still not complete — do not represent as production-ready
 
