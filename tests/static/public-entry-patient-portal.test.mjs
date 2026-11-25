@@ -37,15 +37,15 @@ test('visit number keeps the existing tenant/branch generator and stored value',
 });
 
 test('WhatsApp sends tenant-scoped portal and public-site links without obsolete lab-code instructions', () => {
-  assert.match(results, /portalUrl\\.searchParams\\.set\\('lab',state\\.tenant\\.slug\\)/);
-  assert.match(results, /portalUrl\\.href/);
-  assert.match(resultsLayout, /portal\\.searchParams\\.set\\('lab',slug\\)/);
-  assert.match(resultsLayout, /publicSite\\.searchParams\\.set\\('lab',slug\\)/);
-  assert.match(resultsLayout, /publicSite\\.href/);
-  assert.match(resultsLayout, /patientName:card\\.dataset\\.patientName/);
-  assert.doesNotMatch(resultsLayout, /ثم أدخل رمز المعمل/);
-  assert.match(lookupEdge, /\\.eq\\('visit_number', visitNumber\\)/);
-  assert.match(lookupEdge, /visitNumber: visit\\.visit_number/);
+  assert.ok(results.includes("portalUrl.searchParams.set('lab',state.tenant.slug)"));
+  assert.ok(results.includes("portalUrl.href"));
+  assert.ok(resultsLayout.includes("portal.searchParams.set('lab',slug)"));
+  assert.ok(resultsLayout.includes("publicSite.searchParams.set('lab',slug)"));
+  assert.ok(resultsLayout.includes("publicSite.href"));
+  assert.ok(resultsLayout.includes("patientName:card.dataset.patientName"));
+  assert.ok(!resultsLayout.includes("ثم أدخل رمز المعمل"));
+  assert.ok(lookupEdge.includes(".eq('visit_number', visitNumber)"));
+  assert.ok(lookupEdge.includes("visitNumber: visit.visit_number"));
 });
 
 test('patient portal asks only for the registered name and visit number', () => {
