@@ -1052,7 +1052,6 @@ async function downloadAttachment(button) {
 async function approve(button) {
   const visitId = button.dataset.visitId;
   try {
-    requireCloudConnection('اعتماد الزيارة');
     if (!visitId) throw new Error('تعذر تحديد الزيارة المراد اعتمادها.');
     const dirtyOutside = window.taibaGetDirtyResultInputs?.().filter(input =>
       input.closest('.parameter[data-visit-id]')?.dataset.visitId !== visitId
@@ -1061,17 +1060,19 @@ async function approve(button) {
 
     setBusy(button, true, 'جارٍ حفظ واعتماد الزيارة…');
     const saved = await saveVisitDrafts(visitId);
-    if (saved.queuedCount) {
-      throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد؛ انتظر اكتمال المزامنة ثم أعد الاعتماد.');
-    }
-    await approveVisitWithAutoCompletion({
+    const approval = await approveVisitWithAutoCompletion({
       tenantId: state.tenant.id,
       branchId: state.branch.id,
       visitId,
       staffId: $('staffSelect').value
     });
     state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
-    showNotice('تم حفظ النتائج واعتماد الزيارة بالكامل. يمكنك الآن معاينة التقرير وطباعته.');
+    if (approval?.queued) {
+      showNotice('تم تسجيل الاعتماد المحلي وحفظه على هذا الجهاز. سيُراجع الخادم النتائج والصلاحيات بعد المزامنة؛ هذا ليس اعتمادًا نهائيًا ولا ينشر التقرير للمريض.');
+      await refreshWork();
+      return;
+    }
+    showNotice('تم حفظ النتائج واعتماد الزيارة بالكامل. يمكنك الآن معاينة التقرير وطباعته، والنشر النهائي يظل خطوة منفصلة.');
     await refreshWork();
   } catch (error) {
     if (/required|missing|ناقص|غير مكتمل/i.test(error.message || '')) {
