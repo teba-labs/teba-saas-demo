@@ -50,7 +50,8 @@
         <span class="workday-chip" id="intakeWorkdayChip">يوم العمل</span>
       </div>
       <div class="intake-content intake-flow">
-        <section class="intake-column patient-column">
+        <details class="intake-column patient-column" open>
+          <summary><span>1. المريض والزيارة</span><small>بيانات المريض وتفاصيل الزيارة</small></summary>
           <div class="intake-column-body">
             <section class="intake-block patient-block">
               <div class="section-divider"><span>1</span><div><h3>بيانات المريض</h3><p>ابحث عن مريض مسجل، أو أضف مريضًا جديدًا.</p></div></div>
@@ -84,8 +85,9 @@
               <label for="visitNotes">ملاحظات (اختياري)<textarea id="visitNotes" rows="2" maxlength="1000" placeholder="أي ملاحظات تخص الزيارة"></textarea></label>
             </section>
           </div>
-        </section>
-        <section class="intake-column catalog-column">
+        </details>
+        <details class="intake-column catalog-column">
+          <summary><span>2. اختيار التحاليل</span><small>ابحث واختر التحاليل المطلوبة</small></summary>
           <div class="intake-column-body">
             <section class="intake-block tests-block">
               <div class="section-divider"><span>3</span><div><h3>اختيار التحاليل</h3><p>ابحث عن التحليل واضغط على المربع لاختياره.</p></div></div>
@@ -95,8 +97,9 @@
               <div id="catalogList" class="catalog-list" data-keyboard-list><p class="muted">جارٍ تحميل قائمة التحاليل…</p></div>
             </section>
           </div>
-        </section>
-        <section class="intake-column cart-column">
+        </details>
+        <details class="intake-column cart-column">
+          <summary><span>3. الفاتورة والحفظ</span><small>راجع الاختيارات والمبلغ واحفظ الزيارة</small></summary>
           <div class="intake-column-body">
             <section class="intake-block cart-block">
               <div class="section-divider"><span>4</span><div><h3>التحاليل المختارة</h3><p>راجع القائمة ويمكنك إزالة أي تحليل.</p></div></div>
@@ -124,7 +127,7 @@
               </section>
             </section>
           </div>
-        </section>
+        </details>
       </div>
     </section>
 
