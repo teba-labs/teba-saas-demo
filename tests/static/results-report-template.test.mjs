@@ -23,7 +23,7 @@ test('reference ranges are normalized, age/sex matched and never rendered as raw
 });
 
 test('result table uses fixed clinical column widths, wrapping and correct cell directions',()=>{
- for(const value of ['table-layout:fixed','width:100%','width:40%','width:15%','width:10%','width:25%','word-break:break-word','overflow-wrap:anywhere','.parameter-cell{direction:rtl;text-align:right}','.result-cell,.reference-cell{direction:ltr;text-align:left}']) assert.ok(js.includes(value),value);
+ for(const value of ['table-layout:fixed','width:100%','width:40%','width:15%','width:10%','width:25%','word-break:break-word','overflow-wrap:anywhere','.parameter-cell{direction:rtl;text-align:right}','.result-cell,.reference-cell{direction:ltr;text-align:left;font-variant-numeric:tabular-nums}']) assert.ok(js.includes(value),value);
 });
 
 test('bilingual report header repeats patient visit metadata and footer per PDF page',()=>{
