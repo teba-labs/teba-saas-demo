@@ -575,11 +575,14 @@ async function loadHistoricalReportPicker(button){
 async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const allVisitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
   if (!allVisitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
-  const visit = allVisitItems[0].visits || {};
+  let visit = allVisitItems[0].visits || {};
+  const approvalMarker=visit.id?await offlineDb.sync_meta.get(`approval:${state.tenant.id}:${state.branch.id}:${visit.id}`):null;
+  if(approvalMarker?.approval_status==='pending_server_validation')visit={...visit,local_approval_status:'pending_server_validation'};
+  else if(approvalMarker?.approval_status==='conflict')visit={...visit,local_approval_status:'local_approval_conflict'};
   const visitApproved = visit.status === 'approved' || Boolean(visit.is_published);
   const hasCompletedTests = allVisitItems.some(item => item.status === 'completed');
   const hasPendingTests = allVisitItems.some(item => item.status !== 'completed');
-  const localOffline = globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || allVisitItems.some(item => item.local_offline) || visit.local_approval_status === 'pending_server_validation';
+  const localOffline = globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || allVisitItems.some(item => item.local_offline) || visit.local_approval_status === 'pending_server_validation' || visit.local_approval_status === 'local_approval_conflict';
   const serverApproved = !localOffline && visitApproved && !hasPendingTests;
   const patient = visit.patients || {};
   let rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: allVisitItems.map(item => item.id) });
