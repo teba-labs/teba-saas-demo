@@ -324,7 +324,7 @@ export function createSupabaseSyncHandlers() {
       if(error){
         const existing=await getServerWorkday(operation.tenant_id,operation.branch_id,p.work_date);
         if(existing.error)throw error;
-        if(!existing.data||existing.data.opened_by_staff_id!==p.staff_id)throw error;
+        if(!existing.data)throw error;
         data=existing.data.id;
       }
       const current=await getServerWorkday(operation.tenant_id,operation.branch_id,p.work_date);
