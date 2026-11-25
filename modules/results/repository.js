@@ -136,6 +136,8 @@ async function queueLocalVisitApproval({tenantId,branchId,visitId,staffId}={}) {
   const payload={visit_id:visitId,local_visit_id:visitId,local_visit_pending:Boolean(visit.local_intake_operation_id),
     staff_id:staffId,actor_user_id:session.user.id,approved_at:approvedAt,result_fingerprint:resultFingerprint};
   await enqueueOperation({tenantId,branchId,entityType:'visit_approval',action:'approve',operationId,payload,dependsOn,priority:95});
+  await offlineDb.sync_meta.put({key:`approval:${tenantId}:${branchId}:${visitId}`,tenant_id:tenantId,branch_id:branchId,visit_id:visitId,
+    operation_id:operationId,approval_status:'pending_server_validation',approved_by_staff_id:staffId,approved_at:approvedAt});
   await cacheRows('visits',[{...visit,local_approval_status:'pending_server_validation',
     local_approved_by_staff_id:staffId,local_approved_at:approvedAt,local_approval_operation_id:operationId}]);
   return {queued:true,localApproval:true,operationId,approvedAt};
