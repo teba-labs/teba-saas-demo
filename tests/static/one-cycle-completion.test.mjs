@@ -5,7 +5,7 @@ import {readFile} from 'node:fs/promises';
 const root=new URL('../../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
 
-test('reception is a patient, cart, and catalog workspace with a live removable cart',async()=>{
+test('reception is a simple patient, catalog, and billing flow with a live removable cart',async()=>{
   const html=await read('app/reception.html');
   const js=await read('assets/js/reception.js');
   const css=await read('assets/css/reception.css');
@@ -13,12 +13,13 @@ test('reception is a patient, cart, and catalog workspace with a live removable 
   assert.match(html,/class="intake-column cart-column"/);
   assert.match(html,/class="intake-column catalog-column"/);
   assert.match(html,/id="selectedTestsList"/);
-  assert.ok(html.indexOf('patient-column')<html.indexOf('cart-column'));
-  assert.ok(html.indexOf('cart-column')<html.indexOf('catalog-column'));
+  assert.ok(html.indexOf('patient-column')<html.indexOf('catalog-column'));
+  assert.ok(html.indexOf('catalog-column')<html.indexOf('cart-column'));
   assert.match(js,/function renderSelectedTests\(/);
   assert.match(js,/data-remove-selected/);
-  assert.match(css,/grid-template-columns:minmax\(280px,1\.02fr\)/);
-  assert.match(css,/intake-column\[open\]>.intake-column-body/);
+  assert.match(html,/class="intake-content intake-flow"/);
+  assert.match(css,/grid-template-areas:"patient patient" "catalog cart"/);
+  assert.match(css,/grid-template-areas:"patient" "catalog" "cart"/);
 });
 
 test('results workbench uses three desktop sections and mobile tabs instead of stacked columns',async()=>{

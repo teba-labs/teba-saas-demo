@@ -55,20 +55,34 @@ test('reception exposes working keyboard, catalog, billing, payment and print co
   assert.match(css, /:focus-visible/);
 });
 
-test('new patient keyboard flow advances Enter and accepts missing phone while supporting date of birth',()=>{
+test('new patient requires manually entered age and unit while birth date stays optional',()=>{
   const html=read('app/reception.html');
   const js=read('assets/js/reception.js');
   assert.match(html,/id="patientPhone"[^>]*>/);
   assert.doesNotMatch(html,/id="patientPhone"[^>]*required/);
+  assert.match(html,/id="patientAge"[^>]*required/);
+  assert.match(html,/id="patientAgeUnit"[^>]*required/);
   assert.match(html,/id="patientDob"/);
+  assert.doesNotMatch(html,/id="patientDob"[^>]*required/);
   assert.match(js,/dateOfBirth/);
-  assert.match(js,/syncAgeFromDob/);
-  assert.match(js,/unit:'days'/);
-  assert.match(js,/unit:'months'/);
-  assert.match(js,/unit:'years'/);
+  assert.match(js,/ageValue:age,ageUnit:unit/);
+  assert.match(js,/اكتب عمر المريض وحدد وحدته/);
+  assert.doesNotMatch(js,/ageFromDateOfBirth/);
   assert.match(js,/newPatientForm'\)\.addEventListener\('keydown'/);
   assert.match(js,/fields\[index\+1\]/);
   assert.match(js,/\(next\|\|\$\('createPatient'\)\)\.focus\(\)/);
+});
+
+test('reception is arranged as one numbered and readable sequence',()=>{
+  const html=read('app/reception.html');
+  const css=read('assets/css/reception.css');
+  assert.match(html,/class="intake-content intake-flow"/);
+  for(const label of ['بيانات المريض','بيانات الزيارة','اختيار التحاليل','التحاليل المختارة','الحساب والدفع']) {
+    assert.ok(html.includes(label),`missing reception step: ${label}`);
+  }
+  assert.match(css,/grid-template-areas:"patient patient" "catalog cart"/);
+  assert.match(css,/grid-template-areas:"patient" "catalog" "cart"/);
+  assert.match(css,/\.main-actions \.button-primary/);
 });
 
 

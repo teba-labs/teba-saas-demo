@@ -192,7 +192,7 @@ function renderSelectedTests(){
   host.innerHTML=selected.length?selected.map(test=>{
     const price=state.prices.get(test.id);
     return `<div class="selected-test-row"><div class="selected-test-main"><strong>${escapeHtml(test.name)}</strong><small>${escapeHtml(test.code)} · ${escapeHtml(test.category||'')}</small></div><strong class="selected-test-price">${money(price?.selling_price??0)}</strong><button type="button" class="button button-ghost selected-test-remove" data-remove-selected="${escapeHtml(test.id)}" aria-label="إزالة ${escapeHtml(test.name)}">إزالة</button></div>`;
-  }).join(''):'<p class="muted">لم يتم اختيار تحاليل بعد. اختر التحاليل من الكتالوج في العمود الثالث.</p>';
+  }).join(''):'<p class="muted">لم يتم اختيار تحاليل بعد. اختر التحاليل من القائمة.</p>';
   host.querySelectorAll('[data-remove-selected]').forEach(button=>button.addEventListener('click',()=>{
     state.selected.delete(button.dataset.removeSelected);
     renderCatalog();
@@ -218,36 +218,28 @@ async function searchPatients(){
     for(const button of $('patientMatches').querySelectorAll('[data-patient]'))button.addEventListener('click',()=>{const patient=rows.find(p=>p.id===button.dataset.patient);setPatient(patient);notice('تم اختيار المريض.');});
   }catch(error){$('patientMatches').innerHTML='<p class="muted">تعذر البحث: '+escapeHtml(error.message||'خطأ غير معروف')+'</p>';}
 }
-function ageFromDateOfBirth(value){
-  const birth=new Date(String(value||'')+'T00:00:00');
-  if(!value||Number.isNaN(birth.getTime()))throw new Error('راجع تاريخ الميلاد.');
-  const now=new Date();now.setHours(0,0,0,0);
-  if(birth>now)throw new Error('تاريخ الميلاد لا يمكن أن يكون في المستقبل.');
-  const days=Math.floor((now.getTime()-birth.getTime())/86400000);
-  if(days<60)return {value:days,unit:'days'};
-  let months=(now.getFullYear()-birth.getFullYear())*12+(now.getMonth()-birth.getMonth());
-  if(now.getDate()<birth.getDate())months--;
-  months=Math.max(0,months);
-  if(months<24)return {value:months,unit:'months'};
-  return {value:Number((months/12).toFixed(2)),unit:'years'};
-}
 function syncAgeFromDob(){
-  const dob=$('patientDob').value;
-  $('patientAge').readOnly=Boolean(dob);
-  $('patientAgeUnit').disabled=Boolean(dob);
-  if(!dob)return;
-  try{const age=ageFromDateOfBirth(dob);$('patientAge').value=age.value;$('patientAgeUnit').value=age.unit;}
-  catch(error){$('patientAge').value='';notice(error.message,true);}
+  const value=$('patientDob').value;
+  if(value){
+    const birth=new Date(value+'T00:00:00');
+    const today=new Date();today.setHours(0,0,0,0);
+    if(Number.isNaN(birth.getTime())||birth>today){
+      $('patientDob').setCustomValidity('تاريخ الميلاد غير صحيح أو في المستقبل.');
+      return false;
+    }
+  }
+  $('patientDob').setCustomValidity('');
+  return true;
 }
 async function addNewPatient(button){
   const fullName=$('patientName').value.trim();if(!fullName){notice('اكتب اسم المريض أولًا.',true);$('patientName').focus();return;}
   const phone=$('patientPhone').value.trim()||null;
   const sex=$('patientSex').value;if(!sex){notice('حدد النوع: ذكر أو أنثى.',true);$('patientSex').focus();return;}
   const dateOfBirth=$('patientDob').value||null;
-  const ageRaw=$('patientAge').value,ageFromDob=dateOfBirth?ageFromDateOfBirth(dateOfBirth):null;
-  const age=ageFromDob?ageFromDob.value:(ageRaw===''?null:Number(ageRaw)),unit=ageFromDob?ageFromDob.unit:$('patientAgeUnit').value;
+  const ageRaw=$('patientAge').value,age=ageRaw===''?null:Number(ageRaw),unit=$('patientAgeUnit').value;
   const max=unit==='days'?43800:unit==='months'?1440:120;
-  if(age!==null&&(!Number.isFinite(age)||age<0||age>max)){notice('راجع العمر ووحدة القياس المدخلة.',true);$('patientAge').focus();return;}
+  if(!syncAgeFromDob()){notice('راجع تاريخ الميلاد؛ يمكن تركه فارغًا.',true);$('patientDob').focus();return;}
+  if(age===null||!Number.isFinite(age)||age<0||age>max){notice('اكتب عمر المريض وحدد وحدته: سنة أو شهر أو يوم.',true);$('patientAge').focus();return;}
   busy(button,true,'جارٍ حفظ المريض…');
   try{
     const patient=await createPatient({tenantId:state.tenant.id,branchId:state.branch.id,patient:{
