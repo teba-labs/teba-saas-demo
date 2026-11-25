@@ -1,5 +1,5 @@
 import { offlineDb } from './database.js';
-import { assertOfflineEntitlement } from './entitlement.js';
+import { assertQueueAllowed } from './queue-policy.js';
 
 const ALLOWED_STATUSES = new Set(['pending', 'syncing', 'failed', 'conflict']);
 const DEFAULT_MAX_ATTEMPTS = 12;
@@ -24,7 +24,7 @@ export async function enqueueOperation({ tenantId, branchId, entityType, action,
   if (!Array.isArray(dependsOn) || dependsOn.some(id => typeof id !== 'string' || !id)) throw new Error('dependsOn must be an array of operation IDs.');
   // Every durable local business write needs a current signed lease. Sync itself
   // is deliberately not gated, so pending work can always reach the server.
-  await assertOfflineEntitlement({ tenantId, branchId });
+  await assertQueueAllowed({ tenantId, branchId });
   const safePayload = structuredClone(payload);
   const dependencies = [...new Set(dependsOn)];
   const now = new Date().toISOString();
