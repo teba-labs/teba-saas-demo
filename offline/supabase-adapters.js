@@ -273,7 +273,7 @@ export function createSupabaseSyncHandlers() {
       if(visitResult.data.status==='cancelled')return {conflict:true,reason:'A cancelled visit cannot be approved.'};
       const visitTestsResult=await db().from('visit_tests')
         .select('id,test_id,test_code_snapshot,test_name_snapshot')
-        .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('visit_id',visitId);
+        .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('visit_id',visitId).neq('status','cancelled');
       if(visitTestsResult.error)throw visitTestsResult.error;
       const visitTests=visitTestsResult.data||[];
       const ids=visitTests.map(row=>row.id);
