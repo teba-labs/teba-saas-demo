@@ -94,16 +94,17 @@ async function refreshOperationalStatus() {
   }
 }
 async function prepareTenantCatalog(tenantId) {
-  if (globalThis.navigator?.onLine === false) {
-    const tests = await listCatalog({ tenantId });
-    return { bootstrap: { skipped: true, unavailable: tests.length === 0, available_count: tests.length, offline_cache: true }, tests };
+  let bootstrap = { skipped: true, offline_cache: true };
+  if (globalThis.navigator?.onLine !== false) {
+    try { bootstrap = await ensureTenantCoreCatalog(tenantId); }
+    catch (error) { if (!/fetch|network|offline/i.test(error.message || '')) throw error; }
   }
-  const bootstrap = await ensureTenantCoreCatalog(tenantId);
   const tests = await listCatalog({ tenantId });
   if (globalThis.navigator?.onLine !== false && tests.length) {
-    await warmCatalogParameters({ tenantId, testIds: tests.map(test => test.id) });
+    try { await warmCatalogParameters({ tenantId, testIds: tests.map(test => test.id) }); }
+    catch (error) { if (!/fetch|network|offline/i.test(error.message || '')) throw error; }
   }
-  return { bootstrap, tests };
+  return { bootstrap: { ...bootstrap, unavailable: tests.length === 0, available_count: tests.length }, tests };
 }
 async function selectTenant(id) {
   state.tenant = state.context.tenants.find(t => t.id === id) || null;
