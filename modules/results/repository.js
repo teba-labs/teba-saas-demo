@@ -215,6 +215,9 @@ export async function listVisitParameterRangeOverrides({ tenantId, branchId, vis
     if(error){if(/fetch|network|offline/i.test(error.message||''))return local();throw error;}
     rows.push(...(data||[]));
   }
+  const keepKeys=new Set(rows.map(row=>`range-override:${row.visit_test_id}:${row.parameter_code}`));
+  const cached=await offlineDb.sync_meta.toArray();
+  for(const row of cached){if(row.key?.startsWith('range-override:')&&row.tenant_id===tenantId&&(!branchId||row.branch_id===branchId)&&ids.includes(row.visit_test_id)&&!keepKeys.has(row.key))await offlineDb.sync_meta.delete(row.key);}
   for(const row of rows)await offlineDb.sync_meta.put({...row,key:`range-override:${row.visit_test_id}:${row.parameter_code}`});
   return rows;
 }
