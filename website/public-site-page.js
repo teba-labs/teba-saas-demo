@@ -80,6 +80,7 @@ export function renderPublicSite(data){
   if(sectionVisibility.has(key))node.hidden=!sectionVisibility.get(key);
  });
  const groups=[
+  {title:'التحاليل وأسعارها',ids:['tests']},
   {title:'التحاليل الطبية والخدمات',ids:['services']},
   {title:'الباقات والعروض',ids:['offers','packages']},
   {title:'الفروع ومواعيد العمل',ids:['branches']},
