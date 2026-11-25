@@ -54,3 +54,13 @@ html[data-theme="dark"] .site-accordion-area{background:#14241b;border-color:#26
 html[data-theme="dark"] .site-accordion-trigger{color:#e4eee7}
 html[data-theme="dark"] .site-accordion-trigger:hover{background:#1b3024}
 html[data-theme="dark"] .accordion-symbol{background:#294434}
+
+
+/* Vertical TV-style announcement rotator */
+.announcement{padding:0;min-height:46px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(105deg,#064a34,#0a6847 52%,#07543a);border-bottom:1px solid #eab30855}
+.announcement>.wrap{height:46px;max-width:100%;width:100%;display:block;overflow:hidden}
+.announcement-track{height:100%;display:flex;flex-direction:column;transform:translateY(0);transition:transform .72s cubic-bezier(.22,.75,.25,1);will-change:transform}
+.announcement-message{height:46px;min-height:46px;flex:0 0 46px;display:flex;align-items:center;justify-content:center;padding:0 22px;color:#fff;font-size:13px;font-weight:800;line-height:1.6;text-align:center;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.announcement-message:first-child:before{content:"✦";color:#f4d35e;margin-inline-end:10px;font-size:12px}
+@media(max-width:600px){.announcement,.announcement>.wrap{min-height:42px;height:42px}.announcement-message{height:42px;min-height:42px;flex-basis:42px;padding-inline:14px;font-size:11px;white-space:normal;line-height:1.45}.announcement-message:first-child:before{margin-inline-end:7px}}
+@media(prefers-reduced-motion:reduce){.announcement-track{transition:none}}
