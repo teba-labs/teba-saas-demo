@@ -33,8 +33,9 @@ try {
   page.on('pageerror', error => pageErrors.push(error.message));
 
   await page.goto('http://127.0.0.1:4174/app/sync-center.html', { waitUntil: 'load', timeout: 90000 });
-  await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout: 60000 });
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; return true; });
+  await page.reload({ waitUntil: 'load', timeout: 90000 });
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 60000 });
   await page.evaluate(async () => {
     const database = await import('/offline/database.js');
     await database.assertOfflineDatabaseReady();
