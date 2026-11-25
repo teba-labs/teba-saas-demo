@@ -19,3 +19,38 @@ html[data-theme="dark"] body,html[data-theme="dark"] .site-header{background:#11
 @media(max-width:390px){.brand-copy small{display:none}.portal{font-size:9px;padding:9px}.hero h1{font-size:31px}.hero-trust{gap:11px}.service-grid,.cards{grid-template-columns:1fr}.sampling-art{display:none}.footer-grid{grid-template-columns:1fr 1fr}}
 
 .site-request-dialog{width:min(94vw,560px);max-width:560px;border:1px solid var(--line);border-radius:22px;padding:0;color:var(--ink);box-shadow:0 24px 80px #102e2540}.site-request-dialog::backdrop{background:#102e2588;backdrop-filter:blur(4px)}.request-card{padding:25px}.request-head{display:flex;justify-content:space-between;align-items:start;gap:15px;margin-bottom:18px}.request-head h2{font-size:21px;margin:5px 0}.request-head p{font-size:12px;color:var(--muted);line-height:1.8;margin:0}.request-form{display:grid;grid-template-columns:1fr 1fr;gap:13px}.request-form label{display:grid;gap:7px;font-size:12px;font-weight:800}.request-form input,.request-form select,.request-form textarea{width:100%;min-width:0;border:1px solid var(--line);border-radius:10px;padding:11px;background:var(--card);color:var(--ink);font:inherit;font-size:12px}.request-form .full{grid-column:1/-1}.request-actions{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.request-actions p{font-size:12px;line-height:1.7;margin:0}.request-actions p[data-kind="success"]{color:#16704c}.request-actions p[data-kind="error"]{color:#b42318}.package-request{margin-top:13px;width:100%}html[data-theme="dark"] .request-card{background:#1d3025;color:#e3eee6}html[data-theme="dark"] .request-form input,html[data-theme="dark"] .request-form select,html[data-theme="dark"] .request-form textarea{background:#14251c;border-color:#304638;color:#e3eee6}@media(max-width:520px){.request-form{grid-template-columns:1fr}.request-form .full,.request-actions{grid-column:auto}.request-card{padding:18px}}
+
+
+/* Public homepage accordion: keep detailed sections closed until requested. */
+.site-accordion-area{padding:72px 0 82px;background:#f8fbf8;border-top:1px solid var(--line)}
+.site-accordion-area .section-heading{margin-bottom:28px}
+.site-accordion-list{display:grid;gap:12px;max-width:940px;margin-inline:auto}
+.site-accordion-item{background:var(--card);border:1px solid var(--line);border-radius:17px;overflow:hidden;box-shadow:0 7px 22px #163e2b08;scroll-margin-top:105px}
+.site-accordion-trigger{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:20px 23px;color:var(--ink);font-size:15px;font-weight:800;min-height:68px}
+.site-accordion-trigger::-webkit-details-marker{display:none}
+.site-accordion-trigger::marker{content:""}
+.site-accordion-trigger:hover{background:#f5faf6;color:var(--teba)}
+.accordion-symbol{width:30px;height:30px;flex:0 0 30px;border-radius:10px;background:#edf6ef;position:relative}
+.accordion-symbol:before,.accordion-symbol:after{content:"";position:absolute;left:50%;top:50%;width:13px;height:2px;border-radius:2px;background:var(--teba);transform:translate(-50%,-50%)}
+.accordion-symbol:after{transform:translate(-50%,-50%) rotate(90deg);transition:transform .2s}
+.site-accordion-item[open] .accordion-symbol:after{transform:translate(-50%,-50%) rotate(0)}
+.site-accordion-content{padding:0 22px 22px;border-top:1px solid var(--line)}
+.site-accordion-content>.section,.site-accordion-content>.custom-section{padding:34px 0}
+.site-accordion-content>.section:first-child{padding-top:30px}
+.site-accordion-content>.section:last-child{padding-bottom:5px}
+.site-accordion-content>.section>.wrap{width:100%}
+.site-accordion-content .section-heading{margin-bottom:24px}
+.site-accordion-content .sampling-panel{margin-top:8px}
+.site-accordion-content .contact-panel{width:100%}
+.site-accordion-item:focus-within{outline:2px solid #0a684744;outline-offset:2px}
+@media(max-width:760px){
+ .site-accordion-area{padding:48px 0 58px}
+ .site-accordion-trigger{padding:17px 16px;min-height:62px;font-size:13px}
+ .site-accordion-content{padding:0 15px 16px}
+ .site-accordion-content>.section{padding:28px 0}
+ .site-accordion-content .contact-panel{padding:25px 20px;display:grid}
+}
+html[data-theme="dark"] .site-accordion-area{background:#14241b;border-color:#263b30}
+html[data-theme="dark"] .site-accordion-trigger{color:#e4eee7}
+html[data-theme="dark"] .site-accordion-trigger:hover{background:#1b3024}
+html[data-theme="dark"] .accordion-symbol{background:#294434}

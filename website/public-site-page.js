@@ -35,7 +35,7 @@ export function renderPublicSite(data){
  const accent=/^#[0-9a-f]{6}$/i.test(theme.accent||theme.primary_color||'')?(theme.accent||theme.primary_color):'#16877f';
  const brandAccent=accent.toLowerCase()==='#16877f'?'#0a6847':accent;document.documentElement.style.setProperty('--accent',brandAccent);document.documentElement.style.setProperty('--teba',brandAccent);
  const name=content.lab_name||content.site_name||tenant.name||'المعمل';$('labName').textContent=name;$('footerName').textContent=name;$('brandTagline').textContent=content.tagline||'الموقع الإلكتروني الرسمي';
- $('heroTitle').textContent=content.hero_title||content.title||'تحاليل دقيقة… واهتمام يليق بك';$('heroText').textContent=content.hero_description||content.description||'نقدم خدمات التحاليل الطبية وفق معايير جودة دقيقة، مع اهتمام بتجربة المريض وسهولة الوصول إلى النتائج.';
+ $('heroTitle').textContent=content.hero_title||content.title||'صحتك تستحق رعاية أفضل';$('heroText').textContent=content.hero_description||content.description||'دقة في التحاليل، اهتمام بكل مريض، ونتائج تثق بها.';
  $('heroEyebrow').textContent=content.hero_eyebrow||'رعاية أدق تبدأ من هنا';$('heroCta').textContent=content.hero_button_text||'اكتشف خدماتنا';$('footerText').textContent=content.footer_text||content.contact_text||'نسعد بتواصلكم وزيارتكم في أحد فروعنا.';
  const logo=safeUrl(content.logo_url||content.logo_path);if(logo)$('logo').innerHTML='<img src="'+esc(logo)+'" alt="">';
  const heroImage=safeUrl(content.hero_image_url);const hero=$('hero');if(hero){hero.style.backgroundImage=heroImage?'linear-gradient(90deg,rgba(9,39,51,.92),rgba(9,39,51,.55)),url("'+heroImage+'")':'';hero.style.backgroundSize='cover';hero.style.backgroundPosition='center';}
@@ -52,10 +52,10 @@ export function renderPublicSite(data){
  const builtIn={hero:'hero',about:'about',services:'services',home_sampling:'home_sampling',offers:'offers',packages:'packages',articles:'articles',faqs:'faq',testimonials:'testimonials',branches:'branches'};
  const custom=sections.filter(x=>!builtIn[x.section_key]&&x.section_key!=='tests');
  const customNodes=new Map(custom.map(s=>{const c=s.content&&typeof s.content==='object'?s.content:{};const node=document.createElement('section');node.className='custom-section';node.innerHTML='<div class="wrap"><span class="eyebrow">'+esc(c.eyebrow||'')+'</span><h2>'+esc(s.title||c.title||'')+'</h2><p>'+esc(c.text||c.description||c.body||'')+'</p></div>';return [s.section_key,node]}));
- $('customSections').remove();
+ $('customSections')?.remove();
  const main=document.querySelector('main');
  const ordered=sections.filter(s=>s.section_key!=='tests').map(s=>document.getElementById(builtIn[s.section_key])||customNodes.get(s.section_key)).filter(Boolean);
- for(const id of ['hero','about','services','home_sampling','offers','packages','articles','faq','testimonials','branches']){const node=document.getElementById(id);if(node&&!ordered.includes(node))ordered.push(node)}
+ for(const id of ['about','services','home_sampling','offers','packages','articles','faq','testimonials','branches']){const node=document.getElementById(id);if(node&&!ordered.includes(node))ordered.push(node)}
  const now=Date.now();const offers=(data.offers||[]).filter(x=>x.is_active!==false&&x.is_published!==false&&(!x.starts_at||new Date(x.starts_at).getTime()<=now)&&(!x.ends_at||new Date(x.ends_at).getTime()>=now));cards('offerCards',offers,x=>'<article class="card"><span class="tag">عرض خاص</span><h3>'+esc(x.title)+'</h3><p>'+esc(x.description||'')+'</p>'+(x.discount_percent!=null?'<div class="price">خصم '+esc(x.discount_percent)+'%</div>':'')+'</article>');
  const packages=(data.packages||[]).filter(x=>x.is_active!==false&&x.is_published!==false);cards('packageCards',packages,x=>{const img=safeUrl(x.image_path);return '<article class="card">'+(img?'<img src="'+esc(img)+'" alt="'+esc(x.title)+'">':'')+'<h3>'+esc(x.title)+'</h3><p>'+esc(x.description||'')+'</p>'+(Array.isArray(x.included_tests)&&x.included_tests.length?'<p>'+esc(x.included_tests.join(' · '))+'</p>':'')+'<div class="price">'+(x.display_price!=null?esc(x.display_price)+' جنيه':'')+(x.old_price!=null?'<span class="old">'+esc(x.old_price)+' جنيه</span>':'')+'</div><button class="btn btn-outline package-request" type="button" data-package-request="'+esc(x.id)+'" data-package-title="'+esc(x.title)+'">استفسر عن الباقة</button></article>'});
  const articles=(data.articles||[]).filter(x=>x.is_published!==false);cards('articleCards',articles,x=>{const img=safeUrl(x.cover_image_path);return '<article class="card">'+(img?'<img src="'+esc(img)+'" alt="">':'')+'<h3>'+esc(x.title)+'</h3><p>'+esc(x.excerpt||'')+'</p>'+(x.body_json?.text?'<p>'+esc(x.body_json.text)+'</p>':'')+'</article>'});
@@ -63,7 +63,41 @@ export function renderPublicSite(data){
  const testimonials=(data.testimonials||[]).filter(x=>x.is_published!==false);cards('testimonialCards',testimonials,x=>card(x.display_name||'عميل',x.content,'<div class="price">'+('★'.repeat(Math.max(0,Math.min(5,Number(x.rating)||0))))+'</div>'));
  const branches=(data.branches||[]).filter(x=>x.show_on_site!==false&&x.is_published!==false);cards('branchCards',branches,x=>{const map=safeUrl(x.public_map_link);return '<article class="card branch"><h3>'+esc(x.public_name||'فرع المعمل')+'</h3><p>'+esc(x.public_address||'')+'</p><p>'+esc(x.public_phone||'')+'</p>'+(map?'<a href="'+esc(map)+'" target="_blank" rel="noopener">عرض الموقع على الخريطة</a>':'')+'</article>'});
  bindSiteRequests(data);
- ordered.forEach(node=>{if(node.classList.contains('custom-section'))node.hidden=false;else{const key=Object.keys(builtIn).find(k=>builtIn[k]===node.id);const configured=key&&sectionVisibility.has(key)?!sectionVisibility.get(key):false;node.hidden=node.hidden||configured;}main.appendChild(node)});
+ const contactSection=$('contact');if(contactSection&&!ordered.includes(contactSection))ordered.push(contactSection);
+ ordered.forEach(node=>{
+  const builtInKey=Object.keys(builtIn).find(key=>builtIn[key]===node.id);
+  const key=builtInKey||node.id;
+  if(sectionVisibility.has(key))node.hidden=!sectionVisibility.get(key);
+ });
+ const groups=[
+  {title:'التحاليل الطبية والخدمات',ids:['services']},
+  {title:'الباقات والعروض',ids:['offers','packages']},
+  {title:'الفروع ومواعيد العمل',ids:['branches']},
+  {title:'السحب المنزلي',ids:['home_sampling']},
+  {title:'من نحن ومعلومات تهمك',ids:['about','articles','testimonials','faq']},
+  {title:'تواصل معنا',ids:['contact']}
+ ];
+ const groupNodes=groups.map(group=>({title:group.title,nodes:group.ids.map(id=>ordered.find(node=>node.id===id)).filter(node=>node&&!node.hidden)})).filter(group=>group.nodes.length);
+ const customNodesList=ordered.filter(node=>node.classList.contains('custom-section')&&!groups.some(group=>group.ids.includes(node.id)));
+ if(customNodesList.length)groupNodes.push({title:'معلومات إضافية',nodes:customNodesList});
+ const accordion=$('accordionSections');
+ if(accordion){
+  accordion.replaceChildren();
+  groupNodes.forEach((group,index)=>{
+   const details=document.createElement('details');details.className='site-accordion-item';details.dataset.accordionIndex=String(index);
+   const summary=document.createElement('summary');summary.className='site-accordion-trigger';
+   summary.innerHTML='<span>'+esc(group.title)+'</span><span class="accordion-symbol" aria-hidden="true"></span>';
+   const body=document.createElement('div');body.className='site-accordion-content';
+   group.nodes.forEach(node=>{node.hidden=false;body.appendChild(node);});
+   details.append(summary,body);accordion.appendChild(details);
+   details.addEventListener('toggle',()=>{if(details.open)accordion.querySelectorAll('details[open]').forEach(other=>{if(other!==details)other.open=false;});});
+  });
+ }
+ document.querySelectorAll('a[href^="#"]').forEach(link=>link.addEventListener('click',event=>{
+  const id=link.getAttribute('href')?.slice(1);if(!id||id==='top')return;
+  const target=$(id);const details=target?.closest('details.site-accordion-item');
+  if(details){event.preventDefault();details.open=true;target.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'','#'+id);}
+ }));
  $('loading').hidden=true;$('site').hidden=false;document.title=name+' | الموقع الرسمي';
 }
 const params=new URLSearchParams(location.search),slug=params.get('lab');
