@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [site, siteClient, reception, results, portalPage, portalClient, lookupEdge, limiter] = await Promise.all([
+const [site, siteClient, reception, results, resultsLayout, portalPage, portalClient, lookupEdge, limiter] = await Promise.all([
   read('../../website/index.html'),
   read('../../website/public-site-page.js'),
   read('../../assets/js/reception.js'),
   read('../../assets/js/results-workbench.js'),
+  read('../../assets/js/results-workbench-layout.js'),
   read('../../portal/index.html'),
   read('../../portal/lookup.js'),
   read('../../supabase/functions/patient-portal-lookup/index.ts'),
@@ -35,16 +36,21 @@ test('visit number keeps the existing tenant/branch generator and stored value',
   assert.match(results, /const visitNumber=String\(card\?\.dataset\.visitNumber\|\|''\)\.trim\(\)/);
 });
 
-test('WhatsApp sends the exact saved visit number and tenant portal link', () => {
-  assert.match(results, /portalUrl\.searchParams\.set\('lab',state\.tenant\.slug\)/);
-  assert.match(results, /رقم الزيارة: '\+visitNumber/);
-  assert.match(results, /portalUrl\.href/);
-  assert.match(lookupEdge, /\.eq\('visit_number', visitNumber\)/);
-  assert.match(lookupEdge, /visitNumber: visit\.visit_number/);
+test('WhatsApp sends tenant-scoped portal and public-site links without obsolete lab-code instructions', () => {
+  assert.ok(results.includes("portalUrl.searchParams.set('lab',state.tenant.slug)"));
+  assert.ok(results.includes("portalUrl.href"));
+  assert.ok(resultsLayout.includes("portal.searchParams.set('lab',slug)"));
+  assert.ok(resultsLayout.includes("publicSite.searchParams.set('lab',slug)"));
+  assert.ok(resultsLayout.includes("publicSite.href"));
+  assert.ok(resultsLayout.includes("patientName:card.dataset.patientName"));
+  assert.ok(!resultsLayout.includes("ثم أدخل رمز المعمل"));
+  assert.ok(lookupEdge.includes(".eq('visit_number', visitNumber)"));
+  assert.ok(lookupEdge.includes("visitNumber: visit.visit_number"));
 });
 
 test('patient portal asks only for the registered name and visit number', () => {
   assert.match(portalPage, /name="slug" type="hidden"/);
+  assert.match(portalPage, /id="publicSiteLink"/);
   assert.match(portalPage, /name="patientName"/);
   assert.match(portalPage, /name="visitNumber"/);
   assert.doesNotMatch(portalPage, /رمز المعمل/);

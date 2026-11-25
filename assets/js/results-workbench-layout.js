@@ -34,7 +34,7 @@ function buildShell(host,cards){
   const tests=[...card.querySelectorAll(':scope > .parameter')];
   const actions=[...card.children].filter(node=>node!==header&&!tests.includes(node));
   card.classList.add('work-source-card');
-  return {card,visitId,title:header?.querySelector('h2')?.textContent||'زيارة',status:header?.querySelector('.pill')?.textContent||'',visitStatus:card.dataset.visitStatus||'open',tests,actions,phone:card.dataset.patientPhone||'',patientAge:card.dataset.patientAge||'',patientAgeUnit:card.dataset.patientAgeUnit||'',patientSex:card.dataset.patientSex||'',visitDate:card.dataset.visitDate||'',visitNumber:card.dataset.visitNumber||'',published:card.dataset.published==='true'};
+  return {card,visitId,title:header?.querySelector('h2')?.textContent||'زيارة',patientName:card.dataset.patientName||'',status:header?.querySelector('.pill')?.textContent||'',visitStatus:card.dataset.visitStatus||'open',tests,actions,phone:card.dataset.patientPhone||'',patientAge:card.dataset.patientAge||'',patientAgeUnit:card.dataset.patientAgeUnit||'',patientSex:card.dataset.patientSex||'',visitDate:card.dataset.visitDate||'',visitNumber:card.dataset.visitNumber||'',published:card.dataset.published==='true'};
  }).filter(x=>x.visitId);
  host.replaceChildren();
  const shell=document.createElement('div');shell.className='results-workbench-shell';
@@ -166,13 +166,23 @@ function selectRecord(record,records,shell,setMobileColumn){
  const rawPhone=String(record.phone||'').replace(/[^0-9+]/g,'');let waPhone=rawPhone.replace(/^00/,'');
  if(waPhone.startsWith('0'))waPhone='20'+waPhone.slice(1);else if(waPhone.startsWith('+'))waPhone=waPhone.slice(1);
  const baseShareReady=record.published&&/^20\d{9,11}$/.test(waPhone)&&Boolean(window.taibaResultsContext?.tenantSlug);
- whatsapp.disabled=true;whatsapp.title=baseShareReady?'جارٍ التحقق من تفعيل بوابة المريض…':'يتطلب رقم هاتف صالحًا وتقريرًا منشورًا ورمز معمل';
+ whatsapp.disabled=true;whatsapp.title=baseShareReady?'جارٍ التحقق من تفعيل بوابة المريض…':'يتطلب رقم هاتف صالحًا وتقريرًا منشورًا وتحديد المعمل';
  if(baseShareReady)isPatientPortalEnabled(window.taibaResultsContext.tenantSlug).then(enabled=>{
    const shareReady=baseShareReady&&enabled;
    whatsapp.disabled=!shareReady;
    whatsapp.title=shareReady?'إرسال رابط بوابة المريض عبر واتساب':enabled?'تعذر تجهيز رابط البوابة الآن':'بوابة المريض غير مفعلة لهذا المعمل';
  });
- whatsapp.addEventListener('click',()=>{if(whatsapp.disabled)return;const portal=new URL('../portal/index.html',location.href).href;const message='نتائج تحاليلك جاهزة من معامل '+(window.taibaResultsContext?.tenantSlug||'')+'. لعرض التقرير افتح بوابة النتائج: '+portal+' ثم أدخل رمز المعمل ورقم الزيارة '+record.visitNumber+' واسم المريض كما هو مسجل.';window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent(message),'_blank','noopener');});
+ whatsapp.addEventListener('click',()=>{
+  if(whatsapp.disabled)return;
+  const slug=String(window.taibaResultsContext?.tenantSlug||'').trim().toLowerCase();
+  if(!slug){window.alert('تعذر تحديد المعمل. حدّث شاشة النتائج ثم حاول مرة أخرى.');return;}
+  const portal=new URL('../portal/index.html',location.href);portal.searchParams.set('lab',slug);
+  const publicSite=new URL('../website/index.html',location.href);publicSite.searchParams.set('lab',slug);
+  const laboratoryName=String(window.taibaResultsContext?.tenantName||'معملك');
+  const patientName=String(record.patientName||record.title||'').trim();
+  const message='نتائج تحاليلك جاهزة من '+laboratoryName+'.\nاسم المريض: '+patientName+'\nرقم الزيارة: '+record.visitNumber+'\nلعرض التقرير المنشور افتح بوابة النتائج:\n'+portal.href+'\nوللتعرف على خدمات المعمل وفروعه وعروضه، تفضل بزيارة الموقع الرسمي:\n'+publicSite.href;
+  window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent(message),'_blank','noopener');
+ });
  actions.prepend(whatsapp);actions.prepend(hide);actions.prepend(preview);
  if(setMobileColumn)setMobileColumn(individual.length?'individual':'profiles');
  shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
