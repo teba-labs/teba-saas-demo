@@ -1,7 +1,10 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
+import { getCurrentSession } from '../../core/auth/session.js';
 import { prepareResultInput } from './input-mode.js';
 import { TABLES } from '../../core/data/schema-contract.js';
 import { enqueueOperation } from '../../offline/outbox.js';
+import { offlineDb } from '../../offline/database.js';
+import { fingerprintVisitResults } from '../../offline/result-fingerprint.js';
 import { cacheRows, getCachedRows } from '../../offline/cache.js';
 const db = () => getSupabaseClient();
 
@@ -34,6 +37,15 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
   const payload = { visit_test_id: visitTestId, staff_id: staffId, results: prepared };
   const queue = async () => {
     await enqueueOperation({ tenantId, branchId, entityType: 'draft_results', action: 'save', operationId, payload, dependsOn, priority: 3 });
+    const cached=await getCachedRows('test_results',{tenantId,branchId});
+    const now=new Date().toISOString();
+    const localRows=prepared.map(item=>{
+      const existing=cached.find(row=>row.visit_test_id===visitTestId&&row.parameter_code===item.parameter_code);
+      return {...(existing||{}),id:existing?.id||`local-result:${operationId}:${item.parameter_code}`,
+        tenant_id:tenantId,branch_id:branchId,visit_test_id:visitTestId,...item,
+        entered_at:now,local_operation_id:operationId,local_offline:true};
+    });
+    await cacheRows('test_results',localRows);
     return { queued: true, operationId };
   };
   if (globalThis.navigator?.onLine === false) return queue();
@@ -45,6 +57,8 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
     if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queue();
     throw error;
   }
+  const serverRows=await listResults({tenantId,visitTestId}).catch(()=>[]);
+  if(serverRows.length)await cacheRows('test_results',serverRows.map(row=>({...row,tenant_id:tenantId,branch_id:branchId})));
   return data ?? [];
 
 }
@@ -99,17 +113,47 @@ export async function completeVisitTestAtomic({ tenantId, branchId, visitTestId,
   return data;
 }
 
+async function queueLocalVisitApproval({tenantId,branchId,visitId,staffId}={}) {
+  const session=await getCurrentSession();
+  if(!session?.user?.id)throw new Error('تعذر تحديد المستخدم الذي نفّذ الاعتماد المحلي.');
+  const visits=await getCachedRows('visits',{tenantId,branchId});
+  const visit=visits.find(row=>row.id===visitId);
+  if(!visit)throw new Error('بيانات الزيارة غير محفوظة محليًا؛ جهّز قائمة العمل والنتائج أثناء الاتصال أولًا.');
+  if(visit.is_published||visit.status==='approved'||visit.status==='cancelled')throw new Error('هذه الزيارة منشورة أو معتمدة أو ملغاة ولا تقبل اعتمادًا محليًا جديدًا.');
+  const visitTests=(await getCachedRows('visit_tests',{tenantId,branchId})).filter(row=>row.visit_id===visitId&&row.status!=='cancelled');
+  if(!visitTests.length)throw new Error('لا توجد تحاليل محفوظة محليًا لهذه الزيارة.');
+  const testIds=new Set(visitTests.map(row=>row.id));
+  const results=(await getCachedRows('test_results',{tenantId,branchId})).filter(row=>testIds.has(row.visit_test_id));
+  const resultFingerprint=await fingerprintVisitResults({visitTests,results});
+  const pending=await offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray();
+  const dependsOn=pending.map(row=>row.operation_id);
+  if(visit.local_intake_operation_id&&!dependsOn.includes(visit.local_intake_operation_id))dependsOn.push(visit.local_intake_operation_id);
+  const operationId=crypto.randomUUID(),approvedAt=new Date().toISOString();
+  const payload={visit_id:visitId,local_visit_id:visitId,local_visit_pending:Boolean(visit.local_intake_operation_id),
+    staff_id:staffId,actor_user_id:session.user.id,approved_at:approvedAt,result_fingerprint:resultFingerprint};
+  await enqueueOperation({tenantId,branchId,entityType:'visit_approval',action:'approve',operationId,payload,dependsOn,priority:95});
+  await cacheRows('visits',[{...visit,local_approval_status:'pending_server_validation',
+    local_approved_by_staff_id:staffId,local_approved_at:approvedAt,local_approval_operation_id:operationId}]);
+  return {queued:true,localApproval:true,operationId,approvedAt};
+}
+
 export async function approveVisitWithAutoCompletion({ tenantId, branchId, visitId, staffId } = {}) {
   if (!tenantId || !branchId || !visitId || !staffId) {
     throw new Error('tenantId, branchId, visitId and staffId are required.');
   }
+  const pending=await offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray();
+  if(globalThis.navigator?.onLine===false||pending.length) return queueLocalVisitApproval({tenantId,branchId,visitId,staffId});
   const { data, error } = await db().rpc('approve_visit_with_auto_completion', {
     p_tenant_id: tenantId,
     p_branch_id: branchId,
     p_visit_id: visitId,
     p_staff_id: staffId,
   });
-  if (error) throw error;
+  if(error) {
+    if(/fetch|network|offline/i.test(error.message||'')||globalThis.navigator?.onLine===false) return queueLocalVisitApproval({tenantId,branchId,visitId,staffId});
+    throw error;
+  }
+  if(data)await cacheRows('visits',[{...data,tenant_id:tenantId,branch_id:branchId}]);
   return data;
 }
 
