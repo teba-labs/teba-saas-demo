@@ -45,6 +45,9 @@ test('home and owner dashboard can render local branch data without cloud report
   assert.match(dashboard,/ملخص محلي — دون اتصال/);
   assert.match(summary,/financial_ledger/);
   assert.match(summary,/outbox/);
+  assert.match(read('offline/prepare.js'),/warmBranchFinancialLedger/);
+  assert.match(read('modules/workday/repository.js'),/warmBranchFinancialLedger/);
+  assert.match(summary,/financial-ledger-month:/);
 });
 
 test('settings are readable from cache but cloud configuration changes remain online-only',()=>{
