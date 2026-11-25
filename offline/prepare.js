@@ -10,6 +10,7 @@ import { getLabSettings, getPrintSettings } from '../modules/settings/repository
 import { listBranchWorkPage } from '../modules/laboratory/repository.js';
 import { listResultsForVisitTests } from '../modules/results/repository.js';
 import { listCultureResults } from '../modules/results/culture-repository.js';
+import { getOfflineEntitlementStatus, refreshOfflineEntitlement } from './entitlement.js';
 
 const preparationKey = (tenantId, branchId) => `offline-prepared:${tenantId}:${branchId}`;
 
@@ -92,11 +93,16 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
     : [null, await getLatestClosing({ tenantId, branchId })];
 
   const outbox = await getOutboxSummary({ tenantId, branchId });
+  let entitlementError = null;
+  try { await refreshOfflineEntitlement({ tenantId, branchId }); }
+  catch (error) { entitlementError = error?.message || String(error); }
+  const entitlement = await getOfflineEntitlementStatus({ tenantId, branchId });
   const storage = await getOfflineStorageHealth();
   const preparedAt = new Date().toISOString();
   const missingPrices = Math.max(0, testIds.length - prices.length);
   const worklistTruncated = worklist.length < worklistCount;
   const issues = [];
+  if (entitlement.status !== 'valid') issues.push(`الترخيص الإلكتروني غير جاهز: ${entitlementError || entitlement.message || entitlement.status}.`);
   if (!catalog.length) issues.push('لا يوجد كتالوج تحاليل نشط محفوظ.');
   if (missingPrices) issues.push(`يوجد ${missingPrices} تحليلًا دون سعر حالي محفوظ.`);
   if (!staff.length) issues.push('لا يوجد موظف نشط محفوظ لهذا الفرع.');
@@ -136,6 +142,8 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
     has_latest_closing: Boolean(latestClosing),
     storage_persistent: storage.persistent,
     storage_remaining_bytes: storage.remaining,
+    entitlement_status: entitlement.status,
+    entitlement_expires_at: entitlement.expiresAt ?? null,
   };
   await offlineDb.sync_meta.put({
     key: preparationKey(tenantId, branchId),
