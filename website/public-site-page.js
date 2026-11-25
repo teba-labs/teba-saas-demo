@@ -59,6 +59,11 @@ export function renderPublicSite(data){
   const node=document.getElementById(id);if(node&&!ordered.includes(node))ordered.push(node);
  }
  const contactSection=$('contact');if(contactSection&&!ordered.includes(contactSection))ordered.push(contactSection);
+ ordered.forEach(node=>{
+  const builtInKey=Object.keys(builtIn).find(key=>builtIn[key]===node.id);
+  const key=builtInKey||node.id;
+  if(sectionVisibility.has(key))node.hidden=!sectionVisibility.get(key);
+ });
  const groups=[
   {title:'التحاليل الطبية والخدمات',ids:['services']},
   {title:'الباقات والعروض',ids:['offers','packages']},
