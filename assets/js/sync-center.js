@@ -4,16 +4,98 @@ import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection 
 import { getOutboxSummary, listOpenConflicts, retryConflictOperation, retryFailedOperations, syncOutbox } from '../../offline/outbox.js';
 import { createSupabaseSyncHandlers } from '../../offline/supabase-adapters.js';
 import { exportLocalBackup, restoreLocalBackup } from '../../offline/backup.js';
+import { getOfflineStorageHealth, requestPersistentOfflineStorage } from '../../offline/database.js';
+import { prepareOfflineBranch, getOfflinePreparationStatus } from '../../offline/prepare.js';
+import { getOfflineEntitlementStatus, refreshOfflineEntitlement } from '../../offline/entitlement.js';
 
 const $ = id => document.getElementById(id);
-const state = { context: null, tenant: null, branch: null, syncing: false };
+const state = { context: null, tenant: null, branch: null, syncing: false, preparing: false, refreshingEntitlement: false };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const entityLabel = type => ({visit_approval:'اعتماد محلي بانتظار التحقق',report_delivery:'تسليم نسخة عمل',workday_open:'فتح يوم عمل',workday_close:'إغلاق يوم عمل',draft_results:'حفظ نتائج',visit_intake:'تسجيل زيارة',payment:'تحصيل',expense:'مصروف',patient:'تسجيل مريض'}[type]||type);
 function notice(message, error = false) { $('notice').textContent = message; $('notice').className = `notice show${error ? ' error' : ''}`; clearTimeout(notice.timer); notice.timer = setTimeout(() => $('notice').className = 'notice', 6500); }
-function updateConnection() { const online = navigator.onLine; $('connection').textContent = online ? 'متصل بالإنترنت' : 'غير متصل'; $('connection').className = `badge ${online ? 'online' : 'offline'}`; $('syncNow').disabled = !online || state.syncing || !state.branch; }
+function updateConnection() { const online = navigator.onLine; $('connection').textContent = online ? 'متصل بالإنترنت' : 'غير متصل'; $('connection').className = `badge ${online ? 'online' : 'offline'}`; $('syncNow').disabled = !online || state.syncing || state.preparing || !state.branch; $('prepareOffline').disabled = !online || state.syncing || state.preparing || !state.branch; $('refreshOfflineEntitlement').disabled = !online || state.refreshingEntitlement || !state.branch; }
+function formatBytes(value) { if (!Number.isFinite(value)) return 'غير متاح'; const units = ['بايت','KB','MB','GB']; let size = value, index = 0; while (size >= 1024 && index < units.length - 1) { size /= 1024; index++; } return `${size.toFixed(index ? 1 : 0)} ${units[index]}`; }
+async function refreshStorageHealth() {
+  const health = await getOfflineStorageHealth();
+  const remaining = health.remaining === null ? 'المساحة المتبقية غير متاحة' : `المتاح تقريبًا: ${formatBytes(health.remaining)}`;
+  const usage = health.usage === null ? '' : ` · المستخدم: ${formatBytes(health.usage)}`;
+  if (health.persistent) $('storageHealth').textContent = `التخزين الدائم ممنوح من المتصفح. ${remaining}${usage}`;
+  else if (health.supported) $('storageHealth').textContent = `التخزين الدائم لم يُمنح بعد. اطلب الحماية من المتصفح قبل الاعتماد الطويل على الأوف لاين. ${remaining}${usage}`;
+  else $('storageHealth').textContent = `هذا المتصفح لا يتيح طلب التخزين الدائم. احتفظ بنسخ احتياطية محلية منتظمة. ${remaining}${usage}`;
+  $('protectStorage').disabled = !health.supported || health.persistent;
+}
+async function refreshEntitlementStatus() {
+  if (!state.tenant || !state.branch) return;
+  const status = await getOfflineEntitlementStatus({ tenantId: state.tenant.id, branchId: state.branch.id });
+  if (status.status === 'key-not-configured') $('offlineEntitlementStatus').textContent = 'مفتاح التحقق العام غير مضاف بعد؛ لم يتم تفعيل الترخيص المحلي.';
+  else if (status.status === 'missing') $('offlineEntitlementStatus').textContent = 'لا يوجد ترخيص أوف لاين محفوظ لهذا الفرع على هذا الجهاز. جهّز الترخيص أثناء الاتصال.';
+  else if (status.status === 'valid') $('offlineEntitlementStatus').textContent = `الترخيص ساري حتى ${new Date(status.expiresAt).toLocaleString('ar-EG')} · متبقي ${status.daysRemaining} يوم.`;
+  else if (status.status === 'expired') $('offlineEntitlementStatus').textContent = 'انتهت صلاحية الترخيص. السجلات والتصدير والمزامنة المعلقة تظل متاحة، لكن العمليات الجديدة تحتاج تجديدًا.';
+  else $('offlineEntitlementStatus').textContent = `تعذر التحقق من الترخيص: ${status.message || 'توقيع أو نطاق غير صالح'}`;
+}
+async function renewOfflineEntitlement() {
+  if (!state.tenant || !state.branch || state.refreshingEntitlement) return;
+  if (!navigator.onLine) { notice('تجديد الترخيص يحتاج اتصالًا بالإنترنت.', true); return; }
+  state.refreshingEntitlement = true; updateConnection();
+  try {
+    await refreshOfflineEntitlement({ tenantId: state.tenant.id, branchId: state.branch.id, force: true });
+    await refreshEntitlementStatus();
+    notice('تم إصدار الترخيص الموقّع لهذا الفرع والجهاز والتحقق منه محليًا.');
+  } catch (error) {
+    await refreshEntitlementStatus().catch(() => {});
+    notice(error.message || 'تعذر تجديد الترخيص الإلكتروني.', true);
+  } finally { state.refreshingEntitlement = false; updateConnection(); }
+}
+async function refreshPreparationStatus() {
+  if (!state.tenant || !state.branch) return;
+  const report = await getOfflinePreparationStatus({ tenantId: state.tenant.id, branchId: state.branch.id });
+  if (!report) {
+    $('offlinePreparationStatus').textContent = 'لم تتم تهيئة هذا الفرع على هذا الجهاز بعد. نفّذ التهيئة أثناء الاتصال قبل فصل الإنترنت.';
+    return;
+  }
+  const when = report.prepared_at ? new Date(report.prepared_at).toLocaleString('ar-EG') : 'وقت غير متاح';
+  const counts = report.counts || {};
+  const limit = report.truncated?.patient_directory || report.truncated?.worklist || report.truncated?.financial_ledger
+    ? ' · توجد بيانات تجاوزت حد التحميل الموضح أدناه' : '';
+  const issues = Array.isArray(report.issues) && report.issues.length ? ` · غير جاهز: ${report.issues.join('؛ ')}` : ' · جاهز للعمل دون اتصال حسب البيانات المحفوظة';
+  const warnings = Array.isArray(report.warnings) && report.warnings.length ? ` · تنبيه: ${report.warnings.join('؛ ')}` : '';
+  $('offlinePreparationStatus').textContent = `آخر تهيئة: ${when} · المرضى: ${counts.patients ?? 0}/${counts.patients_available ?? counts.patients ?? 0} · التحاليل: ${counts.catalog_tests ?? 0} · أسعار ناقصة: ${counts.tests_without_current_price ?? 0} · بارامترات: ${counts.parameters ?? 0} · عناصر قائمة العمل: ${counts.worklist ?? 0}/${counts.worklist_available ?? counts.worklist ?? 0} · النتائج: ${counts.results ?? 0} · حركة مالية الشهر: ${counts.financial_ledger ?? 0}/${counts.financial_ledger_available ?? counts.financial_ledger ?? 0}${limit}${issues}${warnings}`;
+}
+async function runOfflinePreparation() {
+  if (!state.tenant || !state.branch || state.preparing) return;
+  if (!navigator.onLine) { notice('تهيئة البيانات تحتاج اتصالًا بالإنترنت.', true); return; }
+  state.preparing = true; updateConnection();
+  $('offlinePreparationStatus').textContent = 'بدأ تجهيز بيانات الفرع…';
+  try {
+    const report = await prepareOfflineBranch({
+      tenantId: state.tenant.id,
+      branchId: state.branch.id,
+      onProgress: progress => { $('offlinePreparationStatus').textContent = progress.detail || progress.step; },
+    });
+    await refreshPreparationStatus();
+    await refresh();
+    notice(report.complete
+      ? (report.warnings?.length ? 'اكتملت تهيئة بيانات التشغيل. توجد تنبيهات على اكتمال ملخص الداشبورد المحلي؛ راجع الحالة.' : 'اكتملت تهيئة البيانات الأساسية لهذا الفرع على الجهاز.')
+      : 'اكتملت التهيئة، لكن بعض البيانات الأساسية تجاوزت حد التحميل أو الترخيص غير جاهز. راجع حالة التهيئة.');
+  } catch (error) {
+    notice(error.message || 'تعذرت تهيئة بيانات الأوف لاين.', true);
+    await refreshPreparationStatus().catch(() => {});
+  } finally {
+    state.preparing = false; updateConnection();
+  }
+}
+async function protectOfflineStorage() {
+  try {
+    const health = await requestPersistentOfflineStorage();
+    await refreshStorageHealth();
+    notice(health.persistent ? 'المتصفح منح التخزين الدائم لهذا الموقع.' : 'المتصفح لم يمنح التخزين الدائم. احتفظ بنسخة احتياطية محلية منتظمة.', !health.persistent);
+  } catch (error) { notice(error.message || 'تعذر فحص حماية التخزين.', true); }
+}
 async function start() {
   const session = await getCurrentSession();
   if (!session) { $('loginPanel').hidden = false; $('workspace').hidden = true; $('signOut').hidden = true; return; }
   state.context = await loadMyTenantContext();
+  await refreshStorageHealth();
   if (!state.context.tenants?.length) throw new Error('الحساب لا يملك معملًا نشطًا.');
   $('loginPanel').hidden = true; $('workspace').hidden = false; $('signOut').hidden = false;
   $('tenantSelect').innerHTML = state.context.tenants.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
@@ -46,11 +128,13 @@ async function refresh() {
   $('conflicts').innerHTML = conflicts.length ? conflicts.map(c => {
     const local = esc(JSON.stringify(c.local_payload ?? {}, null, 2));
     const server = c.server_snapshot == null ? 'لم تُرجع الخادم لقطة مقارنة لهذه العملية.' : esc(JSON.stringify(c.server_snapshot, null, 2));
-    return `<div class="item"><strong>${esc(c.entity_type)} · ${esc(c.reason)}</strong><small>رقم العملية: ${esc(c.operation_id)} · ${new Date(c.created_at).toLocaleString('ar-EG')}</small><details><summary>مراجعة تفاصيل التعارض</summary><h4>البيانات المحلية المحفوظة</h4><pre>${local}</pre><h4>لقطة الخادم</h4><pre>${server}</pre></details><button class="btn quiet-dark" type="button" data-retry-conflict="${esc(c.conflict_id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>إعادة المحاولة بنفس رقم العملية</button></div>`;
+    return `<div class="item"><strong>${esc(entityLabel(c.entity_type))} · ${esc(c.reason)}</strong><small>رقم العملية: ${esc(c.operation_id)} · ${new Date(c.created_at).toLocaleString('ar-EG')}</small><details><summary>مراجعة تفاصيل التعارض</summary><h4>البيانات المحلية المحفوظة</h4><pre>${local}</pre><h4>لقطة الخادم</h4><pre>${server}</pre></details><button class="btn quiet-dark" type="button" data-retry-conflict="${esc(c.conflict_id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>إعادة المحاولة بنفس رقم العملية</button></div>`;
   }).join('') : '<p class="muted">لا توجد تعارضات مفتوحة.</p>';
   $('conflicts').querySelectorAll('[data-retry-conflict]').forEach(button => button.addEventListener('click', () => retryConflict(button.dataset.retryConflict)));
   if (!summary.total) $('syncMessage').textContent = 'لا توجد عمليات محلية معلقة لهذا الفرع.';
   else $('syncMessage').textContent = `إجمالي العمليات المحلية: ${summary.total}. لا تُحذف أي عملية إلا بعد تأكيد الخادم.`;
+  await refreshEntitlementStatus();
+  await refreshPreparationStatus();
 }
 async function runSync() {
   if (state.syncing || !state.branch) return;
@@ -98,5 +182,6 @@ $('signOut').addEventListener('click', async () => { try { await signOut(); awai
 $('syncNow').addEventListener('click', runSync); $('refresh').addEventListener('click', () => refresh().catch(e => notice(e.message, true)));
 $('retryFailed').addEventListener('click', async () => { try { const count = await retryFailedOperations({ tenantId: state.tenant?.id, branchId: state.branch?.id }); notice(`تمت إعادة ${count} عملية إلى قائمة الانتظار.`); await refresh(); } catch (e) { notice(e.message, true); } });
 $('exportBackup').addEventListener('click', exportBackup); $('backupFile').addEventListener('change', e => importBackup(e.target.files?.[0]));
+$('protectStorage').addEventListener('click', protectOfflineStorage); $('prepareOffline').addEventListener('click', runOfflinePreparation); $('refreshOfflineEntitlement').addEventListener('click', renewOfflineEntitlement);
 window.addEventListener('online', () => { updateConnection(); runSync(); }); window.addEventListener('offline', updateConnection);
 try { await start(); updateConnection(); if (navigator.onLine) runSync(); } catch (e) { notice(e.message || 'تعذر تهيئة مركز المزامنة.', true); }

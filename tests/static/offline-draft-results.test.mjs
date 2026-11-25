@@ -38,7 +38,7 @@ test('server receipt is tenant/branch scoped, actor-bound, payload-bound, and at
   assert.match(migration, /revoke all on table private\.offline_operation_receipts/);
 });
 
-test('unsynced draft results survive workbench rerender and cannot be completed or approved prematurely', () => {
+test('unsynced draft results survive rerender and local approval waits for server validation', () => {
   assert.match(outbox, /listPendingDraftResults/);
   assert.match(ui, /listPendingDraftResults/);
   assert.match(ui, /محفوظ محليًا — بانتظار المزامنة/);

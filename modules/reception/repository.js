@@ -39,6 +39,32 @@ export async function findPatients({ tenantId, branchId, search, limit = 30 } = 
   return result;
 }
 
+/** Cache the selected branch's patient directory in bounded pages for offline search. */
+export async function warmBranchPatients({ tenantId, branchId, maxRows = 10000 } = {}) {
+  need(tenantId, 'tenantId'); need(branchId, 'branchId');
+  if (globalThis.navigator?.onLine === false) throw new Error('تحميل دليل المرضى يحتاج اتصالًا بالإنترنت.');
+  const safeMax = Math.min(50000, Math.max(500, Math.floor(Number(maxRows) || 10000)));
+  const columns = 'id, tenant_id, branch_id, patient_number, full_name, phone, date_of_birth, age_years, age_value, age_unit, sex, created_at';
+  const rows = [];
+  let totalRows = null;
+  for (let offset = 0; offset < safeMax; offset += 500) {
+    const end = Math.min(offset + 499, safeMax - 1);
+    const { data, error, count } = await db().from(TABLES.patients)
+      .select(columns, { count: 'exact' }).eq('tenant_id', tenantId).eq('branch_id', branchId)
+      .order('full_name').order('id').range(offset, end);
+    if (error) throw error;
+    if (totalRows === null && Number.isFinite(count)) totalRows = count;
+    rows.push(...(data || []));
+    if ((data || []).length < 500) break;
+  }
+  await cacheRows('patients', rows);
+  return {
+    cachedRows: rows.length,
+    totalRows: totalRows ?? rows.length,
+    truncated: totalRows !== null ? totalRows > rows.length : rows.length === safeMax,
+  };
+}
+
 export async function createPatient({ tenantId, branchId, patient } = {}) {
   need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(patient?.fullName, 'patient.fullName');
   const ageUnit = ['days','months','years'].includes(patient.ageUnit) ? patient.ageUnit : 'years';
@@ -61,8 +87,8 @@ export async function createPatient({ tenantId, branchId, patient } = {}) {
   };
   const queue = async () => {
     const operationId = uuid();
-    await cacheScopedPatient(payload);
     await enqueueOperation({ tenantId, branchId, entityType: 'patients', action: 'create', operationId, payload, priority: 1 });
+    await cacheScopedPatient(payload);
     return { ...payload, pendingOperationId: operationId, offline_pending: true };
   };
   if (globalThis.navigator?.onLine === false) return queue();
@@ -138,8 +164,13 @@ export async function recordPayment({ tenantId, visitId, amount, paymentMethod =
     visitRow = (await getCachedRows('visits', { tenantId })).find(row => row.id === visitId);
     if (!visitRow) throw new Error('لا توجد بيانات الزيارة محفوظة محليًا؛ لا يمكن وضع التحصيل في قائمة الانتظار بأمان.');
   } else {
-    const visit = await db().from(TABLES.visits).select('id,tenant_id,branch_id,patient_id,visit_number,status').eq('tenant_id', tenantId).eq('id', visitId).single();
-    if (visit.error) { if (/fetch|network|offline/i.test(visit.error.message || '')) { visitRow = (await getCachedRows('visits', { tenantId })).find(row => row.id === visitId); if (!visitRow) throw visit.error; } else throw visit.error; } else { visitRow = visit.data; await cacheRows('visits', [visitRow]); }
+    const visit = await db().from(TABLES.visits).select('id,tenant_id,branch_id,patient_id,visit_number,status,local_intake_operation_id').eq('tenant_id', tenantId).eq('id', visitId).single();
+    if (visit.error) {
+      if (/fetch|network|offline/i.test(visit.error.message || '')) {
+        visitRow = (await getCachedRows('visits', { tenantId })).find(row => row.id === visitId);
+        if (!visitRow) throw visit.error;
+      } else throw visit.error;
+    } else { visitRow = visit.data; await cacheRows('visits', [visitRow]); }
   }
   let collector;
   if (globalThis.navigator?.onLine === false) collector = (await getCachedRows('staff_directory', { tenantId })).find(row => row.id === staffId && row.is_active);
@@ -152,11 +183,41 @@ export async function recordPayment({ tenantId, visitId, amount, paymentMethod =
   }
   if (!collector?.branch_id) throw new Error('لا يمكن تحديد فرع التحصيل من حساب الموظف. حدّث بيانات الموظفين أثناء الاتصال أولًا.');
   const collectionBranchId = collector.branch_id;
-  const payload = { visit_id: visitId, amount: value, payment_method: paymentMethod, staff_id: staffId, notes: notes ?? null };
-  const queue = async () => { await enqueueOperation({ tenantId, branchId: collectionBranchId, entityType: 'payment', action: 'create', operationId, payload }); return { queued: true, operationId }; };
+  const sameCollectionBranch = !visitRow.branch_id || visitRow.branch_id === collectionBranchId;
+  const workday = await getOpenWorkday({ tenantId, branchId: collectionBranchId });
+  if(!workday)throw new Error('لا يوجد يوم عمل مفتوح في فرع التحصيل؛ افتح اليوم قبل تسجيل المقبوضات.');
+  const localLedgerId = uuid();
+  const dependsOn = [
+    visitRow.local_intake_operation_id,
+    workday.local_open_operation_id,
+  ].filter(Boolean);
+  const payload = {
+    visit_id: visitId,
+    local_visit_pending: Boolean(visitRow.local_intake_operation_id),
+    amount: value, payment_method: paymentMethod, staff_id: staffId, notes: notes ?? null,
+    work_date: workday.work_date, local_ledger_id: localLedgerId,
+  };
+  const queue = async () => {
+    if (!sameCollectionBranch) throw new Error('تحصيل مديونية فرع آخر يحتاج اتصالًا بالإنترنت؛ لم نضع حركة مالية في قائمة انتظار فرع مختلف.');
+    await enqueueOperation({ tenantId, branchId: collectionBranchId, entityType: 'payment', action: 'create', operationId, payload, dependsOn, priority: 30 });
+    await cacheRows('financial_ledger', [{
+      id: localLedgerId, tenant_id: tenantId, branch_id: collectionBranchId, work_date: workday.work_date,
+      source_type: 'payment', direction: 'inflow', amount: value, movement_at: new Date().toISOString(),
+      description: notes?.trim() || `تحصيل زيارة ${visitRow.visit_number || ''}`,
+      local_operation_id: operationId, local_offline: true,
+    }]);
+    return { queued: true, operationId };
+  };
   if (globalThis.navigator?.onLine === false) return queue();
-  const { data, error } = await db().rpc(RPC.recordPatientPayment, { p_tenant_id: tenantId, p_visit_id: visitId, p_amount: value, p_payment_method: paymentMethod, p_idempotency_key: operationId, p_staff_id: staffId, p_notes: notes ?? null });
-  if (error) { if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queue(); throw error; }
+  const { data, error } = await db().rpc(RPC.recordPatientPayment, {
+    p_tenant_id: tenantId, p_visit_id: visitId, p_amount: value,
+    p_payment_method: paymentMethod, p_idempotency_key: operationId,
+    p_staff_id: staffId, p_notes: notes ?? null,
+  });
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queue();
+    throw error;
+  }
   return data;
 }
 
@@ -167,19 +228,29 @@ export async function createVisitIntake({ tenantId, branchId, patientId, visitNu
   const discount = Number(discountAmount), payment = Number(initialPayment);
   if (!Number.isFinite(discount) || discount < 0 || !Number.isFinite(payment) || payment < 0) throw new Error('Invalid discount or payment amount.');
   if (!Array.isArray(expectedPrices) || expectedPrices.length !== testIds.length || expectedPrices.some(p => !p?.id || !p?.test_id || !Number.isFinite(Number(p.selling_price)))) throw new Error('Price snapshots are incomplete. Refresh the catalog before registering this visit.');
+  const workday = await getOpenWorkday({ tenantId, branchId });
+  if(!workday)throw new Error('لا يوجد يوم عمل مفتوح لهذا الفرع؛ افتح يوم العمل أولًا.');
   const operationId = uuid();
+  const localLedgerId = payment > 0 ? uuid() : null;
+  dependsOn = [...new Set([...dependsOn, workday.local_open_operation_id].filter(Boolean))];
   const payload = {
     patient_id: patientId, visit_number: String(visitNumber || referenceCode('V')).trim(), staff_id: staffId,
     test_ids: testIds, discount_amount: discount, initial_payment: payment, payment_method: paymentMethod,
-    referred_by: referredBy ?? null, notes: notes ?? null,
+    referred_by: referredBy ?? null, notes: notes ?? null, work_date: workday.work_date,
+    local_ledger_id: localLedgerId,
     expected_prices: expectedPrices.map(p => ({ test_id: p.test_id, price_id: p.id, selling_price: Number(p.selling_price) })),
     local_visit_id: localVisit?.id || null,
     local_visit_test_ids: Array.isArray(localVisitTests) ? localVisitTests.map(row => ({ id: row.id, test_id: row.test_id })) : [],
   };
   const queue = async () => {
     await enqueueOperation({ tenantId, branchId, entityType: 'visit_intake', action: 'create', operationId, payload, dependsOn, priority: 2 });
-    if (localVisit?.id) await cacheRows('visits', [{ ...localVisit, tenant_id: tenantId, branch_id: branchId, local_intake_operation_id: operationId, local_offline: true }]);
+    if (localVisit?.id) await cacheRows('visits', [{ ...localVisit, tenant_id: tenantId, branch_id: branchId, workday_id: workday.id, local_intake_operation_id: operationId, local_offline: true }]);
     if (Array.isArray(localVisitTests) && localVisitTests.length) await cacheRows('visit_tests', localVisitTests.map(row => ({ ...row, tenant_id: tenantId, branch_id: branchId, local_intake_operation_id: operationId, local_offline: true })));
+    if (localLedgerId && payment > 0) await cacheRows('financial_ledger', [{
+      id: localLedgerId, tenant_id: tenantId, branch_id: branchId, work_date: workday.work_date,
+      source_type: 'payment', direction: 'inflow', amount: payment, movement_at: new Date().toISOString(),
+      description: `دفعة أولى للزيارة ${payload.visit_number}`, local_operation_id: operationId, local_offline: true,
+    }]);
     return { queued: true, operationId, visitNumber: payload.visit_number, localVisitId: localVisit?.id || null };
   };
   if (globalThis.navigator?.onLine === false || dependsOn.length > 0) return queue();

@@ -1,19 +1,23 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
 import { TABLES, RPC } from '../../core/data/schema-contract.js';
+import { cacheRows, getCachedRows } from '../../offline/cache.js';
 const db = () => getSupabaseClient();
 const uuid = () => crypto.randomUUID();
 
 export async function listExpenseCategories({ tenantId, includeInactive = false } = {}) {
   if (!tenantId) throw new Error('tenantId is required.');
+  if(globalThis.navigator?.onLine===false){const rows=await getCachedRows('expense_categories',{tenantId});return rows.filter(row=>includeInactive||row.is_active).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));}
   let query = db().from(TABLES.expenseCategories)
     .select('id, name, is_active').eq('tenant_id', tenantId).order('name');
   if (!includeInactive) query = query.eq('is_active', true);
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {if(/fetch|network|offline/i.test(error.message||'')){const rows=await getCachedRows('expense_categories',{tenantId});return rows.filter(row=>includeInactive||row.is_active);}throw error;}
+  await cacheRows('expense_categories',data??[]);
   return data ?? [];
 }
 
 export async function recordExpense({ tenantId, branchId, categoryId, amount, description, staffId } = {}) {
+  if(globalThis.navigator?.onLine===false)throw new Error('تسجيل أو تعديل بنود المصروفات يحتاج اتصالًا بالإنترنت؛ استخدم شاشة يوم العمل للحركات المحلية.');
   for (const [value, name] of [[tenantId, 'tenantId'], [branchId, 'branchId'], [categoryId, 'categoryId'], [staffId, 'staffId']]) {
     if (!value) throw new Error(`${name} is required.`);
   }
@@ -30,6 +34,7 @@ export async function recordExpense({ tenantId, branchId, categoryId, amount, de
 
 /** Owner-only through expense_categories RLS. Names are unique per tenant. */
 export async function saveExpenseCategory({ tenantId, name, id } = {}) {
+  if(globalThis.navigator?.onLine===false)throw new Error('تسجيل أو تعديل بنود المصروفات يحتاج اتصالًا بالإنترنت؛ استخدم شاشة يوم العمل للحركات المحلية.');
   if (!tenantId) throw new Error('tenantId is required.');
   const cleanName = String(name ?? '').trim();
   if (cleanName.length < 2 || cleanName.length > 80) throw new Error('اسم بند المصروف يجب أن يكون بين حرفين و80 حرفًا.');
@@ -43,6 +48,7 @@ export async function saveExpenseCategory({ tenantId, name, id } = {}) {
 }
 
 export async function setExpenseCategoryActive({ tenantId, categoryId, isActive } = {}) {
+  if(globalThis.navigator?.onLine===false)throw new Error('تسجيل أو تعديل بنود المصروفات يحتاج اتصالًا بالإنترنت؛ استخدم شاشة يوم العمل للحركات المحلية.');
   if (!tenantId || !categoryId) throw new Error('tenantId and categoryId are required.');
   const { data, error } = await db().from(TABLES.expenseCategories).update({ is_active: Boolean(isActive) })
     .eq('tenant_id', tenantId).eq('id', categoryId).select('id, tenant_id, name, is_active').single();

@@ -2,6 +2,7 @@ import { getSupabaseClient } from '../../core/supabase-client.js';
 import { offlineDb } from '../../offline/database.js';
 const db = () => getSupabaseClient();
 const need = (v, n) => { if (!v) throw new Error(`${n} is required.`); };
+const requireOnlineSettingsWrite = () => { if (globalThis.navigator?.onLine === false) throw new Error('تعديل إعدادات المعمل والفروع يحتاج اتصالًا بالإنترنت. يمكنك مراجعة الإعدادات المحفوظة محليًا حتى عودة الاتصال.'); };
 
 export async function getLabSettings({ tenantId } = {}) {
   need(tenantId, 'tenantId');
@@ -20,6 +21,7 @@ export async function getLabSettings({ tenantId } = {}) {
 
 /** Owner-only by RLS; never trusts a client-side role flag. */
 export async function updateLabSettings({ tenantId, patch } = {}) {
+  requireOnlineSettingsWrite();
   need(tenantId, 'tenantId'); need(patch && typeof patch === 'object', 'patch');
   const allowed = ['laboratory_name','doctor_name','logo_path','phone','whatsapp','address','report_footer','whatsapp_template','settings_json'];
   const payload = Object.fromEntries(Object.entries(patch).filter(([key]) => allowed.includes(key)));
@@ -57,6 +59,7 @@ export async function getPrintSettings({ tenantId, branchId = null } = {}) {
 
 /** Owner-only through database RLS. A null branch_id means tenant-wide defaults. */
 export async function savePrintSettings({ tenantId, branchId = null, settings } = {}) {
+  requireOnlineSettingsWrite();
   need(tenantId, 'tenantId');
   need(settings && typeof settings === 'object' && !Array.isArray(settings), 'settings');
   const serialized = JSON.stringify(settings);
@@ -70,6 +73,7 @@ export async function savePrintSettings({ tenantId, branchId = null, settings } 
 
 /** Owner-only through branches RLS. Branches are deactivated, never hard-deleted. */
 export async function createBranch({ tenantId, name, address = null, phone = null, mapLink = null } = {}) {
+  requireOnlineSettingsWrite();
   need(tenantId, 'tenantId');
   const cleanName = String(name ?? '').trim();
   if (cleanName.length < 2 || cleanName.length > 120) throw new Error('Branch name must be between 2 and 120 characters.');
@@ -81,6 +85,7 @@ export async function createBranch({ tenantId, name, address = null, phone = nul
 
 /** Owner-only branch profile editing; keeps the existing branch identity and history. */
 export async function updateBranch({ tenantId, branchId, name, address = null, phone = null, mapLink = null } = {}) {
+  requireOnlineSettingsWrite();
   need(tenantId, 'tenantId'); need(branchId, 'branchId');
   const cleanName = String(name ?? '').trim();
   if (cleanName.length < 2 || cleanName.length > 120) throw new Error('Branch name must be between 2 and 120 characters.');
@@ -98,6 +103,7 @@ export async function updateBranch({ tenantId, branchId, name, address = null, p
 }
 
 export async function setBranchActive({ tenantId, branchId, isActive } = {}) {
+  requireOnlineSettingsWrite();
   need(tenantId, 'tenantId'); need(branchId, 'branchId');
   const { data, error } = await db().from('branches').update({ is_active: Boolean(isActive) })
     .eq('tenant_id', tenantId).eq('id', branchId)

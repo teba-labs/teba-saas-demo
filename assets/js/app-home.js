@@ -3,6 +3,7 @@ import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { getCurrentWorkday } from '../../modules/workday/repository.js';
 import { getOutboxSummary } from '../../offline/outbox.js';
+import { getCachedRows } from '../../offline/cache.js';
 import { ensureTenantCoreCatalog, listCatalog, warmCatalogParameters } from '../../modules/catalog/repository.js';
 import { APP_ENV, validateEnvironment } from '../../config/environment.js';
 
@@ -81,18 +82,29 @@ async function refreshOperationalStatus() {
     $('syncText').textContent = summary.total
       ? `انتظار ${summary.pending} · قيد التنفيذ ${summary.syncing} · فاشلة ${summary.failed} · تعارض ${summary.conflict}`
       : (navigator.onLine ? 'لا توجد عمليات بانتظار المزامنة.' : 'لا توجد عمليات محلية معلقة مسجلة.');
+    const [patients,visits,tests]=await Promise.all([
+      getCachedRows('patients',{tenantId:state.tenant.id,branchId:state.branch.id}),
+      getCachedRows('visits',{tenantId:state.tenant.id,branchId:state.branch.id}),
+      getCachedRows('visit_tests',{tenantId:state.tenant.id,branchId:state.branch.id}),
+    ]);
+    $('syncText').textContent += ` · محفوظ محليًا: ${patients.length} مريض، ${visits.length} زيارة، ${tests.length} تحليل`;
   } catch {
     $('syncTitle').textContent = 'حالة المزامنة';
     $('syncText').textContent = 'افتح مركز المزامنة لعرض التفاصيل.';
   }
 }
 async function prepareTenantCatalog(tenantId) {
-  const bootstrap = await ensureTenantCoreCatalog(tenantId);
+  let bootstrap = { skipped: true, offline_cache: true };
+  if (globalThis.navigator?.onLine !== false) {
+    try { bootstrap = await ensureTenantCoreCatalog(tenantId); }
+    catch (error) { if (!/fetch|network|offline/i.test(error.message || '')) throw error; }
+  }
   const tests = await listCatalog({ tenantId });
   if (globalThis.navigator?.onLine !== false && tests.length) {
-    await warmCatalogParameters({ tenantId, testIds: tests.map(test => test.id) });
+    try { await warmCatalogParameters({ tenantId, testIds: tests.map(test => test.id) }); }
+    catch (error) { if (!/fetch|network|offline/i.test(error.message || '')) throw error; }
   }
-  return { bootstrap, tests };
+  return { bootstrap: { ...bootstrap, unavailable: tests.length === 0, available_count: tests.length }, tests };
 }
 async function selectTenant(id) {
   state.tenant = state.context.tenants.find(t => t.id === id) || null;

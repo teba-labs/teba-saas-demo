@@ -8,14 +8,14 @@ import { listPendingDraftResults } from '../../offline/outbox.js';
 import { offlineDb } from '../../offline/database.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
 import { cacheRows, getCachedRows } from '../../offline/cache.js';
-import { publishReportVersion, correctVisitResultWithFlag } from '../../modules/reports/repository.js';
+import { publishReportVersion, correctVisitResultWithFlag, recordLocalWorkCopyDelivery } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
 import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
 import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } from '../../modules/results/culture-repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 100, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), partialPublishedVisits: new Set(), portalEnabled: false, reportPreviewHtml: new Map(), stopBackgroundSync: null };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 100, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), partialPublishedVisits: new Set(), portalEnabled: false, reportPreviewHtml: new Map(), deliveryStatus: new Map(), stopBackgroundSync: null };
 window.taibaGetResultsContext=()=>({tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug});
 window.taibaGetDirtyResultInputs=()=>[...document.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultSource!=='calculated'&&input.value.trim()!==(input.dataset.originalValue??'').trim());
 window.addEventListener('taiba:results-work-refresh',()=>refreshWork().catch(error=>showNotice(error.message||'تعذر تحديث قائمة النتائج.',true)));
@@ -216,7 +216,12 @@ async function refreshWork() {
     state.workPage = lastPage;
     result = await listBranchWorkPage({ tenantId: state.tenant.id, branchId: state.branch.id, page: state.workPage, pageSize: state.workPageSize });
   }
-  state.work = result.rows;
+  const localVisits=await getCachedRows('visits',{tenantId:state.tenant.id,branchId:state.branch.id});
+  const localVisitById=new Map(localVisits.map(row=>[row.id,row]));
+  const syncMarkers=await offlineDb.sync_meta.toArray();
+  const approvalByVisit=new Map(syncMarkers.filter(row=>row.key?.startsWith(`approval:${state.tenant.id}:${state.branch.id}:`)).map(row=>[row.visit_id,row]));
+  state.deliveryStatus=new Map(syncMarkers.filter(row=>row.key?.startsWith(`delivery:${state.tenant.id}:${state.branch.id}:`)).map(row=>[row.visit_id,row]));
+  state.work = result.rows.map(row=>{const local=localVisitById.get(row.visit_id);const marker=approvalByVisit.get(row.visit_id);const approvalStatus=marker?.approval_status==='pending_server_validation'?'pending_server_validation':marker?.approval_status==='conflict'?'local_approval_conflict':local?.local_approval_status;return approvalStatus?{...row,visits:{...(row.visits||{}),local_approval_status:approvalStatus,local_approved_at:marker?.approved_at||local?.local_approved_at,local_approved_by_staff_id:marker?.approved_by_staff_id||local?.local_approved_by_staff_id}}:row;});
   state.workCount = result.count;
   $('contextStatus').textContent = `الفرع: ${state.branch.name} · ${state.workCount} تحليل قيد المتابعة`;
   const pager = $('workPager');
@@ -230,7 +235,7 @@ async function refreshWork() {
 async function renderWork() {
   const host = $('workList');
   if (!state.work.length) { host.innerHTML = '<div class="empty">لا توجد تحاليل قيد العمل في هذا الفرع حاليًا.</div>'; return; }
-  const rangeOverrides = await listVisitParameterRangeOverrides({tenantId:state.tenant.id,visitTestIds:state.work.map(item=>item.id)});
+  const rangeOverrides = await listVisitParameterRangeOverrides({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:state.work.map(item=>item.id)});
   const rangeOverridesByKey = new Map(rangeOverrides.map(row=>[row.visit_test_id+'|'+row.parameter_code,row]));
   try {
     const {data:portalConfig,error:portalConfigError}=await getSupabaseClient().functions.invoke('patient-portal-config',{body:{slug:state.tenant.slug}});
@@ -300,9 +305,10 @@ async function renderWork() {
         <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة منشورة</button>' : locked && group.visit?.status !== 'cancelled' && (group.visit?.status !== 'approved' || canCorrectApproved) ? '<button class="button button-secondary correct-unpublished-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح النتيجة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : ''}</div>
       </section>`;
     }).join('');
-    card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح')}</span></div>${itemsMarkup}
+    card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${group.visit?.local_approval_status === 'local_approval_conflict' ? 'اعتماد محلي متعارض — راجع المزامنة' : group.visit?.local_approval_status === 'pending_server_validation' ? 'اعتماد محلي — بانتظار المزامنة' : state.deliveryStatus.get(visitId)?.delivery_status === 'pending_sync' ? 'تسليم نسخة عمل — بانتظار المزامنة' : state.deliveryStatus.get(visitId)?.delivery_status === 'synced' ? (state.deliveryStatus.get(visitId)?.copy_type === 'published_report_copy' ? 'تم تسجيل تسليم نسخة من التقرير المنشور' : 'تم تسجيل تسليم نسخة عمل') : (isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح'))}</span></div>${itemsMarkup}
       <div class="actions"><button class="button button-secondary save-visit-drafts" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>حفظ كل النتائج</button><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
       <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' && !hasCompletedTests && !hasAnySavedResults ? 'disabled' : ''}>${canPrintPartial ? 'طباعة النتائج المحفوظة (تقرير جزئي)' : 'طباعة التقرير بإعدادات المعمل / حفظ PDF'}</button></div>
+      ${!isPublished && hasAnySavedResults ? `<div class="actions"><button class="button button-secondary mark-work-copy-delivered" data-visit-id="${escapeHtml(visitId)}" ${state.deliveryStatus.get(visitId)?.delivery_status ? 'disabled' : ''}>تسجيل تسليم نسخة عمل مطبوعة</button></div>` : ''}
       <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
       <div class="file-row report-publish-row"><p class="muted">بعد معاينة التقرير النهائي واعتماد الزيارة، انشر النسخة النهائية على بوابة المريض.</p><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${!state.portalEnabled ? 'بوابة المريض غير مفعلة' : isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير النهائي'}</button></div>
       ${canPublishPartial ? '<div class="file-row report-publish-row"><p class="muted">يمكن نشر النتائج المحفوظة الآن كتقرير جزئي دون اعتماد الزيارة أو إغلاقها.</p><button class="button button-secondary publish-partial-report" data-partial="true" data-visit-id="' + escapeHtml(visitId) + '">' + (isPartialPublished ? 'نشر تحديث جزئي' : 'نشر تقرير جزئي') + '</button></div>' : ''}
@@ -338,6 +344,7 @@ async function renderWork() {
   host.querySelectorAll('.save-visit-drafts').forEach(btn => btn.addEventListener('click', () => saveVisitDraftsAction(btn)));
   host.querySelectorAll('.correct-test, .correct-unpublished-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
+  host.querySelectorAll('.mark-work-copy-delivered').forEach(btn => btn.addEventListener('click', () => markWorkCopyDelivered(btn)));
   host.querySelectorAll('.publish-report, .publish-partial-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
   host.querySelectorAll('.share-partial-report').forEach(btn => btn.addEventListener('click', () => sharePartialReport(btn)));
   host.querySelectorAll('.upload-attachment').forEach(btn => btn.addEventListener('click', () => uploadAttachment(btn)));
@@ -568,18 +575,21 @@ async function loadHistoricalReportPicker(button){
 async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const allVisitItems = await listVisitWorkForReport({ tenantId: state.tenant.id, branchId: state.branch.id, visitId });
   if (!allVisitItems.length) throw new Error('تعذر العثور على تحاليل الزيارة في هذا الفرع.');
-  const visit = allVisitItems[0].visits || {};
+  let visit = allVisitItems[0].visits || {};
+  const approvalMarker=visit.id?await offlineDb.sync_meta.get(`approval:${state.tenant.id}:${state.branch.id}:${visit.id}`):null;
+  if(approvalMarker?.approval_status==='pending_server_validation')visit={...visit,local_approval_status:'pending_server_validation'};
+  else if(approvalMarker?.approval_status==='conflict')visit={...visit,local_approval_status:'local_approval_conflict'};
   const visitApproved = visit.status === 'approved' || Boolean(visit.is_published);
   const hasCompletedTests = allVisitItems.some(item => item.status === 'completed');
   const hasPendingTests = allVisitItems.some(item => item.status !== 'completed');
-  const localOffline = !visitApproved && (globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || allVisitItems.some(item => item.local_offline));
-  const serverApproved = visitApproved && !hasPendingTests;
+  const localOffline = globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || allVisitItems.some(item => item.local_offline) || visit.local_approval_status === 'pending_server_validation' || visit.local_approval_status === 'local_approval_conflict';
+  const serverApproved = !localOffline && visitApproved && !hasPendingTests;
   const patient = visit.patients || {};
   let rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: allVisitItems.map(item => item.id) });
   const hasSavedResults = rows.length > 0;
   // Any cloud-saved result may be issued as a clearly marked partial report;
   // the final approval state remains untouched until every required result is complete.
-  const partialReport = globalThis.navigator?.onLine !== false && !serverApproved && (hasSavedResults || hasCompletedTests);
+  const partialReport = !localOffline && globalThis.navigator?.onLine !== false && !serverApproved && (hasSavedResults || hasCompletedTests);
   const visitItems = partialReport
     ? allVisitItems.filter(item => item.status === 'completed' || rows.some(row => row.visit_test_id === item.id))
     : allVisitItems;
@@ -663,7 +673,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const headerRight = print.identitySide === 'left' ? sideContent : identityHtml;
   const headerLeft = print.identitySide === 'left' ? identityHtml : sideContent;
   const centerLogo = logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '';
-  const qrHtml = print.footerCenterMode === 'qr' && websiteUrl ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="QR للموقع"><small>امسح لزيارة موقع المعمل</small></a>' : '';
+  const qrHtml = !localOffline && print.footerCenterMode === 'qr' && websiteUrl ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="QR للموقع"><small>امسح لزيارة موقع المعمل</small></a>' : '';
   const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
   const branchPhones = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + escapeHtml(row.phone) + '</div>');
   const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(digits) + '</a>' : escapeHtml(value); };
@@ -1049,10 +1059,21 @@ async function downloadAttachment(button) {
   finally { setBusy(button,false); }
 }
 
+async function markWorkCopyDelivered(button) {
+  const visitId=button.dataset.visitId;
+  if(!visitId||!confirm('تسجيل تسليم نسخة عمل مطبوعة للمريض؟ هذا الإجراء لا يعني اعتمادًا نهائيًا أو نشرًا على بوابة المريض.'))return;
+  try{
+    setBusy(button,true,'جارٍ تسجيل التسليم…');
+    const result=await recordLocalWorkCopyDelivery({tenantId:state.tenant.id,branchId:state.branch.id,visitId,staffId:$('staffSelect').value});
+    showNotice(result?.queued?'تم تسجيل تسليم نسخة العمل محليًا؛ ستتم مزامنة سجل التسليم عند عودة الإنترنت.':'تم تسجيل تسليم النسخة المطبوعة في سجل المعمل.');
+    await refreshWork();
+  }catch(error){showNotice(error.message||'تعذر تسجيل التسليم.',true);}
+  finally{setBusy(button,false);}
+}
+
 async function approve(button) {
   const visitId = button.dataset.visitId;
   try {
-    requireCloudConnection('اعتماد الزيارة');
     if (!visitId) throw new Error('تعذر تحديد الزيارة المراد اعتمادها.');
     const dirtyOutside = window.taibaGetDirtyResultInputs?.().filter(input =>
       input.closest('.parameter[data-visit-id]')?.dataset.visitId !== visitId
@@ -1061,17 +1082,19 @@ async function approve(button) {
 
     setBusy(button, true, 'جارٍ حفظ واعتماد الزيارة…');
     const saved = await saveVisitDrafts(visitId);
-    if (saved.queuedCount) {
-      throw new Error('هناك نتائج محلية لم تصل إلى السحابة بعد؛ انتظر اكتمال المزامنة ثم أعد الاعتماد.');
-    }
-    await approveVisitWithAutoCompletion({
+    const approval = await approveVisitWithAutoCompletion({
       tenantId: state.tenant.id,
       branchId: state.branch.id,
       visitId,
       staffId: $('staffSelect').value
     });
     state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
-    showNotice('تم حفظ النتائج واعتماد الزيارة بالكامل. يمكنك الآن معاينة التقرير وطباعته.');
+    if (approval?.queued) {
+      showNotice('هناك نتائج محلية لم تصل إلى السحابة بعد. تم تسجيل الاعتماد المحلي وحفظه على هذا الجهاز؛ سيُراجع الخادم النتائج والصلاحيات بعد المزامنة. هذا ليس اعتمادًا نهائيًا ولا ينشر التقرير للمريض.');
+      await refreshWork();
+      return;
+    }
+    showNotice('تم حفظ النتائج واعتماد الزيارة بالكامل. يمكنك الآن معاينة التقرير وطباعته، والنشر النهائي يظل خطوة منفصلة.');
     await refreshWork();
   } catch (error) {
     if (/required|missing|ناقص|غير مكتمل/i.test(error.message || '')) {
@@ -1146,6 +1169,7 @@ async function publish(button) {
 }
 
 async function sharePartialReport(button){
+  if(globalThis.navigator?.onLine===false){showNotice('إرسال رابط التقرير عبر واتساب يحتاج اتصالًا بالإنترنت.',true);return;}
   const card=button.closest('.work-card');
   const phone=String(card?.dataset.patientPhone||'').replace(/\D/g,'');
   const patientName=String(card?.dataset.patientName||'').trim();

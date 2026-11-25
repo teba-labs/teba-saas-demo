@@ -71,7 +71,7 @@ test('any saved result can be printed as a marked partial report while final pub
  const finalPublication=fs.readFileSync(new URL('database/migrations/108_block_partial_report_publication.sql',root),'utf8');
  const partialPublication=fs.readFileSync(new URL('database/migrations/111_partial_report_publication.sql',root),'utf8');
  assert.match(js,/const hasAnySavedResults = group\.items\.some/);
- assert.match(js,/const partialReport = globalThis\.navigator/);
+ assert.match(js,/const partialReport = !localOffline && globalThis\.navigator/);
  assert.match(js,/rows\.some\(row => row\.visit_test_id === item\.id\)/);
  assert.match(js,/لا يمكن نشر التقرير النهائي قبل اكتمال جميع التحاليل/);
  assert.match(js,/تقرير جزئي — بعض النتائج لم تصدر بعد/);
