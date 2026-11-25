@@ -100,7 +100,7 @@ export function renderPublicSite(data){
  }));
  $('loading').hidden=true;$('site').hidden=false;document.title=name+' | الموقع الرسمي';
 }
-const params=new URLSearchParams(location.search),slug=params.get('lab');
+const params=new URLSearchParams(location.search),slug=params.get('lab')||((location.hostname==='teba-labs.github.io'&&location.pathname.startsWith('/teba-saas-demo/'))?'teba-labs':null);
 try{
  if(!slug)throw new Error('لم يتم تحديد رمز المعمل في رابط الموقع.');
  let data;
