@@ -679,12 +679,12 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const signature = signaturePath ? getLabAssetPublicUrl(signaturePath) : '';
   const stamp = stampPath ? getLabAssetPublicUrl(stampPath) : '';
   const reviewerName = !localOffline && print.showReviewer ? String(print.reviewerName || '').trim() : '';
-  const labNameEn = String(settingsJson.laboratory_name_en || lab.laboratory_name_en || lab.laboratory_name || state.tenant?.name || 'Medical Laboratory').trim();
-  const labNameAr = String(settingsJson.laboratory_name_ar || lab.laboratory_name_ar || lab.name_ar || 'معمل التحاليل الطبية').trim();
-  const addressEn = String(branch.address_en || branchSettings.address_en || settingsJson.address_en || branch.address || lab.address || '').trim();
-  const addressAr = String(branch.address_ar || branchSettings.address_ar || settingsJson.address_ar || '').trim();
-  const phoneEn = String(branch.phone || lab.phone || lab.whatsapp || '').trim();
-  const phoneAr = String(branch.phone_ar || branchSettings.phone_ar || settingsJson.phone_ar || phoneEn).trim();
+  const labNameEn = String(print.labNameEn || settingsJson.laboratory_name_en || lab.laboratory_name_en || lab.laboratory_name || state.tenant?.name || 'Medical Laboratory').trim();
+  const labNameAr = String(print.labNameAr || settingsJson.laboratory_name_ar || lab.laboratory_name_ar || lab.name_ar || 'معمل التحاليل الطبية').trim();
+  const addressEn = print.showAddress === false ? '' : String(print.addressEn || branch.address_en || branchSettings.address_en || settingsJson.address_en || branch.address || lab.address || '').trim();
+  const addressAr = print.showAddress === false ? '' : String(print.addressAr || branch.address_ar || branchSettings.address_ar || settingsJson.address_ar || '').trim();
+  const phoneEn = print.showPhone === false ? '' : String(print.phoneEn || branch.phone || lab.phone || lab.whatsapp || '').trim();
+  const phoneAr = print.showPhone === false ? '' : String(print.phoneAr || branch.phone_ar || branchSettings.phone_ar || settingsJson.phone_ar || phoneEn).trim();
   const doctor = print.showDoctor === false ? '' : String(lab.doctor_name || '').trim();
   const branchName = print.showBranch === false ? '' : String(branch.name || '').trim();
   const identitySideText = String(print.headerSideText || '').trim().split(/\\r?\\n/).map(escapeHtml).join('<br>');
@@ -712,8 +712,8 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     '<div><b>Visit Date</b><span>' + escapeHtml(visit.visit_work_date || visit.created_at?.slice(0,10) || '-') + '</span></div></div>';
   const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(value) + '</a>' : escapeHtml(value); };
   const whatsappLink = value => { let digits=String(value||'').replace(/\\D/g,'').replace(/^00/,''); if(digits.startsWith('0'))digits='20'+digits.slice(1); if(/^20\\d{9,11}$/.test(digits))return '<a href="https://wa.me/'+digits+'" target="_blank" rel="noopener">'+escapeHtml(value)+'</a>'; return escapeHtml(value); };
-  const footerAddresses = [addressEn ? '<div dir="ltr">' + escapeHtml(addressEn) + '</div>' : '', addressAr ? '<div dir="rtl">' + escapeHtml(addressAr) + '</div>' : ''].filter(Boolean).join('');
-  const footerContacts = (phoneEn ? '<div>Tel: ' + phoneLink(phoneEn) + '</div>' : '') +
+  const footerAddresses = print.showBranchAddresses === false ? '' : [addressEn ? '<div dir="ltr">' + escapeHtml(addressEn) + '</div>' : '', addressAr ? '<div dir="rtl">' + escapeHtml(addressAr) + '</div>' : ''].filter(Boolean).join('');
+  const footerContacts = print.showContacts === false ? '' : (phoneEn ? '<div>Tel: ' + phoneLink(phoneEn) + '</div>' : '') +
     (phoneAr && phoneAr!==phoneEn ? '<div dir="rtl">هاتف: ' + phoneLink(phoneAr) + '</div>' : '') +
     (lab.whatsapp ? '<div>WhatsApp: ' + whatsappLink(lab.whatsapp) + '</div>' : '') +
     (websiteUrl ? '<div>Website: <a href="' + escapeHtml(websiteUrl) + '">' + escapeHtml(websiteUrl) + '</a></div>' : '') +
@@ -795,7 +795,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">' + (localOffline ? 'Print work copy — not approved' : partialReport ? 'Print completed tests only' : 'Print report') + '</button>' : '<button disabled>Complete at least one test before printing</button>') + '<button onclick="window.close()">Close preview</button></div>' +
     (localOffline ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">UNAPPROVED WORK COPY — saved on this device and awaiting synchronization and review. Not a final report.</div>' : '') +
     (partialReport ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">PARTIAL REPORT — only completed tests are shown. Other tests in this visit are still pending.</div>' : '') +
-    (showPrintHeader ? '<header class="report-header"><div class="header-grid"><div class="header-left">' + headerLeft + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-right">' + headerRight + '</div></div>' + patientMetaHtml + '</header>' : '') +
+    '<header class="report-header' + (showPrintHeader ? '' : ' patient-only') + '">' + (showPrintHeader ? '<div class="header-grid"><div class="header-left">' + headerLeft + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-right">' + headerRight + '</div></div>' : '') + patientMetaHtml + '</header>' +
     '<section class="report-cover-meta"><h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></section>' +
     '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
     ((signature || stamp || reviewerName) ? '<section class="report-approval" style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:14px 0 8px">' + (signature ? '<div style="display:grid;gap:4px"><img style="max-width:130px;max-height:65px;object-fit:contain" src="' + escapeHtml(signature) + '" alt="Signature"><small>Authorized Signature</small></div>' : '') + (stamp ? '<div style="display:grid;gap:4px"><img style="max-width:100px;max-height:100px;object-fit:contain" src="' + escapeHtml(stamp) + '" alt="Laboratory stamp"><small>Laboratory Stamp</small></div>' : '') + (reviewerName ? '<div style="display:grid;gap:4px"><strong style="border-top:1px solid #111;padding-top:4px;min-width:120px">' + escapeHtml(reviewerName) + '</strong><small>Reviewed / Approved by</small></div>' : '') + '</section>' : '') +
