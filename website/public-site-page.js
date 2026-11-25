@@ -1,4 +1,5 @@
 import { loadPublishedSite } from './public-site.js';
+import { getSupabaseClient } from '../core/supabase-client.js';
 import { getCmsSettings, listCmsItems, cmsCollectionNames } from './cms-repository.js';
 import { loadMyTenantContext } from '../core/tenant/context.js';
 const $=id=>document.getElementById(id);
@@ -10,6 +11,25 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const safeUrl=v=>{try{const u=new URL(String(v),location.href);return ['https:','http:'].includes(u.protocol)?u.href:''}catch{return ''}};
 function cards(id,items,html){const node=$(id);if(!node)return;const section=node.closest('section');if(section)section.hidden=!items.length;node.innerHTML=items.map(html).join('');}
 function card(title,desc,extra=''){return '<article class="card"><h3>'+esc(title)+'</h3><p>'+esc(desc)+'</p>'+extra+'</article>'}
+function bindSiteRequests(data){
+ const dialog=$('siteRequestDialog'),form=$('siteRequestForm');if(!dialog||!form)return;
+ const typeField=form.elements.namedItem('request_type'),packageField=form.elements.namedItem('package_id');
+ const branchSelect=$('requestBranch'),status=$('requestStatus'),submit=$('requestSubmit');
+ const branches=(data.branches||[]).filter(x=>x.show_on_site!==false&&x.is_published!==false);
+ if(branchSelect)branchSelect.innerHTML='<option value="">لا يوجد تفضيل</option>'+branches.filter(x=>x.branch_id).map(x=>'<option value="'+esc(x.branch_id)+'">'+esc(x.public_name||'فرع المعمل')+'</option>').join('');
+ const dateField=form.elements.namedItem('preferred_date');if(dateField)dateField.min=new Date().toISOString().slice(0,10);
+ const open=(type,packageId='',title='')=>{form.reset();typeField.value=type;packageField.value=packageId; if(branchSelect)branchSelect.value='';status.hidden=true;status.textContent='';submit.disabled=false;submit.textContent='إرسال الطلب';$('siteRequestTitle').textContent=type==='package_inquiry'?'استفسار عن باقة '+title:'طلب سحب منزلي';dialog.showModal();};
+ $('homeSamplingRequest')?.addEventListener('click',()=>open('home_sampling'));
+ $('packageCards')?.addEventListener('click',event=>{const button=event.target.closest('[data-package-request]');if(button)open('package_inquiry',button.dataset.packageRequest,button.dataset.packageTitle||'');});
+ $('closeSiteRequest')?.addEventListener('click',()=>dialog.close());
+ dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();submit.disabled=true;status.hidden=true;
+  const body={slug:data.tenant?.slug,request_type:typeField.value,package_id:packageField.value||null,full_name:form.elements.namedItem('full_name').value.trim(),phone:form.elements.namedItem('phone').value.trim(),branch_id:branchSelect?.value||null,preferred_date:dateField?.value||null,preferred_period:form.elements.namedItem('preferred_period').value||null,message:form.elements.namedItem('message').value.trim()||null};
+  try{const {data:result,error}=await getSupabaseClient().functions.invoke('submit-site-request',{body});if(error)throw error;if(!result?.ok)throw new Error(result?.message||'تعذر إرسال الطلب.');status.textContent=result.message||'تم استلام طلبك. سيتواصل معك فريق المعمل.';status.dataset.kind='success';status.hidden=false;submit.textContent='تم استلام الطلب';}
+  catch(error){status.textContent=error?.message||'تعذر إرسال الطلب الآن. حاول مرة أخرى لاحقًا.';status.dataset.kind='error';status.hidden=false;submit.disabled=false;}
+ });
+}
 export function renderPublicSite(data){
  const tenant=data.tenant||{},settings=data.settings||{},content=settings.public_content||{},theme=settings.theme_json||{};
  const accent=/^#[0-9a-f]{6}$/i.test(theme.accent||theme.primary_color||'')?(theme.accent||theme.primary_color):'#16877f';
@@ -27,7 +47,7 @@ export function renderPublicSite(data){
  const announcementMessages=Array.isArray(content.announcement_messages)?content.announcement_messages.filter(Boolean):[];const announcementBar=$('announcementBar');const announcementText=$('announcementText');if(announcementBar&&announcementText){announcementBar.hidden=content.announcement_enabled!==true||!announcementMessages.length;announcementText.textContent=announcementMessages.join('  •  ');}
  $('patientAccess').href='../portal/index.html?lab='+encodeURIComponent(tenant.slug||'');const servicePortal=$('servicePortalLink'),footerPortal=$('footerPatientLink');if(servicePortal)servicePortal.href=$('patientAccess').href;if(footerPortal)footerPortal.href=$('patientAccess').href;
  $('employeeAccess').href='../app/index.html';$('ownerAccess').href='../app/index.html';
- $('year').textContent=new Date().getFullYear();$('aboutTextPublic').textContent=content.about_text||'نحرص على تقديم خدمة طبية دقيقة وتجربة مريحة لكل مريض.';$('servicesTextPublic').textContent=content.services_text||'خدمات معملية متكاملة مع اهتمام بجودة الخدمة وسهولة الوصول.';$('homeSamplingTextPublic').textContent=content.home_sampling_text||'يمكنك طلب سحب العينة من المنزل والتواصل مع فريق المعمل.';const samplingPhone=String(content.home_sampling_phone||content.whatsapp||'').replace(/\D/g,'');$('homeSamplingLink').href=samplingPhone?'https://wa.me/'+samplingPhone+'?text='+encodeURIComponent('مرحبًا، أريد الاستفسار عن خدمة السحب المنزلي.'):'#contact';$('homeSamplingLink').hidden=!samplingPhone;
+ $('year').textContent=new Date().getFullYear();$('aboutTextPublic').textContent=content.about_text||'نحرص على تقديم خدمة طبية دقيقة وتجربة مريحة لكل مريض.';$('servicesTextPublic').textContent=content.services_text||'خدمات معملية متكاملة مع اهتمام بجودة الخدمة وسهولة الوصول.';$('homeSamplingTextPublic').textContent=content.home_sampling_text||'يمكنك طلب سحب العينة من المنزل والتواصل مع فريق المعمل.';$('homeSamplingRequest').hidden=false;
  const allSections=data.sections||[];const sections=allSections.filter(x=>x.is_visible!==false&&x.is_published!==false).sort((a,b)=>(a.display_order||0)-(b.display_order||0));const sectionVisibility=new Map(allSections.map(x=>[x.section_key,x.is_visible!==false&&x.is_published!==false]));
  const builtIn={hero:'hero',about:'about',services:'services',home_sampling:'home_sampling',offers:'offers',packages:'packages',articles:'articles',faqs:'faq',testimonials:'testimonials',branches:'branches'};
  const custom=sections.filter(x=>!builtIn[x.section_key]&&x.section_key!=='tests');
@@ -37,11 +57,12 @@ export function renderPublicSite(data){
  const ordered=sections.filter(s=>s.section_key!=='tests').map(s=>document.getElementById(builtIn[s.section_key])||customNodes.get(s.section_key)).filter(Boolean);
  for(const id of ['hero','about','services','home_sampling','offers','packages','articles','faq','testimonials','branches']){const node=document.getElementById(id);if(node&&!ordered.includes(node))ordered.push(node)}
  const now=Date.now();const offers=(data.offers||[]).filter(x=>x.is_active!==false&&x.is_published!==false&&(!x.starts_at||new Date(x.starts_at).getTime()<=now)&&(!x.ends_at||new Date(x.ends_at).getTime()>=now));cards('offerCards',offers,x=>'<article class="card"><span class="tag">عرض خاص</span><h3>'+esc(x.title)+'</h3><p>'+esc(x.description||'')+'</p>'+(x.discount_percent!=null?'<div class="price">خصم '+esc(x.discount_percent)+'%</div>':'')+'</article>');
- const packages=(data.packages||[]).filter(x=>x.is_active!==false&&x.is_published!==false);cards('packageCards',packages,x=>{const img=safeUrl(x.image_path);return '<article class="card">'+(img?'<img src="'+esc(img)+'" alt="'+esc(x.title)+'">':'')+'<h3>'+esc(x.title)+'</h3><p>'+esc(x.description||'')+'</p>'+(Array.isArray(x.included_tests)&&x.included_tests.length?'<p>'+esc(x.included_tests.join(' · '))+'</p>':'')+'<div class="price">'+(x.display_price!=null?esc(x.display_price)+' جنيه':'')+(x.old_price!=null?'<span class="old">'+esc(x.old_price)+' جنيه</span>':'')+'</div></article>'});
+ const packages=(data.packages||[]).filter(x=>x.is_active!==false&&x.is_published!==false);cards('packageCards',packages,x=>{const img=safeUrl(x.image_path);return '<article class="card">'+(img?'<img src="'+esc(img)+'" alt="'+esc(x.title)+'">':'')+'<h3>'+esc(x.title)+'</h3><p>'+esc(x.description||'')+'</p>'+(Array.isArray(x.included_tests)&&x.included_tests.length?'<p>'+esc(x.included_tests.join(' · '))+'</p>':'')+'<div class="price">'+(x.display_price!=null?esc(x.display_price)+' جنيه':'')+(x.old_price!=null?'<span class="old">'+esc(x.old_price)+' جنيه</span>':'')+'</div><button class="btn btn-outline package-request" type="button" data-package-request="'+esc(x.id)+'" data-package-title="'+esc(x.title)+'">استفسر عن الباقة</button></article>'});
  const articles=(data.articles||[]).filter(x=>x.is_published!==false);cards('articleCards',articles,x=>{const img=safeUrl(x.cover_image_path);return '<article class="card">'+(img?'<img src="'+esc(img)+'" alt="">':'')+'<h3>'+esc(x.title)+'</h3><p>'+esc(x.excerpt||'')+'</p>'+(x.body_json?.text?'<p>'+esc(x.body_json.text)+'</p>':'')+'</article>'});
  const faqs=(data.faqs||[]).filter(x=>x.is_published!==false);cards('faqCards',faqs,x=>card(x.question,x.answer));
  const testimonials=(data.testimonials||[]).filter(x=>x.is_published!==false);cards('testimonialCards',testimonials,x=>card(x.display_name||'عميل',x.content,'<div class="price">'+('★'.repeat(Math.max(0,Math.min(5,Number(x.rating)||0))))+'</div>'));
  const branches=(data.branches||[]).filter(x=>x.show_on_site!==false&&x.is_published!==false);cards('branchCards',branches,x=>{const map=safeUrl(x.public_map_link);return '<article class="card branch"><h3>'+esc(x.public_name||'فرع المعمل')+'</h3><p>'+esc(x.public_address||'')+'</p><p>'+esc(x.public_phone||'')+'</p>'+(map?'<a href="'+esc(map)+'" target="_blank" rel="noopener">عرض الموقع على الخريطة</a>':'')+'</article>'});
+ bindSiteRequests(data);
  ordered.forEach(node=>{if(node.classList.contains('custom-section'))node.hidden=false;else{const key=Object.keys(builtIn).find(k=>builtIn[k]===node.id);const configured=key&&sectionVisibility.has(key)?!sectionVisibility.get(key):false;node.hidden=node.hidden||configured;}main.appendChild(node)});
  $('loading').hidden=true;$('site').hidden=false;document.title=name+' | الموقع الرسمي';
 }
