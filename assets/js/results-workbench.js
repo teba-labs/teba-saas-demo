@@ -8,14 +8,14 @@ import { listPendingDraftResults } from '../../offline/outbox.js';
 import { offlineDb } from '../../offline/database.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
 import { cacheRows, getCachedRows } from '../../offline/cache.js';
-import { publishReportVersion, correctVisitResultWithFlag } from '../../modules/reports/repository.js';
+import { publishReportVersion, correctVisitResultWithFlag, recordLocalWorkCopyDelivery } from '../../modules/reports/repository.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { listVisitAttachments, uploadVisitAttachment, createAttachmentDownloadUrl } from '../../modules/files/repository.js';
 import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
 import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } from '../../modules/results/culture-repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 100, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), partialPublishedVisits: new Set(), portalEnabled: false, reportPreviewHtml: new Map(), stopBackgroundSync: null };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 100, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), partialPublishedVisits: new Set(), portalEnabled: false, reportPreviewHtml: new Map(), deliveryStatus: new Map(), stopBackgroundSync: null };
 window.taibaGetResultsContext=()=>({tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug});
 window.taibaGetDirtyResultInputs=()=>[...document.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultSource!=='calculated'&&input.value.trim()!==(input.dataset.originalValue??'').trim());
 window.addEventListener('taiba:results-work-refresh',()=>refreshWork().catch(error=>showNotice(error.message||'تعذر تحديث قائمة النتائج.',true)));
@@ -217,6 +217,8 @@ async function refreshWork() {
     result = await listBranchWorkPage({ tenantId: state.tenant.id, branchId: state.branch.id, page: state.workPage, pageSize: state.workPageSize });
   }
   state.work = result.rows;
+  const deliveryRows=await offlineDb.sync_meta.toArray();
+  state.deliveryStatus=new Map(deliveryRows.filter(row=>row.key?.startsWith(`delivery:${state.tenant.id}:${state.branch.id}:`)).map(row=>[row.visit_id,row]));
   state.workCount = result.count;
   $('contextStatus').textContent = `الفرع: ${state.branch.name} · ${state.workCount} تحليل قيد المتابعة`;
   const pager = $('workPager');
@@ -300,9 +302,10 @@ async function renderWork() {
         <div class="actions">${isPublished ? '<button class="button button-secondary correct-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح نتيجة منشورة</button>' : locked && group.visit?.status !== 'cancelled' && (group.visit?.status !== 'approved' || canCorrectApproved) ? '<button class="button button-secondary correct-unpublished-test" data-test-id="' + escapeHtml(item.id) + '">تصحيح النتيجة</button>' : locked ? '<span class="pill">التحليل مكتمل — النتائج للعرض فقط</span>' : ''}</div>
       </section>`;
     }).join('');
-    card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${group.visit?.local_approval_status === 'pending_server_validation' ? 'اعتماد محلي — بانتظار المزامنة' : (isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح'))}</span></div>${itemsMarkup}
+    card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${group.visit?.local_approval_status === 'pending_server_validation' ? 'اعتماد محلي — بانتظار المزامنة' : state.deliveryStatus.get(visitId)?.delivery_status === 'pending_sync' ? 'تسليم نسخة عمل — بانتظار المزامنة' : state.deliveryStatus.get(visitId)?.delivery_status === 'synced' ? 'تم تسجيل تسليم نسخة عمل' : (isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح'))}</span></div>${itemsMarkup}
       <div class="actions"><button class="button button-secondary save-visit-drafts" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>حفظ كل النتائج</button><button class="button approve-visit" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>${group.visit?.status === 'approved' ? 'تم اعتماد الزيارة' : 'اعتماد الزيارة'}</button></div>
       <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' && !hasCompletedTests && !hasAnySavedResults ? 'disabled' : ''}>${canPrintPartial ? 'طباعة النتائج المحفوظة (تقرير جزئي)' : 'طباعة التقرير بإعدادات المعمل / حفظ PDF'}</button></div>
+      ${!isPublished && hasAnySavedResults ? `<div class="actions"><button class="button button-secondary mark-work-copy-delivered" data-visit-id="${escapeHtml(visitId)}" ${state.deliveryStatus.get(visitId)?.delivery_status ? 'disabled' : ''}>تسجيل تسليم نسخة عمل مطبوعة</button></div>` : ''}
       <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
       <div class="file-row report-publish-row"><p class="muted">بعد معاينة التقرير النهائي واعتماد الزيارة، انشر النسخة النهائية على بوابة المريض.</p><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${!state.portalEnabled ? 'بوابة المريض غير مفعلة' : isPublished ? 'نشر نسخة مصححة' : 'نشر التقرير النهائي'}</button></div>
       ${canPublishPartial ? '<div class="file-row report-publish-row"><p class="muted">يمكن نشر النتائج المحفوظة الآن كتقرير جزئي دون اعتماد الزيارة أو إغلاقها.</p><button class="button button-secondary publish-partial-report" data-partial="true" data-visit-id="' + escapeHtml(visitId) + '">' + (isPartialPublished ? 'نشر تحديث جزئي' : 'نشر تقرير جزئي') + '</button></div>' : ''}
@@ -338,6 +341,7 @@ async function renderWork() {
   host.querySelectorAll('.save-visit-drafts').forEach(btn => btn.addEventListener('click', () => saveVisitDraftsAction(btn)));
   host.querySelectorAll('.correct-test, .correct-unpublished-test').forEach(btn => btn.addEventListener('click', () => correctTest(btn)));
   host.querySelectorAll('.approve-visit').forEach(btn => btn.addEventListener('click', () => approve(btn)));
+  host.querySelectorAll('.mark-work-copy-delivered').forEach(btn => btn.addEventListener('click', () => markWorkCopyDelivered(btn)));
   host.querySelectorAll('.publish-report, .publish-partial-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
   host.querySelectorAll('.share-partial-report').forEach(btn => btn.addEventListener('click', () => sharePartialReport(btn)));
   host.querySelectorAll('.upload-attachment').forEach(btn => btn.addEventListener('click', () => uploadAttachment(btn)));
@@ -1047,6 +1051,18 @@ async function downloadAttachment(button) {
     window.open(url,'_blank','noopener');
   } catch(error) { showNotice(error.message||'تعذر فتح المرفق.',true); }
   finally { setBusy(button,false); }
+}
+
+async function markWorkCopyDelivered(button) {
+  const visitId=button.dataset.visitId;
+  if(!visitId||!confirm('تسجيل تسليم نسخة عمل مطبوعة للمريض؟ هذا الإجراء لا يعني اعتمادًا نهائيًا أو نشرًا على بوابة المريض.'))return;
+  try{
+    setBusy(button,true,'جارٍ تسجيل التسليم…');
+    const result=await recordLocalWorkCopyDelivery({tenantId:state.tenant.id,branchId:state.branch.id,visitId,staffId:$('staffSelect').value});
+    showNotice(result?.queued?'تم تسجيل تسليم نسخة العمل محليًا؛ ستتم مزامنة سجل التسليم عند عودة الإنترنت.':'تم تسجيل تسليم النسخة المطبوعة في سجل المعمل.');
+    await refreshWork();
+  }catch(error){showNotice(error.message||'تعذر تسجيل التسليم.',true);}
+  finally{setBusy(button,false);}
 }
 
 async function approve(button) {
