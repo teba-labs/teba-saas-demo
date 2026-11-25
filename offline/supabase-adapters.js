@@ -17,8 +17,7 @@ function sameClosingSnapshot(actual, expected) {
   const close = (a,b) => Math.abs(Number(a ?? 0)-Number(b ?? 0)) < 0.011;
   return close(actual.collected,expected.collected)
     && close(actual.expenses,expected.expenses)
-    && close(actual.net_cash,expected.net_cash)
-    && (expected.movement_count == null || Number(actual.movement_count ?? actual.rows_count ?? -1) === Number(expected.movement_count));
+    && close(actual.net_cash,expected.net_cash);
 }
 const isBusinessConflict = (error, pattern) => pattern.test(String(error?.message || error || ''));
 const throwUnlessConflict = (error, pattern) => {
