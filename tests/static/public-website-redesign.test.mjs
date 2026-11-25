@@ -16,10 +16,12 @@ test('public website uses the approved Taiba premium design system',()=>{
   assert.match(css,/data-theme="dark"/);
   assert.match(css,/@media\(max-width:720px\)/);
 });
-test('homepage does not render or link to the medical test catalog',()=>{
-  assert.doesNotMatch(html,/id="tests"|href="#tests"|testCards/);
-  assert.doesNotMatch(js,/cards\('testCards'/);
-  assert.match(js,/x\.section_key!=='tests'/);
+test('medical test catalog is rendered and grouped with medical services',()=>{
+  assert.match(html,/id="tests"/);
+  assert.match(html,/href="#tests"/);
+  assert.match(html,/id="testCards"/);
+  assert.match(js,/cards\('testCards'/);
+  assert.match(js,/title:'التحاليل الطبية والخدمات',ids:\['services','tests'\]/);
 });
 test('public site keeps CMS content and patient portal entry points',()=>{
   for(const id of ['heroTitle','servicesTextPublic','packageCards','articleCards','faqCards','branchCards','contactDetails','patientAccess']) assert.match(html,new RegExp('id="'+id+'"'));
