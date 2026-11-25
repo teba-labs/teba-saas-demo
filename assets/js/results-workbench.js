@@ -1068,7 +1068,7 @@ async function approve(button) {
     });
     state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
     if (approval?.queued) {
-      showNotice('تم تسجيل الاعتماد المحلي وحفظه على هذا الجهاز. سيُراجع الخادم النتائج والصلاحيات بعد المزامنة؛ هذا ليس اعتمادًا نهائيًا ولا ينشر التقرير للمريض.');
+      showNotice('هناك نتائج محلية لم تصل إلى السحابة بعد. تم تسجيل الاعتماد المحلي وحفظه على هذا الجهاز؛ سيُراجع الخادم النتائج والصلاحيات بعد المزامنة. هذا ليس اعتمادًا نهائيًا ولا ينشر التقرير للمريض.');
       await refreshWork();
       return;
     }
