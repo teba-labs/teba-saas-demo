@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [feature/full-app-zoom-responsive-2026-11-23]
+    branches: [main, feature/full-app-zoom-responsive-2026-11-23]
 
 permissions:
   contents: read
