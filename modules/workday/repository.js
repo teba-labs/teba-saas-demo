@@ -91,7 +91,7 @@ async function queueWorkdayExpense({tenantId,branchId,categoryId,amount,descript
   const payload={category_id:categoryId,amount,description:description?.trim()||null,staff_id:staffId,
     work_date:workday.work_date,local_ledger_id:newId()};
   const dependsOn=workday.local_open_operation_id?[workday.local_open_operation_id]:[];
-  await enqueueOperation({tenantId,branchId,entityType:'expense',action:'create',operationId,payload,dependsOn,priority:20});
+  await enqueueOperation({tenantId,branchId,entityType: 'expense', action: 'create', operationId, payload, dependsOn, priority: 20});
   await cacheRows('financial_ledger',[{id:payload.local_ledger_id,tenant_id:tenantId,branch_id:branchId,work_date:workday.work_date,
     source_type:'expense',direction:'outflow',amount,movement_at:new Date().toISOString(),description:payload.description,
     local_operation_id:operationId,local_offline:true}]);
