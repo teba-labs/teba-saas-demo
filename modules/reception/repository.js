@@ -230,7 +230,7 @@ export async function createVisitIntake({ tenantId, branchId, patientId, visitNu
   const workday = await getOpenWorkday({ tenantId, branchId });
   const operationId = uuid();
   const localLedgerId = payment > 0 ? uuid() : null;
-  const allDependencies = [...new Set([...dependsOn, workday.local_open_operation_id].filter(Boolean))];
+  dependsOn = [...new Set([...dependsOn, workday.local_open_operation_id].filter(Boolean))];
   const payload = {
     patient_id: patientId, visit_number: String(visitNumber || referenceCode('V')).trim(), staff_id: staffId,
     test_ids: testIds, discount_amount: discount, initial_payment: payment, payment_method: paymentMethod,
@@ -241,7 +241,7 @@ export async function createVisitIntake({ tenantId, branchId, patientId, visitNu
     local_visit_test_ids: Array.isArray(localVisitTests) ? localVisitTests.map(row => ({ id: row.id, test_id: row.test_id })) : [],
   };
   const queue = async () => {
-    await enqueueOperation({ tenantId, branchId, entityType: 'visit_intake', action: 'create', operationId, payload, dependsOn: allDependencies, priority: 2 });
+    await enqueueOperation({ tenantId, branchId, entityType: 'visit_intake', action: 'create', operationId, payload, dependsOn, priority: 2 });
     if (localVisit?.id) await cacheRows('visits', [{ ...localVisit, tenant_id: tenantId, branch_id: branchId, workday_id: workday.id, local_intake_operation_id: operationId, local_offline: true }]);
     if (Array.isArray(localVisitTests) && localVisitTests.length) await cacheRows('visit_tests', localVisitTests.map(row => ({ ...row, tenant_id: tenantId, branch_id: branchId, local_intake_operation_id: operationId, local_offline: true })));
     if (localLedgerId && payment > 0) await cacheRows('financial_ledger', [{
@@ -251,7 +251,7 @@ export async function createVisitIntake({ tenantId, branchId, patientId, visitNu
     }]);
     return { queued: true, operationId, visitNumber: payload.visit_number, localVisitId: localVisit?.id || null };
   };
-  if (globalThis.navigator?.onLine === false || allDependencies.length > 0) return queue();
+  if (globalThis.navigator?.onLine === false || dependsOn.length > 0) return queue();
   const { data, error } = await db().rpc('create_visit_intake_idempotent', {
     p_operation_id: operationId, p_tenant_id: tenantId, p_branch_id: branchId, p_patient_id: patientId,
     p_visit_number: payload.visit_number, p_staff_id: staffId, p_test_ids: testIds,
