@@ -13,6 +13,7 @@ export async function getOfflineDashboardSummary({tenantId,monthStart,monthEnd,b
   const snapshots=ledgerSnapshots.filter(Boolean);
   const ledgerSnapshot=snapshots.length?{cachedRows:snapshots.reduce((sum,row)=>sum+Number(row.cachedRows||0),0),
     totalRows:snapshots.reduce((sum,row)=>sum+Number(row.totalRows||0),0),truncated:snapshots.some(row=>row.truncated),
+    branchesPrepared:snapshots.length,branchesExpected:snapshotBranches.length,missingBranches:Math.max(0,snapshotBranches.length-snapshots.length),
     cached_at:snapshots.map(row=>row.cached_at).filter(Boolean).sort().at(-1)}:null;
   const allowedBranches=new Set(branchId?[branchId]:branches.map(row=>row.id));
   const inScope=row=>!allowedBranches.size||allowedBranches.has(row.branch_id);
