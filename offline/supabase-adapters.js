@@ -256,7 +256,9 @@ export function createSupabaseSyncHandlers() {
       const p=operation.payload;
       const session=await getCurrentSession();
       if(!session?.user?.id||session.user.id!==p.actor_user_id){
-        return {conflict:true,reason:'The original approving user must sign in again before this local approval can synchronize.'};
+        const reason='The original approving user must sign in again before this local approval can synchronize.';
+        await setApprovalMarker(operation,'conflict',null,reason);
+        return {conflict:true,reason};
       }
       let visitId=p.visit_id;
       if(p.local_visit_pending){
@@ -276,14 +278,31 @@ export function createSupabaseSyncHandlers() {
         .select('id,tenant_id,branch_id,status,is_published,approved_by_staff_id,approved_at')
         .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',visitId).maybeSingle();
       if(visitResult.error)throw visitResult.error;
-      if(!visitResult.data)return {conflict:true,reason:'The visit was not found in the selected tenant and branch.'};
+      if(!visitResult.data){
+        const reason='The visit was not found in the selected tenant and branch.';
+        await setApprovalMarker(operation,'conflict',visitId,reason);
+        return {conflict:true,reason};
+      }
       if(visitResult.data.status==='approved'){
-        if(visitResult.data.approved_by_staff_id!==p.staff_id)return {conflict:true,reason:'The visit was approved by another staff member after the local approval was recorded.'};
+        if(visitResult.data.approved_by_staff_id!==p.staff_id){
+          const reason='The visit was approved by another staff member after the local approval was recorded.';
+          await setApprovalMarker(operation,'conflict',visitId,reason);
+          return {conflict:true,reason};
+        }
+        await setApprovalMarker(operation,'synced',visitId);
         await cacheRows('visits',[{...visitResult.data,local_approval_status:'synced'}]);
         return {acknowledged:true,resultId:visitId};
       }
-      if(visitResult.data.is_published)return {conflict:true,reason:'This visit is already published and cannot be approved again.'};
-      if(visitResult.data.status==='cancelled')return {conflict:true,reason:'A cancelled visit cannot be approved.'};
+      if(visitResult.data.is_published){
+        const reason='This visit is already published and cannot be approved again.';
+        await setApprovalMarker(operation,'conflict',visitId,reason);
+        return {conflict:true,reason};
+      }
+      if(visitResult.data.status==='cancelled'){
+        const reason='A cancelled visit cannot be approved.';
+        await setApprovalMarker(operation,'conflict',visitId,reason);
+        return {conflict:true,reason};
+      }
       const visitTestsResult=await db().from('visit_tests')
         .select('id,test_id,test_code_snapshot,test_name_snapshot')
         .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('visit_id',visitId).neq('status','cancelled');
@@ -296,7 +315,11 @@ export function createSupabaseSyncHandlers() {
       for(const localTestId of Object.keys(visitMapping?.visit_test_ids||{}))localTestIds.add(localTestId);
       const newerDrafts=(await offlineDb.outbox.where('[tenant_id+branch_id]').equals([operation.tenant_id,operation.branch_id]).toArray())
         .filter(row=>row.operation_id!==operation.operation_id&&row.entity_type==='draft_results'&&localTestIds.has(row.payload?.visit_test_id));
-      if(newerDrafts.some(row=>row.status==='conflict'))return {conflict:true,reason:'A newer result draft has a synchronization conflict. Resolve it and record a fresh local approval.'};
+      if(newerDrafts.some(row=>row.status==='conflict')){
+        const reason='A newer result draft has a synchronization conflict. Resolve it and record a fresh local approval.';
+        await setApprovalMarker(operation,'conflict',visitId,reason);
+        return {conflict:true,reason};
+      }
       if(newerDrafts.length)throw new Error('Local approval is waiting for newer result drafts to synchronize before server validation.');
       let results=[];
       if(ids.length){
@@ -308,8 +331,9 @@ export function createSupabaseSyncHandlers() {
       }
       const serverFingerprint=await fingerprintVisitResults({visitTests,results});
       if(serverFingerprint!==p.result_fingerprint){
-        return {conflict:true,reason:'Clinical results changed after the local approval was recorded. Review the current server results before approving again.',
-          serverSnapshot:{result_fingerprint:serverFingerprint,tests:visitTests.length,results:results.length}};
+        const reason='Clinical results changed after the local approval was recorded. Review the current server results before approving again.';
+        await setApprovalMarker(operation,'conflict',visitId,reason);
+        return {conflict:true,reason,serverSnapshot:{result_fingerprint:serverFingerprint,tests:visitTests.length,results:results.length}};
       }
       const {data,error}=await db().rpc('approve_visit_with_auto_completion',{
         p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
@@ -322,17 +346,23 @@ export function createSupabaseSyncHandlers() {
             .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',visitId).maybeSingle();
           if(retryVisit.error)throw retryVisit.error;
           if(retryVisit.data?.status==='approved'&&retryVisit.data.approved_by_staff_id===p.staff_id){
+            await setApprovalMarker(operation,'synced',visitId);
             await cacheRows('visits',[{...retryVisit.data,local_approval_status:'synced'}]);
             return {acknowledged:true,resultId:visitId};
           }
-          return {conflict:true,reason:'The visit was approved by a different actor before this local approval synchronized.'};
+          const reason='The visit was approved by a different actor before this local approval synchronized.';
+          await setApprovalMarker(operation,'conflict',visitId,reason);
+          return {conflict:true,reason};
         }
-        return throwUnlessConflict(error,/required results are missing|every requested test must be completed|results? are missing|cancelled visit|published visit|visit not found|branch access denied|active staff identity|an active staff identity/i);
+        const result=throwUnlessConflict(error,/required results are missing|every requested test must be completed|results? are missing|cancelled visit|published visit|visit not found|branch access denied|active staff identity|an active staff identity/i);
+        if(result?.conflict)await setApprovalMarker(operation,'conflict',visitId,result.reason||'The server rejected local approval.');
+        return result;
       }
       const approvedResult=await db().from('visits')
         .select('id,tenant_id,branch_id,status,is_published,approved_by_staff_id,approved_at')
         .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',visitId).single();
       if(approvedResult.error)throw approvedResult.error;
+      await setApprovalMarker(operation,'synced',visitId);
       await cacheRows('visits',[{...approvedResult.data,local_approval_status:'synced'}]);
       return {acknowledged:true,resultId:approvedResult.data.id||visitId};
     },
