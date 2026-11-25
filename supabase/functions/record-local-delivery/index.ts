@@ -13,7 +13,7 @@ function response(body:unknown,status=200,origin=''){
   }
   return new Response(status===204?null:JSON.stringify(body),{status,headers});
 }
-function stable(value:unknown):string{if(Array.isArray(value))return '['+value.map(stable).join(',')+']';if(value&&typeof value==='object'){const row=value as Record<string,unknown>;return '{'+Object.keys(row).sort().map(key=>JSON.stringify(key)+':'+stable(row[key])).join(',')+'}';}return JSON.stringify(value);}
+function stable(value:unknown):string{if(Array.isArray(value))return '['+value.map(stable).join(',')+']';if(value&&typeof value==='object'){const row=value as Record<string,unknown>;return '{'+Object.keys(row).sort().map(key=>JSON.stringify(key)+':'+stable(row[key])).join(',')+'}';}return JSON.stringify(value)??'null';}
 const isUuid=(value:unknown):value is string=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 Deno.serve(async(request:Request)=>{
