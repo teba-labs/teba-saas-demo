@@ -57,3 +57,17 @@ test('service worker falls back to cache after a bounded network attempt and nev
   assert.match(source, /hostname\.endsWith\('\.supabase\.co'\)/);
   assert.match(source, /Never cache authenticated API or patient data responses/);
 });
+
+test('Sync Center reports persistent storage and quota without deleting local data', () => {
+  const database = read('offline/database.js');
+  const page = read('app/sync-center.html');
+  const script = read('assets/js/sync-center.js');
+  assert.match(database, /getOfflineStorageHealth/);
+  assert.match(database, /requestPersistentOfflineStorage/);
+  assert.match(database, /storage\.persist\(\)/);
+  assert.match(database, /storage\.estimate\(\)/);
+  assert.match(page, /id="protectStorage"/);
+  assert.match(page, /لا نحذف أي بيانات تلقائيًا/);
+  assert.match(script, /refreshStorageHealth/);
+  assert.match(script, /requestPersistentOfflineStorage/);
+});
