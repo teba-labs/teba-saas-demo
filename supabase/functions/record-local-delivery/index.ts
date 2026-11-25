@@ -85,9 +85,9 @@ Deno.serve(async(request:Request)=>{
     if(existing){
       const same=existing.tenant_id===tenantId&&existing.branch_id===branchId&&existing.actor_user_id===userId
         &&existing.actor_staff_id===staffId&&existing.action===event.action&&existing.record_id===visitId
-        &&stable(existing.new_data)===stable(event.new_data);
+        &&existing.new_data?.delivery_method===deliveryMethod&&existing.new_data?.delivered_at===deliveredAt;
       if(!same)return response({error:'Operation ID was reused with a different delivery event.'},409,origin);
-      return response({event_id:operationId,copy_type:event.new_data.copy_type,replayed:true},200,origin);
+      return response({event_id:operationId,copy_type:existing.new_data?.copy_type||'work_copy',replayed:true},200,origin);
     }
     const {error:insertError}=await admin.from('audit_logs').insert(event);
     if(insertError)throw insertError;
