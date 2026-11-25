@@ -20,6 +20,7 @@ function bindSiteRequests(data){
  const dateField=form.elements.namedItem('preferred_date');if(dateField)dateField.min=new Date().toISOString().slice(0,10);
  const open=(type,packageId='',title='')=>{form.reset();typeField.value=type;packageField.value=packageId; if(branchSelect)branchSelect.value='';status.hidden=true;status.textContent='';submit.disabled=false;submit.textContent='إرسال الطلب';$('siteRequestTitle').textContent=type==='package_inquiry'?'استفسار عن باقة '+title:'طلب سحب منزلي';dialog.showModal();};
  $('homeSamplingRequest')?.addEventListener('click',()=>open('home_sampling'));
+ $('serviceHomeSamplingRequest')?.addEventListener('click',()=>open('home_sampling'));
  $('packageCards')?.addEventListener('click',event=>{const button=event.target.closest('[data-package-request]');if(button)open('package_inquiry',button.dataset.packageRequest,button.dataset.packageTitle||'');});
  $('closeSiteRequest')?.addEventListener('click',()=>dialog.close());
  dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
@@ -80,8 +81,7 @@ export function renderPublicSite(data){
   if(sectionVisibility.has(key))node.hidden=!sectionVisibility.get(key);
  });
  const groups=[
-  {title:'التحاليل وأسعارها',ids:['tests']},
-  {title:'التحاليل الطبية والخدمات',ids:['services']},
+  {title:'التحاليل الطبية والخدمات',ids:['services','tests']},
   {title:'الباقات والعروض',ids:['offers','packages']},
   {title:'الفروع ومواعيد العمل',ids:['branches']},
   {title:'السحب المنزلي',ids:['home_sampling']},
