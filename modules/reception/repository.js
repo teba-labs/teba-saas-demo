@@ -185,6 +185,7 @@ export async function recordPayment({ tenantId, visitId, amount, paymentMethod =
   const collectionBranchId = collector.branch_id;
   const sameCollectionBranch = !visitRow.branch_id || visitRow.branch_id === collectionBranchId;
   const workday = await getOpenWorkday({ tenantId, branchId: collectionBranchId });
+  if(!workday)throw new Error('لا يوجد يوم عمل مفتوح في فرع التحصيل؛ افتح اليوم قبل تسجيل المقبوضات.');
   const localLedgerId = uuid();
   const dependsOn = [
     visitRow.local_intake_operation_id,
@@ -228,6 +229,7 @@ export async function createVisitIntake({ tenantId, branchId, patientId, visitNu
   if (!Number.isFinite(discount) || discount < 0 || !Number.isFinite(payment) || payment < 0) throw new Error('Invalid discount or payment amount.');
   if (!Array.isArray(expectedPrices) || expectedPrices.length !== testIds.length || expectedPrices.some(p => !p?.id || !p?.test_id || !Number.isFinite(Number(p.selling_price)))) throw new Error('Price snapshots are incomplete. Refresh the catalog before registering this visit.');
   const workday = await getOpenWorkday({ tenantId, branchId });
+  if(!workday)throw new Error('لا يوجد يوم عمل مفتوح لهذا الفرع؛ افتح يوم العمل أولًا.');
   const operationId = uuid();
   const localLedgerId = payment > 0 ? uuid() : null;
   dependsOn = [...new Set([...dependsOn, workday.local_open_operation_id].filter(Boolean))];
