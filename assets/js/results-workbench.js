@@ -1166,6 +1166,7 @@ async function publish(button) {
 }
 
 async function sharePartialReport(button){
+  if(globalThis.navigator?.onLine===false){showNotice('إرسال رابط التقرير عبر واتساب يحتاج اتصالًا بالإنترنت.',true);return;}
   const card=button.closest('.work-card');
   const phone=String(card?.dataset.patientPhone||'').replace(/\D/g,'');
   const patientName=String(card?.dataset.patientName||'').trim();
