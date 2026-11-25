@@ -50,6 +50,7 @@ test('offline report preview uses cached patient data, visit ranges and work-cop
   assert.match(laboratory,/getCachedRows\('patients'/);
   assert.match(results,/const localOffline = globalThis\.navigator\?\.onLine === false/);
   assert.match(results,/approvalMarker/);
+  assert.match(results,/!localOffline && print\.footerCenterMode === 'qr'/);
   assert.match(repository,/range-override:/);
   assert.match(prepare,/listVisitParameterRangeOverrides/);
 });
