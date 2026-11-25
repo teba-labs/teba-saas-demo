@@ -752,7 +752,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
       const flag = displayFlag ? ' · ' + displayFlag : '';
       return '<tr><td class="parameter-cell">' + escapeHtml(parameterName) + '</td><td class="result-cell">' + escapeHtml(value) + '</td><td class="unit-cell">' + escapeHtml(unit) + '</td><td class="reference-cell">' + escapeHtml(reference || '-') + '</td><td class="flag-cell">' + escapeHtml(displayFlag || '-') + '</td></tr>';
     }).filter(Boolean).join('');
-    const cultureHtml = cultureRows.isolates.filter(isolate=>isolate.visit_test_id===item.id).map(isolate=>{const ast=cultureRows.susceptibilities.filter(row=>row.isolate_id===isolate.id);const astLines=ast.map(row=>'<tr><td>'+escapeHtml(row.antimicrobial_agent)+'</td><td>'+escapeHtml(row.test_method)+'</td><td>'+escapeHtml(row.measured_value??'—')+' '+escapeHtml(row.measured_unit??'')+'</td><td>'+escapeHtml(row.interpretation)+'</td><td>'+escapeHtml(row.breakpoint_standard)+' '+escapeHtml(row.breakpoint_edition)+'</td><td>'+escapeHtml(row.qc_status)+'</td></tr>').join('');return '<h3>العزلة '+isolate.isolate_number+': '+escapeHtml(isolate.organism_name)+'</h3><p>النمو: '+escapeHtml(isolate.growth_description||'—')+' · العد: '+escapeHtml(isolate.colony_count??'—')+' '+escapeHtml(isolate.colony_count_unit)+' · التعريف: '+escapeHtml(isolate.identification_method||'—')+'</p><table><thead><tr><th>المضاد الحيوي</th><th>الطريقة</th><th>القيمة</th><th>التفسير</th><th>معيار/إصدار القطع</th><th>ضبط الجودة</th></tr></thead><tbody>'+(astLines||'<tr><td colspan="6">لا توجد نتائج حساسية مسجلة</td></tr>')+'</tbody></table>'+(isolate.notes?'<p>'+escapeHtml(isolate.notes)+'</p>':'');}).join('');
+    const cultureHtml = cultureRows.isolates.filter(isolate=>isolate.visit_test_id===item.id).map(isolate=>{const ast=cultureRows.susceptibilities.filter(row=>row.isolate_id===isolate.id);const astLines=ast.map(row=>'<tr><td>'+escapeHtml(row.antimicrobial_agent)+'</td><td>'+escapeHtml(row.test_method)+'</td><td>'+escapeHtml(row.measured_value??'—')+' '+escapeHtml(row.measured_unit??'')+'</td><td>'+escapeHtml(row.interpretation)+'</td><td>'+escapeHtml(row.breakpoint_standard)+' '+escapeHtml(row.breakpoint_edition)+'</td><td>'+escapeHtml(row.qc_status)+'</td></tr>').join('');return '<h3>Isolate '+isolate.isolate_number+': '+escapeHtml(isolate.organism_name)+'</h3><p>Growth: '+escapeHtml(isolate.growth_description||'-')+' · Colony count: '+escapeHtml(isolate.colony_count??'-')+' '+escapeHtml(isolate.colony_count_unit)+' · Identification: '+escapeHtml(isolate.identification_method||'-')+'</p><table><thead><tr><th>Antimicrobial</th><th>Method</th><th>Value</th><th>Interpretation</th><th>Breakpoint Standard / Edition</th><th>Quality Control</th></tr></thead><tbody>'+(astLines||'<tr><td colspan="6">No susceptibility results recorded</td></tr>')+'</tbody></table>'+(isolate.notes?'<p>'+escapeHtml(isolate.notes)+'</p>':'');}).join('');
     const kind = item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind || 'individual';
     const hasContent = Boolean(lines || cultureHtml);
     return { kind, hasContent, html: '<section class="test ' + (kind === 'panel' ? 'profile-report' : 'individual-test') + '"><h2 class="analysis-heading">' + escapeHtml(item.test_name_snapshot || 'Test') + ' <small class="section-status">' + (item.status === 'completed' ? 'Completed' : 'Pending') + '</small></h2><table class="results-table"><colgroup><col style="width:40%"><col style="width:15%"><col style="width:10%"><col style="width:25%"><col style="width:10%"></colgroup><thead><tr><th>Parameter</th><th>Result</th><th>Unit</th><th>Reference Interval</th><th>Flag</th></tr></thead><tbody>' + lines + '</tbody></table>' + cultureHtml + '</section>' };
@@ -777,7 +777,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     (showPrintHeader?'header.report-header{position:fixed;top:-' + (pageTopMargin-3) + 'mm;left:0;right:0;z-index:2;background:#fff}':'header.report-header{display:none}') +
     (showPrintFooter?'.report-footer{position:fixed;bottom:-' + (pageBottomMargin-3) + 'mm;left:0;right:0;z-index:2;background:#fff}':'.report-footer{display:none}') +
     '.analysis-heading{margin-top:20px;clear:both}.profile-report{break-before:page;page-break-before:always}.profile-report.first-profile{break-before:auto;page-break-before:auto}.report-footer{break-inside:avoid}}' +
-    '</style></head><body>' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
+    '</style></head><body data-page-top-margin="' + pageTopMargin + '" data-page-bottom-margin="' + pageBottomMargin + '" data-page-side-margin="' + margin + '">' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
     '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">' + (localOffline ? 'Print work copy — not approved' : partialReport ? 'Print completed tests only' : 'Print report') + '</button>' : '<button disabled>Complete at least one test before printing</button>') + '<button onclick="window.close()">Close preview</button></div>' +
     (localOffline ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">UNAPPROVED WORK COPY — saved on this device and awaiting synchronization and review. Not a final report.</div>' : '') +
     (partialReport ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">PARTIAL REPORT — only completed tests are shown. Other tests in this visit are still pending.</div>' : '') +
@@ -1167,14 +1167,49 @@ async function publish(button) {
     await Promise.all([...reportWindow.document.images].map(img=>img.decode?.().catch(()=>null)));
     await new Promise(resolve=>setTimeout(resolve,180));
     await ensureHtml2Pdf();
-    const pdfBlob=await window.html2pdf().set({
-      margin:0,
+    const reportBody=reportWindow.document.body;
+    const pageTop=Number(reportBody.dataset.pageTopMargin)||46;
+    const pageBottom=Number(reportBody.dataset.pageBottomMargin)||24;
+    const pageSide=Number(reportBody.dataset.pageSideMargin)||12;
+    const headerNode=reportWindow.document.querySelector('.report-header');
+    const footerNode=reportWindow.document.querySelector('.report-footer');
+    const rasterize=async node=>node&&typeof window.html2canvas==='function'
+      ? window.html2canvas(node,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false})
+      : null;
+    const [headerCanvas,footerCanvas]=await Promise.all([rasterize(headerNode),rasterize(footerNode)]);
+    const worker=window.html2pdf().set({
+      margin:[pageTop,pageSide,pageBottom,pageSide],
       filename:`taiba-report-${visitId}.pdf`,
       image:{type:'jpeg',quality:0.98},
-      html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',scrollY:0},
+      html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',scrollY:0,
+        onclone:cloned=>cloned.querySelectorAll('.report-header,.report-footer').forEach(node=>node.style.display='none')},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
       pagebreak:{mode:['css','legacy']}
-    }).from(reportWindow.document.body).outputPdf('blob');
+    }).from(reportBody).toPdf();
+    const pdf=await worker.get('pdf');
+    const totalPages=pdf.internal.getNumberOfPages();
+    const pageWidth=pdf.internal.pageSize.getWidth(),pageHeight=pdf.internal.pageSize.getHeight();
+    const contentWidth=pageWidth-(pageSide*2);
+    for(let page=1;page<=totalPages;page++){
+      pdf.setPage(page);
+      if(headerCanvas){
+        const maxHeaderHeight=Math.max(8,pageTop-3);
+        const ratio=headerCanvas.width/headerCanvas.height;
+        const imageWidth=Math.min(contentWidth,maxHeaderHeight*ratio);
+        const imageHeight=imageWidth/ratio;
+        pdf.addImage(headerCanvas.toDataURL('image/png'),'PNG',pageSide,2,imageWidth,imageHeight);
+      }
+      if(footerCanvas){
+        const maxFooterHeight=Math.max(7,pageBottom-5);
+        const ratio=footerCanvas.width/footerCanvas.height;
+        const imageWidth=Math.min(contentWidth,maxFooterHeight*ratio);
+        const imageHeight=imageWidth/ratio;
+        pdf.addImage(footerCanvas.toDataURL('image/png'),'PNG',pageSide,pageHeight-imageHeight-4,imageWidth,imageHeight);
+      }
+      pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(40);
+      pdf.text(`Page ${page} of ${totalPages}`,pageWidth-pageSide,pageHeight-2,{align:'right'});
+    }
+    const pdfBlob=pdf.output('blob');
     if(!(pdfBlob instanceof Blob)||pdfBlob.size<1000)throw new Error('تعذر إنشاء ملف PDF صالح من معاينة التقرير.');
     const file=new File([pdfBlob],`taiba-report-${visitId}.pdf`,{type:'application/pdf'});
     await publishReportVersion({tenantId:state.tenant.id,branchId:state.branch.id,visitId,staffId:$('staffSelect').value,file,changeReason:reason,isPartial:partial});
