@@ -39,7 +39,7 @@
 - Report preview reads cached visit/patient/results/range overrides. Every print while offline is a watermarked working copy, even if an earlier approved report is cached.
 - Printed-copy handoff can be recorded locally and later written as an idempotent audit event; it is not report publication.
 - Workday opening, expenses, collections and closing can be queued locally. A queued close depends on all prior branch operations and is reconciled against the server's collected/expenses/net-cash snapshot.
-- Owner dashboard shows a local-only summary for cached visits, tests, cash movements and pending sync operations; receivables, Excel reconciliation and full financial reports remain cloud-only.
+- Owner dashboard shows a local-only summary for cached visits, tests, cash movements and pending sync operations. Preparation warms up to 5,000 current-month ledger rows per branch and reports partial coverage. Branch preparation also warms up to 5,000 current-month ledger rows per branch and warns when truncated; receivables, Excel reconciliation and full financial reports remain cloud-only.
 - Settings, staff and expense categories can be read from local cache. Changes to cloud configuration remain online-only.
 - Sync Center displays entitlement state, preparation readiness, storage health and queued operation state.
 
