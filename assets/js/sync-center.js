@@ -4,16 +4,35 @@ import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection 
 import { getOutboxSummary, listOpenConflicts, retryConflictOperation, retryFailedOperations, syncOutbox } from '../../offline/outbox.js';
 import { createSupabaseSyncHandlers } from '../../offline/supabase-adapters.js';
 import { exportLocalBackup, restoreLocalBackup } from '../../offline/backup.js';
+import { getOfflineStorageHealth, requestPersistentOfflineStorage } from '../../offline/database.js';
 
 const $ = id => document.getElementById(id);
 const state = { context: null, tenant: null, branch: null, syncing: false };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function notice(message, error = false) { $('notice').textContent = message; $('notice').className = `notice show${error ? ' error' : ''}`; clearTimeout(notice.timer); notice.timer = setTimeout(() => $('notice').className = 'notice', 6500); }
 function updateConnection() { const online = navigator.onLine; $('connection').textContent = online ? 'متصل بالإنترنت' : 'غير متصل'; $('connection').className = `badge ${online ? 'online' : 'offline'}`; $('syncNow').disabled = !online || state.syncing || !state.branch; }
+function formatBytes(value) { if (!Number.isFinite(value)) return 'غير متاح'; const units = ['بايت','KB','MB','GB']; let size = value, index = 0; while (size >= 1024 && index < units.length - 1) { size /= 1024; index++; } return `${size.toFixed(index ? 1 : 0)} ${units[index]}`; }
+async function refreshStorageHealth() {
+  const health = await getOfflineStorageHealth();
+  const remaining = health.remaining === null ? 'المساحة المتبقية غير متاحة' : `المتاح تقريبًا: ${formatBytes(health.remaining)}`;
+  const usage = health.usage === null ? '' : ` · المستخدم: ${formatBytes(health.usage)}`;
+  if (health.persistent) $('storageHealth').textContent = `التخزين الدائم ممنوح من المتصفح. ${remaining}${usage}`;
+  else if (health.supported) $('storageHealth').textContent = `التخزين الدائم لم يُمنح بعد. اطلب الحماية من المتصفح قبل الاعتماد الطويل على الأوف لاين. ${remaining}${usage}`;
+  else $('storageHealth').textContent = `هذا المتصفح لا يتيح طلب التخزين الدائم. احتفظ بنسخ احتياطية محلية منتظمة. ${remaining}${usage}`;
+  $('protectStorage').disabled = !health.supported || health.persistent;
+}
+async function protectOfflineStorage() {
+  try {
+    const health = await requestPersistentOfflineStorage();
+    await refreshStorageHealth();
+    notice(health.persistent ? 'المتصفح منح التخزين الدائم لهذا الموقع.' : 'المتصفح لم يمنح التخزين الدائم. احتفظ بنسخة احتياطية محلية منتظمة.', !health.persistent);
+  } catch (error) { notice(error.message || 'تعذر فحص حماية التخزين.', true); }
+}
 async function start() {
   const session = await getCurrentSession();
   if (!session) { $('loginPanel').hidden = false; $('workspace').hidden = true; $('signOut').hidden = true; return; }
   state.context = await loadMyTenantContext();
+  await refreshStorageHealth();
   if (!state.context.tenants?.length) throw new Error('الحساب لا يملك معملًا نشطًا.');
   $('loginPanel').hidden = true; $('workspace').hidden = false; $('signOut').hidden = false;
   $('tenantSelect').innerHTML = state.context.tenants.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
@@ -98,5 +117,6 @@ $('signOut').addEventListener('click', async () => { try { await signOut(); awai
 $('syncNow').addEventListener('click', runSync); $('refresh').addEventListener('click', () => refresh().catch(e => notice(e.message, true)));
 $('retryFailed').addEventListener('click', async () => { try { const count = await retryFailedOperations({ tenantId: state.tenant?.id, branchId: state.branch?.id }); notice(`تمت إعادة ${count} عملية إلى قائمة الانتظار.`); await refresh(); } catch (e) { notice(e.message, true); } });
 $('exportBackup').addEventListener('click', exportBackup); $('backupFile').addEventListener('change', e => importBackup(e.target.files?.[0]));
+$('protectStorage').addEventListener('click', protectOfflineStorage);
 window.addEventListener('online', () => { updateConnection(); runSync(); }); window.addEventListener('offline', updateConnection);
 try { await start(); updateConnection(); if (navigator.onLine) runSync(); } catch (e) { notice(e.message || 'تعذر تهيئة مركز المزامنة.', true); }
