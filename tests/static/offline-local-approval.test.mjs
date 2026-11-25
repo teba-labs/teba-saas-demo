@@ -37,6 +37,19 @@ test('approval sync rechecks original user, visit scope and unchanged clinical r
   assert.match(adapters,/approved_by_staff_id!==p\.staff_id/);
 });
 
+test('offline work-copy delivery is an auditable local event and is not final publication',()=>{
+  const reports=read('modules/reports/repository.js');
+  const adapters=read('offline/supabase-adapters.js');
+  const edge=read('supabase/functions/record-local-delivery/index.ts');
+  const ui=read('assets/js/results-workbench.js');
+  assert.match(reports,/entityType:'report_delivery'/);
+  assert.match(adapters,/report_delivery: async operation/);
+  assert.match(edge,/audit_logs/);
+  assert.match(edge,/report_work_copy_handed_over/);
+  assert.match(ui,/mark-work-copy-delivered/);
+  assert.match(ui,/لا يعني اعتمادًا نهائيًا أو نشرًا/);
+});
+
 test('local clinical fingerprints ignore local UUID aliases but include test and result values',()=>{
   const fingerprint=read('offline/result-fingerprint.js');
   assert.match(fingerprint,/test_id:row\.test_id/);
