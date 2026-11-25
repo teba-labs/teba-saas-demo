@@ -20,7 +20,8 @@ export async function getCurrentWorkday({ tenantId, branchId } = {}) {
 async function queueWorkdayOpen({tenantId,branchId,workDate,staffId}={}) {
   const operationId=newId(), localWorkdayId=newId(), openedAt=new Date().toISOString();
   const payload={work_date:workDate,staff_id:staffId,local_workday_id:localWorkdayId};
-  await enqueueOperation({tenantId,branchId,entityType:'workday_open',action:'open',operationId,payload,priority:0});
+  const dependsOn=await pendingBranchOperationIds(tenantId,branchId);
+  await enqueueOperation({tenantId,branchId,entityType:'workday_open',action:'open',operationId,payload,dependsOn,priority:0});
   const row={id:localWorkdayId,tenant_id:tenantId,branch_id:branchId,work_date:workDate,status:'open',
     opened_at:openedAt,opened_by_staff_id:staffId,local_open_operation_id:operationId,local_offline:true};
   await cacheRows('workdays',[row]);
