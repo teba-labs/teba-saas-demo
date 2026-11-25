@@ -153,7 +153,6 @@ export async function approveVisitWithAutoCompletion({ tenantId, branchId, visit
     if(/fetch|network|offline/i.test(error.message||'')||globalThis.navigator?.onLine===false) return queueLocalVisitApproval({tenantId,branchId,visitId,staffId});
     throw error;
   }
-  if(data)await cacheRows('visits',[{...data,tenant_id:tenantId,branch_id:branchId}]);
   return data;
 }
 
