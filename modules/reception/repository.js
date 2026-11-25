@@ -183,6 +183,7 @@ export async function recordPayment({ tenantId, visitId, amount, paymentMethod =
   }
   if (!collector?.branch_id) throw new Error('لا يمكن تحديد فرع التحصيل من حساب الموظف. حدّث بيانات الموظفين أثناء الاتصال أولًا.');
   const collectionBranchId = collector.branch_id;
+  const sameCollectionBranch = !visitRow.branch_id || visitRow.branch_id === collectionBranchId;
   const workday = await getOpenWorkday({ tenantId, branchId: collectionBranchId });
   const localLedgerId = uuid();
   const dependsOn = [
@@ -196,6 +197,7 @@ export async function recordPayment({ tenantId, visitId, amount, paymentMethod =
     work_date: workday.work_date, local_ledger_id: localLedgerId,
   };
   const queue = async () => {
+    if (!sameCollectionBranch) throw new Error('تحصيل مديونية فرع آخر يحتاج اتصالًا بالإنترنت؛ لم نضع حركة مالية في قائمة انتظار فرع مختلف.');
     await enqueueOperation({ tenantId, branchId: collectionBranchId, entityType: 'payment', action: 'create', operationId, payload, dependsOn, priority: 30 });
     await cacheRows('financial_ledger', [{
       id: localLedgerId, tenant_id: tenantId, branch_id: collectionBranchId, work_date: workday.work_date,
