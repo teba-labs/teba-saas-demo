@@ -267,9 +267,12 @@ export function createSupabaseSyncHandlers() {
         }
         return throwUnlessConflict(error,/required results are missing|every requested test must be completed|results? are missing|cancelled visit|published visit|visit not found|branch access denied|active staff identity|an active staff identity/i);
       }
-      const approved=data||visitResult.data;
-      await cacheRows('visits',[{...approved,tenant_id:operation.tenant_id,branch_id:operation.branch_id,local_approval_status:'synced'}]);
-      return {acknowledged:true,resultId:approved.id||visitId};
+      const approvedResult=await db().from('visits')
+        .select('id,tenant_id,branch_id,status,is_published,approved_by_staff_id,approved_at')
+        .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',visitId).single();
+      if(approvedResult.error)throw approvedResult.error;
+      await cacheRows('visits',[{...approvedResult.data,local_approval_status:'synced'}]);
+      return {acknowledged:true,resultId:approvedResult.data.id||visitId};
     },
     workday_open: async operation => {
       const p=operation.payload;
