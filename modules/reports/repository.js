@@ -37,7 +37,8 @@ export async function recordLocalWorkCopyDelivery({tenantId,branchId,visitId,sta
   if(globalThis.navigator?.onLine===false||visit.local_intake_operation_id)return queue();
   const {data,error}=await db().functions.invoke('record-local-delivery',{body:{...payload,operation_id:operationId,tenant_id:tenantId,branch_id:branchId}});
   if(error){
-    if(/fetch|network|offline/i.test(error.message||'')||globalThis.navigator?.onLine===false)return queue();
+    const status=error.context?.status;
+    if(/fetch|network|offline/i.test(error.message||'')||globalThis.navigator?.onLine===false||(Number.isInteger(status)&&status>=500))return queue();
     throw error;
   }
   await offlineDb.sync_meta.put({key:`delivery:${tenantId}:${branchId}:${visitId}`,tenant_id:tenantId,branch_id:branchId,visit_id:visitId,
