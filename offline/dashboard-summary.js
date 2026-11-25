@@ -2,13 +2,18 @@ import { offlineDb } from './database.js';
 
 export async function getOfflineDashboardSummary({tenantId,monthStart,monthEnd,branchId=null,branches=[]}={}){
   if(!tenantId||!monthStart||!monthEnd)throw new Error('Tenant and month range are required.');
-  const [allVisits,allTests,allLedger,allOutbox,ledgerSnapshot]=await Promise.all([
+  const snapshotBranches=branchId?[branchId]:branches.map(row=>row.id).filter(Boolean);
+  const [allVisits,allTests,allLedger,allOutbox,ledgerSnapshots]=await Promise.all([
     offlineDb.visits.where('tenant_id').equals(tenantId).toArray(),
     offlineDb.visit_tests.where('tenant_id').equals(tenantId).toArray(),
     offlineDb.financial_ledger.where('tenant_id').equals(tenantId).toArray(),
     offlineDb.outbox.where('tenant_id').equals(tenantId).toArray(),
-    offlineDb.sync_meta.get(`financial-ledger-month:${tenantId}:${branchId||branches[0]?.id||''}:${monthStart}`),
+    Promise.all(snapshotBranches.map(id=>offlineDb.sync_meta.get(`financial-ledger-month:${tenantId}:${id}:${monthStart}`))),
   ]);
+  const snapshots=ledgerSnapshots.filter(Boolean);
+  const ledgerSnapshot=snapshots.length?{cachedRows:snapshots.reduce((sum,row)=>sum+Number(row.cachedRows||0),0),
+    totalRows:snapshots.reduce((sum,row)=>sum+Number(row.totalRows||0),0),truncated:snapshots.some(row=>row.truncated),
+    cached_at:snapshots.map(row=>row.cached_at).filter(Boolean).sort().at(-1)}:null;
   const allowedBranches=new Set(branchId?[branchId]:branches.map(row=>row.id));
   const inScope=row=>!allowedBranches.size||allowedBranches.has(row.branch_id);
   const visits=allVisits.filter(row=>inScope(row)&&String(row.visit_work_date||row.work_date||'')>=monthStart&&String(row.visit_work_date||row.work_date||'')<monthEnd&&row.status!=='cancelled');
