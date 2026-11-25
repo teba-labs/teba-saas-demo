@@ -17,6 +17,7 @@ test('local approval is distinct from final publication and depends on queued wo
   const repository=read('modules/results/repository.js');
   const ui=read('assets/js/results-workbench.js');
   const reports=read('modules/reports/repository.js');
+  const adapters=read('offline/supabase-adapters.js');
   assert.match(repository,/entityType:'visit_approval'/);
   assert.match(repository,/result_fingerprint/);
   assert.match(repository,/actor_user_id/);
