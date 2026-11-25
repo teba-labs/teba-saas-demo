@@ -49,14 +49,24 @@ export function renderPublicSite(data){
  $('employeeAccess').href='../app/index.html';$('ownerAccess').href='../app/index.html';
  $('year').textContent=new Date().getFullYear();$('aboutTextPublic').textContent=content.about_text||'نحرص على تقديم خدمة طبية دقيقة وتجربة مريحة لكل مريض.';$('servicesTextPublic').textContent=content.services_text||'خدمات معملية متكاملة مع اهتمام بجودة الخدمة وسهولة الوصول.';$('homeSamplingTextPublic').textContent=content.home_sampling_text||'يمكنك طلب سحب العينة من المنزل والتواصل مع فريق المعمل.';$('homeSamplingRequest').hidden=false;
  const allSections=data.sections||[];const sections=allSections.filter(x=>x.is_visible!==false&&x.is_published!==false).sort((a,b)=>(a.display_order||0)-(b.display_order||0));const sectionVisibility=new Map(allSections.map(x=>[x.section_key,x.is_visible!==false&&x.is_published!==false]));
- const builtIn={hero:'hero',about:'about',services:'services',home_sampling:'home_sampling',offers:'offers',packages:'packages',articles:'articles',faqs:'faq',testimonials:'testimonials',branches:'branches'};
- const custom=sections.filter(x=>!builtIn[x.section_key]&&x.section_key!=='tests');
+ const builtIn={hero:'hero',about:'about',services:'services',home_sampling:'home_sampling',tests:'tests',offers:'offers',packages:'packages',articles:'articles',faqs:'faq',testimonials:'testimonials',branches:'branches'};
+ const custom=sections.filter(x=>!builtIn[x.section_key]);
  const customNodes=new Map(custom.map(s=>{const c=s.content&&typeof s.content==='object'?s.content:{};const node=document.createElement('section');node.className='custom-section';node.innerHTML='<div class="wrap"><span class="eyebrow">'+esc(c.eyebrow||'')+'</span><h2>'+esc(s.title||c.title||'')+'</h2><p>'+esc(c.text||c.description||c.body||'')+'</p></div>';return [s.section_key,node]}));
  $('customSections')?.remove();
  const main=document.querySelector('main');
- const ordered=sections.filter(s=>s.section_key!=='tests').map(s=>document.getElementById(builtIn[s.section_key])||customNodes.get(s.section_key)).filter(Boolean);
+ const ordered=sections.map(s=>document.getElementById(builtIn[s.section_key])||customNodes.get(s.section_key)).filter(Boolean);
  for(const id of ['about','services','home_sampling','offers','packages','articles','faq','testimonials','branches']){const node=document.getElementById(id);if(node&&!ordered.includes(node))ordered.push(node)}
  const now=Date.now();const offers=(data.offers||[]).filter(x=>x.is_active!==false&&x.is_published!==false&&(!x.starts_at||new Date(x.starts_at).getTime()<=now)&&(!x.ends_at||new Date(x.ends_at).getTime()>=now));cards('offerCards',offers,x=>{const img=safeUrl(x.image_path);return '<article class="card">'+(img?'<img src="'+esc(img)+'" alt="'+esc(x.title)+'">':'')+'<span class="tag">عرض خاص</span><h3>'+esc(x.title)+'</h3><p>'+esc(x.description||'')+'</p>'+(x.discount_percent!=null?'<div class="price">خصم '+esc(x.discount_percent)+'%</div>':'')+'</article>'});
+ const publicTests=(data.tests||[]).filter(x=>x.is_visible!==false&&x.is_published!==false).sort((a,b)=>(a.display_order||0)-(b.display_order||0));
+ const testSearch=$('publicTestSearch'),testCount=$('publicTestCount');
+ const renderTests=(term='')=>{
+  const q=String(term||'').trim().toLocaleLowerCase('ar');
+  const filtered=publicTests.filter(x=>[x.display_name,x.code,x.category,x.description].some(v=>String(v||'').toLocaleLowerCase('ar').includes(q)));
+  if(testCount)testCount.textContent='عدد التحاليل: '+filtered.length+' من '+publicTests.length;
+  cards('testCards',filtered,x=>'<article class="test-catalog-row"><div class="test-catalog-name"><strong>'+esc(x.display_name)+'</strong><small>'+esc(x.category||'تحاليل طبية')+(x.code?' · '+esc(x.code):'')+'</small>'+(x.description?'<p>'+esc(x.description)+'</p>':'')+'</div><div class="test-catalog-price">'+(x.display_price!=null&&x.display_price!==''?'<strong>'+esc(Number(x.display_price).toLocaleString('en-US'))+' جنيه</strong>':'<span>السعر غير محدد</span>')+'</div></article>');
+ };
+ renderTests();
+ testSearch?.addEventListener('input',()=>renderTests(testSearch.value));
  const packages=(data.packages||[]).filter(x=>x.is_active!==false&&x.is_published!==false);cards('packageCards',packages,x=>{const img=safeUrl(x.image_path);return '<article class="card">'+(img?'<img src="'+esc(img)+'" alt="'+esc(x.title)+'">':'')+'<h3>'+esc(x.title)+'</h3><p>'+esc(x.description||'')+'</p>'+(Array.isArray(x.included_tests)&&x.included_tests.length?'<p>'+esc(x.included_tests.join(' · '))+'</p>':'')+'<div class="price">'+(x.display_price!=null?esc(x.display_price)+' جنيه':'')+(x.old_price!=null?'<span class="old">'+esc(x.old_price)+' جنيه</span>':'')+'</div><button class="btn btn-outline package-request" type="button" data-package-request="'+esc(x.id)+'" data-package-title="'+esc(x.title)+'">استفسر عن الباقة</button></article>'});
  const articles=(data.articles||[]).filter(x=>x.is_published!==false);cards('articleCards',articles,x=>{const img=safeUrl(x.cover_image_path);return '<article class="card">'+(img?'<img src="'+esc(img)+'" alt="">':'')+'<h3>'+esc(x.title)+'</h3><p>'+esc(x.excerpt||'')+'</p>'+(x.body_json?.text?'<p>'+esc(x.body_json.text)+'</p>':'')+'</article>'});
  const faqs=(data.faqs||[]).filter(x=>x.is_published!==false);cards('faqCards',faqs,x=>card(x.question,x.answer));
