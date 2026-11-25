@@ -51,16 +51,25 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
 /** Complete, branch-scoped test list for a single approved visit report. */
 export async function listVisitWorkForReport({ tenantId, branchId, visitId } = {}) {
   if (!tenantId || !branchId || !visitId) throw new Error('tenantId, branchId and visitId are required.');
-  if (globalThis.navigator?.onLine === false) {
-    const cached = await getCachedRows('visit_tests', { tenantId, branchId });
-    return cached.filter(row => row.visit_id === visitId && row.status !== 'cancelled' && row.visits?.status !== 'cancelled');
-  }
+  const localReportWork=async()=>{
+    const [cached,visits,patients]=await Promise.all([
+      getCachedRows('visit_tests',{tenantId,branchId}),
+      getCachedRows('visits',{tenantId,branchId}),
+      getCachedRows('patients',{tenantId,branchId}),
+    ]);
+    const visit=visits.find(row=>row.id===visitId);
+    if(!visit)return [];
+    const patient=patients.find(row=>row.id===visit.patient_id)||visit.patients||{};
+    return cached.filter(row=>row.visit_id===visitId&&row.status!=='cancelled'&&row.visits?.status!=='cancelled')
+      .map(row=>({...row,visits:{...(row.visits||{}),...visit,patients:patient}}));
+  };
+  if (globalThis.navigator?.onLine === false) return localReportWork();
   const { data, error } = await db().from(TABLES.visitTests)
     .select('id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, tests_catalog(test_kind), visits!inner(visit_number, visit_work_date, status, is_published, patients!inner(full_name, patient_number, age_years, sex))')
     .eq('tenant_id', tenantId).eq('branch_id', branchId).eq('visit_id', visitId)
     .neq('status', 'cancelled').neq('visits.status', 'cancelled')
     .order('created_at').order('id');
-  if (error) { if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('visit_tests', { tenantId, branchId })).filter(row => row.visit_id === visitId && row.status !== 'cancelled'); throw error; }
+  if (error) { if (/fetch|network|offline/i.test(error.message || '')) return localReportWork(); throw error; }
   await cacheRows('visit_tests', data ?? []);
   return data ?? [];
 }
