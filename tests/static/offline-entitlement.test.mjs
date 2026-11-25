@@ -35,9 +35,10 @@ test('entitlement is scoped to tenant, branch, user, device and a P-256 device k
 test('offline entitlement expiry blocks new outbox operations but never blocks synchronization', () => {
   const outbox = read('offline/outbox.js');
   const adapters = read('offline/supabase-adapters.js');
+  const policy = read('offline/queue-policy.js');
   assert.match(outbox, /assertQueueAllowed/);
-  assert.match(outbox, /await assertQueueAllowed/);
-  assert.doesNotMatch(outbox, /assertQueueAllowed[\s\S]{0,500}export async function syncOutbox/);
+  assert.doesNotMatch(outbox, /subscription|entitlement|expires_at/i);
+  assert.match(policy, /assertOfflineEntitlement/);
   assert.match(adapters, /createSupabaseSyncHandlers/);
 });
 
