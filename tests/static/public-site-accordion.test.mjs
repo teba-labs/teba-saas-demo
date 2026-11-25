@@ -12,6 +12,7 @@ test('public homepage keeps the hero visible and provides one collapsed accordio
   assert.match(html,/<section class="site-accordion-area" id="siteSections">/);
   assert.match(html,/<div class="site-accordion-list" id="accordionSections"><\/div>/);
   assert.doesNotMatch(html,/id="customSections"/);
+  assert.match(page,/\$\('customSections'\)\?\.remove\(\)/);
   assert.match(page,/details\.className='site-accordion-item'/);
   assert.match(page,/summary\.className='site-accordion-trigger'/);
   assert.doesNotMatch(html,/<details[^>]*\sopen(?:\s|>)/);
