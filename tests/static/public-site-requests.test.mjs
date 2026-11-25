@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 const root=path.resolve(import.meta.dirname,'../..');
 const html=readFileSync(path.join(root,'website/index.html'),'utf8');
 const js=readFileSync(path.join(root,'website/public-site-page.js'),'utf8');
 const css=readFileSync(path.join(root,'website/site.css'),'utf8');
 const ui=readFileSync(path.join(root,'website/public-site-ui.js'),'utf8');
-const workflow=readFileSync(path.join(root,'.github/workflows/public-website-preview.yml'),'utf8');
 const migration=readFileSync(path.join(root,'database/migrations/113_public_site_booking_requests.sql'),'utf8');
 const hardening=readFileSync(path.join(root,'database/migrations/114_public_site_request_privilege_hardening.sql'),'utf8');
 const edge=readFileSync(path.join(root,'supabase/functions/submit-site-request/index.ts'),'utf8');
@@ -38,13 +37,9 @@ test('mobile navigation and patient access controls are interactive',()=>{
   assert.match(ui,/showModal\(\)/);
   assert.match(ui,/close\(\)/);
 });
-test('preview deployment uses GitHub Pages from main without Netlify credentials',()=>{
-  assert.match(workflow,/branches: \[main\]/);
-  assert.match(workflow,/actions\/deploy-pages@v4/);
-  assert.match(workflow,/actions\/configure-pages@v5/);
-  assert.match(workflow,/actions\/upload-pages-artifact@v4/);
-  assert.doesNotMatch(workflow,/enablement: true/);
-  assert.doesNotMatch(workflow,/NETLIFY_|netlify-cli/);
+test('public preview does not depend on a Netlify workflow or secrets',()=>{
+  const previewWorkflow=path.join(root,'.github/workflows/public-website-preview.yml');
+  assert.equal(existsSync(previewWorkflow),false);
 });
 test('home sampling and package inquiry requests are submitted to the secure cloud endpoint',()=>{
   assert.match(html,/id="homeSamplingRequest"/);
