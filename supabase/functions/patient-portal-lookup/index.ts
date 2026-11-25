@@ -2,6 +2,23 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 
 const GENERIC_FAILURE = { ok: false, message: 'لا توجد نتائج منشورة متاحة بهذه البيانات حاليًا. قد تكون التحاليل قيد الاختبار والمراجعة.' };
 
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://teba-labs.github.io',
+  'https://teba-labs.com',
+  'https://www.teba-labs.com',
+];
+function allowedOrigins() {
+  const configured = (Deno.env.get('PORTAL_ALLOWED_ORIGINS') ?? '').split(',').map(v => v.trim()).filter(Boolean);
+  return [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...configured])];
+}
+function defaultSecretKey() {
+  try {
+    const keys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
+    if (typeof keys.default === 'string' && keys.default) return keys.default;
+  } catch {}
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+}
+
 function json(body: unknown, status = 200, origin = '') {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json; charset=utf-8',
@@ -27,15 +44,13 @@ async function digest(secret: string, value: string) {
 }
 
 Deno.serve(async (req) => {
-  const allowed = (Deno.env.get('PORTAL_ALLOWED_ORIGINS') ?? '').split(',').map(v => v.trim()).filter(Boolean);
+  const allowed = allowedOrigins();
   const origin = req.headers.get('origin') ?? '';
-  if (!allowed.length) {
-    console.error('Patient portal origin allowlist is not configured.');
-    return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503);
-  }
-  if (req.method === 'OPTIONS') return json({ ok: true }, 200, allowed.includes(origin) ? origin : '');
-  if (req.method !== 'POST') return json({ ok: false, message: 'Method not allowed.' }, 405);
+  if (req.method === 'OPTIONS') return allowed.includes(origin)
+    ? json({ ok: true }, 200, origin)
+    : json({ ok: false, message: 'Origin not allowed.' }, 403);
   if (!origin || !allowed.includes(origin)) return json({ ok: false, message: 'Origin not allowed.' }, 403);
+  if (req.method !== 'POST') return json({ ok: false, message: 'Method not allowed.' }, 405);
 
   let payload: Record<string, unknown>;
   try { payload = await req.json(); } catch { return json(GENERIC_FAILURE, 400, origin); }
@@ -47,8 +62,10 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const pepper = Deno.env.get('PORTAL_HASH_SECRET');
+  const serviceKey = defaultSecretKey();
+  // A dedicated pepper may be configured later; the server-only Supabase secret key
+  // is a safe fallback so public lookups do not depend on an unprovisioned custom secret.
+  const pepper = Deno.env.get('PORTAL_HASH_SECRET') || serviceKey;
   if (!supabaseUrl || !serviceKey || !pepper) {
     console.error('Patient portal server secrets are not configured.');
     return json({ ok: false, message: 'الخدمة غير متاحة مؤقتًا.' }, 503, origin);
@@ -66,7 +83,7 @@ Deno.serve(async (req) => {
   }
   if (portalConfig?.portal_settings?.enabled !== true) return json(GENERIC_FAILURE, 200, origin);
 
-  const lookupHash = await digest(pepper, `${slug}|${normalizeName(patientName)}|${visitNumber.toLowerCase()}`);
+  const lookupHash = await digest(pepper, `lookup|${slug}|${normalizeName(patientName)}|${visitNumber.toLowerCase()}`);
   const clientIp = req.headers.get('cf-connecting-ip')?.trim()
     || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || req.headers.get('x-real-ip')?.trim();

@@ -1,6 +1,22 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://teba-labs.github.io',
+  'https://teba-labs.com',
+  'https://www.teba-labs.com',
+];
+function allowedOrigins() {
+  const configured = (Deno.env.get('REPORT_ALLOWED_ORIGINS') ?? '').split(',').map(v => v.trim()).filter(Boolean);
+  return [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...configured])];
+}
+function readKeySet(name: string, legacyName: string) {
+  try {
+    const keys = JSON.parse(Deno.env.get(name) ?? '{}');
+    if (typeof keys.default === 'string' && keys.default) return keys.default;
+  } catch {}
+  return Deno.env.get(legacyName) ?? '';
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function reply(body: unknown, status = 200, origin = '') {
@@ -18,7 +34,7 @@ function reply(body: unknown, status = 200, origin = '') {
 }
 
 Deno.serve(async (req) => {
-  const allowed = (Deno.env.get('REPORT_ALLOWED_ORIGINS') ?? '').split(',').map(v => v.trim()).filter(Boolean);
+  const allowed = allowedOrigins();
   const origin = req.headers.get('origin') ?? '';
   if (req.method === 'OPTIONS') return reply({ ok: true }, 200, allowed.includes(origin) ? origin : '');
   if (req.method !== 'POST') return reply({ ok: false, message: 'Method not allowed.' }, 405);
