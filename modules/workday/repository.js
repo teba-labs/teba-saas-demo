@@ -111,6 +111,20 @@ export async function addWorkdayExpense({tenantId,branchId,categoryId,amount,des
   return data;
 }
 
+export async function warmBranchFinancialLedger({tenantId,branchId,fromDate,toDate,maxRows=5000}={}){
+  required(tenantId,'tenantId');required(branchId,'branchId');required(fromDate,'fromDate');required(toDate,'toDate');
+  if(globalThis.navigator?.onLine===false)throw new Error('تحميل سجل الحركة المالية يحتاج اتصالًا بالإنترنت.');
+  const limit=Math.min(10000,Math.max(1,Math.floor(Number(maxRows)||5000)));
+  const {data,error,count}=await db().from('financial_ledger')
+    .select('id,tenant_id,branch_id,source_type,source_id,direction,amount,movement_at,work_date,description,created_by,created_at',{count:'exact'})
+    .eq('tenant_id',tenantId).eq('branch_id',branchId)
+    .gte('work_date',fromDate).lt('work_date',toDate)
+    .order('work_date',{ascending:false}).order('created_at',{ascending:false}).limit(limit);
+  if(error)throw error;
+  await cacheRows('financial_ledger',data||[]);
+  return {cachedRows:(data||[]).length,totalRows:count??(data||[]).length,truncated:(count??0)>(data||[]).length};
+}
+
 export async function getWorkdayCashSummary({tenantId,branchId,workDate}={}) {
   required(tenantId,'tenantId'); required(branchId,'branchId'); required(workDate,'workDate');
   let rows;
