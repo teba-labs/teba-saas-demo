@@ -216,7 +216,9 @@ async function refreshWork() {
     state.workPage = lastPage;
     result = await listBranchWorkPage({ tenantId: state.tenant.id, branchId: state.branch.id, page: state.workPage, pageSize: state.workPageSize });
   }
-  state.work = result.rows;
+  const localVisits=await getCachedRows('visits',{tenantId:state.tenant.id,branchId:state.branch.id});
+  const localVisitById=new Map(localVisits.map(row=>[row.id,row]));
+  state.work = result.rows.map(row=>{const local=localVisitById.get(row.visit_id);return local?.local_approval_status?{...row,visits:{...(row.visits||{}),local_approval_status:local.local_approval_status,local_approved_at:local.local_approved_at,local_approved_by_staff_id:local.local_approved_by_staff_id}}:row;});
   const deliveryRows=await offlineDb.sync_meta.toArray();
   state.deliveryStatus=new Map(deliveryRows.filter(row=>row.key?.startsWith(`delivery:${state.tenant.id}:${state.branch.id}:`)).map(row=>[row.visit_id,row]));
   state.workCount = result.count;
