@@ -46,17 +46,23 @@ export async function warmBranchPatients({ tenantId, branchId, maxRows = 10000 }
   const safeMax = Math.min(50000, Math.max(500, Math.floor(Number(maxRows) || 10000)));
   const columns = 'id, tenant_id, branch_id, patient_number, full_name, phone, date_of_birth, age_years, age_value, age_unit, sex, created_at';
   const rows = [];
+  let totalRows = null;
   for (let offset = 0; offset < safeMax; offset += 500) {
     const end = Math.min(offset + 499, safeMax - 1);
-    const { data, error } = await db().from(TABLES.patients)
-      .select(columns).eq('tenant_id', tenantId).eq('branch_id', branchId)
+    const { data, error, count } = await db().from(TABLES.patients)
+      .select(columns, { count: 'exact' }).eq('tenant_id', tenantId).eq('branch_id', branchId)
       .order('full_name').order('id').range(offset, end);
     if (error) throw error;
+    if (totalRows === null && Number.isFinite(count)) totalRows = count;
     rows.push(...(data || []));
     if ((data || []).length < 500) break;
   }
   await cacheRows('patients', rows);
-  return { cachedRows: rows.length, truncated: rows.length === safeMax };
+  return {
+    cachedRows: rows.length,
+    totalRows: totalRows ?? rows.length,
+    truncated: totalRows !== null ? totalRows > rows.length : rows.length === safeMax,
+  };
 }
 
 export async function createPatient({ tenantId, branchId, patient } = {}) {
