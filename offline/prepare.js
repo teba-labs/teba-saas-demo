@@ -106,7 +106,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
   if (!catalog.length) issues.push('لا يوجد كتالوج تحاليل نشط محفوظ.');
   if (missingPrices) issues.push(`يوجد ${missingPrices} تحليلًا دون سعر حالي محفوظ.`);
   if (!staff.length) issues.push('لا يوجد موظف نشط محفوظ لهذا الفرع.');
-  if (!workday) issues.push('لا يوجد يوم عمل مفتوح محفوظ؛ افتح يوم العمل قبل فصل الإنترنت.');
+  // A branch may open its next workday offline; staff and expense categories are warmed above.
   if (patients.truncated) issues.push('دليل المرضى أكبر من حد التحميل المحلي.');
   if (worklistTruncated) issues.push('قائمة العمل أكبر من حد التحميل المحلي.');
   const report = {
