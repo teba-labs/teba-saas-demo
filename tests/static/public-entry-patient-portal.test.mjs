@@ -39,6 +39,8 @@ test('visit number keeps the existing tenant/branch generator and stored value',
 test('WhatsApp sends tenant-scoped portal and public-site links without obsolete lab-code instructions', () => {
   assert.ok(results.includes("portalUrl.searchParams.set('lab',state.tenant.slug)"));
   assert.ok(results.includes("portalUrl.href"));
+  assert.ok(results.includes("publicSiteUrl.searchParams.set('lab',state.tenant.slug)"));
+  assert.ok(results.includes("publicSiteUrl.href"));
   assert.ok(resultsLayout.includes("portal.searchParams.set('lab',slug)"));
   assert.ok(resultsLayout.includes("publicSite.searchParams.set('lab',slug)"));
   assert.ok(resultsLayout.includes("publicSite.href"));
