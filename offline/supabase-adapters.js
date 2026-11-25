@@ -119,7 +119,12 @@ export function createSupabaseSyncHandlers() {
       });
       if (error) return throwUnlessConflict(error, /Branch access denied|active staff identity|Visit test was not found|Completed test results are locked|Approved or published visit results are locked|Cancelled test results cannot be changed|idempotency key reused|Authentication required/i);
       if (!Array.isArray(data) || !data.length) throw new Error('Server did not confirm the saved draft results.');
+      const serverRows=await db().from('test_results')
+        .select('id,tenant_id,visit_test_id,parameter_code,parameter_name_snapshot,value_numeric,value_text,unit_snapshot,reference_range_snapshot,flag,entered_at')
+        .eq('tenant_id',operation.tenant_id).eq('visit_test_id',visitTestId);
+      if(serverRows.error)throw serverRows.error;
       await offlineDb.test_results.where('visit_test_id').equals(p.visit_test_id).delete();
+      await cacheRows('test_results',(serverRows.data||[]).map(row=>({...row,branch_id:operation.branch_id})));
       return { acknowledged: true, resultId: operation.operation_id };
     },
     patients: async operation => {
