@@ -686,15 +686,15 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const signature = signaturePath ? getLabAssetPublicUrl(signaturePath) : '';
   const stamp = stampPath ? getLabAssetPublicUrl(stampPath) : '';
   const reviewerName = !localOffline && print.showReviewer ? String(print.reviewerName || '').trim() : '';
-  const labNameEn = String(print.labNameEn || settingsJson.laboratory_name_en || lab.laboratory_name_en || lab.laboratory_name || state.tenant?.name || 'Medical Laboratory').trim();
+  const labNameEn = String(print.labNameEn || settingsJson.laboratory_name_en || lab.laboratory_name_en || 'Medical Laboratory').trim();
   const labNameAr = String(print.labNameAr || settingsJson.laboratory_name_ar || lab.laboratory_name_ar || lab.name_ar || 'معمل التحاليل الطبية').trim();
   const addressEn = print.showAddress === false ? '' : String(print.addressEn || branch.address_en || branchSettings.address_en || settingsJson.address_en || '').trim();
   const addressAr = print.showAddress === false ? '' : String(print.addressAr || branch.address_ar || branchSettings.address_ar || settingsJson.address_ar || branch.address || lab.address || '').trim();
   const phoneEn = print.showPhone === false ? '' : String(print.phoneEn || branch.phone || lab.phone || lab.whatsapp || '').trim();
   const phoneAr = print.showPhone === false ? '' : String(print.phoneAr || branch.phone_ar || branchSettings.phone_ar || settingsJson.phone_ar || phoneEn).trim();
-  const doctor = print.showDoctor === false ? '' : String(lab.doctor_name || '').trim();
+  const doctor = print.showDoctor === false ? '' : String(settingsJson.doctor_name_en || lab.doctor_name_en || '').trim();
   const branchName = print.showBranch === false ? '' : String(branch.name || '').trim();
-  const branchNameEn = print.showBranch === false ? '' : String(print.branchNameEn || branch.name_en || branch.name || '').trim();
+  const branchNameEn = print.showBranch === false ? '' : String(print.branchNameEn || branch.name_en || '').trim();
   const identitySideText = String(print.headerSideText || '').trim().split(/\r?\n/).map(escapeHtml).join('<br>');
   const safeHttpUrl = value => { try { const url=new URL(String(value||'')); return ['http:','https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
   const websiteUrl = safeHttpUrl(print.websiteUrl || settingsJson.website_url || '');
@@ -708,7 +708,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     (addressAr ? '<span>' + escapeHtml(addressAr) + '</span>' : '') +
     (phoneAr ? '<span>هاتف: ' + escapeHtml(phoneAr) + '</span>' : '') + '</div>';
   const headerLeft = '<div class="identity-zone identity-en" dir="ltr"><strong>' + escapeHtml(labNameEn) + '</strong>' +
-    (doctor ? '<span>' + escapeHtml(doctor) + '</span>' : '') +
+    (branchNameEn ? '<span>' + escapeHtml(branchNameEn) + '</span>' : '') + (doctor ? '<span>' + escapeHtml(doctor) + '</span>' : '') +
     (addressEn ? '<span>' + escapeHtml(addressEn) + '</span>' : '') +
     (phoneEn ? '<span>Tel: ' + escapeHtml(phoneEn) + '</span>' : '') +
     (identitySideText ? '<span>' + identitySideText + '</span>' : '') + '</div>';
