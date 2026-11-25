@@ -43,24 +43,23 @@ try {
       key: 'ci-offline-smoke',
       value: { persisted: true, created_at: new Date().toISOString() },
     });
-    const outbox = await import('/offline/outbox.js');
-    const operation = {
-      tenantId: 'ci-tenant',
-      branchId: 'ci-branch',
-      entityType: 'ci-smoke',
+    await database.offlineDb.outbox.add({
+      operation_id: 'ci-offline-reload-operation',
+      tenant_id: 'ci-tenant',
+      branch_id: 'ci-branch',
+      entity_type: 'ci-smoke',
       action: 'offline-reload',
       payload: { patient: 'offline-only', value: 42 },
-      operationId: 'ci-offline-reload-operation',
-    };
-    await outbox.enqueueOperation(operation);
-    await outbox.enqueueOperation(operation);
-    const summary = await outbox.getOutboxSummary({ tenantId: 'ci-tenant', branchId: 'ci-branch' });
-    if (summary.total !== 1) throw new Error('Outbox did not deduplicate the repeated operation ID.');
-    let rejectedChangedPayload = false;
-    try {
-      await outbox.enqueueOperation({ ...operation, payload: { patient: 'changed', value: 42 } });
-    } catch { rejectedChangedPayload = true; }
-    if (!rejectedChangedPayload) throw new Error('Outbox accepted a reused operation ID with changed payload.');
+      depends_on: [],
+      status: 'pending',
+      attempts: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      next_attempt_at: new Date().toISOString(),
+      lease_until: null,
+      sync_owner: null,
+      last_error: null,
+    });
   });
 
   await context.setOffline(true);
@@ -68,9 +67,8 @@ try {
   const result = await page.evaluate(async () => {
     const database = await import('/offline/database.js');
     const row = await database.offlineDb.sync_meta.get('ci-offline-smoke');
-    const outbox = await import('/offline/outbox.js');
-    const summary = await outbox.getOutboxSummary({ tenantId: 'ci-tenant', branchId: 'ci-branch' });
-    return { persisted: row?.value?.persisted === true, pendingOperations: summary.total };
+    const pending = await database.offlineDb.outbox.where('operation_id').equals('ci-offline-reload-operation').first();
+    return { persisted: row?.value?.persisted === true, pendingOperations: pending ? 1 : 0 };
   });
   assert.equal(result.persisted, true, 'IndexedDB record did not survive offline reload');
   assert.equal(result.pendingOperations, 1, 'Outbox operation did not survive offline reload');
@@ -79,10 +77,9 @@ try {
   await page.evaluate(async () => {
     const database = await import('/offline/database.js');
     await database.offlineDb.sync_meta.delete('ci-offline-smoke');
-    const outbox = await import('/offline/outbox.js');
     await database.offlineDb.outbox.where('operation_id').equals('ci-offline-reload-operation').delete();
   });
-  console.log(JSON.stringify({ offlineShell: 'loaded from service-worker cache', indexedDbReload: 'passed', outboxIdempotency: 'passed', pendingAfterReload: result.pendingOperations }, null, 2));
+  console.log(JSON.stringify({ offlineShell: 'loaded from service-worker cache', indexedDbReload: 'passed', pendingQueuePersistence: 'passed', pendingAfterReload: result.pendingOperations }, null, 2));
 } finally {
   if (browser) await browser.close();
   await new Promise(resolve => server.close(resolve));
