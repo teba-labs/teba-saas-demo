@@ -110,6 +110,8 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
   const missingPrices = Math.max(0, testIds.length - prices.length);
   const worklistTruncated = worklist.length < worklistCount;
   const issues = [];
+  const warnings = [];
+  if(ledgerSnapshot.truncated)warnings.push('سجل الحركة المالية للشهر تجاوز حد التحميل؛ الداشبورد المحلي المالي جزئي.');
   if (entitlement.status !== 'valid') issues.push(`الترخيص الإلكتروني غير جاهز: ${entitlementError || entitlement.message || entitlement.status}.`);
   if (!catalog.length) issues.push('لا يوجد كتالوج تحاليل نشط محفوظ.');
   if (missingPrices) issues.push(`يوجد ${missingPrices} تحليلًا دون سعر حالي محفوظ.`);
@@ -123,6 +125,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
     prepared_at: preparedAt,
     complete: issues.length === 0,
     issues,
+    warnings,
     counts: {
       catalog_tests: catalog.length,
       current_prices: prices.length,
