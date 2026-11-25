@@ -794,7 +794,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     'header.report-header{position:fixed;top:-' + (pageTopMargin-3) + 'mm;left:0;right:0;z-index:2;background:#fff}' +
     (showPrintFooter?'.report-footer{position:fixed;bottom:-' + (pageBottomMargin-3) + 'mm;left:0;right:0;z-index:2;background:#fff}':'.report-footer{display:none}') +
     '.analysis-heading{margin-top:20px;clear:both}.profile-report{break-before:page;page-break-before:always}.profile-report.first-profile{break-before:auto;page-break-before:auto}.report-footer{break-inside:avoid}}' +
-    '</style></head><body data-page-top-margin="' + pageTopMargin + '" data-page-bottom-margin="' + pageBottomMargin + '" data-page-side-margin="' + margin + '">' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
+    '</style></head><body data-page-top-margin="' + pageTopMargin + '" data-page-bottom-margin="' + pageBottomMargin + '" data-page-side-margin="' + margin + '" data-page-size="' + paper + '" data-page-orientation="' + orientation + '">' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
     '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">' + (localOffline ? 'Print work copy — not approved' : partialReport ? 'Print completed tests only' : 'Print report') + '</button>' : '<button disabled>Complete at least one test before printing</button>') + '<button onclick="window.close()">Close preview</button></div>' +
     (localOffline ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">UNAPPROVED WORK COPY — saved on this device and awaiting synchronization and review. Not a final report.</div>' : '') +
     (partialReport ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">PARTIAL REPORT — only completed tests are shown. Other tests in this visit are still pending.</div>' : '') +
@@ -1201,7 +1201,7 @@ async function publish(button) {
       image:{type:'jpeg',quality:0.98},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',scrollY:0,
         onclone:cloned=>cloned.querySelectorAll('.report-header,.report-footer').forEach(node=>node.style.display='none')},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      jsPDF:{unit:'mm',format:reportBody.dataset.pageSize||'a4',orientation:reportBody.dataset.pageOrientation||'portrait'},
       pagebreak:{mode:['css','legacy']}
     }).from(reportBody).toPdf();
     const pdf=await worker.get('pdf');
