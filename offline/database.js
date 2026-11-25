@@ -28,12 +28,13 @@ offlineDb.version(3).stores({
   test_prices: 'id, tenant_id, test_id, branch_id, is_current, effective_from',
 });
 offlineDb.version(4).stores({ ...stores });
+/** Non-exportable device signing key is deliberately kept outside portable backups. */
+offlineDb.version(5).stores({ ...stores, device_identity: '&id' });
 
 export async function assertOfflineDatabaseReady() {
   await offlineDb.open();
   return offlineDb.tables.map(table => table.name);
 }
-
 
 /**
  * Report browser storage durability and quota without modifying or deleting
@@ -52,14 +53,7 @@ export async function getOfflineStorageHealth() {
   const quota = Number.isFinite(estimate.quota) ? estimate.quota : null;
   const remaining = usage !== null && quota !== null ? Math.max(0, quota - usage) : null;
   const usageRatio = usage !== null && quota > 0 ? usage / quota : null;
-  return {
-    supported: typeof storage.persist === 'function',
-    persistent,
-    usage,
-    quota,
-    remaining,
-    usageRatio,
-  };
+  return { supported: typeof storage.persist === 'function', persistent, usage, quota, remaining, usageRatio };
 }
 
 /** Call only from an explicit user action; the browser decides whether to grant persistence. */
