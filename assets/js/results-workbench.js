@@ -576,14 +576,14 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const visitApproved = visit.status === 'approved' || Boolean(visit.is_published);
   const hasCompletedTests = allVisitItems.some(item => item.status === 'completed');
   const hasPendingTests = allVisitItems.some(item => item.status !== 'completed');
-  const localOffline = !visitApproved && (globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || allVisitItems.some(item => item.local_offline));
-  const serverApproved = visitApproved && !hasPendingTests;
+  const localOffline = globalThis.navigator?.onLine === false || Boolean(visit.local_offline) || allVisitItems.some(item => item.local_offline) || visit.local_approval_status === 'pending_server_validation';
+  const serverApproved = !localOffline && visitApproved && !hasPendingTests;
   const patient = visit.patients || {};
   let rows = await listResultsForVisitTests({ tenantId: state.tenant.id, visitTestIds: allVisitItems.map(item => item.id) });
   const hasSavedResults = rows.length > 0;
   // Any cloud-saved result may be issued as a clearly marked partial report;
   // the final approval state remains untouched until every required result is complete.
-  const partialReport = globalThis.navigator?.onLine !== false && !serverApproved && (hasSavedResults || hasCompletedTests);
+  const partialReport = !localOffline && globalThis.navigator?.onLine !== false && !serverApproved && (hasSavedResults || hasCompletedTests);
   const visitItems = partialReport
     ? allVisitItems.filter(item => item.status === 'completed' || rows.some(row => row.visit_test_id === item.id))
     : allVisitItems;
