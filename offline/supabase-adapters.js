@@ -264,6 +264,13 @@ export function createSupabaseSyncHandlers() {
         .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',visitId).maybeSingle();
       if(visitResult.error)throw visitResult.error;
       if(!visitResult.data)return {conflict:true,reason:'The visit was not found in the selected tenant and branch.'};
+      if(visitResult.data.status==='approved'){
+        if(visitResult.data.approved_by_staff_id!==p.staff_id)return {conflict:true,reason:'The visit was approved by another staff member after the local approval was recorded.'};
+        await cacheRows('visits',[{...visitResult.data,local_approval_status:'synced'}]);
+        return {acknowledged:true,resultId:visitId};
+      }
+      if(visitResult.data.is_published)return {conflict:true,reason:'This visit is already published and cannot be approved again.'};
+      if(visitResult.data.status==='cancelled')return {conflict:true,reason:'A cancelled visit cannot be approved.'};
       const visitTestsResult=await db().from('visit_tests')
         .select('id,test_id,test_code_snapshot,test_name_snapshot')
         .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('visit_id',visitId);
@@ -283,13 +290,6 @@ export function createSupabaseSyncHandlers() {
         return {conflict:true,reason:'Clinical results changed after the local approval was recorded. Review the current server results before approving again.',
           serverSnapshot:{result_fingerprint:serverFingerprint,tests:visitTests.length,results:results.length}};
       }
-      if(visitResult.data.is_published)return {conflict:true,reason:'This visit is already published and cannot be approved again.'};
-      if(visitResult.data.status==='cancelled')return {conflict:true,reason:'A cancelled visit cannot be approved.'};
-      if(visitResult.data.status==='approved'){
-        if(visitResult.data.approved_by_staff_id!==p.staff_id)return {conflict:true,reason:'The visit was approved by another staff member after the local approval was recorded.'};
-        await cacheRows('visits',[{...visitResult.data,local_approval_status:'synced'}]);
-        return {acknowledged:true,resultId:visitId};
-      }
       const {data,error}=await db().rpc('approve_visit_with_auto_completion',{
         p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
         p_visit_id:visitId,p_staff_id:p.staff_id,
@@ -300,7 +300,7 @@ export function createSupabaseSyncHandlers() {
             .select('id,tenant_id,branch_id,status,is_published,approved_by_staff_id,approved_at')
             .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',visitId).maybeSingle();
           if(retryVisit.error)throw retryVisit.error;
-          if(retryVisit.data?.status==='approved'&&!retryVisit.data.is_published&&retryVisit.data.approved_by_staff_id===p.staff_id){
+          if(retryVisit.data?.status==='approved'&&retryVisit.data.approved_by_staff_id===p.staff_id){
             await cacheRows('visits',[{...retryVisit.data,local_approval_status:'synced'}]);
             return {acknowledged:true,resultId:visitId};
           }
