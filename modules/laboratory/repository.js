@@ -20,27 +20,34 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
   const safePage = Math.max(0, Math.floor(Number(page) || 0));
   const safeSize = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 25)));
   const from = safePage * safeSize;
-  if (globalThis.navigator?.onLine === false) {
-    const cached = await getCachedRows('visit_tests', { tenantId, branchId });
-    const requestedVisitId = new URLSearchParams(globalThis.location?.search || '').get('visit_id');
-    const visible = cached.filter(row => row.status !== 'cancelled' && row.visits?.status !== 'cancelled'
-      && !row.visits?.workbench_hidden_at && (!requestedVisitId || row.visit_id === requestedVisitId))
-      .sort((a,b) => String(a.created_at).localeCompare(String(b.created_at)) || String(a.id).localeCompare(String(b.id)));
-    return { rows: visible.slice(from, from + safeSize), count: visible.length, page: safePage, pageSize: safeSize, cached: true };
-  }
+  const requestedVisitId = new URLSearchParams(globalThis.location?.search || '').get('visit_id');
+  const localWorklist=async()=>{
+    const [cached,visits,patients]=await Promise.all([
+      getCachedRows('visit_tests',{tenantId,branchId}),
+      getCachedRows('visits',{tenantId,branchId}),
+      getCachedRows('patients',{tenantId,branchId}),
+    ]);
+    const visitMap=new Map(visits.map(row=>[row.id,row]));
+    const patientMap=new Map(patients.map(row=>[row.id,row]));
+    const visible=cached.map(row=>{
+      const visit=row.visits||visitMap.get(row.visit_id);
+      if(!visit)return row;
+      const patient=visit.patients||patientMap.get(visit.patient_id)||{};
+      return {...row,visits:{...visit,patients:patient}};
+    }).filter(row=>row.status!=='cancelled'&&row.visits?.status!=='cancelled'
+      &&!row.visits?.workbench_hidden_at&&(!requestedVisitId||row.visit_id===requestedVisitId))
+      .sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))||String(a.id).localeCompare(String(b.id)));
+    return {rows:visible.slice(from,from+safeSize),count:visible.length,page:safePage,pageSize:safeSize,cached:true};
+  };
+  if (globalThis.navigator?.onLine === false) return localWorklist();
   let query = db().from(TABLES.visitTests)
     .select('id, tenant_id, branch_id, visit_id, test_id, test_code_snapshot, test_name_snapshot, technical_snapshot, status, created_at, tests_catalog(test_kind), visits!inner(id, patient_id, visit_number, visit_work_date, status, is_published, workbench_hidden_at, patients!inner(id, full_name, patient_number, phone, age_years, sex))', { count: 'exact' })
     .eq('tenant_id', tenantId).eq('branch_id', branchId)
     .neq('status', 'cancelled').neq('visits.status', 'cancelled').is('visits.workbench_hidden_at', null);
-  const requestedVisitId = new URLSearchParams(globalThis.location?.search || '').get('visit_id');
   if (requestedVisitId) query = query.eq('visit_id', requestedVisitId);
   const { data, error, count } = await query.order('created_at').order('id').range(from, from + safeSize - 1);
   if (error) {
-    if (/fetch|network|offline/i.test(error.message || '')) {
-      const cached = await getCachedRows('visit_tests', { tenantId, branchId });
-      const visible = cached.filter(row => row.status !== 'cancelled' && row.visits?.status !== 'cancelled' && !row.visits?.workbench_hidden_at && (!requestedVisitId || row.visit_id === requestedVisitId));
-      return { rows: visible.slice(from, from + safeSize), count: visible.length, page: safePage, pageSize: safeSize, cached: true };
-    }
+    if (/fetch|network|offline/i.test(error.message || '')) return localWorklist();
     throw error;
   }
   await cacheRows('visit_tests', data ?? []);
@@ -50,7 +57,6 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
   if(patientRows.size)await cacheRows('patients',[...patientRows.values()]);
   return { rows: data ?? [], count: count ?? 0, page: safePage, pageSize: safeSize };
 }
-
 
 /** Complete, branch-scoped test list for a single approved visit report. */
 export async function listVisitWorkForReport({ tenantId, branchId, visitId } = {}) {
