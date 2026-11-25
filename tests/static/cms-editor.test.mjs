@@ -44,7 +44,7 @@ test('CMS image upload remains tenant-scoped, type and size limited, and uses th
 });
 test('package and article images are uploaded to the tenant CMS folder and saved to their own public fields',()=>{
  assert.match(js,/type==='file'/);assert.match(js,/uploadCmsAsset\(\{tenantId:state\.tenant\.id,file\}\)/);
- assert.match(js,/kind==='packages'\?'image_path':'cover_image_path'/);
+ assert.match(js,/kind==='packages'\|\|kind==='offers'\?'image_path':'cover_image_path'/);
  assert.match(html,/accept="image\/jpeg,image\/png,image\/webp"/);
 });
 test('public branch details are separate from operational branch fields',()=>{
