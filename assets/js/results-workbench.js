@@ -234,7 +234,7 @@ async function refreshWork() {
 async function renderWork() {
   const host = $('workList');
   if (!state.work.length) { host.innerHTML = '<div class="empty">لا توجد تحاليل قيد العمل في هذا الفرع حاليًا.</div>'; return; }
-  const rangeOverrides = await listVisitParameterRangeOverrides({tenantId:state.tenant.id,visitTestIds:state.work.map(item=>item.id)});
+  const rangeOverrides = await listVisitParameterRangeOverrides({tenantId:state.tenant.id,branchId:state.branch.id,visitTestIds:state.work.map(item=>item.id)});
   const rangeOverridesByKey = new Map(rangeOverrides.map(row=>[row.visit_test_id+'|'+row.parameter_code,row]));
   try {
     const {data:portalConfig,error:portalConfigError}=await getSupabaseClient().functions.invoke('patient-portal-config',{body:{slug:state.tenant.slug}});
