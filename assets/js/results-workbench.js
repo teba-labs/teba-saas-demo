@@ -1209,7 +1209,7 @@ async function publish(button) {
       filename:`taiba-report-${visitId}.pdf`,
       image:{type:'jpeg',quality:0.98},
       html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',scrollY:0,
-        onclone:cloned=>cloned.querySelectorAll('.report-header,.report-footer').forEach(node=>node.style.display='none')},
+        onclone:cloned=>cloned.querySelectorAll('.report-header,.report-footer,.preview-controls').forEach(node=>node.style.display='none')},
       jsPDF:{unit:'mm',format:reportBody.dataset.pageSize||'a4',orientation:reportBody.dataset.pageOrientation||'portrait'},
       pagebreak:{mode:['css','legacy']}
     }).from(reportBody).toPdf();
