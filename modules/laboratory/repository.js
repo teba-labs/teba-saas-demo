@@ -34,7 +34,7 @@ export async function listBranchWorkPage({ tenantId, branchId, page = 0, pageSiz
       if(!visit)return row;
       const patient=visit.patients||patientMap.get(visit.patient_id)||{};
       return {...row,visits:{...visit,patients:patient}};
-    }).filter(row=>row.status!=='cancelled'&&row.visits?.status!=='cancelled'
+    }).filter(row=>Boolean(row.visits)&&row.status!=='cancelled'&&row.visits?.status!=='cancelled'
       &&!row.visits?.workbench_hidden_at&&(!requestedVisitId||row.visit_id===requestedVisitId))
       .sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at))||String(a.id).localeCompare(String(b.id)));
     return {rows:visible.slice(from,from+safeSize),count:visible.length,page:safePage,pageSize:safeSize,cached:true};
