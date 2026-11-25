@@ -105,3 +105,26 @@ export async function uploadCmsAsset({ tenantId, file } = {}) {
 }
 
 export const cmsCollectionNames = Object.freeze(Object.keys(COLLECTIONS));
+
+/** Owner-only request inbox; public submissions are accepted by the server Edge Function. */
+export async function listSiteRequests({ tenantId, limit = 100 } = {}) {
+  need(tenantId, 'tenantId');
+  const safeLimit = Math.max(1, Math.min(200, Number(limit) || 100));
+  const { data, error } = await db().from('site_booking_requests')
+    .select('id, request_type, full_name, phone, branch_id, package_id, package_title_snapshot, preferred_date, preferred_period, message, status, created_at, updated_at')
+    .eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(safeLimit);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function updateSiteRequestStatus({ tenantId, id, status } = {}) {
+  need(tenantId, 'tenantId'); need(id, 'id');
+  if (!['new', 'contacted', 'scheduled', 'closed', 'cancelled'].includes(status)) {
+    throw new Error('Unsupported request status.');
+  }
+  const { data, error } = await db().from('site_booking_requests')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('tenant_id', tenantId).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
