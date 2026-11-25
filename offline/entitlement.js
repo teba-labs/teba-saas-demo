@@ -111,6 +111,8 @@ export async function getOfflineEntitlement({ tenantId, branchId, allowExpired =
   const claims = await verifyOfflineEntitlement(row.token, {
     tenantId, branchId, userId: device.user_id, deviceId: device.device_id,
   }, { allowExpired });
+  const thumbprint = await deviceKeyThumbprint(device.public_key);
+  if (claims.device_key_thumbprint !== thumbprint) throw new Error('الترخيص غير مرتبط بمفتاح هذا الجهاز.');
   await proveDeviceKey(device);
   return { ...row, claims, expired: claims.exp <= Math.floor(Date.now() / 1000) };
 }
