@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v53';
+const CACHE_NAME = 'taiba-smart-lab-shell-v54';
 const APP_SHELL = [
   './app/index.html', './app/site-preview.html', './website/index.html', './website/site.css', './website/public-site-ui.js', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/result-entry.html', './app/sync-center.html',
   './app/dashboard.html', './portal/index.html', './app/cms-editor.html', './app/platform-admin.html', './app/site-management.html', './app/settings.html', './app/data-import.html',
@@ -8,6 +8,7 @@ const APP_SHELL = [
   './assets/js/dashboard.js', './assets/js/dashboard-history.js', './assets/js/dashboard-financial-import.js', './assets/js/cms-editor.js', './assets/js/platform-admin.js', './assets/js/site-management.js', './assets/js/settings-center.js', './assets/js/data-import.js', './modules/migration/historical-results-repository.js',
   './core/supabase-client.js', './core/auth/session.js', './core/tenant/context.js', './core/tenant/workspace-selection.js', './core/data/schema-contract.js', './config/environment.js',
   './offline/database.js', './offline/outbox.js', './offline/cache.js', './offline/backup.js', './offline/supabase-adapters.js', './offline/background-sync.js', './offline/prepare.js',
+  './offline/device-identity.js', './offline/entitlement.js', './offline/entitlement-public-key.js',
   './modules/ui/keyboard-navigation.js', './modules/dashboard/financial-import-engine.js', './modules/catalog/repository.js', './modules/results/culture-repository.js', './modules/catalog/formula-engine.js', './modules/migration/workbook-inspector.js', './modules/migration/catalog-importer.js', './modules/migration/price-importer.js', './modules/dashboard/expense-breakdown.js', './modules/dashboard/live-status.js', './modules/files/repository.js', './modules/reception/repository.js', './modules/expenses/repository.js', './modules/laboratory/repository.js',
   './modules/results/repository.js', './modules/results/input-mode.js', './modules/reports/repository.js', './modules/settings/repository.js', './modules/settings/assets-repository.js', './modules/settings/audit-repository.js', './modules/settings/cloud-backup-repository.js', './modules/staff/repository.js',
   './modules/workday/repository.js', './dashboard/repository.js', './dashboard/owner-financial-repository.js', './website/cms-repository.js', './website/public-site.js'
@@ -16,20 +17,16 @@ const APP_SHELL = [
 async function fetchWithTimeout(request, timeoutMs = 4500) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(request, { signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
+  try { return await fetch(request, { signal: controller.signal }); }
+  finally { clearTimeout(timeout); }
 }
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
     await cache.addAll(APP_SHELL);
-    // Warm the top-level ESM dependencies. Their transitive modules are cached on first online use.
     await Promise.all(['https://esm.sh/dexie@4', 'https://esm.sh/@supabase/supabase-js@2'].map(async url => {
-      try { const response = await fetch(url); if (response.ok) await cache.put(url, response.clone()); } catch { /* offline-first shell remains installable if CDN is temporarily unavailable */ }
+      try { const response = await fetch(url); if (response.ok) await cache.put(url, response.clone()); } catch { /* shell remains installable */ }
     }));
     await self.skipWaiting();
   })());
@@ -43,13 +40,10 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
-  if (url.hostname.endsWith('.supabase.co')) return; // Never cache authenticated API or patient data responses.
-
+  if (url.hostname.endsWith('.supabase.co')) return;
   if (url.hostname === 'esm.sh' || url.origin === self.location.origin) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
-      // Network-first prevents a stale cached login/auth module or page from
-      // overriding a newly deployed release. The cache is an offline fallback.
       try {
         const response = await fetchWithTimeout(request);
         if (response.ok) await cache.put(request, response.clone());
