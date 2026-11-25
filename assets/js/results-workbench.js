@@ -25,7 +25,7 @@ const showNotice = (message, error = false) => {
 };
 const setBusy = (button, busy, label) => { button.disabled = busy; if (busy) { button.dataset.oldLabel = button.textContent; button.textContent = label || 'جارٍ التنفيذ…'; } else if (button.dataset.oldLabel) { button.textContent = button.dataset.oldLabel; delete button.dataset.oldLabel; } };
 const requireCloudConnection = operation => { if (globalThis.navigator?.onLine === false) throw new Error(`${operation} يتطلب اتصالًا بالإنترنت. لم تُحفظ التغييرات محليًا أو في السحابة.`); };
-let html2pdfLoadPromise=null;
+let html2pdfLoadPromise=null,html2canvasLoadPromise=null;
 async function ensureHtml2Pdf(){
  if(typeof window.html2pdf==='function')return;
  if(!html2pdfLoadPromise){
@@ -39,6 +39,20 @@ async function ensureHtml2Pdf(){
  }
  await html2pdfLoadPromise;
  if(typeof window.html2pdf!=='function')throw new Error('محرك إنشاء PDF غير متاح في هذا المتصفح.');
+}
+async function ensureHtml2Canvas(){
+ if(typeof window.html2canvas==='function')return;
+ if(!html2canvasLoadPromise){
+  html2canvasLoadPromise=new Promise((resolve,reject)=>{
+   const script=document.createElement('script');
+   script.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+   script.async=true;script.crossOrigin='anonymous';script.dataset.taibaHtml2canvas='true';
+   script.onload=resolve;script.onerror=()=>reject(new Error('تعذر تحميل أداة تجهيز هيدر وفوتر صفحات PDF.'));
+   document.head.append(script);
+  });
+ }
+ await html2canvasLoadPromise;
+ if(typeof window.html2canvas!=='function')throw new Error('أداة تجهيز هيدر وفوتر PDF غير متاحة.');
 }
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function resultInputMode(parameter){
@@ -1167,6 +1181,7 @@ async function publish(button) {
     await Promise.all([...reportWindow.document.images].map(img=>img.decode?.().catch(()=>null)));
     await new Promise(resolve=>setTimeout(resolve,180));
     await ensureHtml2Pdf();
+    await ensureHtml2Canvas();
     const reportBody=reportWindow.document.body;
     const pageTop=Number(reportBody.dataset.pageTopMargin)||46;
     const pageBottom=Number(reportBody.dataset.pageBottomMargin)||24;
