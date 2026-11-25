@@ -688,12 +688,13 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const reviewerName = !localOffline && print.showReviewer ? String(print.reviewerName || '').trim() : '';
   const labNameEn = String(print.labNameEn || settingsJson.laboratory_name_en || lab.laboratory_name_en || lab.laboratory_name || state.tenant?.name || 'Medical Laboratory').trim();
   const labNameAr = String(print.labNameAr || settingsJson.laboratory_name_ar || lab.laboratory_name_ar || lab.name_ar || 'معمل التحاليل الطبية').trim();
-  const addressEn = print.showAddress === false ? '' : String(print.addressEn || branch.address_en || branchSettings.address_en || settingsJson.address_en || branch.address || lab.address || '').trim();
-  const addressAr = print.showAddress === false ? '' : String(print.addressAr || branch.address_ar || branchSettings.address_ar || settingsJson.address_ar || '').trim();
+  const addressEn = print.showAddress === false ? '' : String(print.addressEn || branch.address_en || branchSettings.address_en || settingsJson.address_en || '').trim();
+  const addressAr = print.showAddress === false ? '' : String(print.addressAr || branch.address_ar || branchSettings.address_ar || settingsJson.address_ar || branch.address || lab.address || '').trim();
   const phoneEn = print.showPhone === false ? '' : String(print.phoneEn || branch.phone || lab.phone || lab.whatsapp || '').trim();
   const phoneAr = print.showPhone === false ? '' : String(print.phoneAr || branch.phone_ar || branchSettings.phone_ar || settingsJson.phone_ar || phoneEn).trim();
   const doctor = print.showDoctor === false ? '' : String(lab.doctor_name || '').trim();
   const branchName = print.showBranch === false ? '' : String(branch.name || '').trim();
+  const branchNameEn = print.showBranch === false ? '' : String(print.branchNameEn || branch.name_en || branch.name || '').trim();
   const identitySideText = String(print.headerSideText || '').trim().split(/\r?\n/).map(escapeHtml).join('<br>');
   const safeHttpUrl = value => { try { const url=new URL(String(value||'')); return ['http:','https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
   const websiteUrl = safeHttpUrl(print.websiteUrl || settingsJson.website_url || '');
@@ -711,28 +712,28 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     (addressEn ? '<span>' + escapeHtml(addressEn) + '</span>' : '') +
     (phoneEn ? '<span>Tel: ' + escapeHtml(phoneEn) + '</span>' : '') +
     (identitySideText ? '<span>' + identitySideText + '</span>' : '') + '</div>';
-  const centerLogo = logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="Laboratory logo">' : '<span class="logo-placeholder">' + escapeHtml(labNameEn) + '</span>';
+  const centerLogo = print.showLogo === false ? '' : (logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="Laboratory logo">' : '<span class="logo-placeholder">' + escapeHtml(labNameEn) + '</span>');
   const patientMetaHtml = '<div class="patient-header-meta">' +
     '<div><b>Patient Name</b><span>' + escapeHtml(patient.full_name || '-') + '</span></div>' +
     '<div><b>Patient ID</b><span>' + escapeHtml(patient.patient_number || '-') + '</span></div>' +
     '<div><b>Visit Number</b><span>' + escapeHtml(visit.visit_number || '-') + '</span></div>' +
-    '<div><b>Age / Sex</b><span>' + escapeHtml(patient.age_years ?? patient.age_value ?? '-') + (patient.age_unit && patient.age_unit!=='years' ? ' ' + escapeHtml(patient.age_unit) : ' Years') + ' / ' + escapeHtml(patient.sex || '-') + '</span></div>' +
+    '<div><b>Age / Sex</b><span>' + escapeHtml(patient.age_years ?? patient.age_value ?? '-') + ' ' + escapeHtml((patient.age_unit==='months'||patient.age_unit==='month')?'Months':(patient.age_unit==='days'||patient.age_unit==='day')?'Days':'Years') + ' / ' + escapeHtml(/^(male|m|ذكر)$/i.test(String(patient.sex||''))?'Male':/^(female|f|أنثى|انثى)$/i.test(String(patient.sex||''))?'Female':patient.sex || '-') + '</span></div>' +
     '<div><b>Visit Date</b><span>' + escapeHtml(visit.visit_work_date || visit.created_at?.slice(0,10) || '-') + '</span></div></div>';
   const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(value) + '</a>' : escapeHtml(value); };
   const whatsappLink = value => { let digits=String(value||'').replace(/\D/g,'').replace(/^00/,''); if(digits.startsWith('0'))digits='20'+digits.slice(1); if(/^20\d{9,11}$/.test(digits))return '<a href="https://wa.me/'+digits+'" target="_blank" rel="noopener">'+escapeHtml(value)+'</a>'; return escapeHtml(value); };
   const footerAddresses = print.showBranchAddresses === false ? '' : [addressEn ? '<div dir="ltr">' + escapeHtml(addressEn) + '</div>' : '', addressAr ? '<div dir="rtl">' + escapeHtml(addressAr) + '</div>' : ''].filter(Boolean).join('');
-  const footerContacts = print.showContacts === false ? '' : (phoneEn ? '<div>Tel: ' + phoneLink(phoneEn) + '</div>' : '') +
+  const footerContacts = print.showContacts === false || print.showPhone === false ? '' : (phoneEn ? '<div>Tel: ' + phoneLink(phoneEn) + '</div>' : '') +
     (phoneAr && phoneAr!==phoneEn ? '<div dir="rtl">هاتف: ' + phoneLink(phoneAr) + '</div>' : '') +
     (lab.whatsapp ? '<div>WhatsApp: ' + whatsappLink(lab.whatsapp) + '</div>' : '') +
     (websiteUrl ? '<div>Website: <a href="' + escapeHtml(websiteUrl) + '">' + escapeHtml(websiteUrl) + '</a></div>' : '') +
     (supportUrl ? '<div>Patient Portal: <a href="' + escapeHtml(supportUrl) + '">' + escapeHtml(supportUrl) + '</a></div>' : '');
-  const footer = print.footerTextEn || print.footerText || lab.report_footer || '';
+  const footer = print.footerTextEn || '';
   const qrHtml = !localOffline && print.footerCenterMode === 'qr' && websiteUrl
     ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="Website QR"><small>Scan for website</small></a>' : '';
   const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
   const footerGridColumns = centerFooter ? '1fr 90px 1fr' : '1fr 1fr';
   const footerCenterMarkup = centerFooter ? '<div class="footer-center">' + centerFooter + '</div>' : '';
-  const title = print.titleEn || 'Laboratory Test Results';
+  const title = 'Laboratory Test Results';
   const showPrintHeader = print.showHeader !== false;
   const showPrintFooter = print.showFooter !== false;
   const pageTopMargin = 49;
@@ -794,7 +795,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     const resultLines=parameters.length?parameters.map(([name,value])=>'<tr><td>'+escapeHtml(name)+'</td><td>'+escapeHtml(value)+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(formatReferenceRange(normalizeReferenceRangePayload(payload.reference_range)))+'</td></tr>').join(''):'<tr><td>'+escapeHtml(row.test_name_snapshot)+'</td><td>'+escapeHtml(payload.value??payload.raw_original??'-')+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>';
     return '<section class="test historical-test"><h2>Historical Result — '+escapeHtml(row.test_name_snapshot)+' · '+escapeHtml(row.result_date)+'</h2><table><thead><tr><th>Parameter</th><th>Previous Result</th><th>Previous Unit</th><th>Previous Reference Interval</th></tr></thead><tbody>'+resultLines+'</tbody></table><small>Source: '+escapeHtml(row.source_file_name||'')+' · '+escapeHtml(row.source_sheet_name||'')+' · Row '+escapeHtml(row.source_row_number||'-')+'</small></section>';
   }).join('');
-  const performedAt = 'Performed at: ' + (branch.name || '-');
+  const performedAt = 'Performed at: ' + (branchNameEn || '-');
   const html = '<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' +
     '@page{size:' + paper + ' ' + orientation + ';margin:' + pageTopMargin + 'mm ' + margin + 'mm ' + pageBottomMargin + 'mm ' + margin + 'mm}' +
     '*,*:before,*:after{box-sizing:border-box}body{position:relative;font-family:Arial,Helvetica,sans-serif;color:#111;font-size:11px;line-height:1.45;background:#fff;direction:ltr}body>*:not(.watermark-image):not(.watermark-text){position:relative;z-index:1}.watermark-image{position:fixed;top:28%;left:0;right:0;z-index:0;text-align:center;pointer-events:none;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + '}.watermark-image img{width:' + (print.watermarkSize==='large'?'62%':print.watermarkSize==='small'?'28%':'42%') + ';max-height:48vh;object-fit:contain}.watermark-text{position:fixed;top:42%;left:8%;right:8%;z-index:0;text-align:center;font-size:' + (print.watermarkSize==='large'?'76px':print.watermarkSize==='small'?'38px':'56px') + ';font-weight:800;color:#333;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + ';pointer-events:none}' +
