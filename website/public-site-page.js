@@ -52,12 +52,17 @@ export function renderPublicSite(data){
  const builtIn={hero:'hero',about:'about',services:'services',home_sampling:'home_sampling',offers:'offers',packages:'packages',articles:'articles',faqs:'faq',testimonials:'testimonials',branches:'branches'};
  const custom=sections.filter(x=>!builtIn[x.section_key]&&x.section_key!=='tests');
  const customNodes=new Map(custom.map(s=>{const c=s.content&&typeof s.content==='object'?s.content:{};const node=document.createElement('section');node.className='custom-section';node.innerHTML='<div class="wrap"><span class="eyebrow">'+esc(c.eyebrow||'')+'</span><h2>'+esc(s.title||c.title||'')+'</h2><p>'+esc(c.text||c.description||c.body||'')+'</p></div>';return [s.section_key,node]}));
+ $('customSections').remove();
  const main=document.querySelector('main');
- const accordion=$('accordionSections');
  const ordered=sections.filter(s=>s.section_key!=='tests').map(s=>document.getElementById(builtIn[s.section_key])||customNodes.get(s.section_key)).filter(Boolean);
- for(const id of ['services','home_sampling','offers','packages','about','articles','faq','testimonials','branches']){
-  const node=document.getElementById(id);if(node&&!ordered.includes(node))ordered.push(node);
- }
+ for(const id of ['about','services','home_sampling','offers','packages','articles','faq','testimonials','branches']){const node=document.getElementById(id);if(node&&!ordered.includes(node))ordered.push(node)}
+ const now=Date.now();const offers=(data.offers||[]).filter(x=>x.is_active!==false&&x.is_published!==false&&(!x.starts_at||new Date(x.starts_at).getTime()<=now)&&(!x.ends_at||new Date(x.ends_at).getTime()>=now));cards('offerCards',offers,x=>'<article class="card"><span class="tag">عرض خاص</span><h3>'+esc(x.title)+'</h3><p>'+esc(x.description||'')+'</p>'+(x.discount_percent!=null?'<div class="price">خصم '+esc(x.discount_percent)+'%</div>':'')+'</article>');
+ const packages=(data.packages||[]).filter(x=>x.is_active!==false&&x.is_published!==false);cards('packageCards',packages,x=>{const img=safeUrl(x.image_path);return '<article class="card">'+(img?'<img src="'+esc(img)+'" alt="'+esc(x.title)+'">':'')+'<h3>'+esc(x.title)+'</h3><p>'+esc(x.description||'')+'</p>'+(Array.isArray(x.included_tests)&&x.included_tests.length?'<p>'+esc(x.included_tests.join(' · '))+'</p>':'')+'<div class="price">'+(x.display_price!=null?esc(x.display_price)+' جنيه':'')+(x.old_price!=null?'<span class="old">'+esc(x.old_price)+' جنيه</span>':'')+'</div><button class="btn btn-outline package-request" type="button" data-package-request="'+esc(x.id)+'" data-package-title="'+esc(x.title)+'">استفسر عن الباقة</button></article>'});
+ const articles=(data.articles||[]).filter(x=>x.is_published!==false);cards('articleCards',articles,x=>{const img=safeUrl(x.cover_image_path);return '<article class="card">'+(img?'<img src="'+esc(img)+'" alt="">':'')+'<h3>'+esc(x.title)+'</h3><p>'+esc(x.excerpt||'')+'</p>'+(x.body_json?.text?'<p>'+esc(x.body_json.text)+'</p>':'')+'</article>'});
+ const faqs=(data.faqs||[]).filter(x=>x.is_published!==false);cards('faqCards',faqs,x=>card(x.question,x.answer));
+ const testimonials=(data.testimonials||[]).filter(x=>x.is_published!==false);cards('testimonialCards',testimonials,x=>card(x.display_name||'عميل',x.content,'<div class="price">'+('★'.repeat(Math.max(0,Math.min(5,Number(x.rating)||0))))+'</div>'));
+ const branches=(data.branches||[]).filter(x=>x.show_on_site!==false&&x.is_published!==false);cards('branchCards',branches,x=>{const map=safeUrl(x.public_map_link);return '<article class="card branch"><h3>'+esc(x.public_name||'فرع المعمل')+'</h3><p>'+esc(x.public_address||'')+'</p><p>'+esc(x.public_phone||'')+'</p>'+(map?'<a href="'+esc(map)+'" target="_blank" rel="noopener">عرض الموقع على الخريطة</a>':'')+'</article>'});
+ bindSiteRequests(data);
  const contactSection=$('contact');if(contactSection&&!ordered.includes(contactSection))ordered.push(contactSection);
  ordered.forEach(node=>{
   const builtInKey=Object.keys(builtIn).find(key=>builtIn[key]===node.id);
@@ -75,6 +80,7 @@ export function renderPublicSite(data){
  const groupNodes=groups.map(group=>({title:group.title,nodes:group.ids.map(id=>ordered.find(node=>node.id===id)).filter(node=>node&&!node.hidden)})).filter(group=>group.nodes.length);
  const customNodesList=ordered.filter(node=>node.classList.contains('custom-section')&&!groups.some(group=>group.ids.includes(node.id)));
  if(customNodesList.length)groupNodes.push({title:'معلومات إضافية',nodes:customNodesList});
+ const accordion=$('accordionSections');
  if(accordion){
   accordion.replaceChildren();
   groupNodes.forEach((group,index)=>{
@@ -87,7 +93,6 @@ export function renderPublicSite(data){
    details.addEventListener('toggle',()=>{if(details.open)accordion.querySelectorAll('details[open]').forEach(other=>{if(other!==details)other.open=false;});});
   });
  }
- // Header, hero and footer links open the matching accordion before navigating to its content.
  document.querySelectorAll('a[href^="#"]').forEach(link=>link.addEventListener('click',event=>{
   const id=link.getAttribute('href')?.slice(1);if(!id||id==='top')return;
   const target=$(id);const details=target?.closest('details.site-accordion-item');
