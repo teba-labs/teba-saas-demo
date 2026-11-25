@@ -94,7 +94,8 @@ test('offline preparation warms a branch-scoped working set and records its limi
   assert.match(reception, /count: 'exact'/);
   assert.match(prepare, /missingPrices/);
   assert.match(prepare, /tests_without_current_price/);
-  assert.match(prepare, /لا يوجد يوم عمل مفتوح محفوظ/);
+  assert.match(prepare, /has_open_workday: Boolean\(workday\)/);
+  assert.doesNotMatch(prepare, /لا يوجد يوم عمل مفتوح محفوظ/);
   assert.match(prepare, /complete: issues\.length === 0/);
   assert.match(page, /id="prepareOffline"/);
   assert.match(script, /prepareOfflineBranch/);
