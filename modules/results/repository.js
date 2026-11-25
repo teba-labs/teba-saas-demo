@@ -124,6 +124,7 @@ async function queueLocalVisitApproval({tenantId,branchId,visitId,staffId}={}) {
   if(!visitTests.length)throw new Error('لا توجد تحاليل محفوظة محليًا لهذه الزيارة.');
   const testIds=new Set(visitTests.map(row=>row.id));
   const results=(await getCachedRows('test_results',{tenantId,branchId})).filter(row=>testIds.has(row.visit_test_id));
+  if(!results.length)throw new Error('لا توجد نتائج محفوظة محليًا يمكن اعتمادها؛ أدخل النتائج أولًا.');
   const resultFingerprint=await fingerprintVisitResults({visitTests,results});
   const pending=await offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray();
   const existingApproval=pending.find(row=>row.entity_type==='visit_approval'&&row.payload?.visit_id===visitId);
