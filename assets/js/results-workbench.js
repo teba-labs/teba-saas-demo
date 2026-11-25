@@ -457,32 +457,32 @@ function patientAgeInYears(patient={}){
   return ageBoundaryInYears(patient.age_value,patient.age_unit||'years');
 }
 function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
-  const localPending = status === 'local_verification_required';
-  if (status === 'not_applicable' && !(value && (value.text || Array.isArray(value)))) return 'لا ينطبق';
-  if (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0)) return '';
+  value=normalizeReferenceRangePayload(value);
+  if (!value || (Array.isArray(value) && !value.length)) return '-';
+  if (status === 'not_applicable') return 'Not applicable';
   if (Array.isArray(value)) {
-    const age = patientAgeInYears(patient);
-    const sex = String(patient?.sex || '').toLowerCase();
-    const matches = value.filter(range => {
-      if (range.pregnancy) return false;
-      if (range.sex && String(range.sex).toLowerCase() !== sex) return false;
-      if (range.age) {
-        if (age === null || !Number.isFinite(age)) return false;
-        const minUnit=range.age.min_unit||range.age.unit||'years';
-        const maxUnit=range.age.max_unit||range.age.unit||'years';
-        const min=ageBoundaryInYears(range.age.min,minUnit);
-        const max=ageBoundaryInYears(range.age.max,maxUnit);
-        if (min!=null&&age<min)return false;
-        if (max!=null&&age>max)return false;
+    const age=patientAgeInYears(patient);
+    const rawSex=String(patient?.sex||'').trim().toLowerCase();
+    const sex=/^(male|m|ذكر)$/.test(rawSex)?'male':/^(female|f|أنثى|انثى)$/.test(rawSex)?'female':rawSex;
+    const matches=value.filter(range=>{
+      if(!range||typeof range!=='object'||range.pregnancy)return false;
+      const rangeSex=String(range.sex||'').trim().toLowerCase();
+      const normalizedRangeSex=/^(male|m|ذكر)$/.test(rangeSex)?'male':/^(female|f|أنثى|انثى)$/.test(rangeSex)?'female':rangeSex;
+      if(normalizedRangeSex&&normalizedRangeSex!=='all'&&normalizedRangeSex!==sex)return false;
+      if(range.age){
+        if(age===null||!Number.isFinite(age))return false;
+        const min=ageBoundaryInYears(range.age.min,range.age.min_unit||range.age.unit||'years');
+        const max=ageBoundaryInYears(range.age.max,range.age.max_unit||range.age.unit||'years');
+        if(min!=null&&age<min)return false;
+        if(max!=null&&age>max)return false;
       }
       return true;
     });
-    if (matches.length === 1) return (localPending ? 'مقترح من المصدر — غير معتمد محليًا: ' : '') + formatReferenceRange(matches[0]);
-    if (!matches.length && value.length === 1 && !value[0].age && !value[0].sex && !value[0].pregnancy) return (localPending ? 'مقترح — غير معتمد محليًا: ' : '') + formatReferenceRange(value[0]);
-    return matches.length > 1 ? 'أكثر من مدى ينطبق؛ يلزم تحديد الفئة' : (localPending ? 'لا يوجد مدى مصدر مطابق؛ يلزم ضبط محلي' : 'لا يوجد مدى مطابق لعمر/نوع المريض');
+    if(matches.length===1)return formatReferenceRange(matches[0]);
+    if(!matches.length&&value.length===1&&!value[0]?.age&&!value[0]?.sex&&!value[0]?.pregnancy)return formatReferenceRange(value[0]);
+    return '-';
   }
-  const formatted = formatReferenceRange(value);
-  return localPending && formatted !== '—' ? 'مقترح من المصدر — غير معتمد محليًا: ' + formatted : formatted;
+  return formatReferenceRange(value);
 }
 
 function evaluateLocalFormula(node, values) {
@@ -646,6 +646,8 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const lab = brand.settings || {};
   const print = brand.printSettings || {};
   const branch = state.branch || brand.branch || {};
+  const settingsJson = lab.settings_json && typeof lab.settings_json === 'object' ? lab.settings_json : {};
+  const branchSettings = branch.settings_json && typeof branch.settings_json === 'object' ? branch.settings_json : {};
   let reportBranches = [];
   if (globalThis.navigator?.onLine === false) reportBranches = [state.branch].filter(Boolean);
   else {
@@ -663,42 +665,53 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const signature = signaturePath ? getLabAssetPublicUrl(signaturePath) : '';
   const stamp = stampPath ? getLabAssetPublicUrl(stampPath) : '';
   const reviewerName = !localOffline && print.showReviewer ? String(print.reviewerName || '').trim() : '';
-  const headerSideText = String(print.headerSideText || '').trim() .split(/\r?\n/).map(escapeHtml).join('<br>');
-  const labName = lab.laboratory_name || state.tenant?.name || 'Taiba Smart Lab';
-  const doctor = print.showDoctor === false ? '' : (lab.doctor_name || '');
-  const branchName = print.showBranch === false ? '' : (branch.name || '');
-  const phone = print.showPhone === false ? '' : (branch.phone || lab.phone || lab.whatsapp || '');
-  const address = print.showAddress === false ? '' : (branch.address || lab.address || '');
-  const footer = print.footerText || lab.report_footer || '';
-  const branchAddressList = print.showBranchAddresses === false ? [] : (reportBranches.length ? reportBranches : [branch]).filter(row => row.address).map(row => ({name:row.name,address:row.address}));
+  const labNameEn = String(settingsJson.laboratory_name_en || lab.laboratory_name_en || lab.laboratory_name || state.tenant?.name || 'Medical Laboratory').trim();
+  const labNameAr = String(settingsJson.laboratory_name_ar || lab.laboratory_name_ar || lab.name_ar || 'معمل التحاليل الطبية').trim();
+  const addressEn = String(branch.address_en || branchSettings.address_en || settingsJson.address_en || branch.address || lab.address || '').trim();
+  const addressAr = String(branch.address_ar || branchSettings.address_ar || settingsJson.address_ar || '').trim();
+  const phoneEn = String(branch.phone || lab.phone || lab.whatsapp || '').trim();
+  const phoneAr = String(branch.phone_ar || branchSettings.phone_ar || settingsJson.phone_ar || phoneEn).trim();
+  const doctor = print.showDoctor === false ? '' : String(lab.doctor_name || '').trim();
+  const branchName = print.showBranch === false ? '' : String(branch.name || '').trim();
+  const identitySideText = String(print.headerSideText || '').trim().split(/\\r?\\n/).map(escapeHtml).join('<br>');
   const safeHttpUrl = value => { try { const url=new URL(String(value||'')); return ['http:','https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
-  const websiteUrl = safeHttpUrl(print.websiteUrl || lab.settings_json?.website_url || '');
-  const supportUrl = safeHttpUrl(print.supportUrl || lab.settings_json?.support_url || '');
-  const phoneContact = print.showContacts === false || print.showPhone === false ? '' : (branch.phone || lab.phone || '');
-  const whatsappContact = print.showContacts === false ? '' : (lab.whatsapp || '');
+  const websiteUrl = safeHttpUrl(print.websiteUrl || settingsJson.website_url || '');
+  const supportUrl = safeHttpUrl(print.supportUrl || settingsJson.support_url || '');
   const watermarkMode = print.watermarkMode || 'none';
   const watermarkOpacity = Math.min(.18,Math.max(.02,Number(print.watermarkOpacity)||.07));
-  const watermarkText = watermarkMode === 'name' ? labName : '';
+  const watermarkText = watermarkMode === 'name' ? labNameEn : '';
   const watermarkImage = watermarkMode === 'logo' ? (logo || (lab.logo_path ? getLabAssetPublicUrl(lab.logo_path) : '')) : '';
-  const identityHtml = '<div class="identity-zone"><strong>' + escapeHtml(labName) + '</strong>' + (doctor ? '<span>' + escapeHtml(doctor) + '</span>' : '') + '</div>';
-  const sideContent = headerSideText ? '<div class="identity-extra">' + headerSideText + '</div>' : '';
-  const headerRight = print.identitySide === 'left' ? sideContent : identityHtml;
-  const headerLeft = print.identitySide === 'left' ? identityHtml : sideContent;
-  const centerLogo = logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '';
-  const qrHtml = !localOffline && print.footerCenterMode === 'qr' && websiteUrl ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="QR للموقع"><small>امسح لزيارة موقع المعمل</small></a>' : '';
-  const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
-  const branchPhones = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + escapeHtml(row.phone) + '</div>');
-  const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(digits) + '</a>' : escapeHtml(value); };
-  const whatsappLink = value => { let digits=String(value||'').replace(/\D/g,'').replace(/^00/,''); if(digits.startsWith('0'))digits='20'+digits.slice(1); if(/^20\d{9,11}$/.test(digits))return '<a href="https://wa.me/'+digits+'" target="_blank" rel="noopener">'+escapeHtml(value)+'</a>'; return escapeHtml(value); };
-  const branchPhoneLinks = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + phoneLink(row.phone) + '</div>');
-  const footerContacts = (branchPhoneLinks.length ? branchPhoneLinks.join('') : (phoneContact ? '<div>هاتف: ' + phoneLink(phoneContact) + '</div>' : '')) +
-    (whatsappContact ? '<div>واتساب: ' + whatsappLink(whatsappContact) + '</div>' : '') +
-    (websiteUrl ? '<div>الموقع: <a href="' + escapeHtml(websiteUrl) + '" target="_blank" rel="noopener">' + escapeHtml(websiteUrl) + '</a></div>' : '') +
-    (supportUrl ? '<div>الدعم / بوابة المريض: <a href="' + escapeHtml(supportUrl) + '" target="_blank" rel="noopener">' + escapeHtml(supportUrl) + '</a></div>' : '');
-  const footerAddresses = branchAddressList.map(row => '<div><strong>' + escapeHtml(row.name) + ':</strong> ' + escapeHtml(row.address) + '</div>').join('');
-  const footerGridColumns = centerFooter ? '1fr 120px 1fr' : '1fr 1fr';
-  const footerCenterMarkup = centerFooter ? '<div class="footer-center">' + centerFooter + '</div>' : '';
-  const title = print.titleEn || print.title || 'Laboratory Test Results';
+  const headerRight = '<div class="identity-zone identity-ar" dir="rtl"><strong>' + escapeHtml(labNameAr) + '</strong>' +
+    (branchName ? '<span>' + escapeHtml(branchName) + '</span>' : '') +
+    (addressAr ? '<span>' + escapeHtml(addressAr) + '</span>' : '') +
+    (phoneAr ? '<span>هاتف: ' + escapeHtml(phoneAr) + '</span>' : '') + '</div>';
+  const headerLeft = '<div class="identity-zone identity-en" dir="ltr"><strong>' + escapeHtml(labNameEn) + '</strong>' +
+    (doctor ? '<span>' + escapeHtml(doctor) + '</span>' : '') +
+    (addressEn ? '<span>' + escapeHtml(addressEn) + '</span>' : '') +
+    (phoneEn ? '<span>Tel: ' + escapeHtml(phoneEn) + '</span>' : '') +
+    (identitySideText ? '<span>' + identitySideText + '</span>' : '') + '</div>';
+  const centerLogo = logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="Laboratory logo">' : '<span class="logo-placeholder">' + escapeHtml(labNameEn) + '</span>';
+  const patientMetaHtml = '<div class="patient-header-meta">' +
+    '<div><b>Patient Name</b><span>' + escapeHtml(patient.full_name || '-') + '</span></div>' +
+    '<div><b>Visit Number</b><span>' + escapeHtml(visit.visit_number || '-') + '</span></div>' +
+    '<div><b>Age / Sex</b><span>' + escapeHtml(patient.age_years ?? patient.age_value ?? '-') + (patient.age_unit && patient.age_unit!=='years' ? ' ' + escapeHtml(patient.age_unit) : ' Years') + ' / ' + escapeHtml(patient.sex || '-') + '</span></div>' +
+    '<div><b>Visit Date</b><span>' + escapeHtml(visit.visit_work_date || visit.created_at?.slice(0,10) || '-') + '</span></div></div>';
+  const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(value) + '</a>' : escapeHtml(value); };
+  const whatsappLink = value => { let digits=String(value||'').replace(/\\D/g,'').replace(/^00/,''); if(digits.startsWith('0'))digits='20'+digits.slice(1); if(/^20\\d{9,11}$/.test(digits))return '<a href="https://wa.me/'+digits+'" target="_blank" rel="noopener">'+escapeHtml(value)+'</a>'; return escapeHtml(value); };
+  const footerAddresses = [addressEn ? '<div dir="ltr">' + escapeHtml(addressEn) + '</div>' : '', addressAr ? '<div dir="rtl">' + escapeHtml(addressAr) + '</div>' : ''].filter(Boolean).join('');
+  const footerContacts = (phoneEn ? '<div>Tel: ' + phoneLink(phoneEn) + '</div>' : '') +
+    (phoneAr && phoneAr!==phoneEn ? '<div dir="rtl">هاتف: ' + phoneLink(phoneAr) + '</div>' : '') +
+    (lab.whatsapp ? '<div>WhatsApp: ' + whatsappLink(lab.whatsapp) + '</div>' : '') +
+    (websiteUrl ? '<div>Website: <a href="' + escapeHtml(websiteUrl) + '">' + escapeHtml(websiteUrl) + '</a></div>' : '') +
+    (supportUrl ? '<div>Patient Portal: <a href="' + escapeHtml(supportUrl) + '">' + escapeHtml(supportUrl) + '</a></div>' : '');
+  const footer = print.footerTextEn || print.footerText || lab.report_footer || '';
+  const footerGridColumns = '1fr 1fr';
+  const footerCenterMarkup = '';
+  const title = print.titleEn || 'Laboratory Test Results';
+  const showPrintHeader = print.showHeader !== false;
+  const showPrintFooter = print.showFooter !== false;
+  const pageTopMargin = showPrintHeader ? 49 : 12;
+  const pageBottomMargin = showPrintFooter ? 25 : 12;
   const paper = print.paperSize === 'A5' ? 'A5' : 'A4';
   const orientation = print.orientation === 'landscape' ? 'landscape' : 'portrait';
   const margin = Math.min(30, Math.max(5, Number(print.margin) || 12));
