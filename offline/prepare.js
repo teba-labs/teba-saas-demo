@@ -94,17 +94,29 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
   const outbox = await getOutboxSummary({ tenantId, branchId });
   const storage = await getOfflineStorageHealth();
   const preparedAt = new Date().toISOString();
+  const missingPrices = Math.max(0, testIds.length - prices.length);
+  const worklistTruncated = worklist.length < worklistCount;
+  const issues = [];
+  if (!catalog.length) issues.push('لا يوجد كتالوج تحاليل نشط محفوظ.');
+  if (missingPrices) issues.push(`يوجد ${missingPrices} تحليلًا دون سعر حالي محفوظ.`);
+  if (!staff.length) issues.push('لا يوجد موظف نشط محفوظ لهذا الفرع.');
+  if (!workday) issues.push('لا يوجد يوم عمل مفتوح محفوظ؛ افتح يوم العمل قبل فصل الإنترنت.');
+  if (patients.truncated) issues.push('دليل المرضى أكبر من حد التحميل المحلي.');
+  if (worklistTruncated) issues.push('قائمة العمل أكبر من حد التحميل المحلي.');
   const report = {
     tenant_id: tenantId,
     branch_id: branchId,
     prepared_at: preparedAt,
-    complete: !patients.truncated && worklist.length >= worklistCount,
+    complete: issues.length === 0,
+    issues,
     counts: {
       catalog_tests: catalog.length,
       current_prices: prices.length,
+      tests_without_current_price: missingPrices,
       parameters: parameterCount,
       staff: staff.length,
       patients: patients.cachedRows,
+      patients_available: patients.totalRows,
       worklist: worklist.length,
       worklist_available: worklistCount,
       results: results.length,
@@ -115,7 +127,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
     },
     truncated: {
       patient_directory: patients.truncated,
-      worklist: worklist.length < worklistCount,
+      worklist: worklistTruncated,
     },
     has_open_workday: Boolean(workday),
     has_lab_settings: Boolean(labSettings),
