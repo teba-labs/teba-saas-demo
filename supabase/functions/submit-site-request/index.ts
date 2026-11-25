@@ -11,7 +11,7 @@ function json(body: unknown, status = 200, origin = '') {
   };
   if (origin) {
     headers['Access-Control-Allow-Origin'] = origin;
-    headers['Access-Control-Allow-Headers'] = 'authorization, x-client-info, apikey, content-type',
+    headers['Access-Control-Allow-Headers'] = 'authorization, x-client-info, apikey, content-type';
     headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS';
     headers['Access-Control-Max-Age'] = '86400';
   }
@@ -38,8 +38,8 @@ Deno.serve(async req => {
 
   const slug = String(payload.slug ?? '').trim().toLowerCase();
   const requestType = String(payload.request_type ?? '');
-  const fullName = String(payload.full_name ?? '').trim().replace(/\\s+/gu, ' ');
-  const phone = String(payload.phone ?? '').trim().replace(/[\\s()\\-]/g, '');
+  const fullName = String(payload.full_name ?? '').trim().replace(/\s+/gu, ' ');
+  const phone = String(payload.phone ?? '').trim().replace(/[\s()\-]/g, '');
   const preferredDate = String(payload.preferred_date ?? '').trim();
   const preferredPeriod = String(payload.preferred_period ?? '').trim();
   const message = String(payload.message ?? '').trim();
@@ -49,7 +49,7 @@ Deno.serve(async req => {
   if (!/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/.test(slug)
     || !['home_sampling', 'package_inquiry'].includes(requestType)
     || fullName.length < 2 || fullName.length > 160
-    || !/^\\+?[0-9]{7,20}$/.test(phone)
+    || !/^\+?[0-9]{7,20}$/.test(phone)
     || message.length > 1000
     || (preferredPeriod && !['morning', 'afternoon', 'evening'].includes(preferredPeriod))
     || (branchId && !UUID.test(branchId))
@@ -58,7 +58,7 @@ Deno.serve(async req => {
     return json(GENERIC_ERROR, 400, origin);
   }
   if (preferredDate) {
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(preferredDate)) return json(GENERIC_ERROR, 400, origin);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(preferredDate)) return json(GENERIC_ERROR, 400, origin);
     const date = new Date(preferredDate + 'T00:00:00.000Z');
     if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== preferredDate
       || preferredDate < new Date().toISOString().slice(0, 10)) return json(GENERIC_ERROR, 400, origin);
