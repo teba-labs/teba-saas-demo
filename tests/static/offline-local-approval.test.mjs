@@ -33,6 +33,7 @@ test('approval sync rechecks original user, visit scope and unchanged clinical r
   assert.match(adapters,/session\.user\.id!==p\.actor_user_id/);
   assert.match(adapters,/fingerprintVisitResults/);
   assert.match(adapters,/serverFingerprint!==p\.result_fingerprint/);
+  assert.match(adapters,/newerDrafts/);
   assert.match(adapters,/approve_visit_with_auto_completion/);
   assert.match(adapters,/approved_by_staff_id!==p\.staff_id/);
 });
