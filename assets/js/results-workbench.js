@@ -694,7 +694,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const phoneAr = print.showPhone === false ? '' : String(print.phoneAr || branch.phone_ar || branchSettings.phone_ar || settingsJson.phone_ar || phoneEn).trim();
   const doctor = print.showDoctor === false ? '' : String(lab.doctor_name || '').trim();
   const branchName = print.showBranch === false ? '' : String(branch.name || '').trim();
-  const identitySideText = String(print.headerSideText || '').trim().split(/\\r?\\n/).map(escapeHtml).join('<br>');
+  const identitySideText = String(print.headerSideText || '').trim().split(/\r?\n/).map(escapeHtml).join('<br>');
   const safeHttpUrl = value => { try { const url=new URL(String(value||'')); return ['http:','https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
   const websiteUrl = safeHttpUrl(print.websiteUrl || settingsJson.website_url || '');
   const supportUrl = safeHttpUrl(print.supportUrl || settingsJson.support_url || '');
@@ -719,7 +719,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     '<div><b>Age / Sex</b><span>' + escapeHtml(patient.age_years ?? patient.age_value ?? '-') + (patient.age_unit && patient.age_unit!=='years' ? ' ' + escapeHtml(patient.age_unit) : ' Years') + ' / ' + escapeHtml(patient.sex || '-') + '</span></div>' +
     '<div><b>Visit Date</b><span>' + escapeHtml(visit.visit_work_date || visit.created_at?.slice(0,10) || '-') + '</span></div></div>';
   const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(value) + '</a>' : escapeHtml(value); };
-  const whatsappLink = value => { let digits=String(value||'').replace(/\\D/g,'').replace(/^00/,''); if(digits.startsWith('0'))digits='20'+digits.slice(1); if(/^20\\d{9,11}$/.test(digits))return '<a href="https://wa.me/'+digits+'" target="_blank" rel="noopener">'+escapeHtml(value)+'</a>'; return escapeHtml(value); };
+  const whatsappLink = value => { let digits=String(value||'').replace(/\D/g,'').replace(/^00/,''); if(digits.startsWith('0'))digits='20'+digits.slice(1); if(/^20\d{9,11}$/.test(digits))return '<a href="https://wa.me/'+digits+'" target="_blank" rel="noopener">'+escapeHtml(value)+'</a>'; return escapeHtml(value); };
   const footerAddresses = print.showBranchAddresses === false ? '' : [addressEn ? '<div dir="ltr">' + escapeHtml(addressEn) + '</div>' : '', addressAr ? '<div dir="rtl">' + escapeHtml(addressAr) + '</div>' : ''].filter(Boolean).join('');
   const footerContacts = print.showContacts === false ? '' : (phoneEn ? '<div>Tel: ' + phoneLink(phoneEn) + '</div>' : '') +
     (phoneAr && phoneAr!==phoneEn ? '<div dir="rtl">هاتف: ' + phoneLink(phoneAr) + '</div>' : '') +
