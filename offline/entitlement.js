@@ -42,6 +42,18 @@ async function deviceKeyThumbprint(jwk) {
   const canonical = JSON.stringify({ crv: 'P-256', kty: 'EC', x: jwk.x, y: jwk.y });
   return base64Url(await crypto.subtle.digest('SHA-256', encoder.encode(canonical)));
 }
+async function assertMonotonicDeviceClock(device) {
+  const key=`offline-clock:${device.device_id}`;
+  const now=Date.now();
+  const previous=await offlineDb.sync_meta.get(key);
+  const last=Date.parse(previous?.last_seen_at||'');
+  if(Number.isFinite(last)&&now+5*60*1000<last){
+    throw new Error('ساعة الجهاز رجعت إلى وقت سابق؛ اضبط التاريخ والوقت قبل متابعة العمل أوف لاين.');
+  }
+  if(!Number.isFinite(last)||now-last>=60*60*1000){
+    await offlineDb.sync_meta.put({key,device_id:device.device_id,last_seen_at:new Date(now).toISOString()});
+  }
+}
 async function proveDeviceKey(device) {
   const challenge = crypto.getRandomValues(new Uint8Array(32));
   const signature = await crypto.subtle.sign(
@@ -113,6 +125,7 @@ export async function getOfflineEntitlement({ tenantId, branchId, allowExpired =
   }, { allowExpired });
   const thumbprint = await deviceKeyThumbprint(device.public_key);
   if (claims.device_key_thumbprint !== thumbprint) throw new Error('الترخيص غير مرتبط بمفتاح هذا الجهاز.');
+  await assertMonotonicDeviceClock(device);
   await proveDeviceKey(device);
   return { ...row, claims, expired: claims.exp <= Math.floor(Date.now() / 1000) };
 }
@@ -178,6 +191,8 @@ export async function refreshOfflineEntitlement({ tenantId, branchId, force = fa
     claims,
     cached_at: new Date().toISOString(),
   });
+  const verified = await getOfflineEntitlement({ tenantId, branchId, allowExpired: false });
+  if (!verified) throw new Error('تعذر تثبيت الترخيص بعد التحقق من توقيعه وهوية الجهاز.');
   await setOfflineSessionReady(true);
-  return { token: data.token, claims, expired: false };
+  return verified;
 }
