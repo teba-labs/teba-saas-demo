@@ -25,7 +25,7 @@ const showNotice = (message, error = false) => {
 };
 const setBusy = (button, busy, label) => { button.disabled = busy; if (busy) { button.dataset.oldLabel = button.textContent; button.textContent = label || 'جارٍ التنفيذ…'; } else if (button.dataset.oldLabel) { button.textContent = button.dataset.oldLabel; delete button.dataset.oldLabel; } };
 const requireCloudConnection = operation => { if (globalThis.navigator?.onLine === false) throw new Error(`${operation} يتطلب اتصالًا بالإنترنت. لم تُحفظ التغييرات محليًا أو في السحابة.`); };
-let html2pdfLoadPromise=null;
+let html2pdfLoadPromise=null,html2canvasLoadPromise=null;
 async function ensureHtml2Pdf(){
  if(typeof window.html2pdf==='function')return;
  if(!html2pdfLoadPromise){
@@ -39,6 +39,20 @@ async function ensureHtml2Pdf(){
  }
  await html2pdfLoadPromise;
  if(typeof window.html2pdf!=='function')throw new Error('محرك إنشاء PDF غير متاح في هذا المتصفح.');
+}
+async function ensureHtml2Canvas(){
+ if(typeof window.html2canvas==='function')return;
+ if(!html2canvasLoadPromise){
+  html2canvasLoadPromise=new Promise((resolve,reject)=>{
+   const script=document.createElement('script');
+   script.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+   script.async=true;script.crossOrigin='anonymous';script.dataset.taibaHtml2canvas='true';
+   script.onload=resolve;script.onerror=()=>reject(new Error('تعذر تحميل أداة تجهيز هيدر وفوتر صفحات PDF.'));
+   document.head.append(script);
+  });
+ }
+ await html2canvasLoadPromise;
+ if(typeof window.html2canvas!=='function')throw new Error('أداة تجهيز هيدر وفوتر PDF غير متاحة.');
 }
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function resultInputMode(parameter){
@@ -457,32 +471,32 @@ function patientAgeInYears(patient={}){
   return ageBoundaryInYears(patient.age_value,patient.age_unit||'years');
 }
 function resolveReferenceRange(value, patient = {}, status = 'local_verification_required') {
-  const localPending = status === 'local_verification_required';
-  if (status === 'not_applicable' && !(value && (value.text || Array.isArray(value)))) return 'لا ينطبق';
-  if (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0)) return '';
+  value=normalizeReferenceRangePayload(value);
+  if (!value || (Array.isArray(value) && !value.length)) return '-';
+  if (status === 'not_applicable') return 'Not applicable';
   if (Array.isArray(value)) {
-    const age = patientAgeInYears(patient);
-    const sex = String(patient?.sex || '').toLowerCase();
-    const matches = value.filter(range => {
-      if (range.pregnancy) return false;
-      if (range.sex && String(range.sex).toLowerCase() !== sex) return false;
-      if (range.age) {
-        if (age === null || !Number.isFinite(age)) return false;
-        const minUnit=range.age.min_unit||range.age.unit||'years';
-        const maxUnit=range.age.max_unit||range.age.unit||'years';
-        const min=ageBoundaryInYears(range.age.min,minUnit);
-        const max=ageBoundaryInYears(range.age.max,maxUnit);
-        if (min!=null&&age<min)return false;
-        if (max!=null&&age>max)return false;
+    const age=patientAgeInYears(patient);
+    const rawSex=String(patient?.sex||'').trim().toLowerCase();
+    const sex=/^(male|m|ذكر)$/.test(rawSex)?'male':/^(female|f|أنثى|انثى)$/.test(rawSex)?'female':rawSex;
+    const matches=value.filter(range=>{
+      if(!range||typeof range!=='object'||range.pregnancy)return false;
+      const rangeSex=String(range.sex||'').trim().toLowerCase();
+      const normalizedRangeSex=/^(male|m|ذكر)$/.test(rangeSex)?'male':/^(female|f|أنثى|انثى)$/.test(rangeSex)?'female':rangeSex;
+      if(normalizedRangeSex&&normalizedRangeSex!=='all'&&normalizedRangeSex!==sex)return false;
+      if(range.age){
+        if(age===null||!Number.isFinite(age))return false;
+        const min=ageBoundaryInYears(range.age.min,range.age.min_unit||range.age.unit||'years');
+        const max=ageBoundaryInYears(range.age.max,range.age.max_unit||range.age.unit||'years');
+        if(min!=null&&age<min)return false;
+        if(max!=null&&age>max)return false;
       }
       return true;
     });
-    if (matches.length === 1) return (localPending ? 'مقترح من المصدر — غير معتمد محليًا: ' : '') + formatReferenceRange(matches[0]);
-    if (!matches.length && value.length === 1 && !value[0].age && !value[0].sex && !value[0].pregnancy) return (localPending ? 'مقترح — غير معتمد محليًا: ' : '') + formatReferenceRange(value[0]);
-    return matches.length > 1 ? 'أكثر من مدى ينطبق؛ يلزم تحديد الفئة' : (localPending ? 'لا يوجد مدى مصدر مطابق؛ يلزم ضبط محلي' : 'لا يوجد مدى مطابق لعمر/نوع المريض');
+    if(matches.length===1)return formatReferenceRange(matches[0]);
+    if(!matches.length&&value.length===1&&!value[0]?.age&&!value[0]?.sex&&!value[0]?.pregnancy)return formatReferenceRange(value[0]);
+    return '-';
   }
-  const formatted = formatReferenceRange(value);
-  return localPending && formatted !== '—' ? 'مقترح من المصدر — غير معتمد محليًا: ' + formatted : formatted;
+  return formatReferenceRange(value);
 }
 
 function evaluateLocalFormula(node, values) {
@@ -538,16 +552,32 @@ function calculateLocalDerivedResults(item, rows) {
 }
 
 function formatReferenceRange(value) {
-  if (value === null || value === undefined || value === '') return '—';
-  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim() || '-';
+  if (Array.isArray(value)) return value.length === 1 ? formatReferenceRange(value[0]) : '-';
   if (typeof value === 'object') {
-    if (value.text) return String(value.text);
-    const low = value.low ?? value.min ?? value.lower;
-    const high = value.high ?? value.max ?? value.upper;
-    if (low !== undefined || high !== undefined) return (low ?? '—') + ' – ' + (high ?? '—');
-    return Object.entries(value).map(([key, item]) => key + ': ' + item).join(' · ');
+    if (value.text != null && String(value.text).trim()) return String(value.text).trim();
+    const low = value.lower ?? value.low ?? value.min;
+    const high = value.upper ?? value.high ?? value.max;
+    if (low !== undefined || high !== undefined) return (low ?? '-') + ' - ' + (high ?? '-');
   }
-  return '—';
+  return '-';
+}
+function normalizeReferenceRangePayload(value) {
+  if (typeof value === 'string') {
+    const raw=value.trim();
+    if (!raw) return null;
+    if (raw.startsWith('{') || raw.startsWith('[')) {
+      try { value=JSON.parse(raw); } catch { return raw; }
+    } else return raw;
+  }
+  if(value&&typeof value==='object'&&!Array.isArray(value)){
+    const nested=value.ranges||value.intervals||value.reference_ranges;
+    if(Array.isArray(nested))return nested;
+    const bySex=['male','female'].filter(key=>value[key]&&typeof value[key]==='object');
+    if(bySex.length)return bySex.map(sex=>({...value[sex],sex}));
+  }
+  return value;
 }
 
 async function loadHistoricalReportPicker(button){
@@ -637,6 +667,8 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const lab = brand.settings || {};
   const print = brand.printSettings || {};
   const branch = state.branch || brand.branch || {};
+  const settingsJson = lab.settings_json && typeof lab.settings_json === 'object' ? lab.settings_json : {};
+  const branchSettings = branch.settings_json && typeof branch.settings_json === 'object' ? branch.settings_json : {};
   let reportBranches = [];
   if (globalThis.navigator?.onLine === false) reportBranches = [state.branch].filter(Boolean);
   else {
@@ -654,42 +686,58 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const signature = signaturePath ? getLabAssetPublicUrl(signaturePath) : '';
   const stamp = stampPath ? getLabAssetPublicUrl(stampPath) : '';
   const reviewerName = !localOffline && print.showReviewer ? String(print.reviewerName || '').trim() : '';
-  const headerSideText = String(print.headerSideText || '').trim() .split(/\r?\n/).map(escapeHtml).join('<br>');
-  const labName = lab.laboratory_name || state.tenant?.name || 'Taiba Smart Lab';
-  const doctor = print.showDoctor === false ? '' : (lab.doctor_name || '');
-  const branchName = print.showBranch === false ? '' : (branch.name || '');
-  const phone = print.showPhone === false ? '' : (branch.phone || lab.phone || lab.whatsapp || '');
-  const address = print.showAddress === false ? '' : (branch.address || lab.address || '');
-  const footer = print.footerText || lab.report_footer || '';
-  const branchAddressList = print.showBranchAddresses === false ? [] : (reportBranches.length ? reportBranches : [branch]).filter(row => row.address).map(row => ({name:row.name,address:row.address}));
+  const labNameEn = String(print.labNameEn || settingsJson.laboratory_name_en || lab.laboratory_name_en || 'Medical Laboratory').trim();
+  const labNameAr = String(print.labNameAr || settingsJson.laboratory_name_ar || lab.laboratory_name_ar || lab.name_ar || 'معمل التحاليل الطبية').trim();
+  const addressEn = print.showAddress === false ? '' : String(print.addressEn || branch.address_en || branchSettings.address_en || settingsJson.address_en || '').trim();
+  const addressAr = print.showAddress === false ? '' : String(print.addressAr || branch.address_ar || branchSettings.address_ar || settingsJson.address_ar || branch.address || lab.address || '').trim();
+  const phoneEn = print.showPhone === false ? '' : String(print.phoneEn || branch.phone || lab.phone || lab.whatsapp || '').trim();
+  const phoneAr = print.showPhone === false ? '' : String(print.phoneAr || branch.phone_ar || branchSettings.phone_ar || settingsJson.phone_ar || phoneEn).trim();
+  const doctor = print.showDoctor === false ? '' : String(settingsJson.doctor_name_en || lab.doctor_name_en || '').trim();
+  const branchName = print.showBranch === false ? '' : String(branch.name || '').trim();
+  const branchNameEn = print.showBranch === false ? '' : String(print.branchNameEn || branch.name_en || '').trim();
+  const identitySideText = String(print.headerSideText || '').trim().split(/\r?\n/).map(escapeHtml).join('<br>');
   const safeHttpUrl = value => { try { const url=new URL(String(value||'')); return ['http:','https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; } };
-  const websiteUrl = safeHttpUrl(print.websiteUrl || lab.settings_json?.website_url || '');
-  const supportUrl = safeHttpUrl(print.supportUrl || lab.settings_json?.support_url || '');
-  const phoneContact = print.showContacts === false || print.showPhone === false ? '' : (branch.phone || lab.phone || '');
-  const whatsappContact = print.showContacts === false ? '' : (lab.whatsapp || '');
+  const websiteUrl = safeHttpUrl(print.websiteUrl || settingsJson.website_url || '');
+  const supportUrl = safeHttpUrl(print.supportUrl || settingsJson.support_url || '');
   const watermarkMode = print.watermarkMode || 'none';
   const watermarkOpacity = Math.min(.18,Math.max(.02,Number(print.watermarkOpacity)||.07));
-  const watermarkText = watermarkMode === 'name' ? labName : '';
+  const watermarkText = watermarkMode === 'name' ? labNameEn : '';
   const watermarkImage = watermarkMode === 'logo' ? (logo || (lab.logo_path ? getLabAssetPublicUrl(lab.logo_path) : '')) : '';
-  const identityHtml = '<div class="identity-zone"><strong>' + escapeHtml(labName) + '</strong>' + (doctor ? '<span>' + escapeHtml(doctor) + '</span>' : '') + '</div>';
-  const sideContent = headerSideText ? '<div class="identity-extra">' + headerSideText + '</div>' : '';
-  const headerRight = print.identitySide === 'left' ? sideContent : identityHtml;
-  const headerLeft = print.identitySide === 'left' ? identityHtml : sideContent;
-  const centerLogo = logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="شعار المعمل">' : '';
-  const qrHtml = !localOffline && print.footerCenterMode === 'qr' && websiteUrl ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="QR للموقع"><small>امسح لزيارة موقع المعمل</small></a>' : '';
-  const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
-  const branchPhones = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + escapeHtml(row.phone) + '</div>');
-  const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(digits) + '</a>' : escapeHtml(value); };
+  const headerRight = '<div class="identity-zone identity-ar" dir="rtl"><strong>' + escapeHtml(labNameAr) + '</strong>' +
+    (branchName ? '<span>' + escapeHtml(branchName) + '</span>' : '') +
+    (addressAr ? '<span>' + escapeHtml(addressAr) + '</span>' : '') +
+    (phoneAr ? '<span>هاتف: ' + escapeHtml(phoneAr) + '</span>' : '') + '</div>';
+  const headerLeft = '<div class="identity-zone identity-en" dir="ltr"><strong>' + escapeHtml(labNameEn) + '</strong>' +
+    (branchNameEn ? '<span>' + escapeHtml(branchNameEn) + '</span>' : '') + (doctor ? '<span>' + escapeHtml(doctor) + '</span>' : '') +
+    (addressEn ? '<span>' + escapeHtml(addressEn) + '</span>' : '') +
+    (phoneEn ? '<span>Tel: ' + escapeHtml(phoneEn) + '</span>' : '') +
+    (identitySideText ? '<span>' + identitySideText + '</span>' : '') + '</div>';
+  const centerLogo = print.showLogo === false ? '' : (logo ? '<img class="lab-logo" src="' + escapeHtml(logo) + '" alt="Laboratory logo">' : '<span class="logo-placeholder">' + escapeHtml(labNameEn) + '</span>');
+  const patientMetaHtml = '<div class="patient-header-meta">' +
+    '<div><b>Patient Name</b><span>' + escapeHtml(patient.full_name || '-') + '</span></div>' +
+    '<div><b>Patient ID</b><span>' + escapeHtml(patient.patient_number || '-') + '</span></div>' +
+    '<div><b>Visit Number</b><span>' + escapeHtml(visit.visit_number || '-') + '</span></div>' +
+    '<div><b>Age / Sex</b><span>' + escapeHtml(patient.age_years ?? patient.age_value ?? '-') + ' ' + escapeHtml((patient.age_unit==='months'||patient.age_unit==='month')?'Months':(patient.age_unit==='days'||patient.age_unit==='day')?'Days':'Years') + ' / ' + escapeHtml(/^(male|m|ذكر)$/i.test(String(patient.sex||''))?'Male':/^(female|f|أنثى|انثى)$/i.test(String(patient.sex||''))?'Female':patient.sex || '-') + '</span></div>' +
+    '<div><b>Visit Date</b><span>' + escapeHtml(visit.visit_work_date || visit.created_at?.slice(0,10) || '-') + '</span></div></div>';
+  const phoneLink = value => { const digits=String(value||'').replace(/[^0-9+]/g,''); return digits ? '<a href="tel:' + escapeHtml(digits) + '">' + escapeHtml(value) + '</a>' : escapeHtml(value); };
   const whatsappLink = value => { let digits=String(value||'').replace(/\D/g,'').replace(/^00/,''); if(digits.startsWith('0'))digits='20'+digits.slice(1); if(/^20\d{9,11}$/.test(digits))return '<a href="https://wa.me/'+digits+'" target="_blank" rel="noopener">'+escapeHtml(value)+'</a>'; return escapeHtml(value); };
-  const branchPhoneLinks = print.showContacts === false || print.showPhone === false ? [] : reportBranches.filter(row=>row.phone).map(row=>'<div>' + escapeHtml(row.name) + ' هاتف: ' + phoneLink(row.phone) + '</div>');
-  const footerContacts = (branchPhoneLinks.length ? branchPhoneLinks.join('') : (phoneContact ? '<div>هاتف: ' + phoneLink(phoneContact) + '</div>' : '')) +
-    (whatsappContact ? '<div>واتساب: ' + whatsappLink(whatsappContact) + '</div>' : '') +
-    (websiteUrl ? '<div>الموقع: <a href="' + escapeHtml(websiteUrl) + '" target="_blank" rel="noopener">' + escapeHtml(websiteUrl) + '</a></div>' : '') +
-    (supportUrl ? '<div>الدعم / بوابة المريض: <a href="' + escapeHtml(supportUrl) + '" target="_blank" rel="noopener">' + escapeHtml(supportUrl) + '</a></div>' : '');
-  const footerAddresses = branchAddressList.map(row => '<div><strong>' + escapeHtml(row.name) + ':</strong> ' + escapeHtml(row.address) + '</div>').join('');
-  const footerGridColumns = centerFooter ? '1fr 120px 1fr' : '1fr 1fr';
+  const footerAddresses = print.showBranchAddresses === false ? '' : [addressEn ? '<div dir="ltr">' + escapeHtml(addressEn) + '</div>' : '', addressAr ? '<div dir="rtl">' + escapeHtml(addressAr) + '</div>' : ''].filter(Boolean).join('');
+  const footerContacts = print.showContacts === false || print.showPhone === false ? '' : (phoneEn ? '<div>Tel: ' + phoneLink(phoneEn) + '</div>' : '') +
+    (phoneAr && phoneAr!==phoneEn ? '<div dir="rtl">هاتف: ' + phoneLink(phoneAr) + '</div>' : '') +
+    (lab.whatsapp ? '<div>WhatsApp: ' + whatsappLink(lab.whatsapp) + '</div>' : '') +
+    (websiteUrl ? '<div>Website: <a href="' + escapeHtml(websiteUrl) + '">' + escapeHtml(websiteUrl) + '</a></div>' : '') +
+    (supportUrl ? '<div>Patient Portal: <a href="' + escapeHtml(supportUrl) + '">' + escapeHtml(supportUrl) + '</a></div>' : '');
+  const footer = print.footerTextEn || '';
+  const qrHtml = !localOffline && print.footerCenterMode === 'qr' && websiteUrl
+    ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="Website QR"><small>Scan for website</small></a>' : '';
+  const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
+  const footerGridColumns = centerFooter ? '1fr 90px 1fr' : '1fr 1fr';
   const footerCenterMarkup = centerFooter ? '<div class="footer-center">' + centerFooter + '</div>' : '';
-  const title = print.title || 'نتيجة الفحوصات الطبية';
+  const title = 'Laboratory Test Results';
+  const showPrintHeader = print.showHeader !== false;
+  const showPrintFooter = print.showFooter !== false;
+  const pageTopMargin = 49;
+  const pageBottomMargin = 25;
   const paper = print.paperSize === 'A5' ? 'A5' : 'A4';
   const orientation = print.orientation === 'landscape' ? 'landscape' : 'portrait';
   const margin = Math.min(30, Math.max(5, Number(print.margin) || 12));
@@ -713,30 +761,27 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
         try{
           const selected=JSON.parse(String(value));
           if(Array.isArray(selected)){
-            value=selected.join('، ');
+            value=selected.join(', ');
             if(reportMode==='graded_multi_choice'){
               const scores=parameter.result_config?.choice_scores||{};
               const total=selected.reduce((sum,choice)=>sum+Number(scores[choice]||0),0);
-              value+=' · الدرجة: '+total;
+              value+=' · Score: '+total;
             }
           }
         }catch{}
       }
       const unit = result.unit_snapshot || parameter.unit || '';
-      const rawReference = result.reference_range_snapshot ?? parameter.reference_ranges;
-      const hasReference = Array.isArray(rawReference) ? rawReference.length > 0
-        : rawReference && typeof rawReference === 'object' ? Object.keys(rawReference).length > 0
-        : rawReference !== null && rawReference !== undefined && String(rawReference).trim() !== '';
-      const reference = hasReference ? resolveReferenceRange(rawReference, patient, parameter.reference_interval_status) : '';
+      const rawReference = normalizeReferenceRangePayload(result.reference_range_snapshot ?? parameter.reference_ranges);
+      const reference = resolveReferenceRange(rawReference, patient, parameter.reference_interval_status);
       const calculatedFlag=computeReferenceFlag(result.value_numeric,result.reference_range_snapshot ?? parameter.reference_ranges,patient.age_years,patient.sex,parameter.reference_interval_status,'numeric');
       const displayFlag=calculatedFlag || result.flag;
       const flag = displayFlag ? ' · ' + displayFlag : '';
-      return '<tr><td>' + escapeHtml(parameterName) + '</td><td>' + escapeHtml(value) + '</td><td>' + escapeHtml(unit) + '</td><td>' + escapeHtml(reference) + '</td><td>' + escapeHtml(flag) + '</td></tr>';
+      return '<tr><td class="parameter-cell">' + escapeHtml(parameterName) + '</td><td class="result-cell">' + escapeHtml(value) + '</td><td class="unit-cell">' + escapeHtml(unit) + '</td><td class="reference-cell">' + escapeHtml(reference || '-') + '</td><td class="flag-cell">' + escapeHtml(displayFlag || '-') + '</td></tr>';
     }).filter(Boolean).join('');
-    const cultureHtml = cultureRows.isolates.filter(isolate=>isolate.visit_test_id===item.id).map(isolate=>{const ast=cultureRows.susceptibilities.filter(row=>row.isolate_id===isolate.id);const astLines=ast.map(row=>'<tr><td>'+escapeHtml(row.antimicrobial_agent)+'</td><td>'+escapeHtml(row.test_method)+'</td><td>'+escapeHtml(row.measured_value??'—')+' '+escapeHtml(row.measured_unit??'')+'</td><td>'+escapeHtml(row.interpretation)+'</td><td>'+escapeHtml(row.breakpoint_standard)+' '+escapeHtml(row.breakpoint_edition)+'</td><td>'+escapeHtml(row.qc_status)+'</td></tr>').join('');return '<h3>العزلة '+isolate.isolate_number+': '+escapeHtml(isolate.organism_name)+'</h3><p>النمو: '+escapeHtml(isolate.growth_description||'—')+' · العد: '+escapeHtml(isolate.colony_count??'—')+' '+escapeHtml(isolate.colony_count_unit)+' · التعريف: '+escapeHtml(isolate.identification_method||'—')+'</p><table><thead><tr><th>المضاد الحيوي</th><th>الطريقة</th><th>القيمة</th><th>التفسير</th><th>معيار/إصدار القطع</th><th>ضبط الجودة</th></tr></thead><tbody>'+(astLines||'<tr><td colspan="6">لا توجد نتائج حساسية مسجلة</td></tr>')+'</tbody></table>'+(isolate.notes?'<p>'+escapeHtml(isolate.notes)+'</p>':'');}).join('');
+    const cultureHtml = cultureRows.isolates.filter(isolate=>isolate.visit_test_id===item.id).map(isolate=>{const ast=cultureRows.susceptibilities.filter(row=>row.isolate_id===isolate.id);const astLines=ast.map(row=>'<tr><td>'+escapeHtml(row.antimicrobial_agent)+'</td><td>'+escapeHtml(row.test_method)+'</td><td>'+escapeHtml(row.measured_value??'—')+' '+escapeHtml(row.measured_unit??'')+'</td><td>'+escapeHtml(row.interpretation)+'</td><td>'+escapeHtml(row.breakpoint_standard)+' '+escapeHtml(row.breakpoint_edition)+'</td><td>'+escapeHtml(row.qc_status)+'</td></tr>').join('');return '<h3>Isolate '+isolate.isolate_number+': '+escapeHtml(isolate.organism_name)+'</h3><p>Growth: '+escapeHtml(isolate.growth_description||'-')+' · Colony count: '+escapeHtml(isolate.colony_count??'-')+' '+escapeHtml(isolate.colony_count_unit)+' · Identification: '+escapeHtml(isolate.identification_method||'-')+'</p><table><thead><tr><th>Antimicrobial</th><th>Method</th><th>Value</th><th>Interpretation</th><th>Breakpoint Standard / Edition</th><th>Quality Control</th></tr></thead><tbody>'+(astLines||'<tr><td colspan="6">No susceptibility results recorded</td></tr>')+'</tbody></table>'+(isolate.notes?'<p>'+escapeHtml(isolate.notes)+'</p>':'');}).join('');
     const kind = item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind || 'individual';
     const hasContent = Boolean(lines || cultureHtml);
-    return { kind, hasContent, html: '<section class="test ' + (kind === 'panel' ? 'profile-report' : 'individual-test') + '"><h2>' + escapeHtml(item.test_name_snapshot || 'Test') + ' <small class="section-status">' + (item.status === 'completed' ? 'مكتمل' : 'غير مكتمل') + '</small></h2><table><thead><tr><th>Test / Parameter</th><th>Result</th><th>Unit</th><th>Reference Interval</th><th>Flag</th></tr></thead><tbody>' + lines + '</tbody></table>' + cultureHtml + '</section>' };
+    return { kind, hasContent, html: '<section class="test ' + (kind === 'panel' ? 'profile-report' : 'individual-test') + '"><h2 class="analysis-heading">' + escapeHtml(item.test_name_snapshot || 'Test') + ' <small class="section-status">' + (item.status === 'completed' ? 'Completed' : 'Pending') + '</small></h2><table class="results-table"><colgroup><col style="width:40%"><col style="width:15%"><col style="width:10%"><col style="width:25%"><col style="width:10%"></colgroup><thead><tr><th>Parameter</th><th>Result</th><th>Unit</th><th>Reference Interval</th><th>Flag</th></tr></thead><tbody>' + lines + '</tbody></table>' + cultureHtml + '</section>' };
   });
   const individualHtml = testSections.filter(section => section.kind !== 'panel' && section.hasContent).map(section => section.html).join('');
   const profileSections = testSections.filter(section => section.kind === 'panel' && section.hasContent);
@@ -747,28 +792,28 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const groupedTestSections = (individualHtml ? '<section class="report-group individual-report"><h2>INDIVIDUAL TESTS</h2>' + individualHtml + '</section>' : '') + profileHtml;
   const historicalSections=selectedHistoricalRows.map(row=>{
     const payload=row.result_data||{},parameters=payload.parameters&&typeof payload.parameters==='object'?Object.entries(payload.parameters):[];
-    const resultLines=parameters.length?parameters.map(([name,value])=>'<tr><td>'+escapeHtml(name)+'</td><td>'+escapeHtml(value)+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>').join(''):'<tr><td>'+escapeHtml(row.test_name_snapshot)+'</td><td>'+escapeHtml(payload.value??payload.raw_original??JSON.stringify(payload))+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>';
-    return '<section class="test historical-test"><h2>نتيجة تاريخية — '+escapeHtml(row.test_name_snapshot)+' · '+escapeHtml(row.result_date)+'</h2><table><thead><tr><th>الفحص / البارامتر</th><th>النتيجة القديمة</th><th>الوحدة وقتها</th><th>المدى المرجعي وقتها</th></tr></thead><tbody>'+resultLines+'</tbody></table><small>مصدر تاريخي: '+escapeHtml(row.source_file_name||'')+' · '+escapeHtml(row.source_sheet_name||'')+' · صف '+escapeHtml(row.source_row_number||'—')+'</small></section>';
+    const resultLines=parameters.length?parameters.map(([name,value])=>'<tr><td>'+escapeHtml(name)+'</td><td>'+escapeHtml(value)+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(formatReferenceRange(normalizeReferenceRangePayload(payload.reference_range)))+'</td></tr>').join(''):'<tr><td>'+escapeHtml(row.test_name_snapshot)+'</td><td>'+escapeHtml(payload.value??payload.raw_original??'-')+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>';
+    return '<section class="test historical-test"><h2>Historical Result — '+escapeHtml(row.test_name_snapshot)+' · '+escapeHtml(row.result_date)+'</h2><table><thead><tr><th>Parameter</th><th>Previous Result</th><th>Previous Unit</th><th>Previous Reference Interval</th></tr></thead><tbody>'+resultLines+'</tbody></table><small>Source: '+escapeHtml(row.source_file_name||'')+' · '+escapeHtml(row.source_sheet_name||'')+' · Row '+escapeHtml(row.source_row_number||'-')+'</small></section>';
   }).join('');
-  const performedAt = 'تم إجراء التحاليل بفرع: ' + (branch.name || '—');
-  const showPrintHeader = print.showHeader !== false;
-  const showPrintFooter = print.showFooter !== false;
-  const pageTopMargin = showPrintHeader ? 36 : 12;
-  const pageBottomMargin = showPrintFooter ? 24 : 12;
-  const html = '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' +
+  const performedAt = 'Performed at: ' + (branchNameEn || '-');
+  const html = '<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + escapeHtml(title) + '</title><style>' +
     '@page{size:' + paper + ' ' + orientation + ';margin:' + pageTopMargin + 'mm ' + margin + 'mm ' + pageBottomMargin + 'mm ' + margin + 'mm}' +
-    'body{position:relative;font-family:Tahoma,Arial,sans-serif;color:#1d2e3a;font-size:12px;line-height:1.65;background:#fff}body>*:not(.watermark-image):not(.watermark-text){position:relative;z-index:1}.watermark-image{position:fixed;top:28%;left:0;right:0;z-index:0;text-align:center;pointer-events:none;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + '}.watermark-image img{width:' + (print.watermarkSize==='large'?'62%':print.watermarkSize==='small'?'28%':'42%') + ';max-height:48vh;object-fit:contain}.watermark-text{position:fixed;top:42%;left:8%;right:8%;z-index:0;text-align:center;font-size:' + (print.watermarkSize==='large'?'76px':print.watermarkSize==='small'?'38px':'56px') + ';font-weight:800;color:#173f58;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + ';pointer-events:none}header.report-header{border-bottom:2px solid #168f9a;padding:0 0 4px;margin:0;background:#fff}.report-cover-meta{margin:10px 0 14px}.report-cover-meta h1{font-size:19px;margin:4px 0;text-align:center;color:#173f58}.report-cover-meta .header-grid{display:grid;grid-template-columns:1fr 120px 1fr;align-items:center;gap:10px}.identity-zone{display:grid;gap:3px;font-size:13px}.identity-zone strong{font-size:17px;color:#173f58}.identity-zone span{color:#435864}.header-right{text-align:right}.header-left{text-align:left}.logo-zone{text-align:center}.lab-logo{max-width:110px;max-height:72px;object-fit:contain}.logo-placeholder{font-weight:800;color:#173f58;font-size:12px}h2{font-size:15px;margin:12px 0 6px;color:#173f58}.report-title{text-align:center;font-weight:700;color:#16818b;font-size:13px}.meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;margin:10px 0 10px}.meta span{padding:6px 8px;background:#f3f7f8;border-radius:5px}.report-group{margin-top:8px}.profile-report{break-before:page;page-break-before:always}.profile-report.first-profile{break-before:auto;page-break-before:auto}.test{break-inside:auto;margin:0 0 8px}.individual-report>.test{break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}h2,h3{break-after:avoid;page-break-after:avoid}.historical-test{border:2px dashed #8a6d3b;padding:8px;margin-top:18px}.historical-test h2{color:#765a27}table{width:100%;border-collapse:collapse;margin-bottom:12px;direction:ltr}th,td{border:1px solid #cbd5dc;padding:6px;text-align:left}th{background:#eaf2f4;color:#173f58}td{background:#fff}.branch-performed{font-weight:700;color:#315c66;margin-top:7px;padding:5px 0;border-top:1px solid #dce5e8;font-size:11px}.report-footer{display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;border-top:1px solid #168f9a;margin-top:20px;padding-top:10px;align-items:start;font-size:10px;line-height:1.35}.footer-right,.footer-left{display:grid;gap:4px}.footer-center{text-align:center}.footer-qr{display:grid;justify-items:center;gap:3px;color:#173f58;text-decoration:none}.footer-qr img{width:76px;height:76px;object-fit:contain}.footer-center-message{font-size:11px;font-weight:700}.signature{max-width:130px;max-height:65px;object-fit:contain}.preview-controls{display:flex;gap:8px;justify-content:center;padding:10px;margin-bottom:12px}.preview-controls button{border:0;border-radius:7px;padding:8px 14px;background:#173f58;color:#fff;font:inherit;cursor:pointer}.preview-controls button+button{background:#e7f1f2;color:#173f58}.report-pages{display:block}.report-extra-footer{grid-column:1/-1;text-align:center;border-top:1px solid #e1e8eb;padding-top:4px;margin-top:4px;font-size:9px}@media print{.preview-controls{display:none}'+(showPrintHeader?'header.report-header{position:fixed;top:-29mm;left:0;right:0;z-index:2;background:#fff}':'header.report-header{position:static;top:auto;border:0;padding:0;margin-bottom:14px}')+(showPrintFooter?'.report-footer{position:fixed;bottom:-18mm;left:0;right:0;z-index:2;background:#fff}':'.report-footer{display:none}')+'.profile-report{break-before:page;page-break-before:always}.profile-report.first-profile{break-before:auto;page-break-before:auto}.report-footer{break-inside:avoid}}' +
-    '</style></head><body>' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
-    '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">' + (localOffline ? 'طباعة مسودة غير معتمدة' : partialReport ? 'طباعة النتائج المكتملة فقط' : 'طباعة التقرير') + '</button>' : '<button disabled>أكمل تحليلًا واحدًا على الأقل قبل الطباعة الجزئية</button>') + '<button onclick="window.close()">إغلاق المعاينة</button></div>' +
-    (localOffline ? '<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">نسخة عمل غير معتمدة — محفوظة على هذا الجهاز — تنتظر المزامنة والمراجعة والاعتماد. لا تُسلّم باعتبارها تقريرًا نهائيًا.</div>' : '') +
-    (partialReport ? '<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">تقرير جزئي — يعرض التحاليل المكتملة فقط. توجد تحاليل أخرى بالزيارة لم تكتمل بعد.</div>' : '') +
-    (showPrintHeader ? '<header class="report-header"><div class="header-grid"><div class="header-right">' + headerRight + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-left">' + headerLeft + '</div></div></header>' : '') +
-    '<section class="report-cover-meta"><h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="meta"><span>اسم المريض: ' + escapeHtml(patient.full_name || '—') + '</span><span>رقم الملف: ' + escapeHtml(patient.patient_number || '—') + '</span><span>رقم الزيارة: ' + escapeHtml(visit.visit_number || '—') + '</span><span>تاريخ الزيارة: ' + escapeHtml(visit.visit_work_date || '—') + '</span></div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></section>' +
+    '*,*:before,*:after{box-sizing:border-box}body{position:relative;font-family:Arial,Helvetica,sans-serif;color:#111;font-size:11px;line-height:1.45;background:#fff;direction:ltr}body>*:not(.watermark-image):not(.watermark-text){position:relative;z-index:1}.watermark-image{position:fixed;top:28%;left:0;right:0;z-index:0;text-align:center;pointer-events:none;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + '}.watermark-image img{width:' + (print.watermarkSize==='large'?'62%':print.watermarkSize==='small'?'28%':'42%') + ';max-height:48vh;object-fit:contain}.watermark-text{position:fixed;top:42%;left:8%;right:8%;z-index:0;text-align:center;font-size:' + (print.watermarkSize==='large'?'76px':print.watermarkSize==='small'?'38px':'56px') + ';font-weight:800;color:#333;opacity:' + watermarkOpacity + ';transform:' + (print.watermarkPosition==='diagonal'?'rotate(-28deg)':'none') + ';pointer-events:none}' +
+    'header.report-header{background:#fff;border-bottom:2px solid #111;padding:0 0 5px;margin:0}.header-grid{display:grid;grid-template-columns:minmax(0,1fr) 112px minmax(0,1fr);align-items:center;gap:10px}.identity-zone{display:grid;gap:2px;font-size:9px;line-height:1.35}.identity-zone strong{font-size:12px;color:#111}.identity-zone span{color:#333;overflow-wrap:anywhere}.identity-ar{text-align:right}.identity-en{text-align:left}.logo-zone{text-align:center}.lab-logo{max-width:100px;max-height:62px;object-fit:contain}.logo-placeholder{font-weight:700;color:#222;font-size:10px}.patient-header-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:6px;padding-top:5px;border-top:1px solid #777}.patient-header-meta>div{display:grid;gap:2px;min-width:0;padding:3px 5px;background:#fff;border:1px solid #ddd}.patient-header-meta b{font-size:8px;color:#444}.patient-header-meta span{font-size:9px;font-weight:700;overflow-wrap:anywhere}.report-cover-meta{margin:8px 0 12px}.report-cover-meta h1{font-size:17px;margin:4px 0;text-align:center;color:#111;letter-spacing:.6px}.report-title{text-align:center;font-weight:700;color:#222;font-size:12px}.report-group{margin-top:8px}.profile-report{break-before:page;page-break-before:always}.profile-report.first-profile{break-before:auto;page-break-before:auto}.test{break-inside:auto;margin:0 0 8px}.analysis-heading{font-size:13px;margin:20px 0 7px;clear:both;display:block;position:relative;break-after:avoid;page-break-after:avoid;color:#111}.section-status{font-size:9px;font-weight:400;color:#444}.individual-report>.test{break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}h2,h3{break-after:avoid;page-break-after:avoid}table.results-table{width:100%;table-layout:fixed;border-collapse:collapse;margin:0 0 12px;direction:ltr}table{width:100%;table-layout:fixed;border-collapse:collapse;margin:0 0 12px;direction:ltr}th,td{border:1px solid #777;padding:5px 6px;text-align:left;word-break:break-word;overflow-wrap:anywhere;vertical-align:top}th{background:#f2f2f2;color:#111;font-weight:700}.parameter-cell{direction:rtl;text-align:right}.result-cell,.reference-cell{direction:ltr;text-align:left;font-variant-numeric:tabular-nums}.unit-cell,.flag-cell{direction:ltr;text-align:center}.branch-performed{font-weight:700;color:#222;margin-top:7px;padding:5px 0;border-top:1px solid #777;font-size:10px}.report-footer{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:2px solid #111;margin-top:12px;padding-top:5px;align-items:start;font-size:8px;line-height:1.3;background:#fff}.footer-right,.footer-left{display:grid;gap:3px}.footer-right{text-align:right}.footer-left{text-align:left}.report-extra-footer{grid-column:1/-1;text-align:center;border-top:1px solid #777;padding-top:3px;margin-top:3px;font-size:8px}.signature{max-width:130px;max-height:65px;object-fit:contain}.preview-controls{display:flex;gap:8px;justify-content:center;padding:10px;margin-bottom:12px}.preview-controls button{border:0;border-radius:5px;padding:8px 14px;background:#222;color:#fff;font:inherit;cursor:pointer}.preview-controls button+button{background:#eee;color:#111}.report-pages{display:block}.historical-test{border:1px dashed #777;padding:8px;margin-top:18px}.historical-test h2{color:#111}@media print{.preview-controls{display:none}' +
+    'header.report-header{position:fixed;top:-' + (pageTopMargin-3) + 'mm;left:0;right:0;z-index:2;background:#fff}' +
+    (showPrintFooter?'.report-footer{position:fixed;bottom:-' + (pageBottomMargin-3) + 'mm;left:0;right:0;z-index:2;background:#fff}':'.report-footer{display:none}') +
+    '.analysis-heading{margin-top:20px;clear:both}.profile-report{break-before:page;page-break-before:always}.profile-report.first-profile{break-before:auto;page-break-before:auto}.report-footer{break-inside:avoid}}' +
+    '</style></head><body data-page-top-margin="' + pageTopMargin + '" data-page-bottom-margin="' + pageBottomMargin + '" data-page-side-margin="' + margin + '" data-page-size="' + paper + '" data-page-orientation="' + orientation + '">' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
+    '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">' + (localOffline ? 'Print work copy — not approved' : partialReport ? 'Print completed tests only' : 'Print report') + '</button>' : '<button disabled>Complete at least one test before printing</button>') + '<button onclick="window.close()">Close preview</button></div>' +
+    (localOffline ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">UNAPPROVED WORK COPY — saved on this device and awaiting synchronization and review. Not a final report.</div>' : '') +
+    (partialReport ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">PARTIAL REPORT — only completed tests are shown. Other tests in this visit are still pending.</div>' : '') +
+    '<header class="report-header' + (showPrintHeader ? '' : ' patient-only') + '">' + (showPrintHeader ? '<div class="header-grid"><div class="header-left">' + headerLeft + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-right">' + headerRight + '</div></div>' : '') + patientMetaHtml + '</header>' +
+    '<section class="report-cover-meta"><h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></section>' +
     '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
-    ((signature || stamp || reviewerName) ? '<section class="report-approval" style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:14px 0 8px">' + (signature ? '<div style="display:grid;gap:4px"><img style="max-width:130px;max-height:65px;object-fit:contain" src="' + escapeHtml(signature) + '" alt="التوقيع"><small>التوقيع</small></div>' : '') + (stamp ? '<div style="display:grid;gap:4px"><img style="max-width:100px;max-height:100px;object-fit:contain" src="' + escapeHtml(stamp) + '" alt="الختم"><small>ختم المعمل</small></div>' : '') + (reviewerName ? '<div style="display:grid;gap:4px"><strong style="border-top:1px solid #667;padding-top:4px;min-width:120px">' + escapeHtml(reviewerName) + '</strong><small>المراجع / المعتمد</small></div>' : '') + '</section>' : '') +
-    (showPrintFooter ? '<footer class="report-footer" style="grid-template-columns:' + footerGridColumns + '"><div class="footer-right">' + footerAddresses + '</div>' + footerCenterMarkup + '<div class="footer-left">' + footerContacts + '</div>' + (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</footer>' : '') + '</body></html>';
+    ((signature || stamp || reviewerName) ? '<section class="report-approval" style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:14px 0 8px">' + (signature ? '<div style="display:grid;gap:4px"><img style="max-width:130px;max-height:65px;object-fit:contain" src="' + escapeHtml(signature) + '" alt="Signature"><small>Authorized Signature</small></div>' : '') + (stamp ? '<div style="display:grid;gap:4px"><img style="max-width:100px;max-height:100px;object-fit:contain" src="' + escapeHtml(stamp) + '" alt="Laboratory stamp"><small>Laboratory Stamp</small></div>' : '') + (reviewerName ? '<div style="display:grid;gap:4px"><strong style="border-top:1px solid #111;padding-top:4px;min-width:120px">' + escapeHtml(reviewerName) + '</strong><small>Reviewed / Approved by</small></div>' : '') + '</section>' : '') +
+    (showPrintFooter ? '<footer class="report-footer" style="grid-template-columns:' + footerGridColumns + '"><div class="footer-left">' + footerAddresses + '</div>' + footerCenterMarkup + '<div class="footer-right">' + footerContacts + '</div>' + (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</footer>' : '') + '</body></html>';
   const reportHtml = partialReport
-    ? html.replace('<section class="report-cover-meta">','<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">تقرير جزئي — بعض النتائج لم تصدر بعد. هذه النسخة لا تمثل اعتمادًا نهائيًا للزيارة.</div><section class="report-cover-meta">')
+    ? html.replace('<section class="report-cover-meta">','<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">PARTIAL REPORT — some results are not yet available. This is not a final approved visit report.</div><section class="report-cover-meta">')
     : html;
   state.reportPreviewHtml.set(visitId,reportHtml);
   win.document.open(); win.document.write(reportHtml); win.document.close();
@@ -1148,14 +1193,50 @@ async function publish(button) {
     await Promise.all([...reportWindow.document.images].map(img=>img.decode?.().catch(()=>null)));
     await new Promise(resolve=>setTimeout(resolve,180));
     await ensureHtml2Pdf();
-    const pdfBlob=await window.html2pdf().set({
-      margin:0,
+    await ensureHtml2Canvas();
+    const reportBody=reportWindow.document.body;
+    const pageTop=Number(reportBody.dataset.pageTopMargin)||46;
+    const pageBottom=Number(reportBody.dataset.pageBottomMargin)||24;
+    const pageSide=Number(reportBody.dataset.pageSideMargin)||12;
+    const headerNode=reportWindow.document.querySelector('.report-header');
+    const footerNode=reportWindow.document.querySelector('.report-footer');
+    const rasterize=async node=>node&&typeof window.html2canvas==='function'
+      ? window.html2canvas(node,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false})
+      : null;
+    const [headerCanvas,footerCanvas]=await Promise.all([rasterize(headerNode),rasterize(footerNode)]);
+    const worker=window.html2pdf().set({
+      margin:[pageTop,pageSide,pageBottom,pageSide],
       filename:`taiba-report-${visitId}.pdf`,
       image:{type:'jpeg',quality:0.98},
-      html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',scrollY:0},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',scrollY:0,
+        onclone:cloned=>cloned.querySelectorAll('.report-header,.report-footer,.preview-controls').forEach(node=>node.style.display='none')},
+      jsPDF:{unit:'mm',format:String(reportBody.dataset.pageSize||'a4').toLowerCase(),orientation:reportBody.dataset.pageOrientation||'portrait'},
       pagebreak:{mode:['css','legacy']}
-    }).from(reportWindow.document.body).outputPdf('blob');
+    }).from(reportBody).toPdf();
+    const pdf=await worker.get('pdf');
+    const totalPages=pdf.internal.getNumberOfPages();
+    const pageWidth=pdf.internal.pageSize.getWidth(),pageHeight=pdf.internal.pageSize.getHeight();
+    const contentWidth=pageWidth-(pageSide*2);
+    for(let page=1;page<=totalPages;page++){
+      pdf.setPage(page);
+      if(headerCanvas){
+        const maxHeaderHeight=Math.max(8,pageTop-3);
+        const ratio=headerCanvas.width/headerCanvas.height;
+        const imageWidth=Math.min(contentWidth,maxHeaderHeight*ratio);
+        const imageHeight=imageWidth/ratio;
+        pdf.addImage(headerCanvas.toDataURL('image/png'),'PNG',pageSide,2,imageWidth,imageHeight);
+      }
+      if(footerCanvas){
+        const maxFooterHeight=Math.max(7,pageBottom-5);
+        const ratio=footerCanvas.width/footerCanvas.height;
+        const imageWidth=Math.min(contentWidth,maxFooterHeight*ratio);
+        const imageHeight=imageWidth/ratio;
+        pdf.addImage(footerCanvas.toDataURL('image/png'),'PNG',pageSide,pageHeight-imageHeight-4,imageWidth,imageHeight);
+      }
+      pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(40);
+      pdf.text(`Page ${page} of ${totalPages}`,pageWidth-pageSide,pageHeight-2,{align:'right'});
+    }
+    const pdfBlob=pdf.output('blob');
     if(!(pdfBlob instanceof Blob)||pdfBlob.size<1000)throw new Error('تعذر إنشاء ملف PDF صالح من معاينة التقرير.');
     const file=new File([pdfBlob],`taiba-report-${visitId}.pdf`,{type:'application/pdf'});
     await publishReportVersion({tenantId:state.tenant.id,branchId:state.branch.id,visitId,staffId:$('staffSelect').value,file,changeReason:reason,isPartial:partial});

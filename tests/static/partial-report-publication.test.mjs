@@ -30,7 +30,7 @@ test('browser and Edge Function route partial publication explicitly and keep fi
 test('partial printing includes saved results from incomplete tests and never invents missing ranges', () => {
   assert.match(workbench, /const hasSavedResults = rows\.length > 0/);
   assert.match(workbench, /rows\.some\(row => row\.visit_test_id === item\.id\)/);
-  assert.match(workbench, /تقرير جزئي — بعض النتائج لم تصدر بعد/);
+  assert.match(workbench, /PARTIAL REPORT — only completed tests are shown/);
   assert.match(workbench, /return '';/);
   assert.match(workbench, /state\.portalEnabled && hasAnySavedResults/);
   assert.match(workbench, /functions\.invoke\('patient-portal-config'/);

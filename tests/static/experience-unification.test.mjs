@@ -63,10 +63,11 @@ test('clinical result entry queues drafts and local approval while keeping final
   assert.match(repository, /entityType:'visit_approval'/);
   assert.match(ui, /اعتماد محلي/);
   assert.match(ui, /النشر النهائي يظل خطوة منفصلة/);
-  assert.match(ui, /طباعة مسودة غير معتمدة/);
-  assert.match(ui, /لا تُسلّم باعتبارها تقريرًا نهائيًا/);
+  assert.match(ui, /Print work copy — not approved/);
+  assert.match(ui, /Not a final report/);
   assert.match(ui, /reportPreviewHtml\.set/);
-  assert.match(ui, /outputPdf\('blob'\)/);
+  assert.match(ui, /pdf\.output\('blob'\)/);
+  assert.match(ui, /\.toPdf\(\)/);
   assert.match(ui, /publishReportVersion/);
   assert.doesNotMatch(ui, /data-report-file/);
   assert.match(repository, /save_draft_results_idempotent/);
