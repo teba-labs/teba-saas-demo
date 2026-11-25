@@ -15,8 +15,8 @@ test('workday open, expense and close are queued locally with safe dependencies'
   assert.match(repository,/entityType:'workday_close'/);
   assert.match(repository,/pendingBranchOperationIds/);
   assert.match(repository,/dependsOn/);
-  assert.match(ui,/openDay').disabled=open\|\|!state\.staff\.length/);
-  assert.match(ui,/closeDay').disabled=!open\|\|!state\.staff\.length/);
+  assert.match(ui,/openDay'\)\.disabled=open\|\|!state\.staff\.length/);
+  assert.match(ui,/closeDay'\)\.disabled=!open\|\|!state\.staff\.length/);
   assert.match(ui,/latestPending\.total&&navigator\.onLine!==false/);
   assert.match(adapters,/workday_open: async operation/);
   assert.match(adapters,/workday_close: async operation/);
