@@ -227,12 +227,14 @@ export function createSupabaseSyncHandlers() {
         if(Number.isInteger(status)&&status>=400&&status<500)return {conflict:true,reason:error.message||'The server rejected the delivery event.'};
         throw error;
       }
-      const key=`delivery:${operation.tenant_id}:${operation.branch_id}:${p.local_visit_id||p.visit_id}`;
-      const existing=await offlineDb.sync_meta.get(key);
+      const localKey=`delivery:${operation.tenant_id}:${operation.branch_id}:${p.local_visit_id||p.visit_id}`;
+      const key=`delivery:${operation.tenant_id}:${operation.branch_id}:${visitId}`;
+      const existing=await offlineDb.sync_meta.get(localKey);
       await offlineDb.sync_meta.put({...existing,key,tenant_id:operation.tenant_id,branch_id:operation.branch_id,
-        visit_id:p.local_visit_id||p.visit_id,operation_id:operation.operation_id,delivery_status:'synced',
+        visit_id,operation_id:operation.operation_id,delivery_status:'synced',
         delivery_method:p.delivery_method,delivered_at:p.delivered_at,staff_id:p.staff_id,
         server_event_id:data?.event_id||operation.operation_id,copy_type:data?.copy_type||null});
+      if(localKey!==key)await offlineDb.sync_meta.delete(localKey);
       const localVisit=await offlineDb.visits.get(p.local_visit_id||p.visit_id);
       if(localVisit)await offlineDb.visits.put({...localVisit,local_delivery_status:'synced',local_delivery_method:p.delivery_method,local_delivery_at:p.delivered_at});
       return {acknowledged:true,resultId:data?.event_id||operation.operation_id};
