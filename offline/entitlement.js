@@ -43,15 +43,13 @@ async function deviceKeyThumbprint(jwk) {
   return base64Url(await crypto.subtle.digest('SHA-256', encoder.encode(canonical)));
 }
 async function assertMonotonicDeviceClock(device) {
-  const key=`offline-clock:${device.device_id}`;
   const now=Date.now();
-  const previous=await offlineDb.sync_meta.get(key);
-  const last=Date.parse(previous?.last_seen_at||'');
+  const last=Date.parse(device.last_seen_at||'');
   if(Number.isFinite(last)&&now+5*60*1000<last){
     throw new Error('ساعة الجهاز رجعت إلى وقت سابق؛ اضبط التاريخ والوقت قبل متابعة العمل أوف لاين.');
   }
   if(!Number.isFinite(last)||now-last>=60*60*1000){
-    await offlineDb.sync_meta.put({key,device_id:device.device_id,last_seen_at:new Date(now).toISOString()});
+    await offlineDb.device_identity.put({...device,last_seen_at:new Date(now).toISOString()});
   }
 }
 async function proveDeviceKey(device) {
