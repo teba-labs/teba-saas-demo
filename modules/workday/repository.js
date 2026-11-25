@@ -38,8 +38,8 @@ export async function openWorkday({tenantId,branchId,workDate,staffId}={}) {
   if (globalThis.navigator?.onLine === false) return queueWorkdayOpen({tenantId,branchId,workDate,staffId});
   const {data,error}=await db().rpc(RPC.openBranchWorkday,{p_tenant_id:tenantId,p_branch_id:branchId,p_work_date:workDate,p_staff_id:staffId});
   if(error) { if(isNetworkError(error)) return queueWorkdayOpen({tenantId,branchId,workDate,staffId}); throw error; }
-  const current=await getCurrentWorkday({tenantId,branchId});
-  return current ?? data;
+  const refreshedWorkday=await getCurrentWorkday({tenantId,branchId});
+  return refreshedWorkday ?? data;
 }
 
 async function pendingBranchOperationIds(tenantId,branchId) {
