@@ -9,6 +9,7 @@ const css=readFileSync(path.join(root,'website/site.css'),'utf8');
 const ui=readFileSync(path.join(root,'website/public-site-ui.js'),'utf8');
 const workflow=readFileSync(path.join(root,'.github/workflows/public-website-preview.yml'),'utf8');
 const migration=readFileSync(path.join(root,'database/migrations/113_public_site_booking_requests.sql'),'utf8');
+const hardening=readFileSync(path.join(root,'database/migrations/114_public_site_request_privilege_hardening.sql'),'utf8');
 const edge=readFileSync(path.join(root,'supabase/functions/submit-site-request/index.ts'),'utf8');
 const repository=readFileSync(path.join(root,'website/cms-repository.js'),'utf8');
 const studio=readFileSync(path.join(root,'app/cms-editor.html'),'utf8');
@@ -60,6 +61,8 @@ test('public request data is private to the tenant owner and rate limited',()=>{
   assert.match(migration,/revoke all on table public\.site_booking_requests from public, anon/i);
   assert.match(migration,/consume_site_request_attempt/);
   assert.doesNotMatch(migration,/grant .* to anon/i);
+  assert.match(hardening,/revoke all on table public\\.site_booking_requests from public, anon, authenticated/i);
+  assert.match(hardening,/grant select, update on table public\\.site_booking_requests to authenticated/i);
 });
 test('website studio can review requests and update status without deleting them',()=>{
   assert.match(studio,/id="view-requests"/);
