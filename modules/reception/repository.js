@@ -87,8 +87,8 @@ export async function createPatient({ tenantId, branchId, patient } = {}) {
   };
   const queue = async () => {
     const operationId = uuid();
-    await cacheScopedPatient(payload);
     await enqueueOperation({ tenantId, branchId, entityType: 'patients', action: 'create', operationId, payload, priority: 1 });
+    await cacheScopedPatient(payload);
     return { ...payload, pendingOperationId: operationId, offline_pending: true };
   };
   if (globalThis.navigator?.onLine === false) return queue();
