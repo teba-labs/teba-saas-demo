@@ -13,7 +13,8 @@ test('legacy announcement ticker is imported, editable and independently switcha
  assert.match(editor,/announcement_messages/);
  assert.match(editor,/announcement_enabled/);
  assert.match(page,/announcementBar/);
- assert.match(page,/announcementMessages\.join/);
+ assert.match(page,/announcementMessages\.forEach/);
+ assert.match(page,/announcementText\.appendChild\(track\)/);
  assert.match(migration,/t\.slug='teba-labs'/);
  assert.match(migration,/announcement_messages/);
  assert.match(migration,/announcement_enabled/);
