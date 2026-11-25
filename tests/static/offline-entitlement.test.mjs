@@ -25,6 +25,8 @@ test('entitlement is scoped to tenant, branch, user, device and a P-256 device k
   assert.match(client, /tenant_id/);
   assert.match(client, /branch_id/);
   assert.match(client, /device_key_thumbprint/);
+  assert.match(client, /assertMonotonicDeviceClock/);
+  assert.match(client, /last_seen_at/);
   assert.match(client, /proveDeviceKey/);
   assert.match(edge, /tenant_memberships/);
   assert.match(edge, /branch_memberships/);
