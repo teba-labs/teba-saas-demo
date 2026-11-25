@@ -17,3 +17,7 @@ verify_jwt = true
 
 [functions.patient-portal-config]
 verify_jwt = false
+
+# Public home-sampling and package inquiry submission endpoint.
+[functions.submit-site-request]
+verify_jwt = false
