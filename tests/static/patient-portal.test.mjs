@@ -5,6 +5,9 @@ import { readFile } from 'node:fs/promises';
 const edge = await readFile(new URL('../../supabase/functions/patient-portal-lookup/index.ts', import.meta.url), 'utf8');
 const page = await readFile(new URL('../../portal/index.html', import.meta.url), 'utf8');
 const client = await readFile(new URL('../../portal/lookup.js', import.meta.url), 'utf8');
+const resultsWorkbench = await readFile(new URL('../../assets/js/results-workbench.js', import.meta.url), 'utf8');
+const portalConfig = await readFile(new URL('../../supabase/functions/patient-portal-config/index.ts', import.meta.url), 'utf8');
+const publishFunction = await readFile(new URL('../../supabase/functions/publish-report/index.ts', import.meta.url), 'utf8');
 const migration = await readFile(new URL('../../database/migrations/002_patient_portal_hardening.sql', import.meta.url), 'utf8');
 const atomicLimiter = await readFile(new URL('../../database/migrations/016_atomic_patient_portal_rate_limit.sql', import.meta.url), 'utf8');
 const supabaseConfig = await readFile(new URL('../../supabase/config.toml', import.meta.url), 'utf8');
@@ -62,4 +65,24 @@ test('portal rate limiting is atomic and callable only by the Edge service role'
   assert.match(atomicLimiter, /v_ip_count >= 20/);
   assert.match(atomicLimiter, /revoke all on function public\.consume_patient_portal_attempt\(uuid,text,text\) from public, anon, authenticated/i);
   assert.match(atomicLimiter, /grant execute on function public\.consume_patient_portal_attempt\(uuid,text,text\) to service_role/i);
+});
+
+
+test('patient portal functions allow the deployed GitHub Pages origin without an unprovisioned allowlist secret', () => {
+  assert.match(portalConfig, /https:\/\/teba-labs\.github\.io/);
+  assert.match(portalConfig, /settings\.enabled = settings\.enabled === true/);
+  assert.match(edge, /https:\/\/teba-labs\.github\.io/);
+  assert.match(edge, /SUPABASE_SECRET_KEYS/);
+  assert.match(edge, /PORTAL_HASH_SECRET/);
+  assert.match(publishFunction, /https:\/\/teba-labs\.github\.io/);
+  assert.match(publishFunction, /REPORT_ALLOWED_ORIGINS/);
+});
+
+test('final published reports can open a WhatsApp message with patient and visit lookup details', () => {
+  assert.match(resultsWorkbench, /share-published-report/);
+  assert.match(resultsWorkbench, /sharePublishedReport/);
+  assert.match(resultsWorkbench, /اسم المريض:/);
+  assert.match(resultsWorkbench, /رقم الزيارة:/);
+  assert.match(resultsWorkbench, /https:\/\/wa\.me\//);
+  assert.match(resultsWorkbench, /portalUrl\.href/);
 });
