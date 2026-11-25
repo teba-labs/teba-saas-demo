@@ -33,7 +33,8 @@ async function refreshPreparationStatus() {
   const counts = report.counts || {};
   const limit = report.truncated?.patient_directory || report.truncated?.worklist
     ? ' · توجد بيانات تجاوزت حد التحميل الموضح أدناه' : '';
-  $('offlinePreparationStatus').textContent = `آخر تهيئة: ${when} · المرضى: ${counts.patients ?? 0} · التحاليل: ${counts.catalog_tests ?? 0} · بارامترات: ${counts.parameters ?? 0} · عناصر قائمة العمل: ${counts.worklist ?? 0} · النتائج: ${counts.results ?? 0}${limit}`;
+  const issues = Array.isArray(report.issues) && report.issues.length ? ` · غير جاهز: ${report.issues.join('؛ ')}` : ' · جاهز للعمل دون اتصال حسب البيانات المحفوظة';
+  $('offlinePreparationStatus').textContent = `آخر تهيئة: ${when} · المرضى: ${counts.patients ?? 0}/${counts.patients_available ?? counts.patients ?? 0} · التحاليل: ${counts.catalog_tests ?? 0} · أسعار ناقصة: ${counts.tests_without_current_price ?? 0} · بارامترات: ${counts.parameters ?? 0} · عناصر قائمة العمل: ${counts.worklist ?? 0}/${counts.worklist_available ?? counts.worklist ?? 0} · النتائج: ${counts.results ?? 0}${limit}${issues}`;
 }
 async function runOfflinePreparation() {
   if (!state.tenant || !state.branch || state.preparing) return;
