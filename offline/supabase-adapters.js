@@ -3,6 +3,23 @@ import { cacheRows } from './cache.js';
 import { getSupabaseClient } from '../core/supabase-client.js';
 
 const db = () => getSupabaseClient();
+async function removeLocalLedgerRow(id) {
+  if (id) await offlineDb.financial_ledger.delete(id);
+}
+async function getServerWorkday(tenantId, branchId, workDate) {
+  return db().from('branch_workdays')
+    .select('id,tenant_id,branch_id,work_date,status,opened_at,opened_by_staff_id')
+    .eq('tenant_id',tenantId).eq('branch_id',branchId).eq('work_date',workDate)
+    .eq('status','open').maybeSingle();
+}
+function sameClosingSnapshot(actual, expected) {
+  if (!actual || !expected) return false;
+  const close = (a,b) => Math.abs(Number(a ?? 0)-Number(b ?? 0)) < 0.011;
+  return close(actual.collected,expected.collected)
+    && close(actual.expenses,expected.expenses)
+    && close(actual.net_cash,expected.net_cash)
+    && (expected.movement_count == null || Number(actual.movement_count ?? actual.rows_count ?? -1) === Number(expected.movement_count));
+}
 const isBusinessConflict = (error, pattern) => pattern.test(String(error?.message || error || ''));
 const throwUnlessConflict = (error, pattern) => {
   if (isBusinessConflict(error, pattern)) return { conflict: true, reason: String(error.message || error) };
@@ -172,18 +189,76 @@ export function createSupabaseSyncHandlers() {
       // The full server worklist rows were cached above; local aliases can now be removed safely.
       if (p.local_visit_id) await offlineDb.visits.delete(p.local_visit_id);
       for (const local of localRows) await offlineDb.visit_tests.delete(local.id);
+      await removeLocalLedgerRow(p.local_ledger_id);
       return { acknowledged: true, resultId: data };
+    },
+    workday_open: async operation => {
+      const p=operation.payload;
+      let {data,error}=await db().rpc('open_branch_workday',{
+        p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
+        p_work_date:p.work_date,p_staff_id:p.staff_id,
+      });
+      if(error){
+        const existing=await getServerWorkday(operation.tenant_id,operation.branch_id,p.work_date);
+        if(existing.error)throw error;
+        if(!existing.data||existing.data.opened_by_staff_id!==p.staff_id)throw error;
+        data=existing.data.id;
+      }
+      const current=await getServerWorkday(operation.tenant_id,operation.branch_id,p.work_date);
+      if(current.error)throw current.error;
+      if(!current.data)throw new Error('Server did not confirm the opened workday.');
+      await cacheRows('workdays',[current.data]);
+      if(p.local_workday_id)await offlineDb.workdays.delete(p.local_workday_id);
+      return {acknowledged:true,resultId:current.data.id||data};
+    },
+    workday_close: async operation => {
+      const p=operation.payload;
+      const {data,error}=await db().rpc('close_branch_workday',{
+        p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
+        p_work_date:p.work_date,p_staff_id:p.staff_id,
+      });
+      const existing=await db().from('daily_closings')
+        .select('id,tenant_id,branch_id,work_date,closing_snapshot,closed_at,status')
+        .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id)
+        .eq('work_date',p.work_date).maybeSingle();
+      if(existing.error)throw error||existing.error;
+      if(!existing.data) {
+        if(error)throw error;
+        throw new Error('The close RPC returned without a confirmed daily closing row.');
+      }
+      if(!sameClosingSnapshot(existing.data.closing_snapshot,p.expected_snapshot)) {
+        return {conflict:true,reason:'The server closing snapshot differs from the locally confirmed cash summary.',serverSnapshot:existing.data.closing_snapshot};
+      }
+      await cacheRows('daily_closings',[existing.data]);
+      if(p.local_closing_id)await offlineDb.daily_closings.delete(p.local_closing_id);
+      if(p.local_workday_id)await offlineDb.workdays.delete(p.local_workday_id);
+      return {acknowledged:true,resultId:existing.data.id||data};
     },
     payment: async operation => {
       const p = operation.payload;
+      let visitId=p.visit_id;
+      if(p.local_visit_pending){
+        let mapping=null;
+        for(const dependency of operation.depends_on||[]){
+          const candidate=await offlineDb.sync_meta.get(`visit-map:${dependency}`);
+          if(candidate?.local_visit_id===visitId){mapping=candidate;break;}
+        }
+        if(!mapping){
+          const maps=await offlineDb.sync_meta.toArray();
+          mapping=maps.find(row=>row.tenant_id===operation.tenant_id&&row.branch_id===operation.branch_id&&row.local_visit_id===visitId&&row.server_visit_id);
+        }
+        if(!mapping?.server_visit_id)throw new Error('Payment is waiting for its locally created visit to synchronize.');
+        visitId=mapping.server_visit_id;
+      }
       const { data, error } = await db().rpc('record_patient_payment', {
-        p_tenant_id: operation.tenant_id, p_visit_id: p.visit_id,
+        p_tenant_id: operation.tenant_id, p_visit_id: visitId,
         p_amount: p.amount, p_payment_method: p.payment_method ?? 'cash',
         p_idempotency_key: operation.operation_id, p_staff_id: p.staff_id,
         p_notes: p.notes ?? null,
       });
       if (error) return throwUnlessConflict(error, /open the (?:collecting )?branch workday|workday.*open|remaining balance|active staff|invalid payment amount|visit not accessible|visit not found for this tenant|visit billing not found|idempotency key reused|payment collection branch is not accessible|branch not accessible/i);
       if (!data) throw new Error('Server returned no payment ID.');
+      await removeLocalLedgerRow(p.local_ledger_id);
       return { acknowledged: true, resultId: data };
     },
     expense: async operation => {
@@ -196,6 +271,7 @@ export function createSupabaseSyncHandlers() {
       });
       if (error) return throwUnlessConflict(error, /open the branch workday|workday.*open|active staff|expense category unavailable|invalid expense amount|idempotency key reused|branch not accessible/i);
       if (!data) throw new Error('Server returned no expense ID.');
+      await removeLocalLedgerRow(p.local_ledger_id);
       return { acknowledged: true, resultId: data };
     },
   };
