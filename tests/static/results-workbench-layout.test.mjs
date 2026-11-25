@@ -68,6 +68,8 @@ test('individual and profile result forms open in an accessible same-screen moda
  assert.match(layout,/node\.addEventListener\('input'/);
  assert.match(js,/window\.taibaSaveAndMaybeApproveVisit = saveAndMaybeApproveVisit/);
  assert.match(js,/approveVisitWithAutoCompletion/);
+ assert.match(js,/approval\?\.is_published \|\| approval\?\.status === 'published'/);
+ assert.match(js,/لا حاجة لإعادة اعتمادها/);
  assert.match(js,/saveAndMaybeApproveVisit/);
  assert.match(js,/completeVisitTestAtomic/);
  assert.match(js,/partialReport/);
