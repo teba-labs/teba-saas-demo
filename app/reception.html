@@ -65,8 +65,7 @@
                   <div class="form-grid patient-fields">
                     <label for="patientName">اسم المريض <b>*</b><input id="patientName" maxlength="160" required autocomplete="off" placeholder="الاسم بالكامل"></label>
                     <label for="patientPhone">رقم الهاتف (اختياري)<input id="patientPhone" type="tel" inputmode="tel" maxlength="30" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
-                    <label for="patientAge">العمر <b>*</b><input id="patientAge" type="number" min="0" step="any" inputmode="decimal" required placeholder="اكتب العمر"></label>
-                    <label for="patientAgeUnit">وحدة العمر <b>*</b><select id="patientAgeUnit" required><option value="years">سنة</option><option value="months">شهر</option><option value="days">يوم</option></select></label>
+                    <label for="patientAge">العمر <b>*</b><span class="age-control"><input id="patientAge" type="number" min="0" step="any" inputmode="decimal" required placeholder="اكتب العمر"><select id="patientAgeUnit" aria-label="وحدة العمر" required><option value="" disabled selected>الوحدة</option><option value="years">سنة</option><option value="months">شهر</option><option value="days">يوم</option></select></span></label>
                     <label for="patientDob">تاريخ الميلاد (اختياري)<input id="patientDob" type="date" autocomplete="bday"><small class="field-hint">يمكن تركه فارغًا؛ العمر ووحدته مطلوبان.</small></label>
                     <label for="patientSex">النوع <b>*</b><select id="patientSex" required><option value="" disabled selected>اختر النوع</option><option value="male">ذكر</option><option value="female">أنثى</option><option value="unknown">غير محدد</option></select></label>
                   </div>
