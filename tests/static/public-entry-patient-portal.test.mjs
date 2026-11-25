@@ -15,7 +15,7 @@ const [site, siteClient, reception, results, portalPage, portalClient, lookupEdg
 ]);
 
 test('public site adds only a role chooser and preserves the public-site content', () => {
-  assert.match(site, /id="portalLink"[^>]*>تسجيل الدخول/);
+  assert.match(site, /id="portalLink"[^>]*>استلام النتائج/);
   assert.match(site, /id="accessDialog"/);
   assert.match(site, /id="employeeAccess"/);
   assert.match(site, /id="ownerAccess"/);
