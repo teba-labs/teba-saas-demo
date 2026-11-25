@@ -43,6 +43,7 @@ const result = document.querySelector('[data-portal-result]');
 const link = document.querySelector('[data-portal-download]');
 const labName = document.querySelector('[data-portal-lab]');
 const partialNotice = document.querySelector('[data-portal-partial]');
+const publicSiteLink = document.getElementById('publicSiteLink');
 
 function showMessage(message, kind = 'info') {
   status.textContent = message;
@@ -54,6 +55,12 @@ form?.querySelector('[name="slug"]')?.addEventListener('blur', event => loadPort
 const initialSlug = String(new URLSearchParams(window.location.search).get('lab') || '').trim().toLowerCase();
 const slugInput = form?.querySelector('[name="slug"]');
 if (slugInput) slugInput.value = initialSlug;
+if (initialSlug && publicSiteLink) {
+  const siteUrl = new URL('../website/index.html', window.location.href);
+  siteUrl.searchParams.set('lab', initialSlug);
+  publicSiteLink.href = siteUrl.href;
+  publicSiteLink.hidden = false;
+}
 if (initialSlug) {
   loadPortalConfig(initialSlug);
 } else {
