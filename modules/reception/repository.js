@@ -39,6 +39,26 @@ export async function findPatients({ tenantId, branchId, search, limit = 30 } = 
   return result;
 }
 
+/** Cache the selected branch's patient directory in bounded pages for offline search. */
+export async function warmBranchPatients({ tenantId, branchId, maxRows = 10000 } = {}) {
+  need(tenantId, 'tenantId'); need(branchId, 'branchId');
+  if (globalThis.navigator?.onLine === false) throw new Error('تحميل دليل المرضى يحتاج اتصالًا بالإنترنت.');
+  const safeMax = Math.min(50000, Math.max(500, Math.floor(Number(maxRows) || 10000)));
+  const columns = 'id, tenant_id, branch_id, patient_number, full_name, phone, date_of_birth, age_years, age_value, age_unit, sex, created_at';
+  const rows = [];
+  for (let offset = 0; offset < safeMax; offset += 500) {
+    const end = Math.min(offset + 499, safeMax - 1);
+    const { data, error } = await db().from(TABLES.patients)
+      .select(columns).eq('tenant_id', tenantId).eq('branch_id', branchId)
+      .order('full_name').order('id').range(offset, end);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if ((data || []).length < 500) break;
+  }
+  await cacheRows('patients', rows);
+  return { cachedRows: rows.length, truncated: rows.length === safeMax };
+}
+
 export async function createPatient({ tenantId, branchId, patient } = {}) {
   need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(patient?.fullName, 'patient.fullName');
   const ageUnit = ['days','months','years'].includes(patient.ageUnit) ? patient.ageUnit : 'years';
