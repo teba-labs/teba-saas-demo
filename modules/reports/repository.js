@@ -1,6 +1,50 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
+import { getCurrentSession } from '../../core/auth/session.js';
+import { enqueueOperation } from '../../offline/outbox.js';
+import { offlineDb } from '../../offline/database.js';
+import { cacheRows, getCachedRows } from '../../offline/cache.js';
 const db = () => getSupabaseClient();
 const need = (v, n) => { if (!v) throw new Error(`${n} is required.`); };
+
+export async function recordLocalWorkCopyDelivery({tenantId,branchId,visitId,staffId,deliveryMethod='printed_work_copy'}={}){
+  if(!tenantId||!branchId||!visitId||!staffId)throw new Error('Tenant, branch, visit and staff are required to record delivery.');
+  if(deliveryMethod!=='printed_work_copy')throw new Error('Only a printed work-copy handoff can be recorded from this workflow.');
+  const session=await getCurrentSession();
+  if(!session?.user?.id)throw new Error('تعذر تحديد المستخدم الذي سجل التسليم.');
+  let visit=(await getCachedRows('visits',{tenantId,branchId})).find(row=>row.id===visitId);
+  if(!visit&&globalThis.navigator?.onLine!==false){
+    const {data,error}=await db().from(TABLES.visits).select('id,tenant_id,branch_id,status,is_published')
+      .eq('tenant_id',tenantId).eq('branch_id',branchId).eq('id',visitId).maybeSingle();
+    if(error)throw error;
+    visit=data;
+    if(visit)await cacheRows('visits',[visit]);
+  }
+  if(!visit)throw new Error('بيانات الزيارة غير محفوظة محليًا؛ افتح الزيارة أثناء الاتصال أولًا.');
+  const operationId=crypto.randomUUID(),deliveredAt=new Date().toISOString();
+  const payload={visit_id:visitId,local_visit_id:visitId,local_visit_pending:Boolean(visit.local_intake_operation_id),
+    staff_id:staffId,actor_user_id:session.user.id,delivery_method:deliveryMethod,delivered_at:deliveredAt};
+  const queue=async()=>{
+    const pending=await offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray();
+    const dependsOn=pending.map(row=>row.operation_id);
+    if(visit.local_intake_operation_id&&!dependsOn.includes(visit.local_intake_operation_id))dependsOn.push(visit.local_intake_operation_id);
+    await enqueueOperation({tenantId,branchId,entityType:'report_delivery',action:'record',operationId,payload,dependsOn,priority:80});
+    await offlineDb.sync_meta.put({key:`delivery:${tenantId}:${branchId}:${visitId}`,tenant_id:tenantId,branch_id:branchId,visit_id:visitId,
+      operation_id:operationId,delivery_status:'pending_sync',delivery_method:deliveryMethod,delivered_at:deliveredAt,staff_id:staffId});
+    await cacheRows('visits',[{...visit,local_delivery_status:'pending_sync',local_delivery_method:deliveryMethod,local_delivery_at:deliveredAt}]);
+    return {queued:true,operationId,deliveredAt};
+  };
+  if(globalThis.navigator?.onLine===false||visit.local_intake_operation_id)return queue();
+  const {data,error}=await db().functions.invoke('record-local-delivery',{body:{...payload,operation_id:operationId,tenant_id:tenantId,branch_id:branchId}});
+  if(error){
+    if(/fetch|network|offline/i.test(error.message||'')||globalThis.navigator?.onLine===false)return queue();
+    throw error;
+  }
+  await offlineDb.sync_meta.put({key:`delivery:${tenantId}:${branchId}:${visitId}`,tenant_id:tenantId,branch_id:branchId,visit_id:visitId,
+    operation_id:operationId,delivery_status:'synced',delivery_method:deliveryMethod,delivered_at:deliveredAt,staff_id:staffId,
+    server_event_id:data?.event_id||operationId,copy_type:data?.copy_type||null});
+  await cacheRows('visits',[{...visit,local_delivery_status:'synced',local_delivery_method:deliveryMethod,local_delivery_at:deliveredAt}]);
+  return data;
+}
 
 export async function listReportVersions({ tenantId, visitId } = {}) {
   need(tenantId, 'tenantId'); need(visitId, 'visitId');
