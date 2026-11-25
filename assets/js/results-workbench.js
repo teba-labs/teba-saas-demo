@@ -719,8 +719,11 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     (websiteUrl ? '<div>Website: <a href="' + escapeHtml(websiteUrl) + '">' + escapeHtml(websiteUrl) + '</a></div>' : '') +
     (supportUrl ? '<div>Patient Portal: <a href="' + escapeHtml(supportUrl) + '">' + escapeHtml(supportUrl) + '</a></div>' : '');
   const footer = print.footerTextEn || print.footerText || lab.report_footer || '';
-  const footerGridColumns = '1fr 1fr';
-  const footerCenterMarkup = '';
+  const qrHtml = !localOffline && print.footerCenterMode === 'qr' && websiteUrl
+    ? '<a class="footer-qr" href="' + escapeHtml(websiteUrl) + '"><img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=' + encodeURIComponent(websiteUrl) + '" alt="Website QR"><small>Scan for website</small></a>' : '';
+  const centerFooter = print.footerCenterMode === 'message' && print.footerCenterMessage ? '<div class="footer-center-message">' + escapeHtml(print.footerCenterMessage) + '</div>' : qrHtml;
+  const footerGridColumns = centerFooter ? '1fr 90px 1fr' : '1fr 1fr';
+  const footerCenterMarkup = centerFooter ? '<div class="footer-center">' + centerFooter + '</div>' : '';
   const title = print.titleEn || 'Laboratory Test Results';
   const showPrintHeader = print.showHeader !== false;
   const showPrintFooter = print.showFooter !== false;
@@ -799,7 +802,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     '<section class="report-cover-meta"><h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></section>' +
     '<main class="report-pages">' + groupedTestSections + historicalSections + '</main>' +
     ((signature || stamp || reviewerName) ? '<section class="report-approval" style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:14px 0 8px">' + (signature ? '<div style="display:grid;gap:4px"><img style="max-width:130px;max-height:65px;object-fit:contain" src="' + escapeHtml(signature) + '" alt="Signature"><small>Authorized Signature</small></div>' : '') + (stamp ? '<div style="display:grid;gap:4px"><img style="max-width:100px;max-height:100px;object-fit:contain" src="' + escapeHtml(stamp) + '" alt="Laboratory stamp"><small>Laboratory Stamp</small></div>' : '') + (reviewerName ? '<div style="display:grid;gap:4px"><strong style="border-top:1px solid #111;padding-top:4px;min-width:120px">' + escapeHtml(reviewerName) + '</strong><small>Reviewed / Approved by</small></div>' : '') + '</section>' : '') +
-    (showPrintFooter ? '<footer class="report-footer"><div class="footer-left">' + footerAddresses + '</div><div class="footer-right">' + footerContacts + '</div>' + (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</footer>' : '') + '</body></html>';
+    (showPrintFooter ? '<footer class="report-footer" style="grid-template-columns:' + footerGridColumns + '"><div class="footer-left">' + footerAddresses + '</div>' + footerCenterMarkup + '<div class="footer-right">' + footerContacts + '</div>' + (footer ? '<div class="report-extra-footer">' + escapeHtml(footer) + '</div>' : '') + '</footer>' : '') + '</body></html>';
   const reportHtml = partialReport
     ? html.replace('<section class="report-cover-meta">','<div style="border:2px solid #b45309;background:#fff7ed;color:#7c2d12;padding:12px;margin:10px 0;text-align:center;font-weight:800">PARTIAL REPORT — some results are not yet available. This is not a final approved visit report.</div><section class="report-cover-meta">')
     : html;
