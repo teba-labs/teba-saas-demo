@@ -193,17 +193,29 @@ export async function listResultsForVisitTests({ tenantId, visitTestIds } = {}) 
 }
 
 /** Visit-only reference range overrides; the master catalog and frozen visit identity remain untouched. */
-export async function listVisitParameterRangeOverrides({ tenantId, visitTestIds } = {}) {
+export async function listVisitParameterRangeOverrides({ tenantId, branchId, visitTestIds } = {}) {
   if (!tenantId || !Array.isArray(visitTestIds)) throw new Error('tenantId and visitTestIds are required.');
-  const ids=[...new Set(visitTestIds.filter(Boolean))];if(!ids.length||globalThis.navigator?.onLine===false)return [];
+  const ids=[...new Set(visitTestIds.filter(Boolean))];
+  if(!ids.length)return [];
+  const local=async()=>{
+    const rows=await offlineDb.sync_meta.toArray();
+    return rows.filter(row=>row.key?.startsWith('range-override:')&&row.tenant_id===tenantId
+      &&(!branchId||row.branch_id===branchId)&&ids.includes(row.visit_test_id))
+      .map(({key,...row})=>row);
+  };
+  if(globalThis.navigator?.onLine===false)return local();
   const rows=[];
   for(let start=0;start<ids.length;start+=100){
     const chunk=ids.slice(start,start+100);
-    const {data,error}=await db().from('visit_test_parameter_range_overrides')
-      .select('visit_test_id,parameter_code,reference_ranges,reason,updated_at')
+    let query=db().from('visit_test_parameter_range_overrides')
+      .select('tenant_id,branch_id,visit_test_id,parameter_code,reference_ranges,reason,updated_at')
       .eq('tenant_id',tenantId).in('visit_test_id',chunk);
-    if(error)throw error;rows.push(...(data||[]));
+    if(branchId)query=query.eq('branch_id',branchId);
+    const {data,error}=await query;
+    if(error){if(/fetch|network|offline/i.test(error.message||''))return local();throw error;}
+    rows.push(...(data||[]));
   }
+  for(const row of rows)await offlineDb.sync_meta.put({...row,key:`range-override:${row.visit_test_id}:${row.parameter_code}`});
   return rows;
 }
 export async function saveVisitParameterRangeOverride({tenantId,branchId,visitTestId,parameterCode,referenceRanges,staffId,reason}={}) {
