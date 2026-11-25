@@ -992,15 +992,21 @@ async function saveAndMaybeApproveVisit(visitId, testId = null) {
     return { saved: true, queued: true, completed: false };
   }
   try {
-    await approveVisitWithAutoCompletion({
+    const approval = await approveVisitWithAutoCompletion({
       tenantId: state.tenant.id,
       branchId: state.branch.id,
       visitId,
       staffId: $('staffSelect').value
     });
     state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
-    showNotice('تم حفظ النتيجة واعتماد الزيارة تلقائيًا بعد اكتمال كل النتائج المطلوبة. يمكنك معاينة التقرير الآن.');
-    return { saved: true, visitApproved: true, completed: !testId || state.work.some(item => item.id === testId && item.status === 'completed') };
+    if (approval?.is_published || approval?.status === 'published') {
+      showNotice('الزيارة معتمدة ومنشورة بالفعل؛ لا حاجة لإعادة اعتمادها. افتح المعاينة ثم أعد نشر النسخة المصححة بعد مراجعتها.');
+    } else if (approval?.status === 'approved') {
+      showNotice('الزيارة معتمدة بالفعل. تم حفظ التعديل؛ يمكنك معاينة التقرير ومتابعة النشر.');
+    } else {
+      showNotice('تم حفظ النتيجة واعتماد الزيارة تلقائيًا بعد اكتمال كل النتائج المطلوبة. يمكنك معاينة التقرير الآن.');
+    }
+    return { saved: true, visitApproved: true, alreadyApproved: approval?.status === 'approved' || approval?.status === 'published' || approval?.is_published === true, completed: !testId || state.work.some(item => item.id === testId && item.status === 'completed') };
   } catch (error) {
     const detail = error.message || 'تعذر إكمال اعتماد الزيارة.';
     const missingRequired = /required|missing|مفقود|ناقص|غير مكتمل/i.test(detail);
