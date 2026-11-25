@@ -5,12 +5,13 @@ import { getOutboxSummary, listOpenConflicts, retryConflictOperation, retryFaile
 import { createSupabaseSyncHandlers } from '../../offline/supabase-adapters.js';
 import { exportLocalBackup, restoreLocalBackup } from '../../offline/backup.js';
 import { getOfflineStorageHealth, requestPersistentOfflineStorage } from '../../offline/database.js';
+import { prepareOfflineBranch, getOfflinePreparationStatus } from '../../offline/prepare.js';
 
 const $ = id => document.getElementById(id);
-const state = { context: null, tenant: null, branch: null, syncing: false };
+const state = { context: null, tenant: null, branch: null, syncing: false, preparing: false };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function notice(message, error = false) { $('notice').textContent = message; $('notice').className = `notice show${error ? ' error' : ''}`; clearTimeout(notice.timer); notice.timer = setTimeout(() => $('notice').className = 'notice', 6500); }
-function updateConnection() { const online = navigator.onLine; $('connection').textContent = online ? 'متصل بالإنترنت' : 'غير متصل'; $('connection').className = `badge ${online ? 'online' : 'offline'}`; $('syncNow').disabled = !online || state.syncing || !state.branch; }
+function updateConnection() { const online = navigator.onLine; $('connection').textContent = online ? 'متصل بالإنترنت' : 'غير متصل'; $('connection').className = `badge ${online ? 'online' : 'offline'}`; $('syncNow').disabled = !online || state.syncing || state.preparing || !state.branch; $('prepareOffline').disabled = !online || state.syncing || state.preparing || !state.branch; }
 function formatBytes(value) { if (!Number.isFinite(value)) return 'غير متاح'; const units = ['بايت','KB','MB','GB']; let size = value, index = 0; while (size >= 1024 && index < units.length - 1) { size /= 1024; index++; } return `${size.toFixed(index ? 1 : 0)} ${units[index]}`; }
 async function refreshStorageHealth() {
   const health = await getOfflineStorageHealth();
@@ -20,6 +21,42 @@ async function refreshStorageHealth() {
   else if (health.supported) $('storageHealth').textContent = `التخزين الدائم لم يُمنح بعد. اطلب الحماية من المتصفح قبل الاعتماد الطويل على الأوف لاين. ${remaining}${usage}`;
   else $('storageHealth').textContent = `هذا المتصفح لا يتيح طلب التخزين الدائم. احتفظ بنسخ احتياطية محلية منتظمة. ${remaining}${usage}`;
   $('protectStorage').disabled = !health.supported || health.persistent;
+}
+async function refreshPreparationStatus() {
+  if (!state.tenant || !state.branch) return;
+  const report = await getOfflinePreparationStatus({ tenantId: state.tenant.id, branchId: state.branch.id });
+  if (!report) {
+    $('offlinePreparationStatus').textContent = 'لم تتم تهيئة هذا الفرع على هذا الجهاز بعد. نفّذ التهيئة أثناء الاتصال قبل فصل الإنترنت.';
+    return;
+  }
+  const when = report.prepared_at ? new Date(report.prepared_at).toLocaleString('ar-EG') : 'وقت غير متاح';
+  const counts = report.counts || {};
+  const limit = report.truncated?.patient_directory || report.truncated?.worklist
+    ? ' · توجد بيانات تجاوزت حد التحميل الموضح أدناه' : '';
+  $('offlinePreparationStatus').textContent = `آخر تهيئة: ${when} · المرضى: ${counts.patients ?? 0} · التحاليل: ${counts.catalog_tests ?? 0} · بارامترات: ${counts.parameters ?? 0} · عناصر قائمة العمل: ${counts.worklist ?? 0} · النتائج: ${counts.results ?? 0}${limit}`;
+}
+async function runOfflinePreparation() {
+  if (!state.tenant || !state.branch || state.preparing) return;
+  if (!navigator.onLine) { notice('تهيئة البيانات تحتاج اتصالًا بالإنترنت.', true); return; }
+  state.preparing = true; updateConnection();
+  $('offlinePreparationStatus').textContent = 'بدأ تجهيز بيانات الفرع…';
+  try {
+    const report = await prepareOfflineBranch({
+      tenantId: state.tenant.id,
+      branchId: state.branch.id,
+      onProgress: progress => { $('offlinePreparationStatus').textContent = progress.detail || progress.step; },
+    });
+    await refreshPreparationStatus();
+    await refresh();
+    notice(report.complete
+      ? 'اكتملت تهيئة البيانات الأساسية لهذا الفرع على الجهاز.'
+      : 'اكتملت التهيئة، لكن بعض بيانات المرضى أو قائمة العمل تجاوزت حد التحميل. راجع حالة التهيئة.');
+  } catch (error) {
+    notice(error.message || 'تعذرت تهيئة بيانات الأوف لاين.', true);
+    await refreshPreparationStatus().catch(() => {});
+  } finally {
+    state.preparing = false; updateConnection();
+  }
 }
 async function protectOfflineStorage() {
   try {
@@ -70,6 +107,7 @@ async function refresh() {
   $('conflicts').querySelectorAll('[data-retry-conflict]').forEach(button => button.addEventListener('click', () => retryConflict(button.dataset.retryConflict)));
   if (!summary.total) $('syncMessage').textContent = 'لا توجد عمليات محلية معلقة لهذا الفرع.';
   else $('syncMessage').textContent = `إجمالي العمليات المحلية: ${summary.total}. لا تُحذف أي عملية إلا بعد تأكيد الخادم.`;
+  await refreshPreparationStatus();
 }
 async function runSync() {
   if (state.syncing || !state.branch) return;
@@ -117,6 +155,6 @@ $('signOut').addEventListener('click', async () => { try { await signOut(); awai
 $('syncNow').addEventListener('click', runSync); $('refresh').addEventListener('click', () => refresh().catch(e => notice(e.message, true)));
 $('retryFailed').addEventListener('click', async () => { try { const count = await retryFailedOperations({ tenantId: state.tenant?.id, branchId: state.branch?.id }); notice(`تمت إعادة ${count} عملية إلى قائمة الانتظار.`); await refresh(); } catch (e) { notice(e.message, true); } });
 $('exportBackup').addEventListener('click', exportBackup); $('backupFile').addEventListener('change', e => importBackup(e.target.files?.[0]));
-$('protectStorage').addEventListener('click', protectOfflineStorage);
+$('protectStorage').addEventListener('click', protectOfflineStorage); $('prepareOffline').addEventListener('click', runOfflinePreparation);
 window.addEventListener('online', () => { updateConnection(); runSync(); }); window.addEventListener('offline', updateConnection);
 try { await start(); updateConnection(); if (navigator.onLine) runSync(); } catch (e) { notice(e.message || 'تعذر تهيئة مركز المزامنة.', true); }
