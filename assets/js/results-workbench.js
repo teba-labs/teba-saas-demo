@@ -538,16 +538,25 @@ function calculateLocalDerivedResults(item, rows) {
 }
 
 function formatReferenceRange(value) {
-  if (value === null || value === undefined || value === '') return '—';
-  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim() || '-';
+  if (Array.isArray(value)) return value.length === 1 ? formatReferenceRange(value[0]) : '-';
   if (typeof value === 'object') {
-    if (value.text) return String(value.text);
-    const low = value.low ?? value.min ?? value.lower;
-    const high = value.high ?? value.max ?? value.upper;
-    if (low !== undefined || high !== undefined) return (low ?? '—') + ' – ' + (high ?? '—');
-    return Object.entries(value).map(([key, item]) => key + ': ' + item).join(' · ');
+    if (value.text != null && String(value.text).trim()) return String(value.text).trim();
+    const low = value.lower ?? value.low ?? value.min;
+    const high = value.upper ?? value.high ?? value.max;
+    if (low !== undefined || high !== undefined) return (low ?? '-') + ' - ' + (high ?? '-');
   }
-  return '—';
+  return '-';
+}
+function normalizeReferenceRangePayload(value) {
+  if (typeof value !== 'string') return value;
+  const raw=value.trim();
+  if (!raw) return null;
+  if (raw.startsWith('{') || raw.startsWith('[')) {
+    try { return JSON.parse(raw); } catch { return raw; }
+  }
+  return raw;
 }
 
 async function loadHistoricalReportPicker(button){
@@ -689,7 +698,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
   const footerAddresses = branchAddressList.map(row => '<div><strong>' + escapeHtml(row.name) + ':</strong> ' + escapeHtml(row.address) + '</div>').join('');
   const footerGridColumns = centerFooter ? '1fr 120px 1fr' : '1fr 1fr';
   const footerCenterMarkup = centerFooter ? '<div class="footer-center">' + centerFooter + '</div>' : '';
-  const title = print.title || 'نتيجة الفحوصات الطبية';
+  const title = print.titleEn || print.title || 'Laboratory Test Results';
   const paper = print.paperSize === 'A5' ? 'A5' : 'A4';
   const orientation = print.orientation === 'landscape' ? 'landscape' : 'portrait';
   const margin = Math.min(30, Math.max(5, Number(print.margin) || 12));
@@ -723,20 +732,17 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
         }catch{}
       }
       const unit = result.unit_snapshot || parameter.unit || '';
-      const rawReference = result.reference_range_snapshot ?? parameter.reference_ranges;
-      const hasReference = Array.isArray(rawReference) ? rawReference.length > 0
-        : rawReference && typeof rawReference === 'object' ? Object.keys(rawReference).length > 0
-        : rawReference !== null && rawReference !== undefined && String(rawReference).trim() !== '';
-      const reference = hasReference ? resolveReferenceRange(rawReference, patient, parameter.reference_interval_status) : '';
+      const rawReference = normalizeReferenceRangePayload(result.reference_range_snapshot ?? parameter.reference_ranges);
+      const reference = resolveReferenceRange(rawReference, patient, parameter.reference_interval_status);
       const calculatedFlag=computeReferenceFlag(result.value_numeric,result.reference_range_snapshot ?? parameter.reference_ranges,patient.age_years,patient.sex,parameter.reference_interval_status,'numeric');
       const displayFlag=calculatedFlag || result.flag;
       const flag = displayFlag ? ' · ' + displayFlag : '';
-      return '<tr><td>' + escapeHtml(parameterName) + '</td><td>' + escapeHtml(value) + '</td><td>' + escapeHtml(unit) + '</td><td>' + escapeHtml(reference) + '</td><td>' + escapeHtml(flag) + '</td></tr>';
+      return '<tr><td class="parameter-cell">' + escapeHtml(parameterName) + '</td><td class="result-cell">' + escapeHtml(value) + '</td><td class="unit-cell">' + escapeHtml(unit) + '</td><td class="reference-cell">' + escapeHtml(reference || '-') + '</td><td class="flag-cell">' + escapeHtml(displayFlag || '-') + '</td></tr>';
     }).filter(Boolean).join('');
     const cultureHtml = cultureRows.isolates.filter(isolate=>isolate.visit_test_id===item.id).map(isolate=>{const ast=cultureRows.susceptibilities.filter(row=>row.isolate_id===isolate.id);const astLines=ast.map(row=>'<tr><td>'+escapeHtml(row.antimicrobial_agent)+'</td><td>'+escapeHtml(row.test_method)+'</td><td>'+escapeHtml(row.measured_value??'—')+' '+escapeHtml(row.measured_unit??'')+'</td><td>'+escapeHtml(row.interpretation)+'</td><td>'+escapeHtml(row.breakpoint_standard)+' '+escapeHtml(row.breakpoint_edition)+'</td><td>'+escapeHtml(row.qc_status)+'</td></tr>').join('');return '<h3>العزلة '+isolate.isolate_number+': '+escapeHtml(isolate.organism_name)+'</h3><p>النمو: '+escapeHtml(isolate.growth_description||'—')+' · العد: '+escapeHtml(isolate.colony_count??'—')+' '+escapeHtml(isolate.colony_count_unit)+' · التعريف: '+escapeHtml(isolate.identification_method||'—')+'</p><table><thead><tr><th>المضاد الحيوي</th><th>الطريقة</th><th>القيمة</th><th>التفسير</th><th>معيار/إصدار القطع</th><th>ضبط الجودة</th></tr></thead><tbody>'+(astLines||'<tr><td colspan="6">لا توجد نتائج حساسية مسجلة</td></tr>')+'</tbody></table>'+(isolate.notes?'<p>'+escapeHtml(isolate.notes)+'</p>':'');}).join('');
     const kind = item.technical_snapshot?.test_kind || item.tests_catalog?.test_kind || 'individual';
     const hasContent = Boolean(lines || cultureHtml);
-    return { kind, hasContent, html: '<section class="test ' + (kind === 'panel' ? 'profile-report' : 'individual-test') + '"><h2>' + escapeHtml(item.test_name_snapshot || 'Test') + ' <small class="section-status">' + (item.status === 'completed' ? 'مكتمل' : 'غير مكتمل') + '</small></h2><table><thead><tr><th>Test / Parameter</th><th>Result</th><th>Unit</th><th>Reference Interval</th><th>Flag</th></tr></thead><tbody>' + lines + '</tbody></table>' + cultureHtml + '</section>' };
+    return { kind, hasContent, html: '<section class="test ' + (kind === 'panel' ? 'profile-report' : 'individual-test') + '"><h2 class="analysis-heading">' + escapeHtml(item.test_name_snapshot || 'Test') + ' <small class="section-status">' + (item.status === 'completed' ? 'Completed' : 'Pending') + '</small></h2><table class="results-table"><colgroup><col style="width:40%"><col style="width:15%"><col style="width:10%"><col style="width:25%"><col style="width:10%"></colgroup><thead><tr><th>Parameter</th><th>Result</th><th>Unit</th><th>Reference Interval</th><th>Flag</th></tr></thead><tbody>' + lines + '</tbody></table>' + cultureHtml + '</section>' };
   });
   const individualHtml = testSections.filter(section => section.kind !== 'panel' && section.hasContent).map(section => section.html).join('');
   const profileSections = testSections.filter(section => section.kind === 'panel' && section.hasContent);
@@ -750,7 +756,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     const resultLines=parameters.length?parameters.map(([name,value])=>'<tr><td>'+escapeHtml(name)+'</td><td>'+escapeHtml(value)+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>').join(''):'<tr><td>'+escapeHtml(row.test_name_snapshot)+'</td><td>'+escapeHtml(payload.value??payload.raw_original??JSON.stringify(payload))+'</td><td>'+escapeHtml(payload.unit||'')+'</td><td>'+escapeHtml(payload.reference_range||'')+'</td></tr>';
     return '<section class="test historical-test"><h2>نتيجة تاريخية — '+escapeHtml(row.test_name_snapshot)+' · '+escapeHtml(row.result_date)+'</h2><table><thead><tr><th>الفحص / البارامتر</th><th>النتيجة القديمة</th><th>الوحدة وقتها</th><th>المدى المرجعي وقتها</th></tr></thead><tbody>'+resultLines+'</tbody></table><small>مصدر تاريخي: '+escapeHtml(row.source_file_name||'')+' · '+escapeHtml(row.source_sheet_name||'')+' · صف '+escapeHtml(row.source_row_number||'—')+'</small></section>';
   }).join('');
-  const performedAt = 'تم إجراء التحاليل بفرع: ' + (branch.name || '—');
+  const performedAt = 'Performed at: ' + (branch.name || '-');
   const showPrintHeader = print.showHeader !== false;
   const showPrintFooter = print.showFooter !== false;
   const pageTopMargin = showPrintHeader ? 36 : 12;
