@@ -8,7 +8,7 @@ import { listBranchStaff } from '../modules/staff/repository.js';
 import { getCurrentWorkday, listExpenseCategories, getWorkdayCashSummary, getLatestClosing } from '../modules/workday/repository.js';
 import { getLabSettings, getPrintSettings } from '../modules/settings/repository.js';
 import { listBranchWorkPage } from '../modules/laboratory/repository.js';
-import { listResultsForVisitTests } from '../modules/results/repository.js';
+import { listResultsForVisitTests, listVisitParameterRangeOverrides } from '../modules/results/repository.js';
 import { listCultureResults } from '../modules/results/culture-repository.js';
 import { getOfflineEntitlementStatus, refreshOfflineEntitlement } from './entitlement.js';
 
@@ -77,6 +77,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
     if (worklist.length >= worklistCount || (result.rows || []).length < pageSize) break;
   }
   const visitTestIds = [...new Set(worklist.map(row => row.id).filter(Boolean))];
+  const rangeOverrides = visitTestIds.length ? await listVisitParameterRangeOverrides({ tenantId, branchId, visitTestIds }) : [];
   const results = visitTestIds.length
     ? await listResultsForVisitTests({ tenantId, visitTestIds })
     : [];
@@ -126,6 +127,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
       worklist: worklist.length,
       worklist_available: worklistCount,
       results: results.length,
+      range_overrides: rangeOverrides.length,
       culture_isolates: culture.isolates?.length ?? 0,
       culture_susceptibilities: culture.susceptibilities?.length ?? 0,
       expense_categories: expenseCategories.length,
