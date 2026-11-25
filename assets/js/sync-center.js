@@ -55,10 +55,11 @@ async function refreshPreparationStatus() {
   }
   const when = report.prepared_at ? new Date(report.prepared_at).toLocaleString('ar-EG') : 'وقت غير متاح';
   const counts = report.counts || {};
-  const limit = report.truncated?.patient_directory || report.truncated?.worklist
+  const limit = report.truncated?.patient_directory || report.truncated?.worklist || report.truncated?.financial_ledger
     ? ' · توجد بيانات تجاوزت حد التحميل الموضح أدناه' : '';
   const issues = Array.isArray(report.issues) && report.issues.length ? ` · غير جاهز: ${report.issues.join('؛ ')}` : ' · جاهز للعمل دون اتصال حسب البيانات المحفوظة';
-  $('offlinePreparationStatus').textContent = `آخر تهيئة: ${when} · المرضى: ${counts.patients ?? 0}/${counts.patients_available ?? counts.patients ?? 0} · التحاليل: ${counts.catalog_tests ?? 0} · أسعار ناقصة: ${counts.tests_without_current_price ?? 0} · بارامترات: ${counts.parameters ?? 0} · عناصر قائمة العمل: ${counts.worklist ?? 0}/${counts.worklist_available ?? counts.worklist ?? 0} · النتائج: ${counts.results ?? 0}${limit}${issues}`;
+  const warnings = Array.isArray(report.warnings) && report.warnings.length ? ` · تنبيه: ${report.warnings.join('؛ ')}` : '';
+  $('offlinePreparationStatus').textContent = `آخر تهيئة: ${when} · المرضى: ${counts.patients ?? 0}/${counts.patients_available ?? counts.patients ?? 0} · التحاليل: ${counts.catalog_tests ?? 0} · أسعار ناقصة: ${counts.tests_without_current_price ?? 0} · بارامترات: ${counts.parameters ?? 0} · عناصر قائمة العمل: ${counts.worklist ?? 0}/${counts.worklist_available ?? counts.worklist ?? 0} · النتائج: ${counts.results ?? 0} · حركة مالية الشهر: ${counts.financial_ledger ?? 0}/${counts.financial_ledger_available ?? counts.financial_ledger ?? 0}${limit}${issues}${warnings}`;
 }
 async function runOfflinePreparation() {
   if (!state.tenant || !state.branch || state.preparing) return;
@@ -74,8 +75,8 @@ async function runOfflinePreparation() {
     await refreshPreparationStatus();
     await refresh();
     notice(report.complete
-      ? 'اكتملت تهيئة البيانات الأساسية لهذا الفرع على الجهاز.'
-      : 'اكتملت التهيئة، لكن بعض بيانات المرضى أو قائمة العمل تجاوزت حد التحميل. راجع حالة التهيئة.');
+      ? (report.warnings?.length ? 'اكتملت تهيئة بيانات التشغيل. توجد تنبيهات على اكتمال ملخص الداشبورد المحلي؛ راجع الحالة.' : 'اكتملت تهيئة البيانات الأساسية لهذا الفرع على الجهاز.')
+      : 'اكتملت التهيئة، لكن بعض البيانات الأساسية تجاوزت حد التحميل أو الترخيص غير جاهز. راجع حالة التهيئة.');
   } catch (error) {
     notice(error.message || 'تعذرت تهيئة بيانات الأوف لاين.', true);
     await refreshPreparationStatus().catch(() => {});
