@@ -7,6 +7,7 @@ const html=readFileSync(path.join(root,'website/index.html'),'utf8');
 const js=readFileSync(path.join(root,'website/public-site-page.js'),'utf8');
 const css=readFileSync(path.join(root,'website/site.css'),'utf8');
 const ui=readFileSync(path.join(root,'website/public-site-ui.js'),'utf8');
+const sw=readFileSync(path.join(root,'service-worker.js'),'utf8');
 
 test('public website uses the approved Taiba premium design system',()=>{
   assert.match(html,/family=Almarai/);
