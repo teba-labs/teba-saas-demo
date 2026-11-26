@@ -146,7 +146,7 @@ document.addEventListener('keydown', event => {
   }
 
   const list = listFor(target);
-  if (!list || target.matches('input, textarea, select, [contenteditable="true"]') ||
+  if (!list || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable ||
       !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
   const items = listItems(list);
   if (!items.length) return;
