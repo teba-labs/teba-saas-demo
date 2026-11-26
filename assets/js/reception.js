@@ -292,12 +292,18 @@ async function submitVisit(button){
         tests_catalog:{test_kind:test?.test_kind||'individual'},
       };
     });
+    const catalogDependencies=[...state.selected].flatMap(testId=>{
+      const test=state.catalog.find(row=>row.id===testId);
+      const parameters=state.parameters.get(testId)||[];
+      return [test?.local_operation_id,...parameters.map(row=>row.local_operation_id)].filter(Boolean);
+    });
+    const intakeDependencies=[state.patient.pendingOperationId,state.workday.local_open_operation_id,...catalogDependencies].filter(Boolean);
     const result=await createVisitIntake({
       tenantId:state.tenant.id,branchId:state.branch.id,patientId:state.patient.id,visitNumber,staffId:currentStaff(),
       testIds:[...state.selected],discountAmount:discount,initialPayment:paid,paymentMethod:$('initialPaymentMethod').value,
       referredBy:$('referredBy').value.trim()||null,notes:$('visitNotes').value.trim()||null,
-      expectedPrices:[...state.selected].map(id=>({test_id:id,id:state.prices.get(id).id,selling_price:Number(state.prices.get(id).selling_price)})),
-      dependsOn:state.patient.pendingOperationId?[state.patient.pendingOperationId]:[],
+      expectedPrices:[...state.selected].map(id=>{const price=state.prices.get(id);return {test_id:id,id:price?.id??null,selling_price:Number(price?.selling_price??0)};}),
+      dependsOn:[...new Set(intakeDependencies)],
       localVisit,localVisitTests
     });
     if(result?.queued){
