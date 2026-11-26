@@ -3,8 +3,8 @@ import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/ses
 const $=id=>document.getElementById(id),db=()=>getSupabaseClient(),state={tenants:[],plans:[]};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>`${Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:2})} ج.م`;
-function displayTextMap(value){if(!value||typeof value!=='object')return '';return Object.entries(value).map(([key,item])=>key+' = '+(item&&typeof item==='object'?JSON.stringify(item):String(item))).join('\\n');}
-function parseTextMap(id,label){const out={};for(const line of $(id).value.split(/[\\r\\n]+/).map(x=>x.trim()).filter(Boolean)){const at=line.indexOf('=');if(at<1)throw new Error(label+': اكتب كل سطر بصيغة الاسم = القيمة.');const key=line.slice(0,at).trim(),raw=line.slice(at+1).trim();if(!key||!raw)throw new Error(label+': يوجد سطر ناقص.');const value=raw.toLowerCase()==='true'?true:raw.toLowerCase()==='false'?false:raw.toLowerCase()==='null'?null:(/^-?\\d+(?:\\.\\d+)?$/.test(raw)?Number(raw):raw);out[key]=value;}return out;}
+function displayTextMap(value){if(!value||typeof value!=='object')return '';return Object.entries(value).map(([key,item])=>key+' = '+(item&&typeof item==='object'?JSON.stringify(item):String(item))).join('\n');}
+function parseTextMap(id,label){const out={};for(const line of $(id).value.split(/[\r\n]+/).map(x=>x.trim()).filter(Boolean)){const at=line.indexOf('=');if(at<1)throw new Error(label+': اكتب كل سطر بصيغة الاسم = القيمة.');const key=line.slice(0,at).trim(),raw=line.slice(at+1).trim();if(!key||!raw)throw new Error(label+': يوجد سطر ناقص.');const value=raw.toLowerCase()==='true'?true:raw.toLowerCase()==='false'?false:raw.toLowerCase()==='null'?null:(/^-?\d+(?:\.\d+)?$/.test(raw)?Number(raw):raw);out[key]=value;}return out;}
 
 function notify(m,err=false){$('notice').textContent=m;$('notice').className=`notice show${err?' error':''}`;setTimeout(()=>$('notice').className='notice',5500)}
 function setStatus(m,err=false){$('status').textContent=m;$('status').classList.toggle('error',err)}
