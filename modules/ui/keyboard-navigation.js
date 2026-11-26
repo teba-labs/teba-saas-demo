@@ -90,7 +90,7 @@ document.addEventListener('keydown', event => {
     return;
   }
 
-  if (event.key === ' ' && target.matches('[role="button"], [role="menuitem"], [role="option"]') &&
+  if ((event.key === ' ' || event.key === 'Enter') && target.matches('[role="button"], [role="tab"], [role="menuitem"], [role="option"]') &&
       !target.matches('button, a[href], input, select, textarea')) {
     event.preventDefault();
     target.click();
