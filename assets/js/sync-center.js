@@ -149,6 +149,7 @@ async function refresh() {
     const local = change.local_payload || {};
     const record = local.record_payload || {};
     const label = change.entity_type === 'catalog_test_change' ? 'تعديل تحليل' : 'تعديل بارامتر';
+    const deviceLabel = local.device_id ? String(local.device_id).slice(0,8) : 'غير معروف';
     const name = record.name || record.parameter_name || record.code || record.parameter_code || change.entity_id;
     const server = catalogProposalFields(change.resolution_payload?.server_snapshot || change.server_payload || {});
     const proposed = catalogProposalFields(record);
