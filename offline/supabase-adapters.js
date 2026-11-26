@@ -214,6 +214,19 @@ export function createSupabaseSyncHandlers() {
     },
     visit_intake: async operation => {
       const p = operation.payload;
+      const expectedPrices = await Promise.all((p.expected_prices || []).map(async snapshot => {
+        if (snapshot.price_id) return snapshot;
+        if (Number(snapshot.selling_price) !== 0) return snapshot;
+        const { data: candidates, error: priceError } = await db().from('test_prices')
+          .select('id,branch_id,selling_price').eq('tenant_id', operation.tenant_id)
+          .eq('test_id', snapshot.test_id).eq('is_current', true);
+        if (priceError) throw priceError;
+        const current = (candidates || []).find(row => row.branch_id === operation.branch_id)
+          || (candidates || []).find(row => row.branch_id == null);
+        // Keep the local zero-price snapshot. If the server price changed, the RPC
+        // returns OFFLINE_PRICE_CONFLICT instead of silently charging a new amount.
+        return current ? { ...snapshot, price_id: current.id } : snapshot;
+      }));
       const { data, error } = await db().rpc('create_visit_intake_idempotent', {
         p_operation_id: operation.operation_id,
         p_tenant_id: operation.tenant_id, p_branch_id: operation.branch_id,
@@ -221,7 +234,7 @@ export function createSupabaseSyncHandlers() {
         p_staff_id: p.staff_id, p_test_ids: p.test_ids,
         p_discount_amount: p.discount_amount ?? 0, p_initial_payment: p.initial_payment ?? 0,
         p_payment_method: p.payment_method ?? 'cash', p_referred_by: p.referred_by ?? null,
-        p_notes: p.notes ?? null, p_expected_prices: p.expected_prices ?? [],
+        p_notes: p.notes ?? null, p_expected_prices: expectedPrices,
       });
       if (error) return throwUnlessConflict(error, /OFFLINE_PRICE_CONFLICT|open the branch workday|registering visits|active staff|patient not found|valid visit number|select at least one test|invalid test selection|duplicate test selection|discount exceeds|payment exceeds|unsupported payment method|idempotency key reused|branch not accessible/i);
       if (!data) throw new Error('Server returned no visit ID.');
