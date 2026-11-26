@@ -149,7 +149,15 @@ export function createSupabaseSyncHandlers() {
         .select('id,resolution,local_payload,server_payload').eq('id', operation.operation_id)
         .eq('tenant_id', operation.tenant_id).eq('branch_id', operation.branch_id).maybeSingle();
       if (existingError) throw existingError;
-      if (existing?.resolution === 'approved') return { acknowledged: true, resultId: p.record_id };
+      if (existing?.resolution === 'approved') {
+        const approvedTable = p.kind === 'test' ? 'tests_catalog' : 'test_parameters';
+        const { data: approvedRecord, error: approvedError } = await db().from(approvedTable).select('*')
+          .eq('tenant_id', operation.tenant_id).eq('id', p.record_id).maybeSingle();
+        if (approvedError) throw approvedError;
+        if (!approvedRecord) throw new Error('تم اعتماد تعديل الكتالوج لكن السجل غير موجود عند إعادة المزامنة.');
+        await cacheRows(p.kind === 'test' ? 'catalog' : 'test_parameters', [approvedRecord]);
+        return { acknowledged: true, resultId: p.record_id };
+      }
       if (existing?.resolution === 'rejected') return { conflict: true, reason: 'تم رفض تعديل الكتالوج من المسؤول؛ احتفظنا بالنسخة المحلية للمراجعة.' };
       if (existing) return { conflict: true, reason: 'تعديل الكتالوج محفوظ في قائمة مراجعة الأجهزة؛ ينتظر قرار المسؤول.', serverSnapshot: existing.server_payload };
       const table = p.kind === 'test' ? 'tests_catalog' : 'test_parameters';
