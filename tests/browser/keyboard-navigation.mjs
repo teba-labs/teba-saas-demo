@@ -66,7 +66,6 @@ try{
       await page.keyboard.press(rtl?'ArrowLeft':'ArrowRight');
       assert.equal(await tabs.nth(1).evaluate(el=>el===document.activeElement),true,pagePath+': arrow key did not move between actual page tabs');
       assert.equal(await tabs.nth(1).getAttribute('aria-selected'),'true',pagePath+': actual page tab was not activated by arrow key');
-      break;
     }
 
     await page.evaluate(()=>{
