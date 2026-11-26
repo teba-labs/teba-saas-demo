@@ -27,6 +27,7 @@ export async function getCurrentSession() {
 
 export async function signInWithEmail(email, password) {
   if (isOffline()) {
+    await getSupabaseClient().auth.signOut({ scope: 'local' }).catch(() => {});
     const user = await authenticateCachedOfflineUser(email, password);
     return { user, session: { user, offline: true, access_token: null, refresh_token: null }, offline: true };
   }
