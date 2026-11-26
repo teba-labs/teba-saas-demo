@@ -40,7 +40,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
   };
 
   progress('catalog', 'تحميل دليل التحاليل النشط');
-  const catalog = await listCatalog({ tenantId });
+  const catalog = await listCatalog({ tenantId, branchId });
   const testIds = catalog.map(row => row.id).filter(Boolean);
 
   progress('core', 'تجهيز الأسعار والبارامترات والموظفين وبيانات التشغيل');
@@ -55,7 +55,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
     patients,
   ] = await Promise.all([
     listCurrentPrices({ tenantId, branchId, testIds }),
-    warmCatalogParameters({ tenantId, testIds }),
+    warmCatalogParameters({ tenantId, branchId, testIds }),
     listBranchStaff({ tenantId, branchId }),
     getCurrentWorkday({ tenantId, branchId }),
     listExpenseCategories({ tenantId }),
