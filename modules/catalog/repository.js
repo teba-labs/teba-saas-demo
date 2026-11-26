@@ -480,9 +480,7 @@ export async function addBasePriceIfMissing({ tenantId, testId, sellingPrice } =
 
 /** Published master formulas are doctor-authored expression text; runtime ASTs are compiled only during tenant import. */
 function hasMasterFormulaText(value) {
-  if (typeof value === 'string') return value.trim().length > 0;
-  // Retain read compatibility for a legacy in-memory AST without requiring JSON text input.
-  return !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 export async function listMasterCatalogTests() {
