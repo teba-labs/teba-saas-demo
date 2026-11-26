@@ -63,8 +63,7 @@ begin
   values(v_tenant_id,'الفرع الرئيسي')
   returning id into v_branch_id;
 
-  insert into public.branch_memberships(tenant_id,branch_id,user_id,is_active)
-  values(v_tenant_id,v_branch_id,v_owner_id,true);
+  -- Tenant owners inherit access to all active branches; branch_memberships is employee-only.
 
   insert into public.staff_directory(tenant_id,branch_id,display_name,auth_user_id,is_active)
   values(
