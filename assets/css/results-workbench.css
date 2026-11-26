@@ -124,3 +124,29 @@ body.results-workbench-page{height:100dvh;overflow:hidden}
 .report-publish-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .report-publish-row p{flex:1;min-width:220px;margin:0}
 @media(max-width:767px){.report-publish-row{flex-direction:column;align-items:stretch}.report-publish-row p{min-width:0}}
+
+
+/* Compact full-height results workstation for 1024x768 and browser zoom. */
+.results-workbench-page>.shell{display:flex;flex-direction:column;overflow:hidden;height:calc(100dvh - 64px);padding:10px 14px 12px}
+.results-workbench-page #workspace{display:flex;flex:1;flex-direction:column;min-height:0;gap:8px}
+.results-workbench-page #workspace>.controls{flex:0 0 auto;margin:0;padding:11px 13px}
+.results-workbench-page #workspace>.controls h1{font-size:19px;margin-bottom:4px}
+.results-workbench-page #workspace>.controls .selectors{gap:8px}
+.results-workbench-page #workList{flex:1;min-height:0;overflow:hidden}
+.results-workbench-page .results-workbench-shell{height:100%;min-height:0;grid-template-rows:auto minmax(0,1fr);gap:8px}
+.results-workbench-page .results-columns{height:100%;min-height:0;overflow:hidden}
+.results-workbench-page .results-column{min-height:0;overflow-y:auto}
+.results-workbench-page .historical-results-lookup{flex:0 0 auto;margin:0;padding:8px 12px}
+.results-workbench-page #workPager{flex:0 0 auto;margin:0}
+@media(min-width:768px) and (max-width:1099px){
+ .results-workbench-page .results-workbench-shell{grid-template-rows:auto auto minmax(0,1fr)}
+ .results-workbench-page .results-columns{height:100%;grid-template-rows:minmax(105px,.27fr) minmax(0,1fr)}
+ .results-workbench-page .results-columns>.visits-column{max-height:none;overflow-y:auto}
+ .results-workbench-page .results-columns>.individual-column,.results-workbench-page .results-columns>.profiles-column{max-height:none;overflow-y:auto}
+}
+@media(max-width:767px){
+ .results-workbench-page>.shell{height:calc(100dvh - 56px);padding:8px}
+ .results-workbench-page .results-workbench-shell{grid-template-rows:auto auto minmax(0,1fr)}
+ .results-workbench-page .results-columns{height:100%;min-height:0}
+ .results-workbench-page .historical-results-lookup{max-height:22dvh;overflow:auto}
+}
