@@ -28,7 +28,7 @@ test('new tenant creation provisions a usable first branch and owner operational
   assert.ok(doctorMigration.includes('p_owner_display_name text'));
   assert.ok(doctorMigration.includes('public.staff_directory'));
   assert.ok(compatibility.includes('p_owner_email text,p_plan_id uuid default null'));
-  assert.ok(compatibility.includes('p_owner_display_name,null,p_plan_id'));
+  assert.ok(compatibility.includes('p_owner_email,null,p_plan_id'));
   assert.ok(compatibility.includes('Backward-compatible wrapper'));
 });
 
