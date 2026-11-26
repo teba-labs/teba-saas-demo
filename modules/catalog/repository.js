@@ -5,11 +5,11 @@ import { enqueueOperation } from '../../offline/outbox.js';
 
 const db = () => getSupabaseClient();
 
-async function queueCatalogChange({ tenantId, branchId, kind, action, recordId, baseSnapshot, recordPayload }) {
+async function queueCatalogChange({ tenantId, branchId, kind, action, recordId, baseSnapshot, recordPayload, dependsOn = [] }) {
   required(branchId, 'branchId');
   const operationId = crypto.randomUUID();
   const payload = { kind, action, record_id: recordId, base_updated_at: baseSnapshot?.updated_at ?? null, base_snapshot: baseSnapshot ?? null, record_payload: { ...recordPayload } };
-  await enqueueOperation({ tenantId, branchId, entityType: 'catalog_change', action, operationId, payload, priority: 4 });
+  await enqueueOperation({ tenantId, branchId, entityType: 'catalog_change', action, operationId, payload, dependsOn, priority: 4 });
   const localRow = { ...recordPayload, local_pending: true, local_operation_id: operationId, updated_at: new Date().toISOString() };
   await cacheRows(kind === 'test' ? 'catalog' : 'test_parameters', [localRow]);
   return { ...localRow, queued: true, operationId };
@@ -138,7 +138,7 @@ export async function saveCatalogTest({ tenantId, branchId, test, id } = {}) {
     source_references: test.sourceReferences ?? [], clinical_review_status: test.clinicalReviewStatus || 'needs_review',
   };
   const cached = (await getCachedRows('catalog', { tenantId })).find(row => row.id === recordId) || null;
-  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
+  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn });
   const { data, error } = await db().from(TABLES.catalog).upsert(payload).select().single();
   if (error) {
     if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
@@ -275,7 +275,7 @@ const validateParameter = parameter => {
 };
 
 /** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
-export async function saveTestParameter({ tenantId, branchId, testId, parameter, id } = {}) {
+export async function saveTestParameter({ tenantId, branchId, testId, parameter, id, dependsOn = [] } = {}) {
   required(tenantId, 'tenantId'); required(testId, 'testId');
   const valid = validateParameter(parameter);
   const payload = {
