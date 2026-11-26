@@ -527,8 +527,11 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
   if (proposalError) throw proposalError;
   if (!proposal) throw new Error('طلب تعديل الكتالوج غير موجود في هذا الفرع.');
   if (proposal.resolution && proposal.resolution !== 'conflict') return { status: proposal.resolution };
+  const { data: authData, error: authError } = await db().auth.getUser();
+  if (authError) throw authError;
+  const resolvedBy = authData?.user?.id ?? null;
   if (decision === 'reject') {
-    const { data, error } = await db().from('sync_conflicts').update({ resolution: 'rejected', resolved_at: new Date().toISOString(), resolution_payload: { decision: 'rejected' } })
+    const { data, error } = await db().from('sync_conflicts').update({ resolution: 'rejected', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { decision: 'rejected' } })
       .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).or('resolution.is.null,resolution.eq.conflict').select('id').maybeSingle();
     if (error) throw error;
     if (!data) throw new Error('سبق أن اتخذ جهاز آخر قرارًا بشأن هذا التعديل. حدّث القائمة.');
@@ -546,7 +549,7 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
   if (payload.action === 'create') {
     if (current) {
       const reason = 'يوجد سجل بنفس المعرّف على الخادم؛ لم يتم استبداله.';
-      await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current } }).eq('id', proposalId).or('resolution.is.null,resolution.eq.conflict');
+      await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current } }).eq('id', proposalId).or('resolution.is.null,resolution.eq.conflict');
       return { status: 'conflict', reason, serverSnapshot: current };
     }
     const inserted = await db().from(table).insert(record).select().single();
@@ -556,7 +559,7 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
     const expectedVersion = payload.base_updated_at;
     if (!current || !expectedVersion || current.updated_at !== expectedVersion) {
       const reason = 'تغير السجل على جهاز آخر منذ تحميل النسخة المحلية. راجع النسختين قبل إعادة التعديل.';
-      await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current || null } }).eq('id', proposalId).is('resolution', null);
+      await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current || null } }).eq('id', proposalId).is('resolution', null);
       return { status: 'conflict', reason, serverSnapshot: current || null };
     }
     const patch = { ...record }; delete patch.id; delete patch.tenant_id;
@@ -565,7 +568,7 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
     if (!updated.data) return { status: 'conflict', reason: 'تغير السجل أثناء اعتماد التعديل؛ لم تتم الكتابة فوق النسخة الأحدث.' };
     applied = updated.data;
   } else throw new Error('نوع التعديل غير مدعوم.');
-  const resolved = await db().from('sync_conflicts').update({ resolution: 'approved', resolved_at: new Date().toISOString(), resolution_payload: { applied_record_id: applied.id, applied_updated_at: applied.updated_at } })
+  const resolved = await db().from('sync_conflicts').update({ resolution: 'approved', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { applied_record_id: applied.id, applied_updated_at: applied.updated_at } })
     .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).or('resolution.is.null,resolution.eq.conflict').select('id').maybeSingle();
   if (resolved.error) throw resolved.error;
   if (!resolved.data) throw new Error('تم تطبيق السجل لكن قرار المراجعة تغير بالتزامن؛ حدّث القائمة وتحقق من حالة الطلب.');
