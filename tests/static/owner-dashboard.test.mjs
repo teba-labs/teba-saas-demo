@@ -94,7 +94,7 @@ test('owner dashboard presents exactly 18 independent report entries and separat
   assert.match(script,/data-owner-report=/);
   assert.match(script,/data-owner-screen=/);
   assert.match(script,/data-owner-back/);
-  assert.match(script,/showOwnerReport\('home'\)/);
+  assert.match(script,/if\(id==='home'\)id='overview'/);
 });
 test('daily financial movement is read-only and links to Workday for new entries',()=>{
   assert.match(script,/report\.ledger\.length/);
@@ -135,9 +135,9 @@ test('CSV export includes live KPI cards and historical reconciliation KPI cards
 
 test('optional local reference period selector appears only on upload and hides on menu return',()=>{
   assert.match(script,/id='historyPeriodPanel'/);
-  assert.match(script,/historicalScreens=\['upload'\]/);
-  assert.match(script,/historyPeriod\.hidden=!historicalScreens\.includes\(id\)/);
-  assert.match(script,/\$\('historyPeriodPanel'\)\.hidden=true/);
+  assert.match(script,/historyPeriod\.hidden=id!=='upload'/);
+  assert.match(script,/controls\.hidden=true/);
+  assert.match(script,/historyPeriod\.hidden=id!=='upload'/);
 });
 
 test('overview includes grounded operational insights and expense breakdown visualization',()=>{
@@ -188,12 +188,17 @@ test('live status module is included in the offline application shell',()=>{
   assert.match(sw,/modules\/dashboard\/live-status\.js/);
 });
 
-test('owner dashboard presents the 18 report sections as a card-based navigation with shared styles',()=>{
+test('owner dashboard presents 18 reports through expandable categories and one report workspace',()=>{
   const css=fs.readFileSync(path.join(root,'assets/css/dashboard.css'),'utf8');
   assert.match(script,/mountOwnerDashboardNavigation/);
   assert.match(script,/18 تقريرًا/);
-  assert.match(script,/owner-report-grid/);
-  assert.match(css,/\.owner-report-grid/);
-  assert.match(css,/\.owner-report-card:hover/);
+  assert.match(script,/owner-nav-groups/);
+  assert.match(script,/data-owner-group=/);
+  assert.match(script,/data-owner-more/);
+  assert.match(script,/data-owner-report=/);
+  assert.match(script,/data-owner-screen=/);
+  assert.match(css,/\.owner-group-toggle/);
+  assert.match(css,/\.owner-nav-extra/);
+  assert.match(css,/\.owner-more-groups/);
   assert.match(page,/theme-controller\.js/);
 });
