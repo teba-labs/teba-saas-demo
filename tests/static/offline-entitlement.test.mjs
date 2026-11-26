@@ -18,7 +18,11 @@ test('offline entitlement bootstraps and persists only the public ES256 verifica
   assert.match(client, /public_jwk: publicJwk/);
   assert.match(client, /row\.public_jwk/);
   assert.match(edge, /request\.method === 'GET'/);
-  assert.match(edge, /public_jwk: \{ kty: 'EC', crv: 'P-256'/);
+  assert.match(edge, /return json\(\{ key_id: KEY_ID, public_jwk: publicJwk \}, 200, origin\)/);
+  assert.match(edge, /function fixedP256Part/);
+  assert.match(edge, /async function validateP256KeyPair/);
+  assert.match(edge, /crypto\.subtle\.importKey/);
+  assert.match(edge, /does not expose private material|public_jwk: publicJwk/);
   assert.doesNotMatch(edge, /public_jwk: privateJwk/);
   assert.match(edge, /OFFLINE_ENTITLEMENT_PRIVATE_JWK/);
   assert.match(edge, /name: 'ECDSA', hash: 'SHA-256'/);
