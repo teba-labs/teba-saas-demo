@@ -1,6 +1,6 @@
 import { getCurrentSession, signInWithEmail, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
-import { getPreferredTenantId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
+import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listCatalog, listCurrentPrices, listTestParameters, saveCatalogTest, saveTestParameter, setTestParameterActive, setCurrentPrice, setBranchPrice, listMasterCatalogTests, importMasterCatalogTest, setCatalogTestActive } from '../../modules/catalog/repository.js';
 import { parseFormulaExpression, formulaToExpression } from '../../modules/catalog/formula-engine.js';
 
@@ -9,6 +9,7 @@ const state = { context:null, tenant:null, role:'staff', tests:[], masterTests:[
 const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = value => `${Number(value || 0).toFixed(2)} ج.م`;
 const priceKey = (testId, branchId = null) => `${testId}:${branchId || 'base'}`;
+const catalogBranchId = () => state.tenant?.branches?.find(branch => branch.id === getPreferredBranchId(state.tenant.id))?.id || state.tenant?.branches?.[0]?.id || null;
 function notice(message,error=false){const el=$('notice');el.textContent=message;el.className=`notice show${error?' error':''}`;clearTimeout(notice.timer);notice.timer=setTimeout(()=>el.className='notice',6500);}
 function requireOnline(){if(globalThis.navigator?.onLine===false)throw new Error('استيراد المكتبة المركزية يحتاج اتصالًا بالإنترنت.');}
 function setBusy(form,busy){form.querySelectorAll('button,input,select,textarea').forEach(el=>el.disabled=busy);if(form.id==='testForm')$('testKind').disabled=busy||!!state.selectedTest;}
@@ -141,7 +142,7 @@ function fillTestForm(test){state.selectedTest=test.id;$('editorTitle').textCont
  $('testReportingNotes').value=test.reporting_notes||'';$('testSources').value=displayJson(test.source_references);
  $('testReviewStatus').value=test.clinical_review_status||'needs_review';$('activateCatalogTest').hidden=!!test.is_active;$('testStatus').textContent=test.is_active?'نشط':'موقوف';$('testStatus').className=`status ${test.is_active?'active':'inactive'}`;$('parameterSection').hidden=false;$('priceSection').hidden=false;renderTests();}
 async function selectTest(id){const test=state.tests.find(t=>t.id===id);if(!test)return;const requestId=++state.selectionRequest;const tenantId=state.tenant.id;fillTestForm(test);state.selectedParameter=null;$('parameterForm').hidden=true;await Promise.all([loadParameters({tenantId,testId:test.id,requestId}),loadPrice()]);}
-async function loadCatalog(requestId=state.tenantRequest){const tenantId=state.tenant.id;const tests=await listCatalog({tenantId,branchId:state.tenant.branches?.[0]?.id,includeInactive:true});if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.tests=tests;const ids=tests.map(t=>t.id);const priceBranchId=state.role==='owner'?null:state.tenant.branches?.[0]?.id||null;const prices=ids.length?await listCurrentPrices({tenantId,branchId:priceBranchId,testIds:ids}):[];if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.prices=new Map(prices.map(p=>[priceKey(p.test_id,p.branch_id),p]));renderTests();if(state.selectedTest){const found=state.tests.find(t=>t.id===state.selectedTest);if(found)await selectTest(found.id);else resetTestForm();}}
+async function loadCatalog(requestId=state.tenantRequest){const tenantId=state.tenant.id;const tests=await listCatalog({tenantId,branchId:catalogBranchId(),includeInactive:true});if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.tests=tests;const ids=tests.map(t=>t.id);const priceBranchId=state.role==='owner'?null:state.tenant.branches?.[0]?.id||null;const prices=ids.length?await listCurrentPrices({tenantId,branchId:priceBranchId,testIds:ids}):[];if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.prices=new Map(prices.map(p=>[priceKey(p.test_id,p.branch_id),p]));renderTests();if(state.selectedTest){const found=state.tests.find(t=>t.id===state.selectedTest);if(found)await selectTest(found.id);else resetTestForm();}}
 async function loadParameters({tenantId=state.tenant?.id,testId=state.selectedTest,requestId=state.selectionRequest}={}){if(!tenantId||!testId)return;const rows=await listTestParameters({tenantId,branchId:state.tenant.branches?.[0]?.id,testId,includeInactive:true});if(requestId!==state.selectionRequest||tenantId!==state.tenant?.id||testId!==state.selectedTest)return;state.parameters=rows;renderParameters();}
 function renderMasterCatalog(){
  const term=$('masterCatalogSearch').value.trim().toLocaleLowerCase();
