@@ -51,7 +51,7 @@ test('parameter repository supports inactive rows only when management explicitl
   const repo = read('modules/catalog/repository.js');
   assert.match(repo, /listMasterCatalogTests/);
   assert.match(repo, /importMasterCatalogTest/);
-  assert.match(repo, /listTestParameters\(\{ tenantId, testId, includeInactive = false \}/);
+  assert.match(repo, /listTestParameters\(\{ tenantId, branchId = null, testId, includeInactive = false \}/);
   assert.match(repo, /return \(data \?\? \[\]\)\.filter\(row => includeInactive \|\| row\.is_active\)/);
 });
 
