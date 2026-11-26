@@ -72,6 +72,21 @@ test('missing current price is represented as a zero-price operation, not an off
   assert.match(syncUi, /تحاليل بسعر صفري تشغيلي/);
 });
 
+test('catalog proposal decisions are owner-only and database states satisfy the resolution constraint', () => {
+  const catalog = read('modules/catalog/repository.js');
+  const syncUi = read('assets/js/sync-center.js');
+  const migration = read('database/migrations/116_owner_only_catalog_proposal_resolution.sql');
+  assert.match(catalog, /membership\?\.account_type !== 'owner'/);
+  assert.match(syncUi, /state\.tenant\?\.accountType === 'owner'/);
+  assert.match(syncUi, /قرار الاعتماد أو الرفض متاح لمالك المعمل فقط/);
+  assert.match(migration, /sync_conflicts_resolution_check/);
+  assert.match(migration, /'approved', 'rejected', 'conflict'/);
+  assert.match(migration, /private\.is_tenant_owner\(tenant_id\)/);
+  assert.match(migration, /entity_type not in \('catalog_test_change', 'catalog_parameter_change'\)/);
+  assert.match(migration, /for insert to authenticated/);
+  assert.match(migration, /for select to authenticated/);
+});
+
 test('offline application shell includes the requested core pages and dependencies', () => {
   const sw = read('service-worker.js');
   for (const path of [
