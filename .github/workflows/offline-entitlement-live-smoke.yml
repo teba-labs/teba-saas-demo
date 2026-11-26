@@ -59,6 +59,7 @@ jobs:
           console.log('PASS: live endpoint returns an importable public P-256 verification key; private material is absent.');
           NODE
       - name: Verify browser CORS preflight
+        if: always()
         env:
           ENDPOINT: https://hgqwpykeazuzceeiumjg.supabase.co/functions/v1/issue-offline-entitlement
         run: |
