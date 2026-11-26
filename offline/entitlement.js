@@ -16,6 +16,10 @@ const AUDIENCE = 'taiba-smart-lab-offline';
 const MAX_LEASE_SECONDS = 35 * 24 * 60 * 60;
 const REFRESH_WINDOW_SECONDS = 7 * 24 * 60 * 60;
 const encoder = new TextEncoder();
+export function isOfflineEntitlementBypassed() {
+  return APP_ENV.offlineLicenseMode === 'development-bypass';
+}
+
 const entitlementKey = ({ tenantId, branchId, userId, deviceId }) =>
   `offline-entitlement:${tenantId}:${branchId}:${userId}:${deviceId}`;
 
@@ -130,6 +134,7 @@ export async function getOfflineEntitlement({ tenantId, branchId, allowExpired =
 }
 
 export async function assertOfflineEntitlement({ tenantId, branchId } = {}) {
+  if (isOfflineEntitlementBypassed()) return { mode: 'development-bypass', tenant_id: tenantId, branch_id: branchId };
   const device = await getDeviceIdentity();
   if (!device.user_id || !device.offline_session_ready) {
     throw new Error('هذا الجهاز غير مجهز بترخيص أوف لاين لهذا المستخدم. اتصل بالإنترنت وجهّز الجهاز أولًا.');
@@ -140,6 +145,7 @@ export async function assertOfflineEntitlement({ tenantId, branchId } = {}) {
 }
 
 export async function getOfflineEntitlementStatus({ tenantId, branchId } = {}) {
+  if (isOfflineEntitlementBypassed()) return { status: 'bypassed', expiresAt: null, daysRemaining: null, message: 'Commercial offline licensing is temporarily bypassed for development.' };
   try {
     const entitlement = await getOfflineEntitlement({ tenantId, branchId, allowExpired: true });
     if (!entitlement) return { status: 'missing', expiresAt: null, daysRemaining: 0 };
@@ -156,6 +162,7 @@ export async function getOfflineEntitlementStatus({ tenantId, branchId } = {}) {
 }
 
 export async function refreshOfflineEntitlement({ tenantId, branchId, force = false } = {}) {
+  if (isOfflineEntitlementBypassed()) return { status: 'bypassed', mode: 'development-bypass', tenantId, branchId };
   if (globalThis.navigator?.onLine === false) throw new Error('تجديد الترخيص يحتاج اتصالًا بالإنترنت.');
   if (!tenantId || !branchId) throw new Error('اختَر المعمل والفرع قبل تجديد الترخيص.');
   const session = await getCurrentSession();

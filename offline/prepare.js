@@ -10,7 +10,7 @@ import { getLabSettings, getPrintSettings } from '../modules/settings/repository
 import { listBranchWorkPage } from '../modules/laboratory/repository.js';
 import { listResultsForVisitTests, listVisitParameterRangeOverrides } from '../modules/results/repository.js';
 import { listCultureResults } from '../modules/results/culture-repository.js';
-import { getOfflineEntitlementStatus, refreshOfflineEntitlement } from './entitlement.js';
+import { getOfflineEntitlementStatus, refreshOfflineEntitlement, isOfflineEntitlementBypassed } from './entitlement.js';
 
 const preparationKey = (tenantId, branchId) => `offline-prepared:${tenantId}:${branchId}`;
 
@@ -112,7 +112,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
   const issues = [];
   const warnings = [];
   if(ledgerSnapshot.truncated)warnings.push('سجل الحركة المالية للشهر تجاوز حد التحميل؛ الداشبورد المحلي المالي جزئي.');
-  if (entitlement.status !== 'valid') issues.push(`الترخيص الإلكتروني غير جاهز: ${entitlementError || entitlement.message || entitlement.status}.`);
+  if (!isOfflineEntitlementBypassed() && entitlement.status !== 'valid') issues.push(`الترخيص الإلكتروني غير جاهز: ${entitlementError || entitlement.message || entitlement.status}.`);
   if (!catalog.length) issues.push('لا يوجد كتالوج تحاليل نشط محفوظ.');
   // A missing price row is a valid zero-price operating snapshot; it must not block offline readiness.
   if (!staff.length) issues.push('لا يوجد موظف نشط محفوظ لهذا الفرع.');

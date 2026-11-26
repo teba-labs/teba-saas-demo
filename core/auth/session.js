@@ -1,5 +1,5 @@
 import { getSupabaseClient } from '../supabase-client.js';
-import { getCachedOfflineUser, rememberOfflineUser, clearCachedOfflineUser } from '../../offline/device-identity.js';
+import { getCachedOfflineUser, authenticateCachedOfflineUser, rememberOfflineUser, clearCachedOfflineUser } from '../../offline/device-identity.js';
 
 const isOffline = () => globalThis.navigator?.onLine === false;
 
@@ -26,12 +26,22 @@ export async function getCurrentSession() {
 }
 
 export async function signInWithEmail(email, password) {
-  if (isOffline()) throw new Error('تسجيل الدخول لأول مرة يحتاج اتصالًا بالإنترنت. استخدم الجلسة المجهزة مسبقًا على هذا الجهاز.');
+  if (isOffline()) {
+    await getSupabaseClient().auth.signOut({ scope: 'local' }).catch(() => {});
+    const user = await authenticateCachedOfflineUser(email, password);
+    return { user, session: { user, offline: true, access_token: null, refresh_token: null }, offline: true };
+  }
   const client = getSupabaseClient();
   const { data, error } = await client.auth.signInWithPassword({ email: String(email).trim(), password });
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|timeout|connection|offline/i.test(error.message || '')) {
+      const user = await authenticateCachedOfflineUser(email, password);
+      return { user, session: { user, offline: true, access_token: null, refresh_token: null }, offline: true };
+    }
+    throw error;
+  }
   if (!data.user || !data.session) throw new Error('Sign-in did not return an authenticated session.');
-  await rememberOfflineUser(data.user).catch(() => {});
+  await rememberOfflineUser(data.user, password).catch(() => {});
   return data;
 }
 

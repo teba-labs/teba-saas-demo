@@ -30,6 +30,8 @@ offlineDb.version(3).stores({
 offlineDb.version(4).stores({ ...stores });
 /** Non-exportable device signing key is deliberately kept outside portable backups. */
 offlineDb.version(5).stores({ ...stores, device_identity: '&id' });
+// Per-account offline credentials allow several authenticated tenant users on one device.
+offlineDb.version(6).stores({ ...stores, device_identity: '&id', offline_sessions: '&user_id, email, device_id, offline_session_ready' });
 
 export async function assertOfflineDatabaseReady() {
   await offlineDb.open();
