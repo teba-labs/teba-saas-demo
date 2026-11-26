@@ -86,7 +86,7 @@ test('master imports are active immediately; manually deactivated tests can stil
  const catalogHtml=await readFile(new URL('app/catalog.html',root),'utf8');
  const currentImport=await readFile(new URL('database/migrations/109_promote_verified_profiles_enable_zero_price_and_master_import.sql',root),'utf8');
  assert.match(catalogHtml,/id="activateCatalogTest"/);
- assert.match(ui,/setCatalogTestActive\(\{tenantId:state\.tenant\.id,testId:state\.selectedTest,isActive:true\}\)/);
+ assert.match(ui,/setCatalogTestActive\(\{tenantId:state\.tenant\.id,branchId:state\.tenant\.branches\?\.\[0\]\?\.id,testId:state\.selectedTest,isActive:true\}\)/);
  assert.match(ui,/تم تفعيل التحليل/);
  assert.match(repository,/export async function setCatalogTestActive/);
  assert.match(currentImport,/v_test_id := public\.import_master_catalog_test_unchecked/);
