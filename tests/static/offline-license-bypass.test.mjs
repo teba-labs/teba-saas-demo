@@ -40,6 +40,8 @@ test('offline accounts are device-bound and require a password verifier, never a
   assert.match(identity, /password_hash/);
   assert.match(identity, /row\.device_id !== device\.device_id/);
   assert.match(identity, /authenticateCachedOfflineUser/);
+  assert.match(identity, /if \(active\?\.user_id\)[\s\S]*?return null/);
+  assert.match(auth, /auth\.signOut\(\{ scope: 'local' \}\)/);
   assert.match(auth, /authenticateCachedOfflineUser\(email, password\)/);
   assert.match(auth, /rememberOfflineUser\(data\.user, password\)/);
   assert.match(auth, /authenticateCachedOfflineUser\(email, password\)/);
