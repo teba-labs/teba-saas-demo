@@ -9,7 +9,7 @@ const state = { context:null, tenant:null, role:'staff', tests:[], masterTests:[
 const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = value => `${Number(value || 0).toFixed(2)} ج.م`;
 const priceKey = (testId, branchId = null) => `${testId}:${branchId || 'base'}`;
-const catalogBranchId = () => state.tenant?.branches?.find(branch => branch.id === getPreferredBranchId(state.tenant.id))?.id || state.tenant?.branches?.[0]?.id || null;
+const catalogBranchId = () => state.tenant?.branches?.find(branch => branch.id === getPreferredBranchId(state.tenant.id, state.tenant.branches || []))?.id || state.tenant?.branches?.[0]?.id || null;
 function notice(message,error=false){const el=$('notice');el.textContent=message;el.className=`notice show${error?' error':''}`;clearTimeout(notice.timer);notice.timer=setTimeout(()=>el.className='notice',6500);}
 function requireOnline(){if(globalThis.navigator?.onLine===false)throw new Error('استيراد المكتبة المركزية يحتاج اتصالًا بالإنترنت.');}
 function setBusy(form,busy){form.querySelectorAll('button,input,select,textarea').forEach(el=>el.disabled=busy);if(form.id==='testForm')$('testKind').disabled=busy||!!state.selectedTest;}
