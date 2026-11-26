@@ -1,8 +1,31 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
 import { TABLES, RPC } from '../../core/data/schema-contract.js';
 import { cacheRows, getCachedRows, replaceCachedRows, replaceCachedCurrentPrices } from '../../offline/cache.js';
+import { enqueueOperation } from '../../offline/outbox.js';
 
 const db = () => getSupabaseClient();
+
+
+async function mergePendingCatalogCache(tableName, serverRows, { tenantId, testId = null, branchId = null } = {}) {
+  const cached = await getCachedRows(tableName, { tenantId, ...(testId ? { testId } : {}) });
+  const byId = new Map((serverRows || []).map(row => [row.id, row]));
+  for (const row of cached) if (row.local_pending) byId.set(row.id, row);
+  const merged = [...byId.values()];
+  return { all: merged, visible: branchId ? merged.filter(row => !row.local_pending || row.local_branch_id === branchId) : merged };
+}
+
+async function queueCatalogChange({ tenantId, branchId, kind, action, recordId, baseSnapshot, recordPayload, dependsOn = [] }) {
+  required(branchId, 'branchId');
+  const operationId = crypto.randomUUID();
+  const cleanRecord = { ...recordPayload };
+  for (const key of ['local_pending','local_operation_id','local_branch_id','local_base_updated_at','cached_at']) delete cleanRecord[key];
+  const dependencies = [...new Set([...dependsOn, ...(baseSnapshot?.local_operation_id ? [baseSnapshot.local_operation_id] : [])])];
+  const payload = { kind, action, record_id: recordId, base_updated_at: baseSnapshot?.local_base_updated_at ?? baseSnapshot?.updated_at ?? null, base_snapshot: baseSnapshot ?? null, record_payload: cleanRecord };
+  await enqueueOperation({ tenantId, branchId, entityType: 'catalog_change', action, operationId, payload, dependsOn: dependencies, priority: 4 });
+  const localRow = { ...cleanRecord, local_pending: true, local_operation_id: operationId, local_branch_id: branchId, local_base_updated_at: payload.base_updated_at, updated_at: new Date().toISOString() };
+  await cacheRows(kind === 'test' ? 'catalog' : 'test_parameters', [localRow]);
+  return { ...localRow, queued: true, operationId };
+}
 const required = (value, name) => { if (!value) throw new Error(`${name} is required.`); };
 
 export async function ensureTenantCoreCatalog(tenantId) {
@@ -16,7 +39,7 @@ export async function ensureTenantCoreCatalog(tenantId) {
   return Array.isArray(data) ? (data[0] || { installed_count: 0 }) : (data || { installed_count: 0 });
 }
 
-export async function listCatalog({ tenantId, includeInactive = false } = {}) {
+export async function listCatalog({ tenantId, branchId = null, includeInactive = false } = {}) {
   required(tenantId, 'tenantId');
   // Provision the reviewed Core library before listing tenant tests. This RPC is
   // idempotent and only inserts missing definitions; it never overwrites tenant edits.
@@ -24,11 +47,12 @@ export async function listCatalog({ tenantId, includeInactive = false } = {}) {
   let query = db().from(TABLES.catalog)
     .select('id, tenant_id, code, name, test_kind, category, specimen, method, turnaround_minutes, instructions, is_active, updated_at, short_name, synonyms, loinc_code, clinical_category, clinical_purpose, service_type, patient_preparation, collection_requirements, specimen_requirements, transport_requirements, stability_requirements, rejection_criteria, biosafety_notes, critical_result_policy, reporting_notes, source_references, clinical_review_status, catalog_version')
     .eq('tenant_id', tenantId).order('name');
-  if (globalThis.navigator?.onLine === false) return (await getCachedRows('catalog', { tenantId })).filter(row => includeInactive || row.is_active);
+  if (globalThis.navigator?.onLine === false) { const cached = await getCachedRows('catalog', { tenantId }); return cached.filter(row => (!row.local_pending || !branchId || row.local_branch_id === branchId) && (includeInactive || row.is_active)); }
   const { data, error } = await query;
-  if (error) { if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('catalog', { tenantId })).filter(row => includeInactive || row.is_active); throw error; }
-  await replaceCachedRows('catalog', data ?? [], { tenantId });
-  return (data ?? []).filter(row => includeInactive || row.is_active);
+  if (error) { if (/fetch|network|offline/i.test(error.message || '')) { const cached = await getCachedRows('catalog', { tenantId }); return cached.filter(row => (!row.local_pending || !branchId || row.local_branch_id === branchId) && (includeInactive || row.is_active)); } throw error; }
+  const merged = await mergePendingCatalogCache('catalog', data ?? [], { tenantId, branchId });
+  await replaceCachedRows('catalog', merged.all, { tenantId });
+  return merged.visible.filter(row => includeInactive || row.is_active);
 }
 
 export async function listCurrentPrices({ tenantId, branchId = null, testIds } = {}) {
@@ -64,7 +88,7 @@ export async function listCurrentPrices({ tenantId, branchId = null, testIds } =
 }
 
 /** Warm all active test parameter snapshots before a branch goes offline. */
-export async function warmCatalogParameters({ tenantId, testIds = [] } = {}) {
+export async function warmCatalogParameters({ tenantId, branchId = null, testIds = [] } = {}) {
   required(tenantId, 'tenantId');
   const ids = [...new Set(testIds.filter(Boolean))];
   if (!ids.length || globalThis.navigator?.onLine === false) return 0;
@@ -73,7 +97,7 @@ export async function warmCatalogParameters({ tenantId, testIds = [] } = {}) {
     const chunk = ids.slice(start, start + 100);
     for (let offset = 0; ; offset += 500) {
       const { data, error } = await db().from(TABLES.parameters)
-        .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression')
+        .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression, created_at, updated_at')
         .eq('tenant_id', tenantId).in('test_id', chunk)
         .order('test_id').order('display_order').range(offset, offset + 499);
       if (error) throw error;
@@ -81,24 +105,26 @@ export async function warmCatalogParameters({ tenantId, testIds = [] } = {}) {
       if ((data || []).length < 500) break;
     }
   }
-  await cacheRows('test_parameters', rows);
+  const merged = await mergePendingCatalogCache('test_parameters', rows, { tenantId, branchId });
+  await cacheRows('test_parameters', merged.all);
   return rows.length;
 }
 
-export async function listTestParameters({ tenantId, testId, includeInactive = false } = {}) {
+export async function listTestParameters({ tenantId, branchId = null, testId, includeInactive = false } = {}) {
   required(tenantId, 'tenantId'); required(testId, 'testId');
-  if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order);
+  if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => (!row.local_pending || !branchId || row.local_branch_id === branchId) && (includeInactive || row.is_active)).sort((a,b) => a.display_order-b.display_order);
   let query = db().from(TABLES.parameters)
-    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression')
+    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression, created_at, updated_at')
     .eq('tenant_id', tenantId).eq('test_id', testId)
     .order('display_order');
   const { data, error } = await query;
-  if (error) { if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order); throw error; }
-  await replaceCachedRows('test_parameters', data ?? [], { tenantId, testId });
-  return (data ?? []).filter(row => includeInactive || row.is_active);
+  if (error) { if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => (!row.local_pending || !branchId || row.local_branch_id === branchId) && (includeInactive || row.is_active)).sort((a,b) => a.display_order-b.display_order); throw error; }
+  const merged = await mergePendingCatalogCache('test_parameters', data ?? [], { tenantId, testId, branchId });
+  await replaceCachedRows('test_parameters', merged.all, { tenantId, testId });
+  return merged.visible.filter(row => includeInactive || row.is_active);
 }
 
-export async function saveCatalogTest({ tenantId, test, id } = {}) {
+export async function saveCatalogTest({ tenantId, branchId, test, id } = {}) {
   required(tenantId, 'tenantId');
   const code = String(test?.code ?? '').trim();
   const name = String(test?.name ?? '').trim();
@@ -111,8 +137,9 @@ export async function saveCatalogTest({ tenantId, test, id } = {}) {
   }
   const testKind = test?.testKind ?? 'individual';
   if (!['individual', 'panel', 'group'].includes(testKind)) throw new Error('testKind must be individual, panel, or group.');
+  const recordId = id || crypto.randomUUID();
   const payload = {
-    ...(id ? { id } : {}), tenant_id: tenantId, code, name, test_kind: testKind,
+    id: recordId, tenant_id: tenantId, code, name, test_kind: testKind,
     category: test.category?.trim() || null, specimen: test.specimen?.trim() || null,
     method: test.method?.trim() || null, turnaround_minutes: turnaround,
     instructions: test.instructions?.trim() || null, is_active: test.isActive !== false,
@@ -125,19 +152,35 @@ export async function saveCatalogTest({ tenantId, test, id } = {}) {
     critical_result_policy: test.criticalResultPolicy ?? {}, reporting_notes: test.reportingNotes?.trim() || null,
     source_references: test.sourceReferences ?? [], clinical_review_status: test.clinicalReviewStatus || 'needs_review',
   };
+  const cached = (await getCachedRows('catalog', { tenantId })).find(row => row.id === recordId) || null;
+  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn: cached?.local_operation_id ? [cached.local_operation_id] : [] });
   const { data, error } = await db().from(TABLES.catalog).upsert(payload).select().single();
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
+    throw error;
+  }
   await cacheRows('catalog', [data]);
   return data;
 }
 
 /** Deactivate instead of hard-deleting: historical visits retain their test reference and snapshots. */
-export async function setCatalogTestActive({ tenantId, testId, isActive } = {}) {
+export async function setCatalogTestActive({ tenantId, branchId, testId, isActive } = {}) {
   required(tenantId, 'tenantId'); required(testId, 'testId');
   if (typeof isActive !== 'boolean') throw new Error('isActive must be a boolean.');
+  const cached = (await getCachedRows('catalog', { tenantId })).find(row => row.id === testId) || null;
+  if (globalThis.navigator?.onLine === false) {
+    if (!cached) throw new Error('جهّز كتالوج الفرع أثناء الاتصال قبل إيقاف أو تفعيل تحليل دون إنترنت.');
+    return queueCatalogChange({ tenantId, branchId, kind: 'test', action: 'update', recordId: testId, baseSnapshot: cached, recordPayload: { ...cached, is_active: isActive }, dependsOn: cached.local_operation_id ? [cached.local_operation_id] : [] });
+  }
   const { data, error } = await db().from(TABLES.catalog)
     .update({ is_active: isActive }).eq('tenant_id', tenantId).eq('id', testId).select().single();
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) {
+      if (!cached) throw new Error('لا توجد نسخة محلية من التحليل لإتمام التعديل دون اتصال.');
+      return queueCatalogChange({ tenantId, branchId, kind: 'test', action: 'update', recordId: testId, baseSnapshot: cached, recordPayload: { ...cached, is_active: isActive } });
+    }
+    throw error;
+  }
   await cacheRows('catalog', [data]);
   return data;
 }
@@ -247,7 +290,7 @@ const validateParameter = parameter => {
 };
 
 /** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
-export async function saveTestParameter({ tenantId, testId, parameter, id } = {}) {
+export async function saveTestParameter({ tenantId, branchId, testId, parameter, id, dependsOn = [] } = {}) {
   required(tenantId, 'tenantId'); required(testId, 'testId');
   const valid = validateParameter(parameter);
   const payload = {
@@ -265,6 +308,10 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     source_references: valid.sourceReferences, reference_interval_status: valid.referenceIntervalStatus, clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
+  const recordId = id || crypto.randomUUID();
+  payload.id = recordId;
+  const cached = (await getCachedRows('test_parameters', { tenantId, testId })).find(row => row.id === recordId) || null;
+  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn: [...dependsOn, ...(cached?.local_operation_id ? [cached.local_operation_id] : [])] });
   // Keep create and edit as explicit operations. This avoids ambiguous upsert
   // conflicts on the tenant/test/parameter-code unique key and scopes edits to
   // the exact parameter row in this tenant and test.
@@ -276,6 +323,7 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     : await query.insert(payload).select().single();
   const { data, error } = response;
   if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn: [...dependsOn, ...(cached?.local_operation_id ? [cached.local_operation_id] : [])] });
     if (error.code === '23505') {
       throw new Error('كود البارامتر مستخدم بالفعل داخل هذا التحليل. غيّر الكود أو افتح البارامتر الموجود للتعديل.');
     }
@@ -287,13 +335,24 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
 }
 
 /** Preserve parameter history/snapshots by toggling is_active instead of deleting rows. */
-export async function setTestParameterActive({ tenantId, testId, parameterId, isActive } = {}) {
+export async function setTestParameterActive({ tenantId, branchId, testId, parameterId, isActive } = {}) {
   required(tenantId, 'tenantId'); required(testId, 'testId'); required(parameterId, 'parameterId');
   if (typeof isActive !== 'boolean') throw new Error('isActive must be a boolean.');
+  const cached = (await getCachedRows('test_parameters', { tenantId, testId })).find(row => row.id === parameterId) || null;
+  if (globalThis.navigator?.onLine === false) {
+    if (!cached) throw new Error('جهّز بارامترات التحليل أثناء الاتصال قبل تعديلها دون إنترنت.');
+    return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: 'update', recordId: parameterId, baseSnapshot: cached, recordPayload: { ...cached, is_active: isActive } });
+  }
   const { data, error } = await db().from(TABLES.parameters)
     .update({ is_active: isActive }).eq('tenant_id', tenantId).eq('test_id', testId)
     .eq('id', parameterId).select().single();
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) {
+      if (!cached) throw new Error('لا توجد نسخة محلية من البارامتر لإتمام التعديل دون اتصال.');
+      return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: 'update', recordId: parameterId, baseSnapshot: cached, recordPayload: { ...cached, is_active: isActive } });
+    }
+    throw error;
+  }
   await cacheRows('test_parameters', [data]);
   return data;
 }
@@ -456,4 +515,110 @@ export async function importMasterCatalogTest({ tenantId, masterTestId } = {}) {
   });
   if (error) throw error;
   return data;
+}
+
+
+/** Pending catalog changes submitted by any device in the selected tenant/branch. */
+export async function listPendingCatalogChanges({ tenantId, branchId } = {}) {
+  required(tenantId, 'tenantId'); required(branchId, 'branchId');
+  const { data, error } = await db().from('sync_conflicts')
+    .select('id, tenant_id, branch_id, operation_id, entity_type, entity_id, local_payload, server_payload, resolution, resolution_payload, created_at, resolved_by, resolved_at')
+    .eq('tenant_id', tenantId).eq('branch_id', branchId)
+    .in('entity_type', ['catalog_test_change','catalog_parameter_change'])
+    .or('resolution.is.null,resolution.eq.conflict').order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function requireTenantCatalogReviewer(tenantId) {
+  const { data: authData, error: authError } = await db().auth.getUser();
+  if (authError) throw authError;
+  const userId = authData?.user?.id;
+  if (!userId) throw new Error('يلزم تسجيل الدخول لمراجعة تعديلات الكتالوج.');
+  const { data: membership, error } = await db().from('tenant_memberships')
+    .select('account_type').eq('tenant_id', tenantId).eq('user_id', userId)
+    .eq('is_active', true).maybeSingle();
+  if (error) throw error;
+  if (membership?.account_type !== 'owner') {
+    throw new Error('اعتماد أو رفض تعديلات الكتالوج متاح لمالك المعمل فقط.');
+  }
+  return userId;
+}
+
+/** Apply or reject one proposal. Updates are optimistic and never overwrite a newer server version. */
+export async function resolveCatalogChangeProposal({ tenantId, branchId, proposalId, decision } = {}) {
+  required(tenantId, 'tenantId'); required(branchId, 'branchId'); required(proposalId, 'proposalId');
+  if (!['approve','reject'].includes(decision)) throw new Error('قرار المراجعة غير صالح.');
+  const { data: proposal, error: proposalError } = await db().from('sync_conflicts')
+    .select('*').eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).maybeSingle();
+  if (proposalError) throw proposalError;
+  if (!proposal) throw new Error('طلب تعديل الكتالوج غير موجود في هذا الفرع.');
+  if (proposal.resolution && proposal.resolution !== 'conflict') return { status: proposal.resolution };
+  const resolvedBy = await requireTenantCatalogReviewer(tenantId);
+  if (decision === 'reject') {
+    const { data, error } = await db().from('sync_conflicts').update({ resolution: 'rejected', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { decision: 'rejected' } })
+      .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).or('resolution.is.null,resolution.eq.conflict').select('id').maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('سبق أن اتخذ جهاز آخر قرارًا بشأن هذا التعديل. حدّث القائمة.');
+    return { status: 'rejected' };
+  }
+  const payload = proposal.local_payload || {};
+  const kind = proposal.entity_type === 'catalog_test_change' ? 'test' : proposal.entity_type === 'catalog_parameter_change' ? 'parameter' : null;
+  if (!kind || !payload.record_payload || payload.record_id !== proposal.entity_id) throw new Error('بيانات طلب التعديل غير مكتملة؛ لم يتم تطبيقه.');
+  const table = kind === 'test' ? TABLES.catalog : TABLES.parameters;
+  const record = { ...payload.record_payload };
+  for (const key of ['local_pending','local_operation_id','local_branch_id','local_base_updated_at','cached_at','created_at','updated_at']) delete record[key];
+  const allowedColumns = kind === 'test'
+    ? new Set(['id','tenant_id','code','name','test_kind','category','specimen','method','turnaround_minutes','instructions','is_active','short_name','synonyms','loinc_code','clinical_category','clinical_purpose','service_type','patient_preparation','collection_requirements','specimen_requirements','transport_requirements','stability_requirements','rejection_criteria','biosafety_notes','critical_result_policy','reporting_notes','source_references','clinical_review_status','catalog_version'])
+    : new Set(['id','tenant_id','test_id','parameter_code','parameter_name','unit','value_type','decimal_places','reference_ranges','choices','display_order','is_required','is_active','result_source','formula','unit_ucum','alternate_units','critical_ranges','interpretation_rules','applicability','method_notes','clinical_metadata','source_references','clinical_review_status','reference_interval_status','result_input_mode','result_config','display_rules','formula_expression']);
+  if (record.id !== proposal.entity_id || record.tenant_id !== tenantId || Object.keys(record).some(key => !allowedColumns.has(key))) {
+    throw new Error('طلب التعديل يحتوي على نطاق أو حقول غير مسموح بها؛ لم يتم تطبيقه.');
+  }
+  if (kind === 'parameter') {
+    if (!record.test_id) throw new Error('البارامتر لا يرتبط بتحليل صالح.');
+    const parent = await db().from(TABLES.catalog).select('id').eq('tenant_id', tenantId).eq('id', record.test_id).maybeSingle();
+    if (parent.error) throw parent.error;
+    if (!parent.data) throw new Error('لا يمكن اعتماد البارامتر قبل اعتماد التحليل الأب.');
+  }
+  const { data: current, error: currentError } = await db().from(table).select('*').eq('tenant_id', tenantId).eq('id', proposal.entity_id).maybeSingle();
+  if (currentError) throw currentError;
+  const stableValue = value => Array.isArray(value) ? value.map(stableValue) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, stableValue(value[key])])) : value;
+  const matchesCurrent = Boolean(current) && Object.keys(record).every(key => JSON.stringify(stableValue(current[key])) === JSON.stringify(stableValue(record[key])));
+  let applied = null;
+  if (payload.action === 'create') {
+    if (current && matchesCurrent) {
+      applied = current; // Recover safely if the row insert succeeded before the proposal acknowledgement.
+    } else if (current) {
+      const reason = 'يوجد سجل بنفس المعرّف على الخادم؛ لم يتم استبداله.';
+      await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current } }).eq('id', proposalId).or('resolution.is.null,resolution.eq.conflict');
+      return { status: 'conflict', reason, serverSnapshot: current };
+    }
+    if (!current) {
+      const inserted = await db().from(table).insert(record).select().single();
+      if (inserted.error) throw inserted.error;
+      applied = inserted.data;
+    }
+  } else if (payload.action === 'update') {
+    const expectedVersion = payload.base_updated_at;
+    if (current && matchesCurrent) {
+      applied = current; // Idempotent recovery after a successful update and interrupted acknowledgement.
+    } else if (!current || !expectedVersion || current.updated_at !== expectedVersion) {
+      const reason = 'تغير السجل على جهاز آخر منذ تحميل النسخة المحلية. راجع النسختين قبل إعادة التعديل.';
+      await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current || null } }).eq('id', proposalId).is('resolution', null);
+      return { status: 'conflict', reason, serverSnapshot: current || null };
+    }
+    if (!applied) {
+      const patch = { ...record }; delete patch.id; delete patch.tenant_id;
+      const updated = await db().from(table).update(patch).eq('tenant_id', tenantId).eq('id', proposal.entity_id).eq('updated_at', expectedVersion).select().maybeSingle();
+      if (updated.error) throw updated.error;
+      if (!updated.data) return { status: 'conflict', reason: 'تغير السجل أثناء اعتماد التعديل؛ لم تتم الكتابة فوق النسخة الأحدث.' };
+      applied = updated.data;
+    }
+  } else throw new Error('نوع التعديل غير مدعوم.');
+  const resolved = await db().from('sync_conflicts').update({ resolution: 'approved', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { applied_record_id: applied.id, applied_updated_at: applied.updated_at } })
+    .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).or('resolution.is.null,resolution.eq.conflict').select('id').maybeSingle();
+  if (resolved.error) throw resolved.error;
+  if (!resolved.data) throw new Error('تم تطبيق السجل لكن قرار المراجعة تغير بالتزامن؛ حدّث القائمة وتحقق من حالة الطلب.');
+  await cacheRows(kind === 'test' ? 'catalog' : 'test_parameters', [applied]);
+  return { status: 'approved', record: applied };
 }

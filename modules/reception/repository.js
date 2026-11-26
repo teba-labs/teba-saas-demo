@@ -227,7 +227,7 @@ export async function createVisitIntake({ tenantId, branchId, patientId, visitNu
   if (!Array.isArray(testIds) || testIds.length === 0) throw new Error('Select at least one test.');
   const discount = Number(discountAmount), payment = Number(initialPayment);
   if (!Number.isFinite(discount) || discount < 0 || !Number.isFinite(payment) || payment < 0) throw new Error('Invalid discount or payment amount.');
-  if (!Array.isArray(expectedPrices) || expectedPrices.length !== testIds.length || expectedPrices.some(p => !p?.id || !p?.test_id || !Number.isFinite(Number(p.selling_price)))) throw new Error('Price snapshots are incomplete. Refresh the catalog before registering this visit.');
+  if (!Array.isArray(expectedPrices) || expectedPrices.length !== testIds.length || expectedPrices.some(p => !p?.test_id || !Number.isFinite(Number(p.selling_price)) || (!p.id && Number(p.selling_price) !== 0))) throw new Error('Price snapshots are incomplete. A missing price record is allowed only for a zero-price test.');
   const workday = await getOpenWorkday({ tenantId, branchId });
   if(!workday)throw new Error('لا يوجد يوم عمل مفتوح لهذا الفرع؛ افتح يوم العمل أولًا.');
   const operationId = uuid();

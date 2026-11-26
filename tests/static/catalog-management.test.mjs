@@ -5,7 +5,7 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '../..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('catalog repository exposes tenant-scoped test and parameter management without offline writes', () => {
+test('catalog repository exposes tenant-scoped test and parameter management with offline review proposals', () => {
   const source = read('modules/catalog/repository.js');
   for (const name of ['saveCatalogTest', 'setCatalogTestActive', 'saveTestParameter', 'setTestParameterActive']) {
     assert.match(source, new RegExp(`export async function ${name}\\b`));
@@ -26,8 +26,8 @@ test('catalog cache refresh replaces only the intended tenant slice and keeps ot
   assert.match(cache, /row\.test_id === testId/);
   assert.match(cache, /row\?\.tenant_id === tenantId/);
   const catalog = read('modules/catalog/repository.js');
-  assert.match(catalog, /replaceCachedRows\('catalog', data \?\? \[\], \{ tenantId \}\)/);
-  assert.match(catalog, /replaceCachedRows\('test_parameters', data \?\? \[\], \{ tenantId, testId \}\)/);
+  assert.match(catalog, /mergePendingCatalogCache\('catalog', data \?\? \[\], \{ tenantId, branchId \}\)/);
+  assert.match(catalog, /mergePendingCatalogCache\('test_parameters', data \?\? \[\], \{ tenantId, testId, branchId \}\)/);
 });
 
 test('price writes remain owner-policy protected and price reads do not expose price mutation to employees', () => {
@@ -40,9 +40,9 @@ test('price writes remain owner-policy protected and price reads do not expose p
 
 test('catalog and parameter reads cache inactive rows before filtering the visible result', () => {
   const source = read('modules/catalog/repository.js');
-  assert.ok(source.indexOf("replaceCachedRows('catalog', data ?? [], { tenantId })") < source.indexOf("return (data ?? []).filter(row => includeInactive || row.is_active)"));
+  assert.ok(source.indexOf("replaceCachedRows('catalog', merged.all, { tenantId })") < source.indexOf("return merged.visible.filter(row => includeInactive || row.is_active)"));
   const parameters = source.slice(source.indexOf('export async function listTestParameters'), source.indexOf('export async function saveCatalogTest'));
-  assert.ok(parameters.indexOf("replaceCachedRows('test_parameters', data ?? [], { tenantId, testId })") < parameters.indexOf("return (data ?? []).filter(row => includeInactive || row.is_active)"));
+  assert.ok(parameters.indexOf("replaceCachedRows('test_parameters', merged.all, { tenantId, testId })") < parameters.indexOf("return merged.visible.filter(row => includeInactive || row.is_active)"));
 });
 
 

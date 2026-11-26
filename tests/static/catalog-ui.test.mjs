@@ -20,7 +20,10 @@ test('catalog screen uses authenticated tenant context and owner-only price edit
   assert.match(js, /إدارة كتالوج التحاليل والأسعار متاحة لمالك المعمل فقط/);
   assert.match(js, /\$\('priceForm'\)\.hidden=state\.role!=='owner'/);
   assert.match(js, /if\(state\.role!=='owner'\|\|!state\.selectedTest\)return/);
-  assert.match(js, /requireOnline\(\)/);
+  assert.match(js, /requireOnline\(\)/, 'master-library import remains online-only');
+  const editHandlers = js.slice(js.indexOf("$('testForm')"), js.indexOf("$('masterCatalogSearch')"));
+  assert.doesNotMatch(editHandlers, /requireOnline\(\)/, 'technical catalog edits must remain available offline');
+  assert.match(js, /branchId:catalogBranchId\(\)/);
   for (const control of ['parameterInputMode','parameterRangeRows','addReferenceRange','parameterMaxSelections','conditionParameterCode','conditionVisibleValues','parameterChoiceScoresField','parameterChoiceScores']) {
     assert.ok(html.includes('id="'+control+'"'), 'missing doctor-friendly editor control '+control);
   }
@@ -48,8 +51,8 @@ test('parameter repository supports inactive rows only when management explicitl
   const repo = read('modules/catalog/repository.js');
   assert.match(repo, /listMasterCatalogTests/);
   assert.match(repo, /importMasterCatalogTest/);
-  assert.match(repo, /listTestParameters\(\{ tenantId, testId, includeInactive = false \}/);
-  assert.match(repo, /return \(data \?\? \[\]\)\.filter\(row => includeInactive \|\| row\.is_active\)/);
+  assert.match(repo, /listTestParameters\(\{ tenantId, branchId = null, testId, includeInactive = false \}/);
+  assert.match(repo, /return merged\.visible\.filter\(row => includeInactive \|\| row\.is_active\)/);
 });
 
 test('launcher exposes catalog management to owner accounts only', () => {
@@ -84,6 +87,9 @@ test('catalog edits flow through reception, immutable visit snapshots, results a
 
   // Catalog and parameter changes are persisted to the tenant's cloud tables.
   assert.match(catalogRepo, /from\(TABLES\.catalog\)\.upsert\(payload\)/);
+  assert.match(catalogRepo, /entityType: 'catalog_change'/);
+  assert.match(catalogRepo, /queueCatalogChange/);
+  assert.match(catalogRepo, /base_updated_at/);
   assert.match(catalogRepo, /query\.update\(payload\)/);
   assert.match(catalogRepo, /query\.insert\(payload\)/);
   assert.match(catalogRepo, /eq\('tenant_id', tenantId\)\.eq\('test_id', testId\)\.eq\('id', id\)/);

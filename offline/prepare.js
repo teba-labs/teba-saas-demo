@@ -40,7 +40,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
   };
 
   progress('catalog', 'تحميل دليل التحاليل النشط');
-  const catalog = await listCatalog({ tenantId });
+  const catalog = await listCatalog({ tenantId, branchId });
   const testIds = catalog.map(row => row.id).filter(Boolean);
 
   progress('core', 'تجهيز الأسعار والبارامترات والموظفين وبيانات التشغيل');
@@ -55,7 +55,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
     patients,
   ] = await Promise.all([
     listCurrentPrices({ tenantId, branchId, testIds }),
-    warmCatalogParameters({ tenantId, testIds }),
+    warmCatalogParameters({ tenantId, branchId, testIds }),
     listBranchStaff({ tenantId, branchId }),
     getCurrentWorkday({ tenantId, branchId }),
     listExpenseCategories({ tenantId }),
@@ -114,7 +114,7 @@ export async function prepareOfflineBranch({ tenantId, branchId, onProgress = ()
   if(ledgerSnapshot.truncated)warnings.push('سجل الحركة المالية للشهر تجاوز حد التحميل؛ الداشبورد المحلي المالي جزئي.');
   if (entitlement.status !== 'valid') issues.push(`الترخيص الإلكتروني غير جاهز: ${entitlementError || entitlement.message || entitlement.status}.`);
   if (!catalog.length) issues.push('لا يوجد كتالوج تحاليل نشط محفوظ.');
-  if (missingPrices) issues.push(`يوجد ${missingPrices} تحليلًا دون سعر حالي محفوظ.`);
+  // A missing price row is a valid zero-price operating snapshot; it must not block offline readiness.
   if (!staff.length) issues.push('لا يوجد موظف نشط محفوظ لهذا الفرع.');
   // A branch may open its next workday offline; staff and expense categories are warmed above.
   if (patients.truncated) issues.push('دليل المرضى أكبر من حد التحميل المحلي.');

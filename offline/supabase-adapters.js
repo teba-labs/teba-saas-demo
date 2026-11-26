@@ -1,4 +1,5 @@
 import { offlineDb } from './database.js';
+import { getDeviceIdentity } from './device-identity.js';
 import { cacheRows } from './cache.js';
 import { getSupabaseClient } from '../core/supabase-client.js';
 import { getCurrentSession } from '../core/auth/session.js';
@@ -140,6 +141,57 @@ export function createSupabaseSyncHandlers() {
       await cacheRows('test_results',(serverRows.data||[]).map(row=>({...row,branch_id:operation.branch_id})));
       return { acknowledged: true, resultId: operation.operation_id };
     },
+    catalog_change: async operation => {
+      const p = operation.payload || {};
+      if (!['test','parameter'].includes(p.kind) || !['create','update'].includes(p.action) || !p.record_id || !p.record_payload) {
+        return { conflict: true, reason: 'بيانات تعديل الكتالوج المحلي غير مكتملة؛ احتفظنا بالعملية للمراجعة.' };
+      }
+      const { data: existing, error: existingError } = await db().from('sync_conflicts')
+        .select('id,resolution,local_payload,server_payload').eq('id', operation.operation_id)
+        .eq('tenant_id', operation.tenant_id).eq('branch_id', operation.branch_id).maybeSingle();
+      if (existingError) throw existingError;
+      if (existing?.resolution === 'approved') {
+        const approvedTable = p.kind === 'test' ? 'tests_catalog' : 'test_parameters';
+        const { data: approvedRecord, error: approvedError } = await db().from(approvedTable).select('*')
+          .eq('tenant_id', operation.tenant_id).eq('id', p.record_id).maybeSingle();
+        if (approvedError) throw approvedError;
+        if (!approvedRecord) throw new Error('تم اعتماد تعديل الكتالوج لكن السجل غير موجود عند إعادة المزامنة.');
+        await cacheRows(p.kind === 'test' ? 'catalog' : 'test_parameters', [approvedRecord]);
+        return { acknowledged: true, resultId: p.record_id };
+      }
+      if (existing?.resolution === 'rejected') return { conflict: true, reason: 'تم رفض تعديل الكتالوج من المسؤول؛ احتفظنا بالنسخة المحلية للمراجعة.' };
+      if (existing) return { conflict: true, reason: 'تعديل الكتالوج محفوظ في قائمة مراجعة الأجهزة؛ ينتظر قرار المسؤول.', serverSnapshot: existing.server_payload };
+      const table = p.kind === 'test' ? 'tests_catalog' : 'test_parameters';
+      const currentResult = await db().from(table).select('*').eq('tenant_id', operation.tenant_id).eq('id', p.record_id).maybeSingle();
+      if (currentResult.error) throw currentResult.error;
+      const localPayload = { ...p };
+      const device = await getDeviceIdentity();
+      localPayload.device_id = device.device_id;
+      // A later edit on the same device is ordered behind the earlier local edit.
+      // Once its dependency is acknowledged, the new proposal is based on the now-current server version.
+      if (p.base_snapshot?.local_pending && currentResult.data) {
+        localPayload.base_updated_at = currentResult.data.updated_at;
+        localPayload.base_snapshot = currentResult.data;
+      }
+      const proposal = await db().from('sync_conflicts').insert({
+        id: operation.operation_id, tenant_id: operation.tenant_id, branch_id: operation.branch_id,
+        operation_id: operation.operation_id,
+        entity_type: p.kind === 'test' ? 'catalog_test_change' : 'catalog_parameter_change',
+        entity_id: p.record_id, local_payload: localPayload,
+        server_payload: currentResult.data || {},
+      }).select('id').single();
+      if (proposal.error) {
+        if (proposal.error.code === '23505') {
+          const retry = await db().from('sync_conflicts').select('resolution,server_payload').eq('id', operation.operation_id)
+            .eq('tenant_id', operation.tenant_id).eq('branch_id', operation.branch_id).maybeSingle();
+          if (retry.error) throw retry.error;
+          if (retry.data?.resolution === 'approved') return { acknowledged: true, resultId: p.record_id };
+          if (retry.data) return { conflict: true, reason: 'تعديل الكتالوج محفوظ وينتظر المراجعة.', serverSnapshot: retry.data.server_payload };
+        }
+        throw proposal.error;
+      }
+      return { conflict: true, reason: 'تم رفع تعديل الكتالوج من هذا الجهاز إلى قائمة المراجعة. لن يغيّر السجل السحابي قبل اعتماد المسؤول.', serverSnapshot: currentResult.data || {} };
+    },
     patients: async operation => {
       const p = operation.payload;
       const { data, error } = await db().from('patients').upsert({
@@ -172,6 +224,19 @@ export function createSupabaseSyncHandlers() {
     },
     visit_intake: async operation => {
       const p = operation.payload;
+      const expectedPrices = await Promise.all((p.expected_prices || []).map(async snapshot => {
+        if (snapshot.price_id) return snapshot;
+        if (Number(snapshot.selling_price) !== 0) return snapshot;
+        const { data: candidates, error: priceError } = await db().from('test_prices')
+          .select('id,branch_id,selling_price').eq('tenant_id', operation.tenant_id)
+          .eq('test_id', snapshot.test_id).eq('is_current', true);
+        if (priceError) throw priceError;
+        const current = (candidates || []).find(row => row.branch_id === operation.branch_id)
+          || (candidates || []).find(row => row.branch_id == null);
+        // Keep the local zero-price snapshot. If the server price changed, the RPC
+        // returns OFFLINE_PRICE_CONFLICT instead of silently charging a new amount.
+        return current ? { ...snapshot, price_id: current.id } : snapshot;
+      }));
       const { data, error } = await db().rpc('create_visit_intake_idempotent', {
         p_operation_id: operation.operation_id,
         p_tenant_id: operation.tenant_id, p_branch_id: operation.branch_id,
@@ -179,7 +244,7 @@ export function createSupabaseSyncHandlers() {
         p_staff_id: p.staff_id, p_test_ids: p.test_ids,
         p_discount_amount: p.discount_amount ?? 0, p_initial_payment: p.initial_payment ?? 0,
         p_payment_method: p.payment_method ?? 'cash', p_referred_by: p.referred_by ?? null,
-        p_notes: p.notes ?? null, p_expected_prices: p.expected_prices ?? [],
+        p_notes: p.notes ?? null, p_expected_prices: expectedPrices,
       });
       if (error) return throwUnlessConflict(error, /OFFLINE_PRICE_CONFLICT|open the branch workday|registering visits|active staff|patient not found|valid visit number|select at least one test|invalid test selection|duplicate test selection|discount exceeds|payment exceeds|unsupported payment method|idempotency key reused|branch not accessible/i);
       if (!data) throw new Error('Server returned no visit ID.');

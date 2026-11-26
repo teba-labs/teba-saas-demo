@@ -139,10 +139,10 @@ async function loadBranch(){
   $('visitDate').value=state.workday?.work_date||'—';
   if(!state.staff.length)$('workdayStatus').textContent+=' لا توجد هوية موظف نشطة مرتبطة بهذا الحساب في الفرع.';
   if(!state.workday||!state.staff.length){await loadRecent();await loadBalances();setReceptionView('recent');return;}
-  const catalog=await listCatalog({tenantId:state.tenant.id});state.catalog=catalog;
+  const catalog=await listCatalog({tenantId:state.tenant.id,branchId:state.branch.id});state.catalog=catalog;
   const prices=await listCurrentPrices({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});
   state.prices=new Map(prices.map(p=>[p.test_id,p]));state.parameters.clear();
-  if(navigator.onLine!==false){try{await warmCatalogParameters({tenantId:state.tenant.id,testIds:catalog.map(t=>t.id)});}catch(error){notice('تعذر استكمال تجهيز بيانات التحاليل للعمل دون اتصال: '+(error.message||''),true);}}
+  if(navigator.onLine!==false){try{await warmCatalogParameters({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});}catch(error){notice('تعذر استكمال تجهيز بيانات التحاليل للعمل دون اتصال: '+(error.message||''),true);}}
   $('intakePanel').hidden=false;await newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();setReceptionView('intake');
 }
 function renderCatalog(){
@@ -154,7 +154,7 @@ function renderCatalog(){
     const priceSetup=!price?(state.tenant?.accountType==='owner'
       ? `<div class="quick-price"><input type="number" min="0" step="0.01" data-quick-price="${escapeHtml(t.id)}" placeholder="حدد سعر التحليل"><button type="button" class="button button-secondary" data-save-quick-price="${escapeHtml(t.id)}">حفظ السعر</button></div>`
       : '<small class="price-missing">السعر لم يحدده مالك المعمل بعد</small>'):'';
-    return `<div class="catalog-item"><input type="checkbox" data-test="${escapeHtml(t.id)}" id="test-${escapeHtml(t.id)}" ${checked?'checked':''} ${!price?'disabled':''} aria-label="${escapeHtml(t.name)}"><label for="test-${escapeHtml(t.id)}"><strong>${escapeHtml(t.name)}</strong><small>${escapeHtml(t.code)}${t.category?' · '+escapeHtml(t.category):''}${!price?' · السعر غير محدد':''}</small></label><strong>${price?money(price.selling_price):'—'}</strong>${priceSetup}</div>`;
+    return `<div class="catalog-item"><input type="checkbox" data-test="${escapeHtml(t.id)}" id="test-${escapeHtml(t.id)}" ${checked?'checked':''} aria-label="${escapeHtml(t.name)}"><label for="test-${escapeHtml(t.id)}"><strong>${escapeHtml(t.name)}</strong><small>${escapeHtml(t.code)}${t.category?' · '+escapeHtml(t.category):''}${!price?' · بدون سجل سعر — يُعامل بصفر تشغيليًا':''}</small></label><strong>${money(price?.selling_price??0)}</strong>${priceSetup}</div>`;
   }).join(''):'<p class="muted">لا توجد تحاليل مطابقة لبحثك.</p>';
   host.querySelectorAll('[data-test]').forEach(input=>input.addEventListener('change',()=>toggleTest(input.dataset.test,input.checked)));
   host.querySelectorAll('[data-save-quick-price]').forEach(button=>button.addEventListener('click',()=>saveQuickCatalogPrice(button)));
@@ -178,7 +178,7 @@ async function saveQuickCatalogPrice(button){
 }
 async function toggleTest(id,checked){
   if(checked){
-    try{let params=state.parameters.get(id);if(!params){params=await listTestParameters({tenantId:state.tenant.id,testId:id});state.parameters.set(id,params);}
+    try{let params=state.parameters.get(id);if(!params){params=await listTestParameters({tenantId:state.tenant.id,branchId:state.branch.id,testId:id});state.parameters.set(id,params);}
       if(!params.length)throw new Error('هذا التحليل لا يحتوي على معاملات فنية نشطة، لذلك لا يمكن طلبه.');
       state.selected.add(id);
     }catch(error){state.selected.delete(id);renderCatalog();notice(error.message||'تعذر اختيار التحليل.',true);return;}
@@ -292,12 +292,18 @@ async function submitVisit(button){
         tests_catalog:{test_kind:test?.test_kind||'individual'},
       };
     });
+    const catalogDependencies=[...state.selected].flatMap(testId=>{
+      const test=state.catalog.find(row=>row.id===testId);
+      const parameters=state.parameters.get(testId)||[];
+      return [test?.local_operation_id,...parameters.map(row=>row.local_operation_id)].filter(Boolean);
+    });
+    const intakeDependencies=[state.patient.pendingOperationId,state.workday.local_open_operation_id,...catalogDependencies].filter(Boolean);
     const result=await createVisitIntake({
       tenantId:state.tenant.id,branchId:state.branch.id,patientId:state.patient.id,visitNumber,staffId:currentStaff(),
       testIds:[...state.selected],discountAmount:discount,initialPayment:paid,paymentMethod:$('initialPaymentMethod').value,
       referredBy:$('referredBy').value.trim()||null,notes:$('visitNotes').value.trim()||null,
-      expectedPrices:[...state.selected].map(id=>({test_id:id,id:state.prices.get(id).id,selling_price:Number(state.prices.get(id).selling_price)})),
-      dependsOn:state.patient.pendingOperationId?[state.patient.pendingOperationId]:[],
+      expectedPrices:[...state.selected].map(id=>{const price=state.prices.get(id);return {test_id:id,id:price?.id??null,selling_price:Number(price?.selling_price??0)};}),
+      dependsOn:[...new Set(intakeDependencies)],
       localVisit,localVisitTests
     });
     if(result?.queued){

@@ -1,6 +1,6 @@
 import { getCurrentSession, signInWithEmail, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
-import { getPreferredTenantId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
+import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
 import { listCatalog, listCurrentPrices, listTestParameters, saveCatalogTest, saveTestParameter, setTestParameterActive, setCurrentPrice, setBranchPrice, listMasterCatalogTests, importMasterCatalogTest, setCatalogTestActive } from '../../modules/catalog/repository.js';
 import { parseFormulaExpression, formulaToExpression } from '../../modules/catalog/formula-engine.js';
 
@@ -9,9 +9,10 @@ const state = { context:null, tenant:null, role:'staff', tests:[], masterTests:[
 const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = value => `${Number(value || 0).toFixed(2)} ج.م`;
 const priceKey = (testId, branchId = null) => `${testId}:${branchId || 'base'}`;
+const catalogBranchId = () => state.tenant?.branches?.find(branch => branch.id === getPreferredBranchId(state.tenant.id, state.tenant.branches || []))?.id || state.tenant?.branches?.[0]?.id || null;
 function notice(message,error=false){const el=$('notice');el.textContent=message;el.className=`notice show${error?' error':''}`;clearTimeout(notice.timer);notice.timer=setTimeout(()=>el.className='notice',6500);}
+function requireOnline(){if(globalThis.navigator?.onLine===false)throw new Error('استيراد المكتبة المركزية يحتاج اتصالًا بالإنترنت.');}
 function setBusy(form,busy){form.querySelectorAll('button,input,select,textarea').forEach(el=>el.disabled=busy);if(form.id==='testForm')$('testKind').disabled=busy||!!state.selectedTest;}
-function requireOnline(){if(globalThis.navigator?.onLine===false)throw new Error('تعديل الكتالوج يحتاج اتصالًا بالإنترنت. يمكنك مراجعة البيانات المحفوظة دون اتصال.');}
 function parseJsonField(id,label,allowObject=false){const raw=$(id).value.trim();if(!raw)return [];let value;try{value=JSON.parse(raw);}catch{if(allowObject)return {text:raw};return raw.split(',').map(x=>x.trim()).filter(Boolean);}if(!Array.isArray(value)&&!(allowObject&&value!==null&&typeof value==='object'))throw new Error(allowObject?`${label} يجب أن يكون نصًا أو كائنًا أو قائمة.`:`${label} يجب أن تكون قائمة أو اختيارات مفصولة بفواصل.`);return value;}
 function displayRanges(value){if(!value||Array.isArray(value)&&!value.length)return '';if(typeof value==='object'&&value.text)return String(value.text);return JSON.stringify(value,null,2);}
 function displayChoices(value){return Array.isArray(value)?value.join(', '):'';}
@@ -141,8 +142,8 @@ function fillTestForm(test){state.selectedTest=test.id;$('editorTitle').textCont
  $('testReportingNotes').value=test.reporting_notes||'';$('testSources').value=displayJson(test.source_references);
  $('testReviewStatus').value=test.clinical_review_status||'needs_review';$('activateCatalogTest').hidden=!!test.is_active;$('testStatus').textContent=test.is_active?'نشط':'موقوف';$('testStatus').className=`status ${test.is_active?'active':'inactive'}`;$('parameterSection').hidden=false;$('priceSection').hidden=false;renderTests();}
 async function selectTest(id){const test=state.tests.find(t=>t.id===id);if(!test)return;const requestId=++state.selectionRequest;const tenantId=state.tenant.id;fillTestForm(test);state.selectedParameter=null;$('parameterForm').hidden=true;await Promise.all([loadParameters({tenantId,testId:test.id,requestId}),loadPrice()]);}
-async function loadCatalog(requestId=state.tenantRequest){const tenantId=state.tenant.id;const tests=await listCatalog({tenantId,includeInactive:true});if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.tests=tests;const ids=tests.map(t=>t.id);const priceBranchId=state.role==='owner'?null:state.tenant.branches?.[0]?.id||null;const prices=ids.length?await listCurrentPrices({tenantId,branchId:priceBranchId,testIds:ids}):[];if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.prices=new Map(prices.map(p=>[priceKey(p.test_id,p.branch_id),p]));renderTests();if(state.selectedTest){const found=state.tests.find(t=>t.id===state.selectedTest);if(found)await selectTest(found.id);else resetTestForm();}}
-async function loadParameters({tenantId=state.tenant?.id,testId=state.selectedTest,requestId=state.selectionRequest}={}){if(!tenantId||!testId)return;const rows=await listTestParameters({tenantId,testId,includeInactive:true});if(requestId!==state.selectionRequest||tenantId!==state.tenant?.id||testId!==state.selectedTest)return;state.parameters=rows;renderParameters();}
+async function loadCatalog(requestId=state.tenantRequest){const tenantId=state.tenant.id;const tests=await listCatalog({tenantId,branchId:catalogBranchId(),includeInactive:true});if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.tests=tests;const ids=tests.map(t=>t.id);const priceBranchId=state.role==='owner'?null:state.tenant.branches?.[0]?.id||null;const prices=ids.length?await listCurrentPrices({tenantId,branchId:priceBranchId,testIds:ids}):[];if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.prices=new Map(prices.map(p=>[priceKey(p.test_id,p.branch_id),p]));renderTests();if(state.selectedTest){const found=state.tests.find(t=>t.id===state.selectedTest);if(found)await selectTest(found.id);else resetTestForm();}}
+async function loadParameters({tenantId=state.tenant?.id,testId=state.selectedTest,requestId=state.selectionRequest}={}){if(!tenantId||!testId)return;const rows=await listTestParameters({tenantId,branchId:catalogBranchId(),testId,includeInactive:true});if(requestId!==state.selectionRequest||tenantId!==state.tenant?.id||testId!==state.selectedTest)return;state.parameters=rows;renderParameters();}
 function renderMasterCatalog(){
  const term=$('masterCatalogSearch').value.trim().toLocaleLowerCase();
  $('importAllMasterLibrary').disabled=!state.masterTests.length;
@@ -204,26 +205,26 @@ $('tenantSelect').addEventListener('change',()=>selectTenant($('tenantSelect').v
 $('search').addEventListener('input',renderTests);$('showInactive').addEventListener('change',renderTests);
 $('testList').addEventListener('click',e=>{const btn=e.target.closest('[data-id]');if(btn)selectTest(btn.dataset.id).catch(err=>notice(err.message,true));});
 $('newTest').addEventListener('click',resetTestForm);$('resetTest').addEventListener('click',resetTestForm);
-$('testForm').addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return;state.busy=true;setBusy(e.currentTarget,true);try{requireOnline();const isNew=!state.selectedTest;const testKind=$('testKind').value;const saved=await saveCatalogTest({tenantId:state.tenant.id,id:state.selectedTest||undefined,test:{code:$('testCode').value,name:$('testName').value,testKind,category:$('testCategory').value,specimen:$('testSpecimen').value,method:$('testMethod').value,turnaroundMinutes:$('testTurnaround').value,instructions:$('testInstructions').value,isActive:$('testActive').checked,
+$('testForm').addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return;state.busy=true;setBusy(e.currentTarget,true);try{const isNew=!state.selectedTest;const testKind=$('testKind').value;const saved=await saveCatalogTest({tenantId:state.tenant.id,branchId:catalogBranchId(),id:state.selectedTest||undefined,test:{code:$('testCode').value,name:$('testName').value,testKind,category:$('testCategory').value,specimen:$('testSpecimen').value,method:$('testMethod').value,turnaroundMinutes:$('testTurnaround').value,instructions:$('testInstructions').value,isActive:$('testActive').checked,
  shortName:$('testShortName').value,synonyms:$('testSynonyms').value.split(',').map(x=>x.trim()).filter(Boolean),loincCode:$('testLoinc').value,
  clinicalCategory:$('testClinicalCategory').value,clinicalPurpose:$('testClinicalPurpose').value,serviceType:$('testServiceType').value,
  patientPreparation:parseJsonObjectField('testPreparation','تحضير المريض'),collectionRequirements:parseJsonObjectField('testCollection','متطلبات السحب'),
  specimenRequirements:parseJsonObjectField('testSpecimenRequirements','مواصفات العينة'),transportRequirements:parseJsonObjectField('testTransport','النقل'),
  stabilityRequirements:parseJsonObjectField('testStability','الثبات'),rejectionCriteria:$('testRejection').value.split(',').map(x=>x.trim()).filter(Boolean),
  criticalResultPolicy:parseJsonObjectField('testCriticalPolicy','سياسة النتائج الحرجة'),biosafetyNotes:$('testBiosafety').value,
- reportingNotes:$('testReportingNotes').value,sourceReferences:parseJsonArrayField('testSources','المراجع العلمية'),clinicalReviewStatus:$('testReviewStatus').value}});if(isNew&&testKind==='individual'){await saveTestParameter({tenantId:state.tenant.id,testId:saved.id,parameter:{code:(`RES_${saved.code}`).slice(0,40),name:saved.name,valueType:'numeric',decimalPlaces:2,displayOrder:0,referenceRanges:[],choices:[],isRequired:true,isActive:true}});}notice(isNew&&testKind==='individual'?'تم إنشاء التحليل وإضافة خانة نتيجته تلقائيًا.':'تم حفظ بيانات التحليل.');await loadCatalog();await selectTest(saved.id);}catch(err){notice(err.message||'تعذر حفظ التحليل.',true);}finally{state.busy=false;setBusy(e.currentTarget,false);}});
+ reportingNotes:$('testReportingNotes').value,sourceReferences:parseJsonArrayField('testSources','المراجع العلمية'),clinicalReviewStatus:$('testReviewStatus').value}});if(isNew&&testKind==='individual'){await saveTestParameter({tenantId:state.tenant.id,branchId:catalogBranchId(),testId:saved.id,dependsOn:saved.local_operation_id?[saved.local_operation_id]:[],parameter:{code:(`RES_${saved.code}`).slice(0,40),name:saved.name,valueType:'numeric',decimalPlaces:2,displayOrder:0,referenceRanges:[],choices:[],isRequired:true,isActive:true}});}notice(saved.queued?'تم حفظ تعديل التحليل محليًا، وسيظهر للمراجعة عند المزامنة.':isNew&&testKind==='individual'?'تم إنشاء التحليل وإضافة خانة نتيجته تلقائيًا.':'تم حفظ بيانات التحليل.');await loadCatalog();await selectTest(saved.id);}catch(err){notice(err.message||'تعذر حفظ التحليل.',true);}finally{state.busy=false;setBusy(e.currentTarget,false);}});
 $('activateCatalogTest').addEventListener('click',async e=>{
  const button=e.currentTarget;if(!state.selectedTest||button.disabled)return;
  button.disabled=true;
  try{
-  requireOnline();
-  const activated=await setCatalogTestActive({tenantId:state.tenant.id,testId:state.selectedTest,isActive:true});
-  notice('تم تفعيل التحليل. لم تتغير الأسعار أو بيانات الفروع.');
+  
+  const activated=await setCatalogTestActive({tenantId:state.tenant.id,branchId:catalogBranchId(),testId:state.selectedTest,isActive:true});
+  notice(activated.queued?'تم حفظ طلب تفعيل التحليل محليًا للمراجعة عند المزامنة.':'تم تفعيل التحليل. لم تتغير الأسعار أو بيانات الفروع.');
   await loadCatalog();await selectTest(activated.id);
  }catch(error){notice(error.message||'تعذر اعتماد تعريف التحليل.',true);}
  finally{button.disabled=false;}
 });
-$('parameterSection').addEventListener('click',async e=>{const edit=e.target.closest('[data-edit-param]');if(edit){editParameter(edit.dataset.editParam);return;}const toggle=e.target.closest('[data-toggle-param]');if(toggle){const p=state.parameters.find(x=>x.id===toggle.dataset.toggleParam);if(!p)return;try{requireOnline();await setTestParameterActive({tenantId:state.tenant.id,testId:state.selectedTest,parameterId:p.id,isActive:!p.is_active});notice(p.is_active?'تم إيقاف البارامتر.':'تم تنشيط البارامتر.');await loadParameters();}catch(err){notice(err.message,true);}}});
+$('parameterSection').addEventListener('click',async e=>{const edit=e.target.closest('[data-edit-param]');if(edit){editParameter(edit.dataset.editParam);return;}const toggle=e.target.closest('[data-toggle-param]');if(toggle){const p=state.parameters.find(x=>x.id===toggle.dataset.toggleParam);if(!p)return;try{const awaited=await setTestParameterActive({tenantId:state.tenant.id,branchId:catalogBranchId(),testId:state.selectedTest,parameterId:p.id,isActive:!p.is_active});notice(awaited.queued?'تم إيقاف البارامتر.':'تم تنشيط البارامتر.');await loadParameters();}catch(err){notice(err.message,true);}}});
 $('newParameter').addEventListener('click',()=>{resetParameterForm();$('parameterForm').hidden=false;$('parameterForm').scrollIntoView({behavior:'smooth',block:'nearest'});});$('cancelParameter').addEventListener('click',resetParameterForm);
 $('parameterSource').addEventListener('change',updateFormulaFields);
 $('parameterInputMode').addEventListener('change',updateParameterFields);
@@ -233,7 +234,7 @@ $('addReferenceRange').addEventListener('click',()=>{const rows=readRangeRows();
 $('parameterForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!state.selectedTest)return;const form=e.currentTarget;setBusy(form,true);
  try{
-  requireOnline();const resultSource=$('parameterSource').value;const resultInputMode=resultSource==='calculated'?'numeric_decimal':$('parameterInputMode').value;
+  const resultSource=$('parameterSource').value;const resultInputMode=resultSource==='calculated'?'numeric_decimal':$('parameterInputMode').value;
   const parameter={
    code:$('parameterCode').value,name:$('parameterName').value,unit:$('parameterUnit').value,
    resultInputMode,decimalPlaces:$('parameterDecimals').value,displayOrder:$('parameterOrder').value,
@@ -251,8 +252,8 @@ $('parameterForm').addEventListener('submit',async e=>{
    sourceReferences:parseJsonArrayField('parameterSources','المراجع العلمية'),referenceIntervalStatus:['numeric_integer','numeric_decimal'].includes(resultInputMode)?$('parameterReferenceStatus').value:'not_applicable',clinicalReviewStatus:$('parameterReviewStatus').value,
    isRequired:$('parameterRequired').checked,isActive:$('parameterActive').checked
   };
-  await saveTestParameter({tenantId:state.tenant.id,testId:state.selectedTest,id:state.selectedParameter||undefined,parameter});
-  notice('تم حفظ البارامتر في كتالوج المعمل. سيظهر في الزيارات الجديدة؛ الزيارات المسجلة تحتفظ بنسختها وقت التسجيل.');resetParameterForm();await loadParameters();
+  const savedParameter=await saveTestParameter({tenantId:state.tenant.id,branchId:catalogBranchId(),testId:state.selectedTest,id:state.selectedParameter||undefined,parameter});
+  notice(savedParameter.queued?'تم حفظ البارامتر محليًا وسيظهر للمراجعة عند المزامنة.':'تم حفظ البارامتر في كتالوج المعمل. سيظهر في الزيارات الجديدة؛ الزيارات المسجلة تحتفظ بنسختها وقت التسجيل.');resetParameterForm();await loadParameters();
  }catch(err){notice(err.message||'تعذر حفظ البارامتر.',true);}
  finally{setBusy(form,false);}
 });
@@ -275,7 +276,7 @@ $('importAllMasterLibrary').addEventListener('click',async e=>{
    button.textContent=`استيراد الكل ${index+1}/${total}`;
    if(existingCodes.has(item.master_code)){skipped++;continue;}
    try{
-    await importMasterCatalogTest({tenantId:state.tenant.id,masterTestId:item.id});
+    requireOnline();await importMasterCatalogTest({tenantId:state.tenant.id,masterTestId:item.id});
     imported++;
     existingCodes.add(item.master_code);
    }catch(error){
@@ -301,11 +302,11 @@ $('importAllMasterLibrary').addEventListener('click',async e=>{
 $('masterCatalogList').addEventListener('click',async e=>{
  const btn=e.target.closest('[data-import-master]');if(!btn||state.role!=='owner')return;
  btn.disabled=true;
- try{requireOnline();const testId=await importMasterCatalogTest({tenantId:state.tenant.id,masterTestId:btn.dataset.importMaster});
+ try{const testId=await importMasterCatalogTest({tenantId:state.tenant.id,masterTestId:btn.dataset.importMaster});
   await loadCatalog();await selectTest(testId);notice('تم استيراد نسخة مستقلة نشطة. السعر الأساسي الافتراضي صفر ويمكن تعديله لاحقًا.');
  }catch(error){notice(error.message||'تعذر استيراد تعريف التحليل.',true);}finally{btn.disabled=false;}
 });
 $('priceBranchSelect').addEventListener('change',()=>loadPrice());
-$('priceForm').addEventListener('submit',async e=>{e.preventDefault();if(state.role!=='owner'||!state.selectedTest)return;const form=e.currentTarget;setBusy(form,true);try{requireOnline();const value=Number($('newPrice').value);if(!Number.isFinite(value)||value<0)throw new Error('أدخل سعرًا صحيحًا غير سالب.');const branchId=$('priceBranchSelect').value||null;const saved=branchId?await setBranchPrice({tenantId:state.tenant.id,branchId,testId:state.selectedTest,sellingPrice:value}):await setCurrentPrice({tenantId:state.tenant.id,testId:state.selectedTest,sellingPrice:value});state.prices.set(priceKey(state.selectedTest,branchId),saved);await loadPrice();notice(branchId?'تم تحديث سعر الفرع.':'تم تحديث السعر الأساسي.');}catch(err){notice(err.message||'تعذر تحديث السعر.',true);}finally{setBusy(form,false);}});
+$('priceForm').addEventListener('submit',async e=>{e.preventDefault();if(state.role!=='owner'||!state.selectedTest)return;const form=e.currentTarget;setBusy(form,true);try{const value=Number($('newPrice').value);if(!Number.isFinite(value)||value<0)throw new Error('أدخل سعرًا صحيحًا غير سالب.');const branchId=$('priceBranchSelect').value||null;const saved=branchId?await setBranchPrice({tenantId:state.tenant.id,branchId,testId:state.selectedTest,sellingPrice:value}):await setCurrentPrice({tenantId:state.tenant.id,testId:state.selectedTest,sellingPrice:value});state.prices.set(priceKey(state.selectedTest,branchId),saved);await loadPrice();notice(branchId?'تم تحديث سعر الفرع.':'تم تحديث السعر الأساسي.');}catch(err){notice(err.message||'تعذر تحديث السعر.',true);}finally{setBusy(form,false);}});
 
 try{await start();}catch(e){notice(e.message||'تعذر تحميل كتالوج المعمل.',true);}

@@ -25,6 +25,16 @@ test('reception intake captures age value and unit and generates patient and vis
   assert.match(migration, /age_unit in \('days','months','years'\)/);
 });
 
+test('reception allows zero-price catalog tests without granting staff price-edit permissions', () => {
+  const js = read('assets/js/reception.js');
+  const catalogRenderer = js.slice(js.indexOf('function renderCatalog()'), js.indexOf('async function saveQuickCatalogPrice'));
+  assert.match(catalogRenderer, /data-test=.*aria-label/);
+  assert.doesNotMatch(catalogRenderer, /\$\{!price\?'disabled'/);
+  assert.match(catalogRenderer, /price\?\.selling_price\?\?0/);
+  assert.match(catalogRenderer, /بدون سجل سعر — يُعامل بصفر تشغيليًا/);
+  assert.match(js, /if\(state\.tenant\?\.accountType!==\'owner\'\)/);
+});
+
 test('reception provides complete post-save actions and direct visit-scoped results navigation', () => {
   const html = read('app/reception.html');
   const js = read('assets/js/reception.js');
