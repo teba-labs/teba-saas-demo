@@ -115,7 +115,7 @@ async function loadBranch(){
   state.stopSync?.();state.stopSync=null;
   state.branch=state.tenant.branches.find(b=>b.id===$('branchSelect').value);if(!state.branch)return;
   rememberWorkspaceSelection(state.tenant.id,state.branch.id);
-  state.patient=null;state.selected.clear();$('patientMatches').innerHTML='<p class="muted">ابدأ البحث لاختيار مريض مسجل.</p>';setPatient(null);
+  state.patient=null;state.selected.clear();state.workday=null;state.staff=[];$('patientMatches').innerHTML='<p class="muted">ابدأ البحث لاختيار مريض مسجل.</p>';setPatient(null);
   $('intakePanel').hidden=true;setReceptionView('intake');$('recentVisits').innerHTML='<p class="muted">جارٍ تحميل الزيارات…</p>';$('balancesList').innerHTML='<p class="muted">جارٍ تحميل المديونيات…</p>';
   state.stopSync=startBackgroundSync({tenantId:state.tenant.id,branchId:state.branch.id});
   const db=getSupabaseClient();let staffRows=[];
@@ -138,7 +138,7 @@ async function loadBranch(){
   $('intakeWorkdayChip').textContent=state.workday?`يوم العمل · ${state.workday.work_date}`:'يوم العمل مغلق';
   $('visitDate').value=state.workday?.work_date||'—';
   if(!state.staff.length)$('workdayStatus').textContent+=' لا توجد هوية موظف نشطة مرتبطة بهذا الحساب في الفرع.';
-  if(!state.workday||!state.staff.length){await loadRecent();await loadBalances();return;}
+  if(!state.workday||!state.staff.length){await loadRecent();await loadBalances();setReceptionView('recent');return;}
   const catalog=await listCatalog({tenantId:state.tenant.id});state.catalog=catalog;
   const prices=await listCurrentPrices({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});
   state.prices=new Map(prices.map(p=>[p.test_id,p]));state.parameters.clear();
@@ -364,7 +364,7 @@ function goToResults(visitId=state.lastVisit?.visitId){
 function setReceptionView(view){
  const panels={intake:$('intakePanel'),recent:$('recentPanel'),balances:$('balancePanel')};
  if(!panels[view])view='intake';
- Object.entries(panels).forEach(([key,panel])=>{if(panel)panel.hidden=key!==view;});
+ Object.entries(panels).forEach(([key,panel])=>{if(panel)panel.hidden=key!==view||(key==='intake'&&(!state.workday||!state.staff.length));});
  const receipt=$('paymentReceipt');if(receipt&&receipt.dataset.receiptReady==='true')receipt.hidden=view!=='balances';
  document.querySelectorAll('[data-reception-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.receptionView===view)));
 }
