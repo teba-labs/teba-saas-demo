@@ -12,7 +12,6 @@ test('master formula TEXT is explicitly converted to tenant formula JSONB in eve
   assert.match(migration, /v_formula := p_formula::jsonb/);
   assert.match(migration, /jsonb_typeof\(v_formula\) <> 'object'/);
   assert.equal((migration.match(/formula=private\.master_formula_text_to_jsonb\(mp\.formula\)/g) || []).length, 2);
-  assert.equal((migration.match(/formula=private\.master_formula_text_to_jsonb\(mp\.formula\)/g) || []).length, 2);
   assert.match(migration, /create or replace function public\.import_master_catalog_test_unchecked/);
   assert.match(migration, /create or replace function public\.ensure_tenant_core_catalog/);
   assert.doesNotMatch(migration, /formula=mp\.formula/);
