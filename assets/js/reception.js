@@ -369,7 +369,7 @@ function bindKeyboard(){
     if(e.key!=='Enter'||e.target.matches('textarea,button,input[type="submit"],input[type="button"],input[type="checkbox"],input[type="radio"]'))return;
     const fields=[...$('newPatientForm').querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly]),select:not([disabled]),textarea:not([disabled])')].filter(el=>el.getClientRects().length);
     const index=fields.indexOf(e.target);if(index<0)return;
-    e.preventDefault();e.stopPropagation();const next=fields[index+1];(next||$('createPatient')).focus();
+    e.preventDefault();e.stopPropagation();const next=fields[index+1];if(next){next.focus();return;}const submit=$('createPatient');if(submit&&!submit.disabled)$('newPatientForm').requestSubmit(submit);else submit?.focus();
   });
   $('newPatientForm').addEventListener('submit',e=>{e.preventDefault();addNewPatient($('createPatient'));});
   $('patientMatches').addEventListener('keydown',e=>{if(e.key==='Escape')$('patientSearch').focus();});
@@ -381,10 +381,12 @@ function bindKeyboard(){
   });
   $('intakePanel').addEventListener('keydown',e=>{
     if(e.key==='Escape'&&$('patientHistoricalPanel').hidden===false){$('patientHistoricalPanel').hidden=true;$('showPatientHistory')?.focus();}
-    if(e.key!=='Enter'||e.target.matches('textarea,input[type="search"],button,input[type="checkbox"]'))return;
-    if(e.target.matches('input[type="text"],input[type="number"],input[type="tel"]')){
-      const fields=[...$('intakePanel').querySelectorAll('input:not([disabled]):not([readonly]),select:not([disabled]),textarea:not([disabled]),button:not([disabled])')].filter(el=>el.getClientRects().length&&el.type!=='button');
-      const next=fields[fields.indexOf(e.target)+1];if(next){e.preventDefault();next.focus();}
+    if(e.key!=='Enter'||e.target.matches('textarea,input[type="search"],button,input[type="checkbox"],input[type="radio"],input[type="file"]'))return;
+    if(e.target.matches('input:not([type="hidden"]),select')){
+      const fields=[...$('intakePanel').querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly]):not([type="search"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),select:not([disabled]),button:not([disabled])')].filter(el=>el.getClientRects().length&&el.type!=='button');
+      const index=fields.indexOf(e.target),next=index>=0?fields[index+1]:null;
+      if(next){e.preventDefault();next.focus();return;}
+      if(!$('createVisit').disabled){e.preventDefault();$('createVisit').click();}
     }
   });
 }
