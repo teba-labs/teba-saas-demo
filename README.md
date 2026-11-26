@@ -1,12 +1,16 @@
 # Taiba Smart Lab — Primary SaaS Runtime
 
+> **قرار مهم قبل تعديل Offline أو Entitlement — 26 نوفمبر 2026**
+>
+> تعليق مؤقت لفرض التراخيص التجارية/Offline entitlement على العملاء الوهميين أثناء التطوير والاختبار فقط، مع الاحتفاظ الكامل بالكود والمفاتيح والإعدادات لإعادة التفعيل بطلب صريح من مالك المنتج. لا تحذف النظام ولا تعطل Authentication أو RLS أو عزل Tenant/Branch. اقرأ [الوثيقة الملزمة](docs/OFFLINE-LICENSE-TEMPORARY-BYPASS-DECISION-2026-11-26.md) و[سجل الحالة والاستكمال](docs/MASTER-STATUS-AND-CONTINUATION-AR.md). التوثيق لا يعني أن bypass نُفّذ بالفعل.
+
 > **تصحيح توزيع البيئات — 21 نوفمبر 2026**
 >
 > - **السحابة الأساسية:** مشروع Taiba SaaS الحالي `hgqwpykeazuzceeiumjg` (اسم لوحة التحكم: `teba-lis-demo`). هي قاعدة التطبيق الحالية، ويجب أن يظل موقع GitHub Pages متصلًا بها.
 > - **سحابة الاختبار المحجوزة:** المشروع `khjzoleiuiipyodpkieg` (اسم لوحة التحكم: `teba-lab`). مخططها أقدم ومختلف؛ لا تُوجَّه إليها ملفات الموقع ولا تُطبّق عليها سلسلة SaaS قبل تجهيزها واختبارها بشكل مستقل.
 > - **الاتصال:** يظل عنوان Supabase والمفتاح العام الحاليان في `config/environment.js` كما هما، وهما يخصان السحابة الأساسية. تم تصحيح وصف البيئة والتحقق الآلي فقط؛ لم يتم تدوير المفتاح أو تبديل عنوان الاتصال.
 > - **نطاق هذا التصحيح:** توثيق الأدوار واختبار منع توجيه التطبيق إلى مشروع TEST أو مشروع غير معتمد. لا يتضمن نقل بيانات أو ترحيلات قاعدة بيانات أو تغيير مستخدمين أو نشر/تعديل Edge Functions أو إعداد الأسرار وStorage.
-> - **روابط/أسرار الوظائف السحابية:** مؤجلة لجلسة مستقلة كما اتفقنا.
+> - **روابط/أسرار الوظائف السحابية:** مؤجلة لجلسة مستقلة.
 
 This repository's current browser runtime uses the existing primary Taiba SaaS Supabase project. Historical development notes below are retained as an archive and may contain the former, incorrect TEST/production labels; the environment mapping above and `docs/contracts/supabase-v1-contract.md` are authoritative.
 
