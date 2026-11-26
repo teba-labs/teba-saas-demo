@@ -2,7 +2,7 @@
 
 > **قرار مهم قبل تعديل Offline أو Entitlement — 26 نوفمبر 2026**
 >
-> تعليق مؤقت لفرض التراخيص التجارية/Offline entitlement على العملاء الوهميين أثناء التطوير والاختبار فقط، مع الاحتفاظ الكامل بالكود والمفاتيح والإعدادات لإعادة التفعيل بطلب صريح من مالك المنتج. لا تحذف النظام ولا تعطل Authentication أو RLS أو عزل Tenant/Branch. اقرأ [الوثيقة الملزمة](docs/OFFLINE-LICENSE-TEMPORARY-BYPASS-DECISION-2026-11-26.md) و[سجل الحالة والاستكمال](docs/MASTER-STATUS-AND-CONTINUATION-AR.md). التوثيق لا يعني أن bypass نُفّذ بالفعل.
+> تعليق مؤقت لفرض التراخيص التجارية/Offline entitlement على العملاء الوهميين أثناء التطوير والاختبار فقط، مع الاحتفاظ الكامل بالكود والمفاتيح والإعدادات لإعادة التفعيل بطلب صريح من مالك المنتج. لا تحذف النظام ولا تعطل Authentication أو RLS أو عزل Tenant/Branch. اقرأ [الوثيقة الملزمة](docs/OFFLINE-LICENSE-TEMPORARY-BYPASS-DECISION-2026-11-26.md) و[سجل الحالة والاستكمال](docs/MASTER-STATUS-AND-CONTINUATION-AR.md). تنفيذ bypass موجود في PR #87؛ تحقق من دمجه ونشر Pages قبل افتراض أنه وصل للمتصفح.
 
 > **تصحيح توزيع البيئات — 21 نوفمبر 2026**
 >
