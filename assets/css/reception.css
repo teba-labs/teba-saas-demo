@@ -206,3 +206,34 @@ body.reception-page{height:100dvh;overflow:hidden}
  .reception-shell .patient-fields,.reception-shell .visit-meta{grid-template-columns:minmax(0,1fr)}
  .reception-shell .billing{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+
+/* Reception workbench: restore the focused three-panel workstation from the legacy lab UI. */
+@media(min-width:1100px){
+ .reception-shell .intake-content.intake-flow{grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr) minmax(0,.98fr);grid-template-areas:"patient catalog cart";height:min(calc(100dvh - 250px),680px);min-height:390px;max-height:calc(100dvh - 210px);overflow:hidden;gap:12px}
+ .reception-shell .intake-column{display:flex;flex-direction:column;min-width:0;min-height:0;height:100%;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:#fff}
+ .reception-shell .intake-column>summary{display:none}
+ .reception-shell .intake-column-body{display:flex!important;flex:1;flex-direction:column;gap:10px;min-height:0;padding:10px;overflow-y:auto;overscroll-behavior:contain}
+ .reception-shell .intake-block{flex:0 0 auto;margin:0;padding:12px}
+ .reception-shell .patient-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .reception-shell .catalog-column .catalog-list{max-height:none;min-height:180px;overflow-y:auto}
+ .reception-shell .cart-column .selected-tests-list{max-height:220px;overflow:auto}
+ .reception-shell .cart-column .billing{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(min-width:768px) and (max-width:1099px){
+ .reception-shell .intake-content.intake-flow{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"patient patient" "catalog cart";grid-template-rows:minmax(0,1.05fr) minmax(0,.95fr);height:calc(100dvh - 270px);min-height:390px;max-height:calc(100dvh - 220px);overflow:hidden;gap:10px}
+ .reception-shell .intake-column{display:flex;flex-direction:column;min-width:0;min-height:0;height:100%;overflow:hidden}
+ .reception-shell .intake-column>summary{display:none}
+ .reception-shell .intake-column-body{display:flex!important;flex:1;flex-direction:column;gap:8px;min-height:0;padding:9px;overflow-y:auto;overscroll-behavior:contain}
+ .reception-shell .intake-block{flex:0 0 auto;margin:0;padding:10px}
+ .reception-shell .patient-fields{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .reception-shell .catalog-column .catalog-list{max-height:none;min-height:120px;overflow-y:auto}
+ .reception-shell .cart-column .selected-tests-list{max-height:140px;overflow:auto}
+}
+@media(max-width:767px){
+ .reception-shell .intake-content.intake-flow{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"patient" "catalog" "cart";height:auto;max-height:none;min-height:0;overflow:visible}
+ .reception-shell .intake-column{display:block;height:auto;min-height:0;overflow:visible;border:1px solid var(--line);background:#fff}
+ .reception-shell .intake-column>summary{display:flex;justify-content:space-between;gap:10px;padding:13px;cursor:pointer}
+ .reception-shell .intake-column-body{display:grid!important;gap:10px;padding:10px;overflow:visible}
+ .reception-shell .intake-column:not([open])>.intake-column-body{display:none!important}
+}
