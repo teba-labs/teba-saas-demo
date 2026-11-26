@@ -9,6 +9,9 @@ const PRIMARY_PROJECT_REF = 'hgqwpykeazuzceeiumjg';
 
 export const APP_ENV = Object.freeze({
   name: 'primary',
+  // Temporary development policy: skip commercial offline entitlements only.
+  // Authentication, tenant/branch membership and RLS remain enforced.
+  offlineLicenseMode: 'development-bypass',
   supabase: Object.freeze({
     url: PRIMARY_SUPABASE_URL,
     publishableKey: 'sb_publishable_7FzS_dDxTF7bObMLJfI_sQ_6ac410OO', // Existing primary project's publishable browser key.
