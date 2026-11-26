@@ -59,7 +59,7 @@ test('catalog UI exposes the master library and structured medical metadata edit
  const js=read('assets/js/catalog.js');
  assert.match(js,/data-import-master/);
  assert.match(js,/clinicalReviewStatus/);
- assert.match(js,/parseJsonObjectField/);
+ assert.match(js,/parseTextObject/);\n assert.doesNotMatch(js,/parseJsonObjectField|parseJsonArrayField|parseJsonField/);
  assert.match(js,/importMasterCatalogTest/);
  assert.match(html,/id="openMasterLibrary"/);
  assert.match(html,/id="closeMasterLibrary"/);
