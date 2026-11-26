@@ -136,17 +136,6 @@ document.addEventListener('keydown', event => {
     return;
   }
 
-  if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') &&
-      target.matches('input[type="text"], input[type="email"], input[type="tel"]') && form) {
-    const controls = formControls(form);
-    const index = controls.indexOf(target);
-    if (index >= 0 && controls.length > 1) {
-      event.preventDefault();
-      controls[Math.max(0, Math.min(controls.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)))].focus();
-      return;
-    }
-  }
-
   const list = listFor(target);
   if (!list || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable ||
       !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
