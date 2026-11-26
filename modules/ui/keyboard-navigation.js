@@ -18,6 +18,19 @@ let lastDialogInvoker = null;
 document.querySelectorAll('[data-keyboard-tabs]').forEach(group => {
   group.setAttribute('role', 'tablist');
   group.querySelectorAll('button:not([disabled])').forEach(button => {
+    if (!button.hasAttribute('aria-controls')) {
+      const targetId = button.dataset.view ? 'view-' + button.dataset.view :
+        button.dataset.kind === 'packages' ? 'form-packages' :
+        button.dataset.kind === 'offers' ? 'form-offers' : 'form-content';
+      if (document.getElementById(targetId)) button.setAttribute('aria-controls', targetId);
+    }
+    if (button.dataset.view) {
+      const panel = document.getElementById(button.getAttribute('aria-controls'));
+      if (panel) {
+        panel.setAttribute('role', 'tabpanel');
+        panel.setAttribute('aria-labelledby', button.id || (button.id = 'keyboard-tab-' + button.dataset.view));
+      }
+    }
     button.setAttribute('role', 'tab');
     const active = button.classList.contains('active') || button.getAttribute('aria-selected') === 'true';
     button.setAttribute('aria-selected', String(active));
@@ -41,6 +54,7 @@ document.addEventListener('click', event => {
 });
 
 document.addEventListener('keydown', event => {
+  if (event.defaultPrevented) return;
   const target = event.target;
   if (!(target instanceof HTMLElement) || target.closest('[data-keyboard-native]')) return;
 
