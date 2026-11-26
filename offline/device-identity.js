@@ -106,7 +106,9 @@ export async function getCachedOfflineUser() {
     const row = await offlineDb.offline_sessions.get(active.user_id);
     const device = await offlineDb.device_identity.get(DEVICE_ID);
     if (row?.offline_session_ready && row.device_id === device?.device_id) return asOfflineUser(row);
+    return null;
   }
+  if (await offlineDb.offline_sessions.count()) return null;
   // Backward compatibility for devices prepared by the previous single-user model.
   const legacy = await offlineDb.device_identity.get(DEVICE_ID);
   if (legacy?.offline_session_ready && legacy.user_id) {
