@@ -31,6 +31,30 @@ function encodeBase64Url(bytes: Uint8Array) {
 function encodeSegment(value: unknown) {
   return encodeBase64Url(encoder.encode(JSON.stringify(value)));
 }
+function decodeBase64Url(value: string) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, char => char.charCodeAt(0));
+}
+function fixedP256Part(value: string, name: string) {
+  const bytes = decodeBase64Url(value);
+  if (!bytes.length || bytes.length > 32) throw new Error(`Invalid P-256 ${name} length.`);
+  const fixed = new Uint8Array(32);
+  fixed.set(bytes, 32 - bytes.length);
+  return encodeBase64Url(fixed);
+}
+function normalizeP256Jwk(value: JsonWebKey): JsonWebKey {
+  if (value.kty !== 'EC' || value.crv !== 'P-256' || !value.x || !value.y) {
+    throw new Error('A valid P-256 JWK is required.');
+  }
+  return {
+    ...value,
+    x: fixedP256Part(value.x, 'x coordinate'),
+    y: fixedP256Part(value.y, 'y coordinate'),
+    ...(typeof value.d === 'string' ? { d: fixedP256Part(value.d, 'private scalar') } : {}),
+  };
+}
 function isUuid(value: unknown): value is string {
   return typeof value === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -57,7 +81,7 @@ Deno.serve(async (request: Request) => {
     const raw = Deno.env.get('OFFLINE_ENTITLEMENT_PRIVATE_JWK');
     if (!raw) return json({ error: 'Offline entitlement signing key is not configured.' }, 503, origin);
     try {
-      const privateJwk = JSON.parse(raw) as JsonWebKey;
+      const privateJwk = normalizeP256Jwk(JSON.parse(raw) as JsonWebKey);
       if (privateJwk.kty !== 'EC' || privateJwk.crv !== 'P-256' || !privateJwk.x || !privateJwk.y || !privateJwk.d) {
         return json({ error: 'Offline entitlement signing key is invalid.' }, 503, origin);
       }
@@ -165,7 +189,7 @@ Deno.serve(async (request: Request) => {
 
     const privateJwkRaw = Deno.env.get('OFFLINE_ENTITLEMENT_PRIVATE_JWK');
     if (!privateJwkRaw) return json({ error: 'Offline entitlement signing key is not configured.' }, 503, origin);
-    const privateJwk = JSON.parse(privateJwkRaw) as JsonWebKey;
+    const privateJwk = normalizeP256Jwk(JSON.parse(privateJwkRaw) as JsonWebKey);
     if (privateJwk.kty !== 'EC' || privateJwk.crv !== 'P-256' || !privateJwk.d || !privateJwk.x || !privateJwk.y) {
       return json({ error: 'Offline entitlement signing key is invalid.' }, 503, origin);
     }
