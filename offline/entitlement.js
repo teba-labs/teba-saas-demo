@@ -118,9 +118,10 @@ export async function getOfflineEntitlement({ tenantId, branchId, allowExpired =
   const key = entitlementKey({ tenantId, branchId, userId: device.user_id, deviceId: device.device_id });
   const row = await offlineDb.sync_meta.get(key);
   if (!row?.token) return null;
+  const publicJwk = row.public_jwk ?? OFFLINE_ENTITLEMENT_PUBLIC_JWK;
   const claims = await verifyOfflineEntitlement(row.token, {
     tenantId, branchId, userId: device.user_id, deviceId: device.device_id,
-  }, { allowExpired });
+  }, { allowExpired, publicJwk });
   const thumbprint = await deviceKeyThumbprint(device.public_key);
   if (claims.device_key_thumbprint !== thumbprint) throw new Error('الترخيص غير مرتبط بمفتاح هذا الجهاز.');
   await assertMonotonicDeviceClock(device);
@@ -139,7 +140,6 @@ export async function assertOfflineEntitlement({ tenantId, branchId } = {}) {
 }
 
 export async function getOfflineEntitlementStatus({ tenantId, branchId } = {}) {
-  if (!configuredPublicKey()) return { status: 'key-not-configured', expiresAt: null, daysRemaining: 0 };
   try {
     const entitlement = await getOfflineEntitlement({ tenantId, branchId, allowExpired: true });
     if (!entitlement) return { status: 'missing', expiresAt: null, daysRemaining: 0 };
@@ -158,7 +158,6 @@ export async function getOfflineEntitlementStatus({ tenantId, branchId } = {}) {
 export async function refreshOfflineEntitlement({ tenantId, branchId, force = false } = {}) {
   if (globalThis.navigator?.onLine === false) throw new Error('تجديد الترخيص يحتاج اتصالًا بالإنترنت.');
   if (!tenantId || !branchId) throw new Error('اختَر المعمل والفرع قبل تجديد الترخيص.');
-  if (!configuredPublicKey()) throw new Error('مفتاح التحقق العام غير مضبوط. جهّز زوج مفاتيح ES256 قبل تفعيل الترخيص.');
   const session = await getCurrentSession();
   if (!session?.user?.id || !session.access_token) throw new Error('سجّل الدخول أثناء الاتصال لتجديد الترخيص.');
   const device = await getDeviceIdentity();
@@ -166,7 +165,16 @@ export async function refreshOfflineEntitlement({ tenantId, branchId, force = fa
   const current = await getOfflineEntitlement({ tenantId, branchId, allowExpired: true }).catch(() => null);
   const now = Math.floor(Date.now() / 1000);
   if (!force && current && current.claims.exp - now > REFRESH_WINDOW_SECONDS) return current;
-  const { data, error } = await getSupabaseClient().functions.invoke('issue-offline-entitlement', {
+  const client = getSupabaseClient();
+  const { data: keyData, error: keyError } = await client.functions.invoke('issue-offline-entitlement', {
+    method: 'GET',
+  });
+  if (keyError) throw new Error(keyError.message || 'تعذر تحميل مفتاح التحقق العام.');
+  if (keyData?.key_id !== OFFLINE_ENTITLEMENT_KEY_ID || !configuredPublicKey(keyData?.public_jwk)) {
+    throw new Error('مفتاح التحقق العام الذي أرسله الخادم غير صالح أو غير مطابق.');
+  }
+  const publicJwk = keyData.public_jwk;
+  const { data, error } = await client.functions.invoke('issue-offline-entitlement', {
     body: {
       tenant_id: tenantId,
       branch_id: branchId,
@@ -178,7 +186,7 @@ export async function refreshOfflineEntitlement({ tenantId, branchId, force = fa
   if (!data?.token) throw new Error('الخادم لم يُرجع ترخيصًا موقّعًا.');
   const claims = await verifyOfflineEntitlement(data.token, {
     tenantId, branchId, userId: session.user.id, deviceId: device.device_id,
-  });
+  }, { publicJwk });
   await offlineDb.sync_meta.put({
     key: entitlementKey({ tenantId, branchId, userId: session.user.id, deviceId: device.device_id }),
     tenant_id: tenantId,
@@ -186,6 +194,7 @@ export async function refreshOfflineEntitlement({ tenantId, branchId, force = fa
     user_id: session.user.id,
     device_id: device.device_id,
     token: data.token,
+    public_jwk: publicJwk,
     claims,
     cached_at: new Date().toISOString(),
   });
