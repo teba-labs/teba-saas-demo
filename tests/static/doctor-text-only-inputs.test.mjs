@@ -42,3 +42,11 @@ test('master formula import compiles doctor-authored arithmetic text, not serial
   assert.ok(formulaGuard.includes('formula_ast_has_parameter'));
   assert.ok(formulaGuard.includes('المعادلة يجب أن تعتمد على بارامتر واحد على الأقل'));
 });
+
+test('published master catalog recognizes readable formulas without JSON parsing', () => {
+  const repository = read('modules/catalog/repository.js');
+  assert.ok(repository.includes('function hasMasterFormulaText(value)'));
+  assert.ok(repository.includes('typeof value === \'string\''));
+  assert.ok(repository.includes('!hasMasterFormulaText(parameter.formula)'));
+  assert.equal(repository.includes('function parseMasterFormulaAst(value)'), false);
+});
