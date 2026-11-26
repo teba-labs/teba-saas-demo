@@ -121,4 +121,5 @@ begin
 end;
 $function$
 
+;
 commit;
