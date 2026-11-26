@@ -7,12 +7,14 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('offline session restore is limited to a previously prepared authenticated device', () => {
+test('offline session restore is limited to an account authenticated and cached on this device', () => {
   const auth = read('core/auth/session.js');
   const identity = read('offline/device-identity.js');
   const entitlement = read('offline/entitlement.js');
   assert.match(auth, /if \(isOffline\(\)\)\s*\{\s*const user = await getCachedOfflineUser\(\)/);
-  assert.match(identity, /if \(!device\?\.offline_session_ready \|\| !device\.user_id\) return null/);
+  assert.match(identity, /offline_sessions/);
+  assert.match(identity, /authenticateCachedOfflineUser/);
+  assert.match(identity, /PBKDF2/);
   assert.match(entitlement, /setOfflineSessionReady\(true\)/);
   assert.match(auth, /تسجيل الدخول لأول مرة يحتاج اتصالًا بالإنترنت/);
 });
@@ -100,11 +102,12 @@ test('offline application shell includes the requested core pages and dependenci
   ]) assert.ok(sw.includes(path), 'service worker shell is missing ' + path);
 });
 
-test('offline queue remains protected by signed entitlement and synchronization is not entitlement-gated', () => {
+test('offline queue bypasses commercial entitlement only while preserving tenant/branch scope and sync flow', () => {
   const queue = read('offline/outbox.js');
   const policy = read('offline/queue-policy.js');
   const sync = read('offline/outbox.js');
   assert.match(queue, /await assertQueueAllowed\(\{ tenantId, branchId \}\)/);
+  assert.match(policy, /isOfflineEntitlementBypassed/);
   assert.match(policy, /assertOfflineEntitlement/);
   assert.match(sync, /export async function syncOutbox/);
   assert.match(sync, /if \(globalThis\.navigator && navigator\.onLine === false\)/);
