@@ -70,8 +70,8 @@ test('service worker pre-caches all application screens and local assets', () =>
   assert.ok(assets.includes('app/index.html'));
   assert.ok(assets.includes('app/dashboard.html'));
   assert.ok(assets.includes('app/cms-editor.html'));
-  assert.ok(assets.includes('assets/css/app-home.css'));
-  assert.ok(assets.includes('assets/js/app-home.js'));
+  assert.ok(assets.some(asset => asset.split('?')[0] === 'assets/css/app-home.css'));
+  assert.ok(assets.some(asset => asset.split('?')[0] === 'assets/js/app-home.js'));
   assert.ok(assets.includes('assets/js/tenant-branding.js'));
   const missing = assets.filter(asset => !fs.existsSync(path.join(root, asset)));
   assert.deepEqual(missing, []);
