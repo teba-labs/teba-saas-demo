@@ -569,28 +569,38 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
   }
   const { data: current, error: currentError } = await db().from(table).select('*').eq('tenant_id', tenantId).eq('id', proposal.entity_id).maybeSingle();
   if (currentError) throw currentError;
+  const stableValue = value => Array.isArray(value) ? value.map(stableValue) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, stableValue(value[key])])) : value;
+  const matchesCurrent = Boolean(current) && Object.keys(record).every(key => JSON.stringify(stableValue(current[key])) === JSON.stringify(stableValue(record[key])));
   let applied = null;
   if (payload.action === 'create') {
-    if (current) {
+    if (current && matchesCurrent) {
+      applied = current; // Recover safely if the row insert succeeded before the proposal acknowledgement.
+    } else if (current) {
       const reason = 'يوجد سجل بنفس المعرّف على الخادم؛ لم يتم استبداله.';
       await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current } }).eq('id', proposalId).or('resolution.is.null,resolution.eq.conflict');
       return { status: 'conflict', reason, serverSnapshot: current };
     }
-    const inserted = await db().from(table).insert(record).select().single();
-    if (inserted.error) throw inserted.error;
-    applied = inserted.data;
+    if (!current) {
+      const inserted = await db().from(table).insert(record).select().single();
+      if (inserted.error) throw inserted.error;
+      applied = inserted.data;
+    }
   } else if (payload.action === 'update') {
     const expectedVersion = payload.base_updated_at;
-    if (!current || !expectedVersion || current.updated_at !== expectedVersion) {
+    if (current && matchesCurrent) {
+      applied = current; // Idempotent recovery after a successful update and interrupted acknowledgement.
+    } else if (!current || !expectedVersion || current.updated_at !== expectedVersion) {
       const reason = 'تغير السجل على جهاز آخر منذ تحميل النسخة المحلية. راجع النسختين قبل إعادة التعديل.';
       await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current || null } }).eq('id', proposalId).is('resolution', null);
       return { status: 'conflict', reason, serverSnapshot: current || null };
     }
-    const patch = { ...record }; delete patch.id; delete patch.tenant_id;
-    const updated = await db().from(table).update(patch).eq('tenant_id', tenantId).eq('id', proposal.entity_id).eq('updated_at', expectedVersion).select().maybeSingle();
-    if (updated.error) throw updated.error;
-    if (!updated.data) return { status: 'conflict', reason: 'تغير السجل أثناء اعتماد التعديل؛ لم تتم الكتابة فوق النسخة الأحدث.' };
-    applied = updated.data;
+    if (!applied) {
+      const patch = { ...record }; delete patch.id; delete patch.tenant_id;
+      const updated = await db().from(table).update(patch).eq('tenant_id', tenantId).eq('id', proposal.entity_id).eq('updated_at', expectedVersion).select().maybeSingle();
+      if (updated.error) throw updated.error;
+      if (!updated.data) return { status: 'conflict', reason: 'تغير السجل أثناء اعتماد التعديل؛ لم تتم الكتابة فوق النسخة الأحدث.' };
+      applied = updated.data;
+    }
   } else throw new Error('نوع التعديل غير مدعوم.');
   const resolved = await db().from('sync_conflicts').update({ resolution: 'approved', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { applied_record_id: applied.id, applied_updated_at: applied.updated_at } })
     .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).or('resolution.is.null,resolution.eq.conflict').select('id').maybeSingle();
