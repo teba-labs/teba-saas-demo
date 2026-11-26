@@ -478,16 +478,11 @@ export async function addBasePriceIfMissing({ tenantId, testId, sellingPrice } =
   return { created: true, price: data, cacheUpdated };
 }
 
-/** Published global master catalog; definitions are read-only and imported as tenant-owned copies. */
-function parseMasterFormulaAst(value) {
-  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
-  if (typeof value !== 'string' || !value.trim()) return null;
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
+/** Published master formulas are doctor-authored expression text; runtime ASTs are compiled only during tenant import. */
+function hasMasterFormulaText(value) {
+  if (typeof value === 'string') return value.trim().length > 0;
+  // Retain read compatibility for a legacy in-memory AST without requiring JSON text input.
+  return !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
 }
 
 export async function listMasterCatalogTests() {
@@ -514,7 +509,7 @@ export async function listMasterCatalogTests() {
       if (parameter.clinical_review_status !== 'verified') stats.unreviewed_parameters += 1;
       if (parameter.clinical_metadata?.template_placeholder === true) stats.placeholder_parameters += 1;
       if (parameter.value_type === 'numeric' && !parameter.unit) stats.missing_units += 1;
-      if (parameter.result_source === 'calculated' && !parseMasterFormulaAst(parameter.formula)) stats.missing_formulas += 1;
+      if (parameter.result_source === 'calculated' && !hasMasterFormulaText(parameter.formula)) stats.missing_formulas += 1;
       if (parameter.value_type === 'choice' && (!Array.isArray(parameter.choices) || parameter.choices.length === 0)) stats.missing_choices += 1;
       parameterCounts.set(parameter.master_test_id, stats);
     }
