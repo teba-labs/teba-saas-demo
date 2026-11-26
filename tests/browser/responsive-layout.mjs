@@ -49,12 +49,14 @@ try{
   browser=await chromium.launch({headless:true});
   for(const pagePath of pages){
     const page=await browser.newPage({viewport:{width:1366,height:960}});
+    const runtimeErrors=[];
+    page.on('pageerror',error=>runtimeErrors.push(error.message));
     await page.route('**/*',route=>{
       const url=new URL(route.request().url());
       if(url.hostname==='127.0.0.1'||url.hostname==='localhost') return route.continue();
       return route.abort();
     });
-    await page.goto('http://127.0.0.1:4173/'+pagePath,{waitUntil:'domcontentloaded'});
+    await page.goto('http://127.0.0.1:4173/'+pagePath,{waitUntil:'load',timeout:60000});
     await page.evaluate(()=>{
       document.querySelectorAll('[hidden]').forEach(element=>element.removeAttribute('hidden'));
       document.documentElement.style.scrollBehavior='auto';
@@ -117,11 +119,12 @@ try{
         await page.screenshot({path:path.join(output,fileName),fullPage:true,animations:'disabled'});
       }
     }
+    if(runtimeErrors.length) failures.push({page:pagePath,runtimeErrors});
     await page.close();
   }
 }finally{
   if(browser) await browser.close();
   await new Promise(resolve=>server.close(resolve));
 }
-console.log(JSON.stringify({pages:pages.length,viewports:viewports.length,checks:checked,screenshots:pages.length*3,failures},null,2));
+console.log(JSON.stringify({pages:pages.length,viewports:viewports.length,checks:checked,screenshots:pages.length*3,runtimeErrorPages:failures.filter(item=>item.runtimeErrors?.length).length,failures},null,2));
 assert.equal(failures.length,0,'Responsive viewport overflow detected. Inspect the responsive-zoom screenshot artifact.');
