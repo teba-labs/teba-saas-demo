@@ -32,7 +32,13 @@ export async function signInWithEmail(email, password) {
   }
   const client = getSupabaseClient();
   const { data, error } = await client.auth.signInWithPassword({ email: String(email).trim(), password });
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|timeout|connection|offline/i.test(error.message || '')) {
+      const user = await authenticateCachedOfflineUser(email, password);
+      return { user, session: { user, offline: true, access_token: null, refresh_token: null }, offline: true };
+    }
+    throw error;
+  }
   if (!data.user || !data.session) throw new Error('Sign-in did not return an authenticated session.');
   await rememberOfflineUser(data.user, password).catch(() => {});
   return data;
