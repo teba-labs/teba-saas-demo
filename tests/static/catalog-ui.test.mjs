@@ -52,7 +52,7 @@ test('parameter repository supports inactive rows only when management explicitl
   assert.match(repo, /listMasterCatalogTests/);
   assert.match(repo, /importMasterCatalogTest/);
   assert.match(repo, /listTestParameters\(\{ tenantId, branchId = null, testId, includeInactive = false \}/);
-  assert.match(repo, /return \(data \?\? \[\]\)\.filter\(row => includeInactive \|\| row\.is_active\)/);
+  assert.match(repo, /return merged\.visible\.filter\(row => includeInactive \|\| row\.is_active\)/);
 });
 
 test('launcher exposes catalog management to owner accounts only', () => {
