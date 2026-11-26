@@ -116,7 +116,7 @@ async function loadBranch(){
   state.branch=state.tenant.branches.find(b=>b.id===$('branchSelect').value);if(!state.branch)return;
   rememberWorkspaceSelection(state.tenant.id,state.branch.id);
   state.patient=null;state.selected.clear();$('patientMatches').innerHTML='<p class="muted">ابدأ البحث لاختيار مريض مسجل.</p>';setPatient(null);
-  $('intakePanel').hidden=true;$('recentVisits').innerHTML='<p class="muted">جارٍ تحميل الزيارات…</p>';$('balancesList').innerHTML='<p class="muted">جارٍ تحميل المديونيات…</p>';
+  $('intakePanel').hidden=true;setReceptionView('intake');$('recentVisits').innerHTML='<p class="muted">جارٍ تحميل الزيارات…</p>';$('balancesList').innerHTML='<p class="muted">جارٍ تحميل المديونيات…</p>';
   state.stopSync=startBackgroundSync({tenantId:state.tenant.id,branchId:state.branch.id});
   const db=getSupabaseClient();let staffRows=[];
   if(navigator.onLine===false)staffRows=(await getCachedRows('staff_directory',{tenantId:state.tenant.id,branchId:state.branch.id})).filter(x=>x.is_active);
@@ -392,7 +392,7 @@ function bindKeyboard(){
     if(e.key!=='Enter'||e.target.matches('textarea,input[type="search"],button,input[type="checkbox"],input[type="radio"],input[type="file"]'))return;
     if(e.target.matches('input:not([type="hidden"]),select')){
       const fields=[...$('intakePanel').querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly]):not([type="search"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),select:not([disabled]),button:not([disabled])')].filter(el=>el.getClientRects().length&&el.type!=='button');
-      const index=fields.indexOf(e.target),next=index>=0?fields[index+1]:null;
+      const index=fields.indexOf(e.target);if(index<0)return;const next=fields[index+1]||null;
       if(next){e.preventDefault();next.focus();return;}
       if(!$('createVisit').disabled){e.preventDefault();$('createVisit').click();}
     }
