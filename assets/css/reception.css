@@ -237,3 +237,11 @@ body.reception-page{height:100dvh;overflow:hidden}
  .reception-shell .intake-column-body{display:grid!important;gap:10px;padding:10px;overflow:visible}
  .reception-shell .intake-column:not([open])>.intake-column-body{display:none!important}
 }
+
+/* Reception section switcher: keep the workbench focused instead of stacking all modules. */
+.reception-section-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 auto 12px;max-width:1180px;padding:8px;background:#eaf2f1;border:1px solid #d8e5e3;border-radius:12px}
+.reception-section-nav button{border:1px solid transparent;border-radius:9px;padding:9px 13px;background:transparent;color:#355660;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.reception-section-nav button[aria-pressed="true"]{background:#fff;border-color:#c7dcd7;color:#126b61;box-shadow:0 2px 8px #173c4910}
+.reception-page #recentPanel,.reception-page #balancePanel{max-width:1180px;margin-inline:auto}
+.reception-page #intakePanel[hidden],.reception-page #recentPanel[hidden],.reception-page #balancePanel[hidden]{display:none!important}
+@media(max-width:767px){.reception-section-nav{gap:5px;padding:6px}.reception-section-nav button{flex:1 1 30%;padding:9px 7px;font-size:10px}.reception-page>.reception-shell{overflow-y:auto}}
