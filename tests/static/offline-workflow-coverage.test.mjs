@@ -16,7 +16,8 @@ test('offline session restore is limited to an account authenticated and cached 
   assert.match(identity, /authenticateCachedOfflineUser/);
   assert.match(identity, /PBKDF2/);
   assert.match(entitlement, /setOfflineSessionReady\(true\)/);
-  assert.match(auth, /تسجيل الدخول لأول مرة يحتاج اتصالًا بالإنترنت/);
+  assert.match(auth, /authenticateCachedOfflineUser\(email, password\)/);
+  assert.match(auth, /rememberOfflineUser\(data\.user, password\)/);
 });
 
 test('reception queues patient and visit intake locally and reuses the prepared open workday', () => {
