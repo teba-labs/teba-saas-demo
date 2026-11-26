@@ -19,7 +19,7 @@ function json(body: unknown, status = 200, origin = '') {
     headers.set('Access-Control-Allow-Origin', origin);
     headers.set('Vary', 'Origin');
     headers.set('Access-Control-Allow-Headers', 'authorization, apikey, content-type, x-client-info');
-    headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   }
   return new Response(status === 204 ? null : JSON.stringify(body), { status, headers });
 }
@@ -51,6 +51,21 @@ function timestamp(value: string | null | undefined) {
 Deno.serve(async (request: Request) => {
   const origin = request.headers.get('origin') || '';
   if (request.method === 'OPTIONS') return json({ ok: true }, 204, origin);
+  // The verification key is public by design. Expose only x/y so the client
+  // can pin the matching public half without ever exposing the signing secret.
+  if (request.method === 'GET') {
+    const raw = Deno.env.get('OFFLINE_ENTITLEMENT_PRIVATE_JWK');
+    if (!raw) return json({ error: 'Offline entitlement signing key is not configured.' }, 503, origin);
+    try {
+      const privateJwk = JSON.parse(raw) as JsonWebKey;
+      if (privateJwk.kty !== 'EC' || privateJwk.crv !== 'P-256' || !privateJwk.x || !privateJwk.y || !privateJwk.d) {
+        return json({ error: 'Offline entitlement signing key is invalid.' }, 503, origin);
+      }
+      return json({ key_id: KEY_ID, public_jwk: { kty: 'EC', crv: 'P-256', x: privateJwk.x, y: privateJwk.y, ext: true, key_ops: ['verify'] } }, 200, origin);
+    } catch {
+      return json({ error: 'Offline entitlement signing key is invalid.' }, 503, origin);
+    }
+  }
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405, origin);
 
   try {
