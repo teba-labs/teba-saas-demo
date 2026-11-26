@@ -51,6 +51,7 @@ test('published master catalog recognizes readable formulas without JSON parsing
   assert.equal(repository.includes('function parseMasterFormulaAst(value)'), false);
   assert.ok(repository.includes("return typeof value === 'string' && value.trim().length > 0;"));
   const expressionOnly = read('database/migrations/126_expression_text_only_formula_compiler.sql');
-  assert.ok(expressionOnly.includes('JSON text input is explicitly rejected'));\n  assert.ok(expressionOnly.includes('left(v_text,1) in (\'{\',\'[\')'));
+  assert.ok(expressionOnly.includes('JSON text input is explicitly rejected'));
+  assert.ok(expressionOnly.includes('left(v_text,1) in (\'{\',\'[\')'));
   assert.equal(expressionOnly.includes('v_text::jsonb'), false);
 });
