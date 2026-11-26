@@ -32,10 +32,13 @@ test('doctor-facing configuration fields accept plain text and never ask users f
 });
 
 test('master formula import compiles doctor-authored arithmetic text, not serialized JSON text', () => {
-  const migration = read('database/migrations/120_master_formulas_are_plain_text.sql');\n  const formulaGuard = read('database/migrations/124_require_parameter_references_in_text_formulas.sql');
+  const migration = read('database/migrations/120_master_formulas_are_plain_text.sql');
+  const formulaGuard = read('database/migrations/124_require_parameter_references_in_text_formulas.sql');
   assert.ok(migration.includes('master_formula_text_to_jsonb'));
   assert.ok(migration.includes('parse_formula_expression'));
   assert.ok(migration.includes('regexp_matches'));
   assert.ok(migration.includes('set formula=formula_expression'));
-  assert.ok(migration.includes('Human-readable arithmetic expression text'));\n  assert.ok(formulaGuard.includes('formula_ast_has_parameter'));\n  assert.ok(formulaGuard.includes('constant-only'));
+  assert.ok(migration.includes('Human-readable arithmetic expression text'));
+  assert.ok(formulaGuard.includes('formula_ast_has_parameter'));
+  assert.ok(formulaGuard.includes('constant-only'));
 });
