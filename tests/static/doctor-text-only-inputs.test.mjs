@@ -27,5 +27,5 @@ test('master formula import compiles doctor-authored arithmetic text, not serial
   assert.match(migration, /parse_formula_expression/);
   assert.match(migration, /regexp_matches/);
   assert.match(migration, /update public\.master_catalog_parameters[\s\S]*set formula=formula_expression/);
-  assert.match(migration, /formula is human-readable arithmetic expression text/i);
+  assert.match(migration, /Human-readable arithmetic expression text/i);
 });
