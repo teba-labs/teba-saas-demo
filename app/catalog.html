@@ -43,16 +43,16 @@
               <label>التصنيف الطبي<input id="testClinicalCategory" maxlength="120"></label>
               <label>الغرض أو الدلالة الإكلينيكية<input id="testClinicalPurpose" maxlength="500"></label>
               <label>نوع الخدمة<select id="testServiceType"><option value="laboratory_test">تحليل معملي</option><option value="panel">مجموعة تحاليل</option><option value="procedure">إجراء معملي</option><option value="service">خدمة</option></select></label>
-              <label class="wide">تحضير المريض — JSON<textarea id="testPreparation" rows="2" placeholder='{"fasting_required":true,"fasting_hours":8}'></textarea></label>
-              <label class="wide">متطلبات سحب العينة — JSON<textarea id="testCollection" rows="2" placeholder='{"tube":"...","volume_ml":...}'></textarea></label>
-              <label class="wide">مواصفات العينة والوعاء — JSON<textarea id="testSpecimenRequirements" rows="2"></textarea></label>
-              <label class="wide">النقل ودرجة الحرارة — JSON<textarea id="testTransport" rows="2"></textarea></label>
-              <label class="wide">الثبات بعد السحب — JSON<textarea id="testStability" rows="2"></textarea></label>
+              <label class="wide">تحضير المريض (تعليمات نصية)<textarea id="testPreparation" rows="2" placeholder='صيام 8 ساعات قبل سحب العينة'></textarea></label>
+              <label class="wide">متطلبات سحب العينة (نص)<textarea id="testCollection" rows="2" placeholder='نوع الأنبوبة، حجم العينة، وطريقة السحب'></textarea></label>
+              <label class="wide">مواصفات العينة والوعاء (نص)<textarea id="testSpecimenRequirements" rows="2"></textarea></label>
+              <label class="wide">النقل ودرجة الحرارة (نص)<textarea id="testTransport" rows="2"></textarea></label>
+              <label class="wide">الثبات بعد السحب (نص)<textarea id="testStability" rows="2"></textarea></label>
               <label class="wide">أسباب رفض العينة<textarea id="testRejection" rows="2"></textarea></label>
-              <label class="wide">سياسة النتائج الحرجة — JSON<textarea id="testCriticalPolicy" rows="2"></textarea></label>
+              <label class="wide">سياسة النتائج الحرجة (نص)<textarea id="testCriticalPolicy" rows="2"></textarea></label>
               <label class="wide">ملاحظات السلامة الحيوية<textarea id="testBiosafety" rows="2"></textarea></label>
               <label class="wide">ملاحظات التقرير<textarea id="testReportingNotes" rows="2"></textarea></label>
-              <label class="wide">المراجع العلمية — JSON<textarea id="testSources" rows="2" placeholder='[{"title":"...","organization":"...","url":"...","version":"..."}]'></textarea></label>
+              <label class="wide">المراجع العلمية (سطر لكل مرجع)<textarea id="testSources" rows="2" placeholder='اسم المرجع | الجهة | الرابط | الإصدار'></textarea></label>
               <input id="testReviewStatus" type="hidden" value="needs_review">
             </div>
           </details>
@@ -102,12 +102,12 @@
               <details class="advanced-fields wide"><summary>تفاصيل المدى المرجعي والتفسير والجودة</summary>
                 <div class="form-grid">
                   <label>وحدة UCUM<input id="parameterUnitUcum" maxlength="50" placeholder="mg/dL"></label>
-                  <label class="wide">وحدات بديلة وتحويلاتها — JSON<textarea id="parameterAlternateUnits" rows="2" placeholder='[{"unit":"mmol/L","factor":0.0555}]'></textarea></label>
-                  <label class="wide">القيم الحرجة — JSON<textarea id="parameterCriticalRanges" rows="2" placeholder='{"low":...,"high":...,"unit":"..."}'></textarea></label>
-                  <label class="wide">قواعد التفسير — JSON<textarea id="parameterInterpretation" rows="2"></textarea></label>
-                  <label class="wide">الانطباق حسب العمر والنوع والحمل — JSON<textarea id="parameterApplicability" rows="2" placeholder='{"age":{"min":18,"max":120,"unit":"years"},"sex":["female"]}'></textarea></label>
-                  <label class="wide">ملاحظات المنهجية<textarea id="parameterMethodNotes" rows="2"></textarea></label><label class="wide">بيانات الجهاز والجودة والتداخلات والقيود — JSON<textarea id="parameterClinicalMetadata" rows="2"></textarea></label>
-                  <label class="wide">المراجع العلمية — JSON<textarea id="parameterSources" rows="2"></textarea></label>
+                  <label class="wide">الوحدات البديلة (كل سطر: الوحدة = معامل التحويل)<textarea id="parameterAlternateUnits" rows="2" placeholder='mmol/L = 0.0555'></textarea></label>
+                  <label class="wide">القيم الحرجة (الحد الأدنى = ...، الحد الأعلى = ...، الوحدة = ...)<textarea id="parameterCriticalRanges" rows="2" placeholder='الحد الأدنى = 2&#10;الحد الأعلى = 8&#10;الوحدة = mg/dL'></textarea></label>
+                  <label class="wide">قواعد التفسير (سطر لكل قاعدة)<textarea id="parameterInterpretation" rows="2"></textarea></label>
+                  <label class="wide">الانطباق (العمر والنوع والحمل)<textarea id="parameterApplicability" rows="2" placeholder='العمر من = 18&#10;العمر إلى = 120&#10;وحدة العمر = سنة&#10;النوع = أنثى'></textarea></label>
+                  <label class="wide">ملاحظات المنهجية<textarea id="parameterMethodNotes" rows="2"></textarea></label><label class="wide">بيانات الجهاز والجودة والتداخلات والقيود (نص)<textarea id="parameterClinicalMetadata" rows="2"></textarea></label>
+                  <label class="wide">المراجع العلمية (سطر لكل مرجع)<textarea id="parameterSources" rows="2"></textarea></label>
                   <input id="parameterReferenceStatus" type="hidden" value="local_verification_required"><input id="parameterReviewStatus" type="hidden" value="needs_review">
                 </div>
               </details>
