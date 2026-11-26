@@ -1,8 +1,19 @@
 import { getSupabaseClient } from '../../core/supabase-client.js';
 import { TABLES, RPC } from '../../core/data/schema-contract.js';
 import { cacheRows, getCachedRows, replaceCachedRows, replaceCachedCurrentPrices } from '../../offline/cache.js';
+import { enqueueOperation } from '../../offline/outbox.js';
 
 const db = () => getSupabaseClient();
+
+async function queueCatalogChange({ tenantId, branchId, kind, action, recordId, baseSnapshot, recordPayload }) {
+  required(branchId, 'branchId');
+  const operationId = crypto.randomUUID();
+  const payload = { kind, action, record_id: recordId, base_updated_at: baseSnapshot?.updated_at ?? null, base_snapshot: baseSnapshot ?? null, record_payload: { ...recordPayload } };
+  await enqueueOperation({ tenantId, branchId, entityType: 'catalog_change', action, operationId, payload, priority: 4 });
+  const localRow = { ...recordPayload, local_pending: true, local_operation_id: operationId, updated_at: new Date().toISOString() };
+  await cacheRows(kind === 'test' ? 'catalog' : 'test_parameters', [localRow]);
+  return { ...localRow, queued: true, operationId };
+}
 const required = (value, name) => { if (!value) throw new Error(`${name} is required.`); };
 
 export async function ensureTenantCoreCatalog(tenantId) {
@@ -98,7 +109,7 @@ export async function listTestParameters({ tenantId, testId, includeInactive = f
   return (data ?? []).filter(row => includeInactive || row.is_active);
 }
 
-export async function saveCatalogTest({ tenantId, test, id } = {}) {
+export async function saveCatalogTest({ tenantId, branchId, test, id } = {}) {
   required(tenantId, 'tenantId');
   const code = String(test?.code ?? '').trim();
   const name = String(test?.name ?? '').trim();
@@ -111,8 +122,9 @@ export async function saveCatalogTest({ tenantId, test, id } = {}) {
   }
   const testKind = test?.testKind ?? 'individual';
   if (!['individual', 'panel', 'group'].includes(testKind)) throw new Error('testKind must be individual, panel, or group.');
+  const recordId = id || crypto.randomUUID();
   const payload = {
-    ...(id ? { id } : {}), tenant_id: tenantId, code, name, test_kind: testKind,
+    id: recordId, tenant_id: tenantId, code, name, test_kind: testKind,
     category: test.category?.trim() || null, specimen: test.specimen?.trim() || null,
     method: test.method?.trim() || null, turnaround_minutes: turnaround,
     instructions: test.instructions?.trim() || null, is_active: test.isActive !== false,
@@ -125,19 +137,35 @@ export async function saveCatalogTest({ tenantId, test, id } = {}) {
     critical_result_policy: test.criticalResultPolicy ?? {}, reporting_notes: test.reportingNotes?.trim() || null,
     source_references: test.sourceReferences ?? [], clinical_review_status: test.clinicalReviewStatus || 'needs_review',
   };
+  const cached = (await getCachedRows('catalog', { tenantId })).find(row => row.id === recordId) || null;
+  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
   const { data, error } = await db().from(TABLES.catalog).upsert(payload).select().single();
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
+    throw error;
+  }
   await cacheRows('catalog', [data]);
   return data;
 }
 
 /** Deactivate instead of hard-deleting: historical visits retain their test reference and snapshots. */
-export async function setCatalogTestActive({ tenantId, testId, isActive } = {}) {
+export async function setCatalogTestActive({ tenantId, branchId, testId, isActive } = {}) {
   required(tenantId, 'tenantId'); required(testId, 'testId');
   if (typeof isActive !== 'boolean') throw new Error('isActive must be a boolean.');
+  const cached = (await getCachedRows('catalog', { tenantId })).find(row => row.id === testId) || null;
+  if (globalThis.navigator?.onLine === false) {
+    if (!cached) throw new Error('جهّز كتالوج الفرع أثناء الاتصال قبل إيقاف أو تفعيل تحليل دون إنترنت.');
+    return queueCatalogChange({ tenantId, branchId, kind: 'test', action: 'update', recordId: testId, baseSnapshot: cached, recordPayload: { ...cached, is_active: isActive } });
+  }
   const { data, error } = await db().from(TABLES.catalog)
     .update({ is_active: isActive }).eq('tenant_id', tenantId).eq('id', testId).select().single();
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) {
+      if (!cached) throw new Error('لا توجد نسخة محلية من التحليل لإتمام التعديل دون اتصال.');
+      return queueCatalogChange({ tenantId, branchId, kind: 'test', action: 'update', recordId: testId, baseSnapshot: cached, recordPayload: { ...cached, is_active: isActive } });
+    }
+    throw error;
+  }
   await cacheRows('catalog', [data]);
   return data;
 }
@@ -247,7 +275,7 @@ const validateParameter = parameter => {
 };
 
 /** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
-export async function saveTestParameter({ tenantId, testId, parameter, id } = {}) {
+export async function saveTestParameter({ tenantId, branchId, testId, parameter, id } = {}) {
   required(tenantId, 'tenantId'); required(testId, 'testId');
   const valid = validateParameter(parameter);
   const payload = {
@@ -265,6 +293,10 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     source_references: valid.sourceReferences, reference_interval_status: valid.referenceIntervalStatus, clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
+  const recordId = id || crypto.randomUUID();
+  payload.id = recordId;
+  const cached = (await getCachedRows('test_parameters', { tenantId, testId })).find(row => row.id === recordId) || null;
+  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
   // Keep create and edit as explicit operations. This avoids ambiguous upsert
   // conflicts on the tenant/test/parameter-code unique key and scopes edits to
   // the exact parameter row in this tenant and test.
@@ -287,13 +319,24 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
 }
 
 /** Preserve parameter history/snapshots by toggling is_active instead of deleting rows. */
-export async function setTestParameterActive({ tenantId, testId, parameterId, isActive } = {}) {
+export async function setTestParameterActive({ tenantId, branchId, testId, parameterId, isActive } = {}) {
   required(tenantId, 'tenantId'); required(testId, 'testId'); required(parameterId, 'parameterId');
   if (typeof isActive !== 'boolean') throw new Error('isActive must be a boolean.');
+  const cached = (await getCachedRows('test_parameters', { tenantId, testId })).find(row => row.id === parameterId) || null;
+  if (globalThis.navigator?.onLine === false) {
+    if (!cached) throw new Error('جهّز بارامترات التحليل أثناء الاتصال قبل تعديلها دون إنترنت.');
+    return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: 'update', recordId: parameterId, baseSnapshot: cached, recordPayload: { ...cached, is_active: isActive } });
+  }
   const { data, error } = await db().from(TABLES.parameters)
     .update({ is_active: isActive }).eq('tenant_id', tenantId).eq('test_id', testId)
     .eq('id', parameterId).select().single();
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) {
+      if (!cached) throw new Error('لا توجد نسخة محلية من البارامتر لإتمام التعديل دون اتصال.');
+      return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: 'update', recordId: parameterId, baseSnapshot: cached, recordPayload: { ...cached, is_active: isActive } });
+    }
+    throw error;
+  }
   await cacheRows('test_parameters', [data]);
   return data;
 }
