@@ -12,6 +12,18 @@ import { listPendingCatalogChanges, resolveCatalogChangeProposal } from '../../m
 const $ = id => document.getElementById(id);
 const state = { context: null, tenant: null, branch: null, syncing: false, preparing: false, refreshingEntitlement: false };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function catalogProposalFields(record={}) {
+  const fields = [
+    ['الكود', record.code || record.parameter_code], ['الاسم', record.name || record.parameter_name],
+    ['نوع التحليل/النتيجة', record.test_kind || record.result_input_mode || record.value_type],
+    ['العينة', record.specimen], ['الوحدة', record.unit], ['التصنيف', record.category],
+    ['المديات المرجعية', record.reference_ranges], ['الاختيارات', record.choices],
+    ['المعادلة', record.formula_expression], ['الحالة', typeof record.is_active === 'boolean' ? (record.is_active ? 'مفعّل' : 'موقوف') : null],
+  ].filter(([,value]) => value !== null && value !== undefined && value !== '');
+  if (!fields.length) return '<p class="muted">لا يوجد سجل سابق على الخادم.</p>';
+  return '<dl class="catalog-review-fields">' + fields.map(([label,value]) => '<div><dt>'+esc(label)+'</dt><dd>'+esc(typeof value === 'object' ? JSON.stringify(value) : value)+'</dd></div>').join('') + '</dl>';
+}
+
 const entityLabel = type => ({visit_approval:'اعتماد محلي بانتظار التحقق',report_delivery:'تسليم نسخة عمل',catalog_change:'تعديل كتالوج',workday_open:'فتح يوم عمل',workday_close:'إغلاق يوم عمل',draft_results:'حفظ نتائج',visit_intake:'تسجيل زيارة',payment:'تحصيل',expense:'مصروف',patient:'تسجيل مريض'}[type]||type);
 function notice(message, error = false) { $('notice').textContent = message; $('notice').className = `notice show${error ? ' error' : ''}`; clearTimeout(notice.timer); notice.timer = setTimeout(() => $('notice').className = 'notice', 6500); }
 function updateConnection() { const online = navigator.onLine; $('connection').textContent = online ? 'متصل بالإنترنت' : 'غير متصل'; $('connection').className = `badge ${online ? 'online' : 'offline'}`; $('syncNow').disabled = !online || state.syncing || state.preparing || !state.branch; $('prepareOffline').disabled = !online || state.syncing || state.preparing || !state.branch; $('refreshOfflineEntitlement').disabled = !online || state.refreshingEntitlement || !state.branch; }
@@ -138,8 +150,8 @@ async function refresh() {
     const record = local.record_payload || {};
     const label = change.entity_type === 'catalog_test_change' ? 'تعديل تحليل' : 'تعديل بارامتر';
     const name = record.name || record.parameter_name || record.code || record.parameter_code || change.entity_id;
-    const server = esc(JSON.stringify(change.resolution_payload?.server_snapshot || change.server_payload || {}, null, 2));
-    const proposed = esc(JSON.stringify(record, null, 2));
+    const server = catalogProposalFields(change.resolution_payload?.server_snapshot || change.server_payload || {});
+    const proposed = catalogProposalFields(record);
     return `<div class="item"><strong>${esc(label)} · ${esc(name)}</strong><small>الجهاز/العملية: ${esc(change.operation_id)} · ${new Date(change.created_at).toLocaleString('ar-EG')}</small><details><summary>مقارنة النسخة المقترحة ونسخة الخادم</summary><h4>التعديل المقترح</h4><pre>${proposed}</pre><h4>نسخة الخادم وقت المزامنة</h4><pre>${server}</pre></details><div class="actions"><button class="btn" type="button" data-approve-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>اعتماد التعديل</button><button class="btn quiet-dark" type="button" data-reject-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>رفض مع الاحتفاظ بالسجل</button></div></div>`;
   }).join('') : '<p class="muted">لا توجد تعديلات كتالوج معلقة للمراجعة.</p>';
   $('catalogChanges').querySelectorAll('[data-approve-catalog-change]').forEach(button => button.addEventListener('click', () => resolveCatalogProposal(button.dataset.approveCatalogChange, 'approve')));
