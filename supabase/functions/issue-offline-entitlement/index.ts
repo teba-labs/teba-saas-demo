@@ -55,6 +55,29 @@ function normalizeP256Jwk(value: JsonWebKey): JsonWebKey {
     ...(typeof value.d === 'string' ? { d: fixedP256Part(value.d, 'private scalar') } : {}),
   };
 }
+async function validateP256KeyPair(privateJwk: JsonWebKey) {
+  if (!privateJwk.d) throw new Error('Offline signing private scalar is missing.');
+  const publicJwk = {
+    kty: 'EC', crv: 'P-256', x: privateJwk.x, y: privateJwk.y,
+    ext: true, key_ops: ['verify'],
+  } as JsonWebKey;
+  const publicKey = await crypto.subtle.importKey(
+    'jwk', publicJwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'],
+  );
+  const privateKey = await crypto.subtle.importKey(
+    'jwk', privateJwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign'],
+  );
+  const challenge = encoder.encode('taiba-smart-lab-offline-key-pair-check-v1');
+  const signature = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' }, privateKey, challenge,
+  );
+  if (!await crypto.subtle.verify(
+    { name: 'ECDSA', hash: 'SHA-256' }, publicKey, signature, challenge,
+  )) {
+    throw new Error('Offline entitlement signing key pair does not match.');
+  }
+  return { publicJwk, privateKey };
+}
 function isUuid(value: unknown): value is string {
   return typeof value === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -82,12 +105,10 @@ Deno.serve(async (request: Request) => {
     if (!raw) return json({ error: 'Offline entitlement signing key is not configured.' }, 503, origin);
     try {
       const privateJwk = normalizeP256Jwk(JSON.parse(raw) as JsonWebKey);
-      if (privateJwk.kty !== 'EC' || privateJwk.crv !== 'P-256' || !privateJwk.x || !privateJwk.y || !privateJwk.d) {
-        return json({ error: 'Offline entitlement signing key is invalid.' }, 503, origin);
-      }
-      return json({ key_id: KEY_ID, public_jwk: { kty: 'EC', crv: 'P-256', x: privateJwk.x, y: privateJwk.y, ext: true, key_ops: ['verify'] } }, 200, origin);
+      const { publicJwk } = await validateP256KeyPair(privateJwk);
+      return json({ key_id: KEY_ID, public_jwk: publicJwk }, 200, origin);
     } catch {
-      return json({ error: 'Offline entitlement signing key is invalid.' }, 503, origin);
+      return json({ error: 'Offline entitlement signing key is not a valid P-256 key pair.' }, 503, origin);
     }
   }
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405, origin);
@@ -193,9 +214,7 @@ Deno.serve(async (request: Request) => {
     if (privateJwk.kty !== 'EC' || privateJwk.crv !== 'P-256' || !privateJwk.d || !privateJwk.x || !privateJwk.y) {
       return json({ error: 'Offline entitlement signing key is invalid.' }, 503, origin);
     }
-    const signingKey = await crypto.subtle.importKey(
-      'jwk', privateJwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign'],
-    );
+    const { privateKey: signingKey } = await validateP256KeyPair(privateJwk);
 
     const exp = Math.min(now + MAX_OFFLINE_DAYS * 86400, graceUntil ?? Number.MAX_SAFE_INTEGER);
     const claims = {
