@@ -12,6 +12,7 @@ test('offline entitlement bootstraps and persists only the public ES256 verifica
   const edge = read('supabase/functions/issue-offline-entitlement/index.ts');
   assert.match(client, /name: 'ECDSA', hash: 'SHA-256'/);
   assert.match(client, /OFFLINE_ENTITLEMENT_PUBLIC_JWK/);
+  assert.match(client, /isOfflineEntitlementBypassed/);
   assert.match(client, /if \(!configuredPublicKey\(publicJwk\)\)/);
   assert.match(key, /OFFLINE_ENTITLEMENT_PUBLIC_JWK = null/);
   assert.match(client, /method: 'GET'/);
@@ -51,6 +52,7 @@ test('offline entitlement expiry blocks new outbox operations but never blocks s
   assert.match(outbox, /assertQueueAllowed/);
   assert.doesNotMatch(outbox, /subscription|entitlement|expires_at/i);
   assert.match(policy, /assertOfflineEntitlement/);
+  assert.match(policy, /isOfflineEntitlementBypassed/);
   assert.match(adapters, /createSupabaseSyncHandlers/);
 });
 
@@ -59,7 +61,10 @@ test('offline auth fallback requires a previously entitled device session', () =
   const identity = read('offline/device-identity.js');
   assert.match(session, /getCachedOfflineUser/);
   assert.match(identity, /offline_session_ready/);
-  assert.match(identity, /private_key/);
+  assert.match(identity, /offline_sessions/);
+  assert.match(identity, /PBKDF2/);
+  assert.match(identity, /password_hash/);
+  assert.doesNotMatch(identity, /password:\s*password/);
 });
 
 test('device identity is local-only and excluded from portable backup exports', () => {
