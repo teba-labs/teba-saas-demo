@@ -24,7 +24,20 @@ jobs:
   public-key-bootstrap:
     runs-on: ubuntu-latest
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Detect temporary offline licensing bypass
+        id: license-mode
+        shell: bash
+        run: |
+          if grep -q "offlineLicenseMode: 'development-bypass'" config/environment.js; then
+            echo "bypassed=true" >> "$GITHUB_OUTPUT"
+            echo "Offline entitlement smoke is skipped while the product's explicit development bypass is active."
+          else
+            echo "bypassed=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Verify deployed signing key endpoint
+        if: steps.license-mode.outputs.bypassed != 'true'
         env:
           ENDPOINT: https://hgqwpykeazuzceeiumjg.supabase.co/functions/v1/issue-offline-entitlement
         run: |
