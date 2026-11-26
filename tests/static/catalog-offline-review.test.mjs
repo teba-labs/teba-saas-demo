@@ -30,6 +30,8 @@ test('each device uploads its proposal using the original operation ID and a ser
   assert.match(adapters, /id: operation\.operation_id/);
   assert.match(adapters, /operation_id: operation\.operation_id/);
   assert.match(adapters, /server_payload: currentResult\.data \|\| \{\}/);
+  assert.match(adapters, /localPayload\.device_id = device\.device_id/);
+  assert.match(syncUi, /deviceLabel/);
   assert.match(adapters, /entity_type: p\.kind === 'test' \? 'catalog_test_change'/);
   assert.match(adapters, /resolution === 'approved'/);
 });
