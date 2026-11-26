@@ -73,7 +73,7 @@ test('service worker pre-caches all application screens and local assets', () =>
   assert.ok(assets.some(asset => asset.split('?')[0] === 'assets/css/app-home.css'));
   assert.ok(assets.some(asset => asset.split('?')[0] === 'assets/js/app-home.js'));
   assert.ok(assets.includes('assets/js/tenant-branding.js'));
-  const missing = assets.filter(asset => !fs.existsSync(path.join(root, asset)));
+  const missing = assets.filter(asset => !fs.existsSync(path.join(root, asset.split('?')[0])));
   assert.deepEqual(missing, []);
   assert.match(sw, /hostname\.endsWith\('\.supabase\.co'\)\) return/);
   assert.match(sw, /cache\.match\('\.\/app\/index\.html'\)/);
