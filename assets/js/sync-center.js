@@ -7,11 +7,12 @@ import { exportLocalBackup, restoreLocalBackup } from '../../offline/backup.js';
 import { getOfflineStorageHealth, requestPersistentOfflineStorage } from '../../offline/database.js';
 import { prepareOfflineBranch, getOfflinePreparationStatus } from '../../offline/prepare.js';
 import { getOfflineEntitlementStatus, refreshOfflineEntitlement } from '../../offline/entitlement.js';
+import { listPendingCatalogChanges, resolveCatalogChangeProposal } from '../../modules/catalog/repository.js';
 
 const $ = id => document.getElementById(id);
 const state = { context: null, tenant: null, branch: null, syncing: false, preparing: false, refreshingEntitlement: false };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const entityLabel = type => ({visit_approval:'اعتماد محلي بانتظار التحقق',report_delivery:'تسليم نسخة عمل',workday_open:'فتح يوم عمل',workday_close:'إغلاق يوم عمل',draft_results:'حفظ نتائج',visit_intake:'تسجيل زيارة',payment:'تحصيل',expense:'مصروف',patient:'تسجيل مريض'}[type]||type);
+const entityLabel = type => ({visit_approval:'اعتماد محلي بانتظار التحقق',report_delivery:'تسليم نسخة عمل',catalog_change:'تعديل كتالوج',workday_open:'فتح يوم عمل',workday_close:'إغلاق يوم عمل',draft_results:'حفظ نتائج',visit_intake:'تسجيل زيارة',payment:'تحصيل',expense:'مصروف',patient:'تسجيل مريض'}[type]||type);
 function notice(message, error = false) { $('notice').textContent = message; $('notice').className = `notice show${error ? ' error' : ''}`; clearTimeout(notice.timer); notice.timer = setTimeout(() => $('notice').className = 'notice', 6500); }
 function updateConnection() { const online = navigator.onLine; $('connection').textContent = online ? 'متصل بالإنترنت' : 'غير متصل'; $('connection').className = `badge ${online ? 'online' : 'offline'}`; $('syncNow').disabled = !online || state.syncing || state.preparing || !state.branch; $('prepareOffline').disabled = !online || state.syncing || state.preparing || !state.branch; $('refreshOfflineEntitlement').disabled = !online || state.refreshingEntitlement || !state.branch; }
 function formatBytes(value) { if (!Number.isFinite(value)) return 'غير متاح'; const units = ['بايت','KB','MB','GB']; let size = value, index = 0; while (size >= 1024 && index < units.length - 1) { size /= 1024; index++; } return `${size.toFixed(index ? 1 : 0)} ${units[index]}`; }
@@ -119,9 +120,10 @@ async function selectBranch(id) { state.branch = state.tenant?.branches.find(b =
 async function refresh() {
   updateConnection();
   if (!state.tenant || !state.branch) { $('syncMessage').textContent = 'لا يوجد فرع متاح لهذا الحساب.'; return; }
-  const [summary, conflicts] = await Promise.all([
+  const [summary, conflicts, catalogChanges] = await Promise.all([
     getOutboxSummary({ tenantId: state.tenant.id, branchId: state.branch.id }),
     listOpenConflicts({ tenantId: state.tenant.id, branchId: state.branch.id }),
+    listPendingCatalogChanges({ tenantId: state.tenant.id, branchId: state.branch.id }),
   ]);
   $('pending').textContent = summary.pending; $('syncing').textContent = summary.syncing;
   $('failed').textContent = summary.failed; $('conflict').textContent = summary.conflict;
@@ -131,11 +133,46 @@ async function refresh() {
     return `<div class="item"><strong>${esc(entityLabel(c.entity_type))} · ${esc(c.reason)}</strong><small>رقم العملية: ${esc(c.operation_id)} · ${new Date(c.created_at).toLocaleString('ar-EG')}</small><details><summary>مراجعة تفاصيل التعارض</summary><h4>البيانات المحلية المحفوظة</h4><pre>${local}</pre><h4>لقطة الخادم</h4><pre>${server}</pre></details><button class="btn quiet-dark" type="button" data-retry-conflict="${esc(c.conflict_id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>إعادة المحاولة بنفس رقم العملية</button></div>`;
   }).join('') : '<p class="muted">لا توجد تعارضات مفتوحة.</p>';
   $('conflicts').querySelectorAll('[data-retry-conflict]').forEach(button => button.addEventListener('click', () => retryConflict(button.dataset.retryConflict)));
+  $('catalogChanges').innerHTML = catalogChanges.length ? catalogChanges.map(change => {
+    const local = change.local_payload || {};
+    const record = local.record_payload || {};
+    const label = change.entity_type === 'catalog_test_change' ? 'تعديل تحليل' : 'تعديل بارامتر';
+    const name = record.name || record.parameter_name || record.code || record.parameter_code || change.entity_id;
+    const server = esc(JSON.stringify(change.server_payload || {}, null, 2));
+    const proposed = esc(JSON.stringify(record, null, 2));
+    return `<div class="item"><strong>${esc(label)} · ${esc(name)}</strong><small>الجهاز/العملية: ${esc(change.operation_id)} · ${new Date(change.created_at).toLocaleString('ar-EG')}</small><details><summary>مقارنة النسخة المقترحة ونسخة الخادم</summary><h4>التعديل المقترح</h4><pre>${proposed}</pre><h4>نسخة الخادم وقت المزامنة</h4><pre>${server}</pre></details><div class="actions"><button class="btn" type="button" data-approve-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>اعتماد التعديل</button><button class="btn quiet-dark" type="button" data-reject-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>رفض مع الاحتفاظ بالسجل</button></div></div>`;
+  }).join('') : '<p class="muted">لا توجد تعديلات كتالوج معلقة للمراجعة.</p>';
+  $('catalogChanges').querySelectorAll('[data-approve-catalog-change]').forEach(button => button.addEventListener('click', () => resolveCatalogProposal(button.dataset.approveCatalogChange, 'approve')));
+  $('catalogChanges').querySelectorAll('[data-reject-catalog-change]').forEach(button => button.addEventListener('click', () => resolveCatalogProposal(button.dataset.rejectCatalogChange, 'reject')));
+
   if (!summary.total) $('syncMessage').textContent = 'لا توجد عمليات محلية معلقة لهذا الفرع.';
   else $('syncMessage').textContent = `إجمالي العمليات المحلية: ${summary.total}. لا تُحذف أي عملية إلا بعد تأكيد الخادم.`;
   await refreshEntitlementStatus();
   await refreshPreparationStatus();
 }
+
+async function resolveCatalogProposal(proposalId, decision) {
+  if (!navigator.onLine) { notice('مراجعة تعديلات الكتالوج تحتاج اتصالًا بالإنترنت.', true); return; }
+  if (state.syncing || !state.tenant || !state.branch) return;
+  try {
+    const result = await resolveCatalogChangeProposal({ tenantId: state.tenant.id, branchId: state.branch.id, proposalId, decision });
+    if (result.status === 'conflict') {
+      notice(result.reason || 'اكتُشف تعارض؛ لم يتم استبدال نسخة الخادم.', true);
+    } else if (result.status === 'approved') {
+      notice('تم اعتماد التعديل. ستتم إعادة مزامنة الجهاز الذي أرسله بنفس رقم العملية.');
+      const open = await listOpenConflicts({ tenantId: state.tenant.id, branchId: state.branch.id });
+      const local = open.find(item => item.operation_id === proposalId);
+      if (local) {
+        await retryConflictOperation({ tenantId: state.tenant.id, branchId: state.branch.id, conflictId: local.conflict_id });
+        await runSync();
+      }
+    } else {
+      notice('تم رفض التعديل مع الاحتفاظ بنسخته في سجل المراجعة.');
+    }
+    await refresh();
+  } catch (error) { notice(error.message || 'تعذرت مراجعة تعديل الكتالوج.', true); }
+}
+
 async function runSync() {
   if (state.syncing || !state.branch) return;
   if (!navigator.onLine) { notice('لا يوجد اتصال بالإنترنت. العمليات محفوظة محليًا.', true); return; }
