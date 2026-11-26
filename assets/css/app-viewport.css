@@ -364,3 +364,14 @@ body :is(input,select,textarea){
     width:100%;
   }
 }
+
+
+/* Consistent, high-visibility keyboard focus across every application surface. */
+:where(a,button,input,select,textarea,[tabindex],[role="button"],[role="tab"],[role="menuitem"]):focus-visible{
+  outline:3px solid #0b766e!important;
+  outline-offset:3px!important;
+  scroll-margin-block:18px;
+}
+:where([role="tablist"],[data-keyboard-list],[role="listbox"],[role="menu"]):focus-within{
+  scroll-margin-block:18px;
+}
