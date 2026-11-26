@@ -19,20 +19,22 @@ document.querySelectorAll('[data-keyboard-tabs]').forEach(group => {
   group.setAttribute('role', 'tablist');
   group.querySelectorAll('button:not([disabled])').forEach(button => {
     if (!button.hasAttribute('aria-controls')) {
+      const receptionPanels = { intake: 'intakePanel', recent: 'recentPanel', balances: 'balancePanel' };
       const targetId = button.dataset.view ? 'view-' + button.dataset.view :
+        button.dataset.receptionView ? receptionPanels[button.dataset.receptionView] :
         button.dataset.kind === 'packages' ? 'form-packages' :
         button.dataset.kind === 'offers' ? 'form-offers' : 'form-content';
       if (document.getElementById(targetId)) button.setAttribute('aria-controls', targetId);
     }
-    if (button.dataset.view) {
+    if (button.dataset.view || button.dataset.receptionView) {
       const panel = document.getElementById(button.getAttribute('aria-controls'));
       if (panel) {
         panel.setAttribute('role', 'tabpanel');
-        panel.setAttribute('aria-labelledby', button.id || (button.id = 'keyboard-tab-' + button.dataset.view));
+        panel.setAttribute('aria-labelledby', button.id || (button.id = 'keyboard-tab-' + (button.dataset.view || button.dataset.receptionView)));
       }
     }
     button.setAttribute('role', 'tab');
-    const active = button.classList.contains('active') || button.getAttribute('aria-selected') === 'true';
+    const active = button.classList.contains('active') || button.getAttribute('aria-selected') === 'true' || button.getAttribute('aria-pressed') === 'true';
     button.setAttribute('aria-selected', String(active));
     button.tabIndex = active ? 0 : -1;
   });
