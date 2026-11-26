@@ -48,6 +48,7 @@ test('offline accounts are device-bound and require a password verifier, never a
   assert.match(auth, /authenticateCachedOfflineUser\(email, password\)/);
   assert.match(auth, /fetch\|network\|timeout\|connection\|offline/);
   assert.doesNotMatch(identity, /password:\s*password/);
+  assert.doesNotMatch(backup, /offline_sessions|device_identity/);
 });
 
 test('licensing issuer, ES256 verification and private-key boundary remain in source', () => {
