@@ -26,6 +26,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Run every page at browser-zoom-equivalent viewport widths
         run: node tests/browser/responsive-layout.mjs
+      - name: Verify keyboard navigation across every system page
+        run: node tests/browser/keyboard-navigation.mjs
       - name: Verify service-worker offline reload and local outbox persistence
         run: node tests/browser/offline-shell-smoke.mjs
       - name: Upload full-page responsive screenshots
