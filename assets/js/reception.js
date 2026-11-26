@@ -62,7 +62,7 @@ function showPaymentReceipt({patientName,visitNumber,amount,method,staffName,pay
   $('paymentReceiptContent').innerHTML=`<div style="text-align:center">${logo?'<img src="'+escapeHtml(logo)+'" alt="شعار المعمل" style="max-width:120px;max-height:65px;object-fit:contain">':''}<h2>${escapeHtml(print.title||'إيصال تحصيل')}</h2><strong>${escapeHtml(labName)}</strong>${doctor?'<p>'+escapeHtml(doctor)+'</p>':''}${contact?'<small>'+escapeHtml(contact)+'</small>':''}</div><hr><p>اسم المريض: <b>${escapeHtml(patientName)}</b></p><p>رقم الزيارة: <b>${escapeHtml(visitNumber)}</b></p><p>المبلغ المحصل: <b>${money(amount)}</b></p><p>طريقة الدفع: <b>${escapeHtml(paymentMethodLabels[method]||method)}</b></p><p>الموظف: <b>${escapeHtml(staffName||'—')}</b></p><p>التاريخ والوقت: <b>${new Date().toLocaleString('ar-EG')}</b></p>${paymentId?'<p>مرجع العملية: '+escapeHtml(paymentId)+'</p>':''}${signature?'<div style="text-align:left"><img src="'+escapeHtml(signature)+'" alt="التوقيع" style="max-width:130px;max-height:65px;object-fit:contain"></div>':''}<hr><p style="text-align:center">${escapeHtml(footer)}</p>`;
   const paper=print.paperSize==='A5'?'A5':'A4', orientation=print.orientation==='landscape'?'landscape':'portrait', margin=Math.min(30,Math.max(5,Number(print.margin)||12));
   let style=document.getElementById('tenant-print-page-style');if(!style){style=document.createElement('style');style.id='tenant-print-page-style';document.head.append(style);}
-  style.textContent='@page{size:'+paper+' '+orientation+';margin:'+margin+'mm}';$('paymentReceipt').hidden=false;
+  style.textContent='@page{size:'+paper+' '+orientation+';margin:'+margin+'mm}';$('paymentReceipt').dataset.receiptReady='true';$('paymentReceipt').hidden=false;
 }
 function setPatient(patient){
   state.patient=patient;$('selectedPatient').hidden=!patient;$('patientHistoricalPanel').hidden=true;
@@ -143,7 +143,7 @@ async function loadBranch(){
   const prices=await listCurrentPrices({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});
   state.prices=new Map(prices.map(p=>[p.test_id,p]));state.parameters.clear();
   if(navigator.onLine!==false){try{await warmCatalogParameters({tenantId:state.tenant.id,testIds:catalog.map(t=>t.id)});}catch(error){notice('تعذر استكمال تجهيز بيانات التحاليل للعمل دون اتصال: '+(error.message||''),true);}}
-  $('intakePanel').hidden=false;await newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();
+  $('intakePanel').hidden=false;await newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();setReceptionView('intake');
 }
 function renderCatalog(){
   const term=$('catalogSearch').value.trim().toLowerCase(),host=$('catalogList');
@@ -361,6 +361,14 @@ function goToResults(visitId=state.lastVisit?.visitId){
   if(!visitId){notice('لا يوجد رقم زيارة مؤكد لفتح النتائج.',true);return;}
   const url=new URL('results-workbench.html',location.href);url.searchParams.set('visit_id',visitId);location.href=url.href;
 }
+function setReceptionView(view){
+ const panels={intake:$('intakePanel'),recent:$('recentPanel'),balances:$('balancePanel')};
+ if(!panels[view])view='intake';
+ Object.entries(panels).forEach(([key,panel])=>{if(panel)panel.hidden=key!==view;});
+ const receipt=$('paymentReceipt');if(receipt&&receipt.dataset.receiptReady==='true')receipt.hidden=view!=='balances';
+ document.querySelectorAll('[data-reception-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.receptionView===view)));
+}
+document.querySelector('.reception-section-nav')?.addEventListener('click',event=>{const button=event.target.closest('[data-reception-view]');if(button)setReceptionView(button.dataset.receptionView);});
 function focusNewPatient(){ $('newPatientDetails').open=true; $('patientName').focus(); }
 function bindKeyboard(){
   $('patientDob').addEventListener('change',syncAgeFromDob);
