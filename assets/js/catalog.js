@@ -10,6 +10,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<'
 const money = value => `${Number(value || 0).toFixed(2)} ج.م`;
 const priceKey = (testId, branchId = null) => `${testId}:${branchId || 'base'}`;
 function notice(message,error=false){const el=$('notice');el.textContent=message;el.className=`notice show${error?' error':''}`;clearTimeout(notice.timer);notice.timer=setTimeout(()=>el.className='notice',6500);}
+function requireOnline(){if(globalThis.navigator?.onLine===false)throw new Error('استيراد المكتبة المركزية يحتاج اتصالًا بالإنترنت.');}
 function setBusy(form,busy){form.querySelectorAll('button,input,select,textarea').forEach(el=>el.disabled=busy);if(form.id==='testForm')$('testKind').disabled=busy||!!state.selectedTest;}
 function parseJsonField(id,label,allowObject=false){const raw=$(id).value.trim();if(!raw)return [];let value;try{value=JSON.parse(raw);}catch{if(allowObject)return {text:raw};return raw.split(',').map(x=>x.trim()).filter(Boolean);}if(!Array.isArray(value)&&!(allowObject&&value!==null&&typeof value==='object'))throw new Error(allowObject?`${label} يجب أن يكون نصًا أو كائنًا أو قائمة.`:`${label} يجب أن تكون قائمة أو اختيارات مفصولة بفواصل.`);return value;}
 function displayRanges(value){if(!value||Array.isArray(value)&&!value.length)return '';if(typeof value==='object'&&value.text)return String(value.text);return JSON.stringify(value,null,2);}
@@ -263,7 +264,7 @@ $('importAllMasterLibrary').addEventListener('click',async e=>{
  const button=e.currentTarget;
  if(button.disabled)return;
  try{
-  
+  requireOnline();
   button.disabled=true;
   const existingCodes=new Set((state.tests||[]).map(test=>test.code));
   let imported=0,skipped=0;
@@ -274,7 +275,7 @@ $('importAllMasterLibrary').addEventListener('click',async e=>{
    button.textContent=`استيراد الكل ${index+1}/${total}`;
    if(existingCodes.has(item.master_code)){skipped++;continue;}
    try{
-    await importMasterCatalogTest({tenantId:state.tenant.id,masterTestId:item.id});
+    requireOnline();await importMasterCatalogTest({tenantId:state.tenant.id,masterTestId:item.id});
     imported++;
     existingCodes.add(item.master_code);
    }catch(error){
