@@ -84,7 +84,9 @@ test('catalog edits flow through reception, immutable visit snapshots, results a
 
   // Catalog and parameter changes are persisted to the tenant's cloud tables.
   assert.match(catalogRepo, /from\(TABLES\.catalog\)\.upsert\(payload\)/);
-  assert.match(catalogRepo, /from\(TABLES\.parameters\)\.upsert\(payload\)/);
+  assert.match(catalogRepo, /query\.update\(payload\)/);
+  assert.match(catalogRepo, /query\.insert\(payload\)/);
+  assert.match(catalogRepo, /eq\('tenant_id', tenantId\)\.eq\('test_id', testId\)\.eq\('id', id\)/);
   assert.match(catalogRepo, /from\(TABLES\.prices\)/);
 
   // Reception consumes the same tenant catalog, branch-effective prices and parameter definitions.
@@ -104,10 +106,11 @@ test('catalog edits flow through reception, immutable visit snapshots, results a
   assert.match(resultJs, /test_name_snapshot/);
 });
 
-test('master catalog import is blocked unless the test and every parameter are verified', () => {
-  const guard = read('database/migrations/037_guard_master_catalog_import.sql');
-  assert.match(guard, /v_test_status is distinct from 'verified'/);
-  assert.match(guard, /v_parameter_count=0/);
-  assert.match(guard, /v_unverified_count>0/);
-  assert.match(guard, /All master result parameters must be clinically verified/);
+test('master catalog import is operational immediately and does not require customer-side clinical approval', () => {
+  const migration = read('database/migrations/109_promote_verified_profiles_enable_zero_price_and_master_import.sql');
+  const ui = read('assets/js/catalog.js');
+  assert.match(migration, /import_master_catalog_test_unchecked/);
+  assert.match(migration, /ensure_zero_base_price_for_new_test/);
+  assert.match(ui, /جاهز للاستخدام والتعديل داخل كتالوج المعمل بعد الاستيراد/);
+  assert.doesNotMatch(ui, /المدى يحتاج تحققًا محليًا|مراجعة البيانات إرشادية وغير مانعة/);
 });
