@@ -149,3 +149,5 @@
  .owner-dashboard-home .owner-more-groups{grid-column:1/-1}
 }
 @media(max-width:420px){.owner-dashboard-home .owner-nav-groups{grid-template-columns:1fr}}
+
+.owner-nav-group{display:block}
