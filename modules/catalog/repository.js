@@ -5,6 +5,15 @@ import { enqueueOperation } from '../../offline/outbox.js';
 
 const db = () => getSupabaseClient();
 
+
+async function mergePendingCatalogCache(tableName, serverRows, { tenantId, testId = null, branchId = null } = {}) {
+  const cached = await getCachedRows(tableName, { tenantId, ...(testId ? { testId } : {}) });
+  const byId = new Map((serverRows || []).map(row => [row.id, row]));
+  for (const row of cached) if (row.local_pending) byId.set(row.id, row);
+  const merged = [...byId.values()];
+  return { all: merged, visible: branchId ? merged.filter(row => !row.local_pending || row.local_branch_id === branchId) : merged };
+}
+
 async function queueCatalogChange({ tenantId, branchId, kind, action, recordId, baseSnapshot, recordPayload, dependsOn = [] }) {
   required(branchId, 'branchId');
   const operationId = crypto.randomUUID();
@@ -13,7 +22,7 @@ async function queueCatalogChange({ tenantId, branchId, kind, action, recordId, 
   const dependencies = [...new Set([...dependsOn, ...(baseSnapshot?.local_operation_id ? [baseSnapshot.local_operation_id] : [])])];
   const payload = { kind, action, record_id: recordId, base_updated_at: baseSnapshot?.local_base_updated_at ?? baseSnapshot?.updated_at ?? null, base_snapshot: baseSnapshot ?? null, record_payload: cleanRecord };
   await enqueueOperation({ tenantId, branchId, entityType: 'catalog_change', action, operationId, payload, dependsOn: dependencies, priority: 4 });
-  const localRow = { ...cleanRecord, local_pending: true, local_operation_id: operationId, local_base_updated_at: payload.base_updated_at, updated_at: new Date().toISOString() };
+  const localRow = { ...cleanRecord, local_pending: true, local_operation_id: operationId, local_branch_id: branchId, local_base_updated_at: payload.base_updated_at, updated_at: new Date().toISOString() };
   await cacheRows(kind === 'test' ? 'catalog' : 'test_parameters', [localRow]);
   return { ...localRow, queued: true, operationId };
 }
@@ -30,7 +39,7 @@ export async function ensureTenantCoreCatalog(tenantId) {
   return Array.isArray(data) ? (data[0] || { installed_count: 0 }) : (data || { installed_count: 0 });
 }
 
-export async function listCatalog({ tenantId, includeInactive = false } = {}) {
+export async function listCatalog({ tenantId, branchId = null, includeInactive = false } = {}) {
   required(tenantId, 'tenantId');
   // Provision the reviewed Core library before listing tenant tests. This RPC is
   // idempotent and only inserts missing definitions; it never overwrites tenant edits.
@@ -38,11 +47,12 @@ export async function listCatalog({ tenantId, includeInactive = false } = {}) {
   let query = db().from(TABLES.catalog)
     .select('id, tenant_id, code, name, test_kind, category, specimen, method, turnaround_minutes, instructions, is_active, updated_at, short_name, synonyms, loinc_code, clinical_category, clinical_purpose, service_type, patient_preparation, collection_requirements, specimen_requirements, transport_requirements, stability_requirements, rejection_criteria, biosafety_notes, critical_result_policy, reporting_notes, source_references, clinical_review_status, catalog_version')
     .eq('tenant_id', tenantId).order('name');
-  if (globalThis.navigator?.onLine === false) return (await getCachedRows('catalog', { tenantId })).filter(row => includeInactive || row.is_active);
+  if (globalThis.navigator?.onLine === false) { const cached = await getCachedRows('catalog', { tenantId }); return cached.filter(row => (!row.local_pending || !branchId || row.local_branch_id === branchId) && (includeInactive || row.is_active)); }
   const { data, error } = await query;
-  if (error) { if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('catalog', { tenantId })).filter(row => includeInactive || row.is_active); throw error; }
-  await replaceCachedRows('catalog', data ?? [], { tenantId });
-  return (data ?? []).filter(row => includeInactive || row.is_active);
+  if (error) { if (/fetch|network|offline/i.test(error.message || '')) { const cached = await getCachedRows('catalog', { tenantId }); return cached.filter(row => (!row.local_pending || !branchId || row.local_branch_id === branchId) && (includeInactive || row.is_active)); } throw error; }
+  const merged = await mergePendingCatalogCache('catalog', data ?? [], { tenantId, branchId });
+  await replaceCachedRows('catalog', merged.all, { tenantId });
+  return merged.visible.filter(row => includeInactive || row.is_active);
 }
 
 export async function listCurrentPrices({ tenantId, branchId = null, testIds } = {}) {
@@ -78,7 +88,7 @@ export async function listCurrentPrices({ tenantId, branchId = null, testIds } =
 }
 
 /** Warm all active test parameter snapshots before a branch goes offline. */
-export async function warmCatalogParameters({ tenantId, testIds = [] } = {}) {
+export async function warmCatalogParameters({ tenantId, branchId = null, testIds = [] } = {}) {
   required(tenantId, 'tenantId');
   const ids = [...new Set(testIds.filter(Boolean))];
   if (!ids.length || globalThis.navigator?.onLine === false) return 0;
@@ -95,21 +105,23 @@ export async function warmCatalogParameters({ tenantId, testIds = [] } = {}) {
       if ((data || []).length < 500) break;
     }
   }
-  await cacheRows('test_parameters', rows);
+  const merged = await mergePendingCatalogCache('test_parameters', rows, { tenantId, branchId });
+  await cacheRows('test_parameters', merged.all);
   return rows.length;
 }
 
-export async function listTestParameters({ tenantId, testId, includeInactive = false } = {}) {
+export async function listTestParameters({ tenantId, branchId = null, testId, includeInactive = false } = {}) {
   required(tenantId, 'tenantId'); required(testId, 'testId');
-  if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order);
+  if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => (!row.local_pending || !branchId || row.local_branch_id === branchId) && (includeInactive || row.is_active)).sort((a,b) => a.display_order-b.display_order);
   let query = db().from(TABLES.parameters)
     .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression, created_at, updated_at')
     .eq('tenant_id', tenantId).eq('test_id', testId)
     .order('display_order');
   const { data, error } = await query;
-  if (error) { if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order); throw error; }
-  await replaceCachedRows('test_parameters', data ?? [], { tenantId, testId });
-  return (data ?? []).filter(row => includeInactive || row.is_active);
+  if (error) { if (/fetch|network|offline/i.test(error.message || '')) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => (!row.local_pending || !branchId || row.local_branch_id === branchId) && (includeInactive || row.is_active)).sort((a,b) => a.display_order-b.display_order); throw error; }
+  const merged = await mergePendingCatalogCache('test_parameters', data ?? [], { tenantId, testId, branchId });
+  await replaceCachedRows('test_parameters', merged.all, { tenantId, testId });
+  return merged.visible.filter(row => includeInactive || row.is_active);
 }
 
 export async function saveCatalogTest({ tenantId, branchId, test, id } = {}) {
