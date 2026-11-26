@@ -153,7 +153,7 @@ async function refresh() {
     const name = record.name || record.parameter_name || record.code || record.parameter_code || change.entity_id;
     const server = catalogProposalFields(change.resolution_payload?.server_snapshot || change.server_payload || {});
     const proposed = catalogProposalFields(record);
-    return `<div class="item"><strong>${esc(label)} · ${esc(name)}</strong><small>الجهاز/العملية: ${esc(change.operation_id)} · ${new Date(change.created_at).toLocaleString('ar-EG')}</small><details><summary>مقارنة النسخة المقترحة ونسخة الخادم</summary><h4>التعديل المقترح</h4><pre>${proposed}</pre><h4>نسخة الخادم وقت المزامنة</h4><pre>${server}</pre></details><div class="actions"><button class="btn" type="button" data-approve-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>اعتماد التعديل</button><button class="btn quiet-dark" type="button" data-reject-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>رفض مع الاحتفاظ بالسجل</button></div></div>`;
+    return `<div class="item"><strong>${esc(label)} · ${esc(name)}</strong><small>الجهاز/العملية: ${esc(change.operation_id)} · ${new Date(change.created_at).toLocaleString('ar-EG')}</small><details><summary>مقارنة النسخة المقترحة ونسخة الخادم</summary><h4>التعديل المقترح</h4><pre>${proposed}</pre><h4>نسخة الخادم وقت المزامنة</h4><pre>${server}</pre></details>${state.tenant?.accountType === 'owner' ? `<div class="actions"><button class="btn" type="button" data-approve-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>اعتماد التعديل</button><button class="btn quiet-dark" type="button" data-reject-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>رفض مع الاحتفاظ بالسجل</button></div>` : '<small class="muted">قرار الاعتماد أو الرفض متاح لمالك المعمل فقط.</small>'}</div>`;
   }).join('') : '<p class="muted">لا توجد تعديلات كتالوج معلقة للمراجعة.</p>';
   $('catalogChanges').querySelectorAll('[data-approve-catalog-change]').forEach(button => button.addEventListener('click', () => resolveCatalogProposal(button.dataset.approveCatalogChange, 'approve')));
   $('catalogChanges').querySelectorAll('[data-reject-catalog-change]').forEach(button => button.addEventListener('click', () => resolveCatalogProposal(button.dataset.rejectCatalogChange, 'reject')));
@@ -165,6 +165,7 @@ async function refresh() {
 }
 
 async function resolveCatalogProposal(proposalId, decision) {
+  if (state.tenant?.accountType !== 'owner') { notice('مراجعة واعتماد تعديلات الكتالوج متاح لمالك المعمل فقط.', true); return; }
   if (!navigator.onLine) { notice('مراجعة تعديلات الكتالوج تحتاج اتصالًا بالإنترنت.', true); return; }
   if (state.syncing || !state.tenant || !state.branch) return;
   try {
