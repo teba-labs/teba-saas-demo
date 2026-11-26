@@ -170,13 +170,12 @@ export function createSupabaseSyncHandlers() {
         localPayload.base_updated_at = currentResult.data.updated_at;
         localPayload.base_snapshot = currentResult.data;
       }
-      const session = await getCurrentSession();
       const proposal = await db().from('sync_conflicts').insert({
         id: operation.operation_id, tenant_id: operation.tenant_id, branch_id: operation.branch_id,
         operation_id: operation.operation_id,
         entity_type: p.kind === 'test' ? 'catalog_test_change' : 'catalog_parameter_change',
         entity_id: p.record_id, local_payload: localPayload,
-        server_payload: currentResult.data || {}, created_by: session?.user?.id || null,
+        server_payload: currentResult.data || {},
       }).select('id').single();
       if (proposal.error) {
         if (proposal.error.code === '23505') {
