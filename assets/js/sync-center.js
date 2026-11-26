@@ -40,7 +40,9 @@ async function refreshStorageHealth() {
 async function refreshEntitlementStatus() {
   if (!state.tenant || !state.branch) return;
   const status = await getOfflineEntitlementStatus({ tenantId: state.tenant.id, branchId: state.branch.id });
-  if (status.status === 'key-not-configured') $('offlineEntitlementStatus').textContent = 'مفتاح التحقق العام غير مضاف بعد؛ لم يتم تفعيل الترخيص المحلي.';
+  $('refreshOfflineEntitlement').hidden = status.status === 'bypassed';
+  if (status.status === 'bypassed') $('offlineEntitlementStatus').textContent = 'تم تعليق فرض الترخيص التجاري مؤقتًا أثناء التطوير والاختبار. لا تحتاج مفتاحًا أو اشتراكًا لتجهيز هذا الجهاز؛ تسجيل الدخول وصلاحيات المعمل والفرع ما زالت مطلوبة.';
+  else if (status.status === 'key-not-configured') $('offlineEntitlementStatus').textContent = 'مفتاح التحقق العام غير مضاف بعد؛ لم يتم تفعيل الترخيص المحلي.';
   else if (status.status === 'missing') $('offlineEntitlementStatus').textContent = 'لا يوجد ترخيص أوف لاين محفوظ لهذا الفرع على هذا الجهاز. جهّز الترخيص أثناء الاتصال.';
   else if (status.status === 'valid') $('offlineEntitlementStatus').textContent = `الترخيص ساري حتى ${new Date(status.expiresAt).toLocaleString('ar-EG')} · متبقي ${status.daysRemaining} يوم.`;
   else if (status.status === 'expired') $('offlineEntitlementStatus').textContent = 'انتهت صلاحية الترخيص. السجلات والتصدير والمزامنة المعلقة تظل متاحة، لكن العمليات الجديدة تحتاج تجديدًا.';
@@ -89,7 +91,7 @@ async function runOfflinePreparation() {
     await refresh();
     notice(report.complete
       ? (report.warnings?.length ? 'اكتملت تهيئة بيانات التشغيل. توجد تنبيهات على اكتمال ملخص الداشبورد المحلي؛ راجع الحالة.' : 'اكتملت تهيئة البيانات الأساسية لهذا الفرع على الجهاز.')
-      : 'اكتملت التهيئة، لكن بعض البيانات الأساسية تجاوزت حد التحميل أو الترخيص غير جاهز. راجع حالة التهيئة.');
+      : 'اكتملت التهيئة، لكن بعض البيانات الأساسية تجاوزت حد التحميل. راجع حالة التهيئة.');
   } catch (error) {
     notice(error.message || 'تعذرت تهيئة بيانات الأوف لاين.', true);
     await refreshPreparationStatus().catch(() => {});
