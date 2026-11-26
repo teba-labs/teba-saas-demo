@@ -85,6 +85,9 @@ try{
     assert.equal(await page.locator('#kb-tab-two').getAttribute('aria-selected'),'true',pagePath+': arrow navigation did not activate the selected tab');
 
     await page.locator('#kb-space').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#kb-space').getAttribute('data-clicked'),'yes',pagePath+': Enter did not activate a custom button');
+    await page.locator('#kb-space').evaluate(el=>el.removeAttribute('data-clicked'));
     await page.keyboard.press('Space');
     assert.equal(await page.locator('#kb-space').getAttribute('data-clicked'),'yes',pagePath+': Space did not activate a custom button');
 
