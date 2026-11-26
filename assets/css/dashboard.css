@@ -127,3 +127,25 @@
  .dashboard-page #workspace>.panel:first-child .filters{grid-template-columns:1fr}
  .owner-screen-actions>.btn{flex:1 1 100%}
 }
+
+
+/* Progressive disclosure: show report categories first, then one category's actions. */
+.owner-dashboard-home{display:flex;flex-direction:column;gap:8px}
+.owner-nav-groups{display:grid;gap:7px}
+.owner-nav-group{margin:0;padding:0;border:0}
+.owner-group-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px;border:1px solid #e1e9ec;border-radius:10px;background:#f8fafb;color:#284b58;text-align:right;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.owner-group-toggle small{margin-inline-start:auto;color:#71828a;font-size:10px;font-weight:600;white-space:nowrap}
+.owner-group-toggle b{font-size:15px;color:#287c80}
+.owner-group-toggle[aria-expanded="true"]{background:#eaf4f3;border-color:#c5dfdc;color:#145a61}
+.owner-group-toggle[aria-expanded="true"] b{transform:rotate(45deg)}
+.owner-nav-group nav{display:grid;gap:4px;padding:7px 5px 2px}
+.owner-nav-group nav[hidden]{display:none!important}
+.owner-more-groups{width:100%;padding:9px;border:1px dashed #c9d9de;border-radius:9px;background:#fff;color:#49636e;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.owner-nav-extra{display:none}
+.owner-dashboard-home.show-all-groups .owner-nav-extra{display:block}
+@media(max-width:760px){
+ .owner-dashboard-home .owner-nav-groups{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .owner-dashboard-home .owner-nav-group nav{grid-column:1/-1}
+ .owner-dashboard-home .owner-more-groups{grid-column:1/-1}
+}
+@media(max-width:420px){.owner-dashboard-home .owner-nav-groups{grid-template-columns:1fr}}
