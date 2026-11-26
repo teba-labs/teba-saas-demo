@@ -139,10 +139,10 @@ async function loadBranch(){
   $('visitDate').value=state.workday?.work_date||'—';
   if(!state.staff.length)$('workdayStatus').textContent+=' لا توجد هوية موظف نشطة مرتبطة بهذا الحساب في الفرع.';
   if(!state.workday||!state.staff.length){await loadRecent();await loadBalances();setReceptionView('recent');return;}
-  const catalog=await listCatalog({tenantId:state.tenant.id});state.catalog=catalog;
+  const catalog=await listCatalog({tenantId:state.tenant.id,branchId:state.branch.id});state.catalog=catalog;
   const prices=await listCurrentPrices({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});
   state.prices=new Map(prices.map(p=>[p.test_id,p]));state.parameters.clear();
-  if(navigator.onLine!==false){try{await warmCatalogParameters({tenantId:state.tenant.id,testIds:catalog.map(t=>t.id)});}catch(error){notice('تعذر استكمال تجهيز بيانات التحاليل للعمل دون اتصال: '+(error.message||''),true);}}
+  if(navigator.onLine!==false){try{await warmCatalogParameters({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});}catch(error){notice('تعذر استكمال تجهيز بيانات التحاليل للعمل دون اتصال: '+(error.message||''),true);}}
   $('intakePanel').hidden=false;await newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();setReceptionView('intake');
 }
 function renderCatalog(){
@@ -178,7 +178,7 @@ async function saveQuickCatalogPrice(button){
 }
 async function toggleTest(id,checked){
   if(checked){
-    try{let params=state.parameters.get(id);if(!params){params=await listTestParameters({tenantId:state.tenant.id,testId:id});state.parameters.set(id,params);}
+    try{let params=state.parameters.get(id);if(!params){params=await listTestParameters({tenantId:state.tenant.id,branchId:state.branch.id,testId:id});state.parameters.set(id,params);}
       if(!params.length)throw new Error('هذا التحليل لا يحتوي على معاملات فنية نشطة، لذلك لا يمكن طلبه.');
       state.selected.add(id);
     }catch(error){state.selected.delete(id);renderCatalog();notice(error.message||'تعذر اختيار التحليل.',true);return;}
