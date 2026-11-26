@@ -530,6 +530,21 @@ export async function listPendingCatalogChanges({ tenantId, branchId } = {}) {
   return data || [];
 }
 
+async function requireTenantCatalogReviewer(tenantId) {
+  const { data: authData, error: authError } = await db().auth.getUser();
+  if (authError) throw authError;
+  const userId = authData?.user?.id;
+  if (!userId) throw new Error('يلزم تسجيل الدخول لمراجعة تعديلات الكتالوج.');
+  const { data: membership, error } = await db().from('tenant_memberships')
+    .select('account_type').eq('tenant_id', tenantId).eq('user_id', userId)
+    .eq('is_active', true).maybeSingle();
+  if (error) throw error;
+  if (membership?.account_type !== 'owner') {
+    throw new Error('اعتماد أو رفض تعديلات الكتالوج متاح لمالك المعمل فقط.');
+  }
+  return userId;
+}
+
 /** Apply or reject one proposal. Updates are optimistic and never overwrite a newer server version. */
 export async function resolveCatalogChangeProposal({ tenantId, branchId, proposalId, decision } = {}) {
   required(tenantId, 'tenantId'); required(branchId, 'branchId'); required(proposalId, 'proposalId');
@@ -539,9 +554,7 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
   if (proposalError) throw proposalError;
   if (!proposal) throw new Error('طلب تعديل الكتالوج غير موجود في هذا الفرع.');
   if (proposal.resolution && proposal.resolution !== 'conflict') return { status: proposal.resolution };
-  const { data: authData, error: authError } = await db().auth.getUser();
-  if (authError) throw authError;
-  const resolvedBy = authData?.user?.id ?? null;
+  const resolvedBy = await requireTenantCatalogReviewer(tenantId);
   if (decision === 'reject') {
     const { data, error } = await db().from('sync_conflicts').update({ resolution: 'rejected', resolved_by: resolvedBy, resolved_at: new Date().toISOString(), resolution_payload: { decision: 'rejected' } })
       .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).or('resolution.is.null,resolution.eq.conflict').select('id').maybeSingle();
