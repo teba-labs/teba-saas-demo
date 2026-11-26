@@ -72,7 +72,7 @@ async function refreshPreparationStatus() {
     ? ' · توجد بيانات تجاوزت حد التحميل الموضح أدناه' : '';
   const issues = Array.isArray(report.issues) && report.issues.length ? ` · غير جاهز: ${report.issues.join('؛ ')}` : ' · جاهز للعمل دون اتصال حسب البيانات المحفوظة';
   const warnings = Array.isArray(report.warnings) && report.warnings.length ? ` · تنبيه: ${report.warnings.join('؛ ')}` : '';
-  $('offlinePreparationStatus').textContent = `آخر تهيئة: ${when} · المرضى: ${counts.patients ?? 0}/${counts.patients_available ?? counts.patients ?? 0} · التحاليل: ${counts.catalog_tests ?? 0} · أسعار ناقصة: ${counts.tests_without_current_price ?? 0} · بارامترات: ${counts.parameters ?? 0} · عناصر قائمة العمل: ${counts.worklist ?? 0}/${counts.worklist_available ?? counts.worklist ?? 0} · النتائج: ${counts.results ?? 0} · حركة مالية الشهر: ${counts.financial_ledger ?? 0}/${counts.financial_ledger_available ?? counts.financial_ledger ?? 0}${limit}${issues}${warnings}`;
+  $('offlinePreparationStatus').textContent = `آخر تهيئة: ${when} · المرضى: ${counts.patients ?? 0}/${counts.patients_available ?? counts.patients ?? 0} · التحاليل: ${counts.catalog_tests ?? 0} · تحاليل بسعر صفري تشغيلي: ${counts.tests_without_current_price ?? 0} · بارامترات: ${counts.parameters ?? 0} · عناصر قائمة العمل: ${counts.worklist ?? 0}/${counts.worklist_available ?? counts.worklist ?? 0} · النتائج: ${counts.results ?? 0} · حركة مالية الشهر: ${counts.financial_ledger ?? 0}/${counts.financial_ledger_available ?? counts.financial_ledger ?? 0}${limit}${issues}${warnings}`;
 }
 async function runOfflinePreparation() {
   if (!state.tenant || !state.branch || state.preparing) return;
