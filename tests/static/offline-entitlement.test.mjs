@@ -6,7 +6,7 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '../..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('offline entitlement uses an asymmetric ES256 verifier and fails closed until the public key is pinned', () => {
+test('offline entitlement bootstraps and persists only the public ES256 verification key from Supabase', () => {
   const client = read('offline/entitlement.js');
   const key = read('offline/entitlement-public-key.js');
   const edge = read('supabase/functions/issue-offline-entitlement/index.ts');
@@ -14,6 +14,12 @@ test('offline entitlement uses an asymmetric ES256 verifier and fails closed unt
   assert.match(client, /OFFLINE_ENTITLEMENT_PUBLIC_JWK/);
   assert.match(client, /if \(!configuredPublicKey\(publicJwk\)\)/);
   assert.match(key, /OFFLINE_ENTITLEMENT_PUBLIC_JWK = null/);
+  assert.match(client, /method: 'GET'/);
+  assert.match(client, /public_jwk: publicJwk/);
+  assert.match(client, /row\.public_jwk/);
+  assert.match(edge, /request\.method === 'GET'/);
+  assert.match(edge, /public_jwk: \{ kty: 'EC', crv: 'P-256'/);
+  assert.doesNotMatch(edge, /public_jwk: privateJwk/);
   assert.match(edge, /OFFLINE_ENTITLEMENT_PRIVATE_JWK/);
   assert.match(edge, /name: 'ECDSA', hash: 'SHA-256'/);
   assert.match(edge, /MAX_OFFLINE_DAYS = 35/);
