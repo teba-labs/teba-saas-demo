@@ -48,3 +48,16 @@ test('Sync Center lists cloud proposals and requires an explicit approve or reje
   assert.match(syncUi, /data-reject-catalog-change/);
   assert.match(syncHtml, /id="catalogChanges"/);
 });
+
+test('zero-price tests remain registrable offline and resolve a server price ID only after catalog sync', () => {
+  const reception = read('modules/reception/repository.js');
+  const intakeUi = read('assets/js/reception.js');
+  const adapters = read('offline/supabase-adapters.js');
+  const zeroPriceMigration = read('database/migrations/109_promote_verified_profiles_enable_zero_price_and_master_import.sql');
+  assert.match(reception, /Number\.isFinite\(Number\(p\.selling_price\)\)/);
+  assert.match(reception, /Number\(p\.selling_price\) !== 0/);
+  assert.match(intakeUi, /price\?\.id\?\?null,selling_price:Number\(price\?\.selling_price\?\?0\)/);
+  assert.match(adapters, /if \(Number\(snapshot\.selling_price\) !== 0\) return snapshot/);
+  assert.match(adapters, /OFFLINE_PRICE_CONFLICT/);
+  assert.match(zeroPriceMigration, /ensure_zero_base_price_for_new_test/);
+});
