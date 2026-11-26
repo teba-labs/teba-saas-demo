@@ -1,4 +1,5 @@
 import { offlineDb } from './database.js';
+import { getDeviceIdentity } from './device-identity.js';
 import { cacheRows } from './cache.js';
 import { getSupabaseClient } from '../core/supabase-client.js';
 import { getCurrentSession } from '../core/auth/session.js';
@@ -164,6 +165,8 @@ export function createSupabaseSyncHandlers() {
       const currentResult = await db().from(table).select('*').eq('tenant_id', operation.tenant_id).eq('id', p.record_id).maybeSingle();
       if (currentResult.error) throw currentResult.error;
       const localPayload = { ...p };
+      const device = await getDeviceIdentity();
+      localPayload.device_id = device.device_id;
       // A later edit on the same device is ordered behind the earlier local edit.
       // Once its dependency is acknowledged, the new proposal is based on the now-current server version.
       if (p.base_snapshot?.local_pending && currentResult.data) {
