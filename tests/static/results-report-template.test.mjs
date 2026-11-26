@@ -87,3 +87,14 @@ test('partial reports include only saved completed results and do not bypass fin
  assert.match(partialPublication,/publish_partial_report_version/);
  assert.match(partialPublication,/set_config\('app\.report_publication','partial',true\)/);
 });
+
+
+test('imported source ranges are used immediately for result comparison without local approval gating',()=>{
+ const flagStart=js.indexOf('function computeReferenceFlag(');
+ const flagEnd=js.indexOf('function classifyResultFlag(',flagStart);
+ const flagFunction=js.slice(flagStart,flagEnd);
+ assert.ok(flagFunction.includes("if(valueType!=='numeric')return null;"));
+ assert.ok(!flagFunction.includes("status!=='verified_local'"));
+ assert.ok(js.includes('Imported reference intervals are operational immediately.'));
+ assert.ok(js.includes('const displayFlag=calculatedFlag || result.flag'));
+});

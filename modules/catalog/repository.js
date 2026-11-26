@@ -265,8 +265,23 @@ export async function saveTestParameter({ tenantId, testId, parameter, id } = {}
     source_references: valid.sourceReferences, reference_interval_status: valid.referenceIntervalStatus, clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
-  const { data, error } = await db().from(TABLES.parameters).upsert(payload).select().single();
-  if (error) throw error;
+  // Keep create and edit as explicit operations. This avoids ambiguous upsert
+  // conflicts on the tenant/test/parameter-code unique key and scopes edits to
+  // the exact parameter row in this tenant and test.
+  const query = db().from(TABLES.parameters);
+  const response = id
+    ? await query.update(payload)
+        .eq('tenant_id', tenantId).eq('test_id', testId).eq('id', id)
+        .select().single()
+    : await query.insert(payload).select().single();
+  const { data, error } = response;
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error('كود البارامتر مستخدم بالفعل داخل هذا التحليل. غيّر الكود أو افتح البارامتر الموجود للتعديل.');
+    }
+    throw error;
+  }
+  if (!data) throw new Error('لم يرجع الخادم بيانات البارامتر بعد الحفظ.');
   await cacheRows('test_parameters', [data]);
   return data;
 }
