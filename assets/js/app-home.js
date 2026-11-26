@@ -13,11 +13,11 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const apps = [
   { id:'reception', title:'الاستقبال والزيارات', desc:'تسجيل المرضى والزيارات واختيار التحاليل والتحصيل.', href:'reception.html', icon:'＋', roles:['owner','staff'] },
   { id:'results', title:'النتائج وتشغيل المعمل', desc:'قائمة العمل وإدخال النتائج والمراجعة واعتماد التقارير.', href:'results-workbench.html', icon:'▤', roles:['owner','staff'] },
-  { id:'catalog', title:'التحاليل والكتالوج', desc:'إدارة التحاليل والبارامترات الفنية؛ الأسعار للمالك فقط.', href:'catalog.html', icon:'⚗', roles:['owner','staff'] },
-  { id:'workday', title:'يوم العمل والنقدية', desc:'فتح وإغلاق اليوم ومتابعة التحصيل والمصروفات.', href:'workday.html', icon:'◷', roles:['owner','staff'] },
-  { id:'sync', title:'المزامنة والنسخ المحلي', desc:'متابعة العمليات المعلقة والتعارضات وحالة البيانات المحلية.', href:'sync-center.html', icon:'⟳', roles:['owner','staff'] },
   { id:'dashboard', title:'لوحة الإدارة والتحليل', desc:'مؤشرات الأداء والتحصيل والمصروفات ومقارنة الفروع.', href:'dashboard.html', icon:'▥', roles:['owner'] },
-  { id:'publicSite', title:'الموقع العام للمعمل', desc:'إدارة واجهة المعمل والخدمات والباقات والفروع المنشورة.', href:'cms-editor.html', icon:'⌂', roles:['owner'], secondary:true },
+  { id:'catalog', title:'التحاليل والكتالوج', desc:'إدارة التحاليل والبارامترات الفنية؛ الأسعار للمالك فقط.', href:'catalog.html', icon:'⚗', roles:['owner','staff'] },
+  { id:'publicSite', title:'الموقع العام للمعمل', desc:'إدارة واجهة المعمل والخدمات والباقات والفروع المنشورة.', href:'cms-editor.html', icon:'⌂', roles:['owner'] },
+  { id:'workday', title:'يوم العمل والنقدية', desc:'فتح وإغلاق اليوم ومتابعة التحصيل والمصروفات.', href:'workday.html', icon:'◷', roles:['owner','staff'], secondary:true },
+  { id:'sync', title:'المزامنة والنسخ المحلي', desc:'متابعة العمليات المعلقة والتعارضات وحالة البيانات المحلية.', href:'sync-center.html', icon:'⟳', roles:['owner','staff'], secondary:true },
   { id:'patientPortal', title:'بوابة نتائج المرضى', desc:'إعداد بوابة المريض ومتابعة نشر التقارير.', href:'site-management.html', icon:'▣', roles:['owner'], secondary:true },
 ];
 function updateWelcomeClock() {
