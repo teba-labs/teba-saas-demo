@@ -18,7 +18,7 @@ async function queueCatalogChange({ tenantId, branchId, kind, action, recordId, 
   required(branchId, 'branchId');
   const operationId = crypto.randomUUID();
   const cleanRecord = { ...recordPayload };
-  for (const key of ['local_pending','local_operation_id','local_base_updated_at','cached_at']) delete cleanRecord[key];
+  for (const key of ['local_pending','local_operation_id','local_branch_id','local_base_updated_at','cached_at']) delete cleanRecord[key];
   const dependencies = [...new Set([...dependsOn, ...(baseSnapshot?.local_operation_id ? [baseSnapshot.local_operation_id] : [])])];
   const payload = { kind, action, record_id: recordId, base_updated_at: baseSnapshot?.local_base_updated_at ?? baseSnapshot?.updated_at ?? null, base_snapshot: baseSnapshot ?? null, record_payload: cleanRecord };
   await enqueueOperation({ tenantId, branchId, entityType: 'catalog_change', action, operationId, payload, dependsOn: dependencies, priority: 4 });
@@ -554,7 +554,7 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
   if (!kind || !payload.record_payload || payload.record_id !== proposal.entity_id) throw new Error('بيانات طلب التعديل غير مكتملة؛ لم يتم تطبيقه.');
   const table = kind === 'test' ? TABLES.catalog : TABLES.parameters;
   const record = { ...payload.record_payload };
-  for (const key of ['local_pending','local_operation_id','local_base_updated_at','cached_at','created_at','updated_at']) delete record[key];
+  for (const key of ['local_pending','local_operation_id','local_branch_id','local_base_updated_at','cached_at','created_at','updated_at']) delete record[key];
   const { data: current, error: currentError } = await db().from(table).select('*').eq('tenant_id', tenantId).eq('id', proposal.entity_id).maybeSingle();
   if (currentError) throw currentError;
   let applied = null;
