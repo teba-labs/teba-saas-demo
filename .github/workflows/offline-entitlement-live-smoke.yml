@@ -46,10 +46,16 @@ jobs:
             || Object.hasOwn(key, 'd')) {
             throw new Error('The endpoint did not return the expected public-only ES256 key.');
           }
-          const imported = await crypto.subtle.importKey(
-            'jwk', key, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'],
-          );
-          if (!imported) throw new Error('The public key could not be imported by WebCrypto.');
+          try {
+            const imported = await crypto.subtle.importKey(
+              'jwk', key, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'],
+            );
+            if (!imported) throw new Error('WebCrypto returned no key.');
+          } catch (error) {
+            // The JWK is public by design; include its shape to make key-generation
+            // and secret-configuration faults diagnosable without exposing secrets.
+            throw new Error(`Public JWK import failed: ${error.message}; key=${JSON.stringify(key)}`);
+          }
           console.log('PASS: live endpoint returns an importable public P-256 verification key; private material is absent.');
           NODE
       - name: Verify browser CORS preflight
