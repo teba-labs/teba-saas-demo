@@ -8,9 +8,12 @@ const db = () => getSupabaseClient();
 async function queueCatalogChange({ tenantId, branchId, kind, action, recordId, baseSnapshot, recordPayload, dependsOn = [] }) {
   required(branchId, 'branchId');
   const operationId = crypto.randomUUID();
-  const payload = { kind, action, record_id: recordId, base_updated_at: baseSnapshot?.updated_at ?? null, base_snapshot: baseSnapshot ?? null, record_payload: { ...recordPayload } };
-  await enqueueOperation({ tenantId, branchId, entityType: 'catalog_change', action, operationId, payload, dependsOn, priority: 4 });
-  const localRow = { ...recordPayload, local_pending: true, local_operation_id: operationId, updated_at: new Date().toISOString() };
+  const cleanRecord = { ...recordPayload };
+  for (const key of ['local_pending','local_operation_id','local_base_updated_at','cached_at']) delete cleanRecord[key];
+  const dependencies = [...new Set([...dependsOn, ...(baseSnapshot?.local_operation_id ? [baseSnapshot.local_operation_id] : [])])];
+  const payload = { kind, action, record_id: recordId, base_updated_at: baseSnapshot?.local_base_updated_at ?? baseSnapshot?.updated_at ?? null, base_snapshot: baseSnapshot ?? null, record_payload: cleanRecord };
+  await enqueueOperation({ tenantId, branchId, entityType: 'catalog_change', action, operationId, payload, dependsOn: dependencies, priority: 4 });
+  const localRow = { ...cleanRecord, local_pending: true, local_operation_id: operationId, local_base_updated_at: payload.base_updated_at, updated_at: new Date().toISOString() };
   await cacheRows(kind === 'test' ? 'catalog' : 'test_parameters', [localRow]);
   return { ...localRow, queued: true, operationId };
 }
@@ -84,7 +87,7 @@ export async function warmCatalogParameters({ tenantId, testIds = [] } = {}) {
     const chunk = ids.slice(start, start + 100);
     for (let offset = 0; ; offset += 500) {
       const { data, error } = await db().from(TABLES.parameters)
-        .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression')
+        .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression, created_at, updated_at')
         .eq('tenant_id', tenantId).in('test_id', chunk)
         .order('test_id').order('display_order').range(offset, offset + 499);
       if (error) throw error;
@@ -138,7 +141,7 @@ export async function saveCatalogTest({ tenantId, branchId, test, id } = {}) {
     source_references: test.sourceReferences ?? [], clinical_review_status: test.clinicalReviewStatus || 'needs_review',
   };
   const cached = (await getCachedRows('catalog', { tenantId })).find(row => row.id === recordId) || null;
-  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
+  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn: cached?.local_operation_id ? [cached.local_operation_id] : [] });
   const { data, error } = await db().from(TABLES.catalog).upsert(payload).select().single();
   if (error) {
     if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
@@ -155,7 +158,7 @@ export async function setCatalogTestActive({ tenantId, branchId, testId, isActiv
   const cached = (await getCachedRows('catalog', { tenantId })).find(row => row.id === testId) || null;
   if (globalThis.navigator?.onLine === false) {
     if (!cached) throw new Error('جهّز كتالوج الفرع أثناء الاتصال قبل إيقاف أو تفعيل تحليل دون إنترنت.');
-    return queueCatalogChange({ tenantId, branchId, kind: 'test', action: 'update', recordId: testId, baseSnapshot: cached, recordPayload: { ...cached, is_active: isActive } });
+    return queueCatalogChange({ tenantId, branchId, kind: 'test', action: 'update', recordId: testId, baseSnapshot: cached, recordPayload: { ...cached, is_active: isActive }, dependsOn: cached.local_operation_id ? [cached.local_operation_id] : [] });
   }
   const { data, error } = await db().from(TABLES.catalog)
     .update({ is_active: isActive }).eq('tenant_id', tenantId).eq('id', testId).select().single();
@@ -296,7 +299,7 @@ export async function saveTestParameter({ tenantId, branchId, testId, parameter,
   const recordId = id || crypto.randomUUID();
   payload.id = recordId;
   const cached = (await getCachedRows('test_parameters', { tenantId, testId })).find(row => row.id === recordId) || null;
-  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
+  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn: [...dependsOn, ...(cached?.local_operation_id ? [cached.local_operation_id] : [])] });
   // Keep create and edit as explicit operations. This avoids ambiguous upsert
   // conflicts on the tenant/test/parameter-code unique key and scopes edits to
   // the exact parameter row in this tenant and test.
@@ -499,4 +502,72 @@ export async function importMasterCatalogTest({ tenantId, masterTestId } = {}) {
   });
   if (error) throw error;
   return data;
+}
+
+
+/** Pending catalog changes submitted by any device in the selected tenant/branch. */
+export async function listPendingCatalogChanges({ tenantId, branchId } = {}) {
+  required(tenantId, 'tenantId'); required(branchId, 'branchId');
+  const { data, error } = await db().from('sync_conflicts')
+    .select('id, tenant_id, branch_id, operation_id, entity_type, entity_id, local_payload, server_payload, resolution, resolution_payload, created_by, created_at, resolved_by, resolved_at')
+    .eq('tenant_id', tenantId).eq('branch_id', branchId)
+    .in('entity_type', ['catalog_test_change','catalog_parameter_change'])
+    .is('resolution', null).order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+/** Apply or reject one proposal. Updates are optimistic and never overwrite a newer server version. */
+export async function resolveCatalogChangeProposal({ tenantId, branchId, proposalId, decision } = {}) {
+  required(tenantId, 'tenantId'); required(branchId, 'branchId'); required(proposalId, 'proposalId');
+  if (!['approve','reject'].includes(decision)) throw new Error('قرار المراجعة غير صالح.');
+  const { data: proposal, error: proposalError } = await db().from('sync_conflicts')
+    .select('*').eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).maybeSingle();
+  if (proposalError) throw proposalError;
+  if (!proposal) throw new Error('طلب تعديل الكتالوج غير موجود في هذا الفرع.');
+  if (proposal.resolution) return { status: proposal.resolution };
+  if (decision === 'reject') {
+    const { data, error } = await db().from('sync_conflicts').update({ resolution: 'rejected', resolved_at: new Date().toISOString(), resolution_payload: { decision: 'rejected' } })
+      .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).is('resolution', null).select('id').maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('سبق أن اتخذ جهاز آخر قرارًا بشأن هذا التعديل. حدّث القائمة.');
+    return { status: 'rejected' };
+  }
+  const payload = proposal.local_payload || {};
+  const kind = proposal.entity_type === 'catalog_test_change' ? 'test' : proposal.entity_type === 'catalog_parameter_change' ? 'parameter' : null;
+  if (!kind || !payload.record_payload || payload.record_id !== proposal.entity_id) throw new Error('بيانات طلب التعديل غير مكتملة؛ لم يتم تطبيقه.');
+  const table = kind === 'test' ? TABLES.catalog : TABLES.parameters;
+  const record = { ...payload.record_payload };
+  for (const key of ['local_pending','local_operation_id','local_base_updated_at','cached_at','created_at','updated_at']) delete record[key];
+  const { data: current, error: currentError } = await db().from(table).select('*').eq('tenant_id', tenantId).eq('id', proposal.entity_id).maybeSingle();
+  if (currentError) throw currentError;
+  let applied = null;
+  if (payload.action === 'create') {
+    if (current) {
+      const reason = 'يوجد سجل بنفس المعرّف على الخادم؛ لم يتم استبداله.';
+      await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current } }).eq('id', proposalId).is('resolution', null);
+      return { status: 'conflict', reason, serverSnapshot: current };
+    }
+    const inserted = await db().from(table).insert(record).select().single();
+    if (inserted.error) throw inserted.error;
+    applied = inserted.data;
+  } else if (payload.action === 'update') {
+    const expectedVersion = payload.base_updated_at;
+    if (!current || !expectedVersion || current.updated_at !== expectedVersion) {
+      const reason = 'تغير السجل على جهاز آخر منذ تحميل النسخة المحلية. راجع النسختين قبل إعادة التعديل.';
+      await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current || null } }).eq('id', proposalId).is('resolution', null);
+      return { status: 'conflict', reason, serverSnapshot: current || null };
+    }
+    const patch = { ...record }; delete patch.id; delete patch.tenant_id;
+    const updated = await db().from(table).update(patch).eq('tenant_id', tenantId).eq('id', proposal.entity_id).eq('updated_at', expectedVersion).select().maybeSingle();
+    if (updated.error) throw updated.error;
+    if (!updated.data) return { status: 'conflict', reason: 'تغير السجل أثناء اعتماد التعديل؛ لم تتم الكتابة فوق النسخة الأحدث.' };
+    applied = updated.data;
+  } else throw new Error('نوع التعديل غير مدعوم.');
+  const resolved = await db().from('sync_conflicts').update({ resolution: 'approved', resolved_at: new Date().toISOString(), resolution_payload: { applied_record_id: applied.id, applied_updated_at: applied.updated_at } })
+    .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).is('resolution', null).select('id').maybeSingle();
+  if (resolved.error) throw resolved.error;
+  if (!resolved.data) throw new Error('تم تطبيق السجل لكن قرار المراجعة تغير بالتزامن؛ حدّث القائمة وتحقق من حالة الطلب.');
+  await cacheRows(kind === 'test' ? 'catalog' : 'test_parameters', [applied]);
+  return { status: 'approved', record: applied };
 }
