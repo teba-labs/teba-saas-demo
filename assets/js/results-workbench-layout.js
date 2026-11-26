@@ -97,7 +97,7 @@ function testLauncher(node,record,kind,workspace){
   dialog.addEventListener('keydown',event=>{
    if(event.key==='Escape'){event.preventDefault();closeModal();return;}
    if(event.key==='Enter'&&event.target.matches('input:not([type="hidden"]):not([type="search"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]),select')){
-    const controls=[...dialog.querySelectorAll('input:not([type="hidden"]):not([type="search"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([disabled]),select:not([disabled]),button:not([disabled])')].filter(el=>!el.hidden&&el.getClientRects().length);
+    const controls=[...dialog.querySelectorAll('input:not([type="hidden"]):not([type="search"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([disabled]),select:not([disabled])')].filter(el=>!el.hidden&&el.getClientRects().length);
     const index=controls.indexOf(event.target),next=index>=0?controls[index+1]:null;
     if(next){event.preventDefault();next.focus();return;}
     const saveButton=dialog.querySelector('.result-entry-modal-save');if(saveButton&&!saveButton.disabled){event.preventDefault();saveButton.click();return;}
