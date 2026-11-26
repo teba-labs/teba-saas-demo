@@ -9,7 +9,8 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 test('doctor-facing catalog metadata fields accept plain text and never ask for JSON', () => {
   const html = read('app/catalog.html');
   const js = read('assets/js/catalog.js');
-  assert.doesNotMatch(html, /—\s*JSON|JSON\s*<textarea|placeholder=['"][{[]/i);
+  assert.equal(html.includes('JSON'), false);
+  assert.equal(html.includes("placeholder='{" ), false);
   assert.doesNotMatch(js, /parseJsonField|parseJsonObjectField|parseJsonArrayField/);
   for (const id of ['testPreparation','testCollection','testSpecimenRequirements','testTransport','testStability','testCriticalPolicy','testSources','parameterAlternateUnits','parameterCriticalRanges','parameterInterpretation','parameterApplicability','parameterClinicalMetadata','parameterSources']) {
     assert.match(html, new RegExp('id="' + id + '"'));
@@ -26,6 +27,6 @@ test('master formula import compiles doctor-authored arithmetic text, not serial
   assert.match(migration, /master_formula_text_to_jsonb/);
   assert.match(migration, /parse_formula_expression/);
   assert.match(migration, /regexp_matches/);
-  assert.match(migration, /update public\.master_catalog_parameters[\s\S]*set formula=formula_expression/);
+  assert.match(migration, /update public\\.master_catalog_parameters[\\s\\S]*set formula=formula_expression/);
   assert.match(migration, /Human-readable arithmetic expression text/i);
 });
