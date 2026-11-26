@@ -522,7 +522,7 @@ export async function importMasterCatalogTest({ tenantId, masterTestId } = {}) {
 export async function listPendingCatalogChanges({ tenantId, branchId } = {}) {
   required(tenantId, 'tenantId'); required(branchId, 'branchId');
   const { data, error } = await db().from('sync_conflicts')
-    .select('id, tenant_id, branch_id, operation_id, entity_type, entity_id, local_payload, server_payload, resolution, resolution_payload, created_by, created_at, resolved_by, resolved_at')
+    .select('id, tenant_id, branch_id, operation_id, entity_type, entity_id, local_payload, server_payload, resolution, resolution_payload, created_at, resolved_by, resolved_at')
     .eq('tenant_id', tenantId).eq('branch_id', branchId)
     .in('entity_type', ['catalog_test_change','catalog_parameter_change'])
     .or('resolution.is.null,resolution.eq.conflict').order('created_at', { ascending: true });
