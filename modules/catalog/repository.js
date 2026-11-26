@@ -513,7 +513,7 @@ export async function listPendingCatalogChanges({ tenantId, branchId } = {}) {
     .select('id, tenant_id, branch_id, operation_id, entity_type, entity_id, local_payload, server_payload, resolution, resolution_payload, created_by, created_at, resolved_by, resolved_at')
     .eq('tenant_id', tenantId).eq('branch_id', branchId)
     .in('entity_type', ['catalog_test_change','catalog_parameter_change'])
-    .is('resolution', null).order('created_at', { ascending: true });
+    .or('resolution.is.null,resolution.eq.conflict').order('created_at', { ascending: true });
   if (error) throw error;
   return data || [];
 }
@@ -526,10 +526,10 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
     .select('*').eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).maybeSingle();
   if (proposalError) throw proposalError;
   if (!proposal) throw new Error('طلب تعديل الكتالوج غير موجود في هذا الفرع.');
-  if (proposal.resolution) return { status: proposal.resolution };
+  if (proposal.resolution && proposal.resolution !== 'conflict') return { status: proposal.resolution };
   if (decision === 'reject') {
     const { data, error } = await db().from('sync_conflicts').update({ resolution: 'rejected', resolved_at: new Date().toISOString(), resolution_payload: { decision: 'rejected' } })
-      .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).is('resolution', null).select('id').maybeSingle();
+      .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).or('resolution.is.null,resolution.eq.conflict').select('id').maybeSingle();
     if (error) throw error;
     if (!data) throw new Error('سبق أن اتخذ جهاز آخر قرارًا بشأن هذا التعديل. حدّث القائمة.');
     return { status: 'rejected' };
@@ -546,7 +546,7 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
   if (payload.action === 'create') {
     if (current) {
       const reason = 'يوجد سجل بنفس المعرّف على الخادم؛ لم يتم استبداله.';
-      await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current } }).eq('id', proposalId).is('resolution', null);
+      await db().from('sync_conflicts').update({ resolution: 'conflict', resolved_at: new Date().toISOString(), resolution_payload: { reason, server_snapshot: current } }).eq('id', proposalId).or('resolution.is.null,resolution.eq.conflict');
       return { status: 'conflict', reason, serverSnapshot: current };
     }
     const inserted = await db().from(table).insert(record).select().single();
@@ -566,7 +566,7 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
     applied = updated.data;
   } else throw new Error('نوع التعديل غير مدعوم.');
   const resolved = await db().from('sync_conflicts').update({ resolution: 'approved', resolved_at: new Date().toISOString(), resolution_payload: { applied_record_id: applied.id, applied_updated_at: applied.updated_at } })
-    .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).is('resolution', null).select('id').maybeSingle();
+    .eq('id', proposalId).eq('tenant_id', tenantId).eq('branch_id', branchId).or('resolution.is.null,resolution.eq.conflict').select('id').maybeSingle();
   if (resolved.error) throw resolved.error;
   if (!resolved.data) throw new Error('تم تطبيق السجل لكن قرار المراجعة تغير بالتزامن؛ حدّث القائمة وتحقق من حالة الطلب.');
   await cacheRows(kind === 'test' ? 'catalog' : 'test_parameters', [applied]);
