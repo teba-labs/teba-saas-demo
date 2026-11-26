@@ -37,14 +37,26 @@ const OWNER_REPORTS=[
 function panelByHeading(text){return [...$('workspace').querySelectorAll(':scope > .panel')].find(node=>node.querySelector('h2')?.textContent.trim()===text);}
 function mountOwnerDashboardNavigation(){
  if($('ownerDashboardHome'))return;
- const home=document.createElement('section');home.id='ownerDashboardHome';home.className='owner-dashboard-home panel';
- home.innerHTML='<div class="owner-dashboard-title"><div><h2>مركز تقارير المالك</h2><p class="muted">اختر تقريرًا لفتح شاشته المستقلة. كل الأرقام المالية خاصة بالمالك.</p></div><span class="badge">18 تقريرًا</span></div><div class="owner-report-grid">'+OWNER_REPORTS.map(([id,title,desc],i)=>'<button type="button" class="owner-report-card" data-owner-report="'+id+'"><span class="owner-report-number">'+String(i+1).padStart(2,'0')+'</span><strong>'+title+'</strong><small>'+desc+'</small><span class="owner-report-open">فتح التقرير ←</span></button>').join('')+'</div>';
- const screens=document.createElement('section');screens.id='ownerDashboardScreens';screens.hidden=true;
- screens.innerHTML=OWNER_REPORTS.map(([id,title,desc])=>'<section class="owner-report-screen" data-owner-screen="'+id+'" hidden><div class="owner-screen-head"><div><p class="eyebrow">تقارير المالك / '+String(OWNER_REPORTS.findIndex(x=>x[0]===id)+1).padStart(2,'0')+'</p><h2>'+title+'</h2><p class="muted">'+desc+'</p></div><button type="button" class="btn secondary" data-owner-export="'+id+'">تصدير CSV</button><button type="button" class="btn secondary" data-owner-print>طباعة / PDF</button><button type="button" class="btn secondary" data-owner-back>العودة إلى التقارير</button></div><div class="owner-screen-content" id="ownerContent-'+id+'"></div></section>').join('');
+ const home=document.createElement('aside');home.id='ownerDashboardHome';home.className='owner-dashboard-home panel';
+ const groups=[
+  ['💰 الإدارة المالية اليومية',['dailyFinance']],
+  ['📊 التقارير الأساسية',['reconciliation','live','overview']],
+  ['💹 التحليل المالي',['financial','annual','cases']],
+  ['📈 التحليلات المتقدمة',['expenseBreakdown','bcg','testReport']],
+  ['🗓️ التخطيط والتنفيذ',['monthlyPlan']],
+  ['🏆 الأداء والربحية',['topSellers','mostProfitable','leastProfitable','needOffers','lossMakers']],
+  ['📂 الأرشيف والملفات',['upload']],
+  ['🔐 الأمان',['security']]
+ ];
+ const reportMap=new Map(OWNER_REPORTS.map((item,index)=>[item[0],{item,index}]));
+ home.innerHTML='<div class="owner-sidebar-heading"><strong>تقارير المالك</strong><span>18 شاشة</span><button type="button" class="owner-nav-toggle" data-owner-nav-toggle aria-expanded="false">☰ الأقسام</button></div>'+groups.map(([group,ids])=>'<section class="owner-nav-group"><h3>'+group+'</h3><nav aria-label="'+group+'">'+ids.map(id=>{const {item,index}=reportMap.get(id);return '<button type="button" class="owner-report-nav" data-owner-report="'+id+'" aria-current="false"><span class="owner-report-number">'+String(index+1).padStart(2,'0')+'</span><span>'+item[1]+'</span></button>';}).join('')+'</nav></section>').join('');
+ const screens=document.createElement('section');screens.id='ownerDashboardScreens';screens.className='owner-dashboard-workspace';
+ screens.innerHTML=OWNER_REPORTS.map(([id,title,desc],i)=>'<section class="owner-report-screen" data-owner-screen="'+id+'" hidden><div class="owner-screen-head"><div><p class="eyebrow">تقارير المالك / '+String(i+1).padStart(2,'0')+'</p><h2>'+title+'</h2><p class="muted">'+desc+'</p></div><div class="owner-screen-actions"><button type="button" class="btn secondary" data-owner-export="'+id+'">تصدير CSV</button><button type="button" class="btn secondary" data-owner-print>طباعة / PDF</button><button type="button" class="btn secondary" data-owner-back>نظرة عامة</button></div></div><div class="owner-screen-content" id="ownerContent-'+id+'"></div></section>').join('');
+ const layout=document.createElement('div');layout.id='ownerDashboardLayout';layout.className='owner-dashboard-layout';
  const anchor=$('status').closest('.panel');
- anchor.after(home,screens);
- home.addEventListener('click',event=>{const button=event.target.closest('[data-owner-report]');if(button)showOwnerReport(button.dataset.ownerReport);});
- screens.addEventListener('click',event=>{const exportButton=event.target.closest('[data-owner-export]');if(exportButton){exportOwnerReport(exportButton.dataset.ownerExport);return;}if(event.target.closest('[data-owner-print]')){window.print();return;}if(event.target.closest('[data-owner-back]')){screens.hidden=true;home.hidden=false;if($('historyPeriodPanel'))$('historyPeriodPanel').hidden=true;window.scrollTo({top:home.offsetTop-12,behavior:'smooth'});}});
+ anchor.after(layout);layout.append(home,screens);
+ home.addEventListener('click',event=>{const toggle=event.target.closest('[data-owner-nav-toggle]');if(toggle){home.classList.toggle('is-open');toggle.setAttribute('aria-expanded',String(home.classList.contains('is-open')));return;}const button=event.target.closest('[data-owner-report]');if(button){showOwnerReport(button.dataset.ownerReport);home.classList.remove('is-open');const navToggle=home.querySelector('[data-owner-nav-toggle]');if(navToggle)navToggle.setAttribute('aria-expanded','false');}});
+ screens.addEventListener('click',event=>{const exportButton=event.target.closest('[data-owner-export]');if(exportButton){exportOwnerReport(exportButton.dataset.ownerExport);return;}if(event.target.closest('[data-owner-print]')){window.print();return;}if(event.target.closest('[data-owner-back]'))showOwnerReport('overview');});
  const content=id=>$('ownerContent-'+id);
  const move=(id,node)=>{if(node)content(id).append(node);};
  move('live',$('workspace').querySelector('.kpis'));
@@ -78,7 +90,7 @@ function mountOwnerDashboardNavigation(){
   uploadPanel.hidden=true;move('upload',uploadPanel);
   const controls=document.createElement('section');controls.id='historyPeriodPanel';controls.className='panel history-period-global';controls.hidden=true;controls.innerHTML='<h3>الفترة التاريخية المختارة</h3><p class="muted">يتغير معها تحليل BCG والربحية والخطة والموسمية التاريخية.</p>';
   if(period)controls.append(period.closest('label'));
-  home.after(controls);
+  screens.prepend(controls);
   if(results){
    const source=results;
    const targets={bcg:'مصفوفة BCG التاريخية',monthlyPlan:'خطة الشهر التالي',cases:'موسمية الحالات حسب الشهر',topSellers:'الأكثر طلبًا',mostProfitable:'الأكثر ربحية',leastProfitable:'الأقل ربحية',needOffers:'تحاليل تحتاج تنشيطًا',lossMakers:'التحاليل الخاسرة',annual:'الملخص السنوي'};
@@ -109,7 +121,7 @@ function mountOwnerDashboardNavigation(){
  const summary=panelByHeading('ملخص قابل للنسخ');move('overview',summary);
  const note=document.createElement('p');note.className='hint';note.textContent='صافي النقدية ليس صافي ربح محاسبيًا؛ لا تتوفر في التشغيل الحي تكلفة موثوقة لكل تحليل ضمن هذا التقرير.';content('overview').append(note);
  const historyHint=document.createElement('p');historyHint.className='hint';historyHint.textContent='تعتمد تحليلات المحفظة على مسار المحاسب المستورد فقط، ولا تمثل ربحية التشغيل الحي ما لم تتوفر تكلفة تشغيل موثوقة. عند اختلاف اسم الفرع لا نخمن الربط ولا نعرض فرعًا بديلًا.';for(const id of ['bcg','monthlyPlan','topSellers','mostProfitable','leastProfitable','needOffers','lossMakers'])content(id).prepend(historyHint.cloneNode(true));
- showOwnerReport('home');
+ showOwnerReport('overview');
 }
 
 function exportOwnerReport(id){
@@ -165,12 +177,16 @@ function mountAccountantReportCards(){
 }
 function showOwnerReport(id){
  const home=$('ownerDashboardHome'),screens=$('ownerDashboardScreens');
- const historicalScreens=['upload'];const historyPeriod=$('historyPeriodPanel');if(historyPeriod)historyPeriod.hidden=!historicalScreens.includes(id);
- if(id==='home'){home.hidden=false;screens.hidden=true;return;}
- const screen=screens.querySelector('[data-owner-screen="'+id+'"]');if(!screen)return;
- home.hidden=true;screens.hidden=false;
+ if(id==='home')id='overview';
+ const screen=screens?.querySelector('[data-owner-screen="'+id+'"]');if(!screen)return;
+ const historyPeriod=$('historyPeriodPanel');if(historyPeriod)historyPeriod.hidden=id!=='upload';
  screens.querySelectorAll('[data-owner-screen]').forEach(node=>node.hidden=node!==screen);
- window.scrollTo({top:screens.offsetTop-12,behavior:'smooth'});
+ home.querySelectorAll('[data-owner-report]').forEach(button=>{
+  const active=button.dataset.ownerReport===id;
+  button.classList.toggle('active',active);
+  button.setAttribute('aria-current',active?'page':'false');
+ });
+ screens.scrollTop=0;
 }
 async function start(){mountOwnerDashboardNavigation();const session=await getCurrentSession();if(!session){$('loginPanel').hidden=false;$('workspace').hidden=true;$('signOut').hidden=true;return;}$('loginPanel').hidden=true;$('workspace').hidden=false;$('signOut').hidden=false;state.context=await loadMyTenantContext();const owners=(state.context.tenants||[]).filter(t=>t.accountType==='owner');if(!owners.length){$('workspace').hidden=true;$('loginPanel').hidden=false;throw new Error('لوحة التحليل المالي متاحة لمدير المعمل فقط.');}state.context.tenants=owners;$('tenantSelect').innerHTML=owners.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');$('tenantSelect').onchange=()=>selectTenant($('tenantSelect').value);$('month').value=currentMonth();$('testRangeFrom').value=monthRange(currentMonth()).monthStart;$('testRangeTo').value=localToday();const preferredTenantId=getPreferredTenantId(owners);$('tenantSelect').value=preferredTenantId;await selectTenant(preferredTenantId);}
 async function selectTenant(id){state.tenant=state.context.tenants.find(t=>t.id===id);if(!state.tenant)return;rememberWorkspaceSelection(state.tenant.id);const ownerBranches=state.tenant?.allBranches||state.tenant?.branches||[];$('branchSelect').innerHTML='<option value="all">كل الفروع</option>'+ownerBranches.map(b=>`<option value="${esc(b.id)}" data-branch-name="${esc(b.name)}">${esc(b.name)}${b.is_active===false?' · مؤرشف':''}</option>`).join('');await refresh();await mountOwnerFinancialImport(state.tenant.id,ownerBranches);mountAccountantReportCards();const reconciliationTarget=$('ownerContent-reconciliation');for(const id of ['ownerFinancialSourcePanel','ownerFinancialApprovalPanel']){const panel=$(id);if(panel&&reconciliationTarget)reconciliationTarget.append(panel);}}
