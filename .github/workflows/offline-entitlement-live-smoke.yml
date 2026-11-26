@@ -1,0 +1,74 @@
+name: Offline entitlement live smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/offline-entitlement-live-smoke.yml'
+      - 'supabase/functions/issue-offline-entitlement/**'
+      - 'offline/entitlement.js'
+      - 'offline/entitlement-public-key.js'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/offline-entitlement-live-smoke.yml'
+      - 'supabase/functions/issue-offline-entitlement/**'
+      - 'offline/entitlement.js'
+      - 'offline/entitlement-public-key.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-key-bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify deployed signing key endpoint
+        env:
+          ENDPOINT: https://hgqwpykeazuzceeiumjg.supabase.co/functions/v1/issue-offline-entitlement
+        run: |
+          node --input-type=module <<'NODE'
+          const endpoint = process.env.ENDPOINT;
+          const response = await fetch(endpoint, { method: 'GET', cache: 'no-store' });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(`Signing-key endpoint returned HTTP ${response.status}: ${JSON.stringify(body)}`);
+          }
+          const key = body.public_jwk;
+          if (body.key_id !== 'taiba-offline-es256-v1'
+            || key?.kty !== 'EC'
+            || key?.crv !== 'P-256'
+            || typeof key?.x !== 'string'
+            || key.x.length < 20
+            || typeof key?.y !== 'string'
+            || key.y.length < 20
+            || Object.hasOwn(key, 'd')) {
+            throw new Error('The endpoint did not return the expected public-only ES256 key.');
+          }
+          const imported = await crypto.subtle.importKey(
+            'jwk', key, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'],
+          );
+          if (!imported) throw new Error('The public key could not be imported by WebCrypto.');
+          console.log('PASS: live endpoint returns an importable public P-256 verification key; private material is absent.');
+          NODE
+      - name: Verify browser CORS preflight
+        env:
+          ENDPOINT: https://hgqwpykeazuzceeiumjg.supabase.co/functions/v1/issue-offline-entitlement
+        run: |
+          node --input-type=module <<'NODE'
+          const response = await fetch(process.env.ENDPOINT, {
+            method: 'OPTIONS',
+            headers: {
+              Origin: 'https://teba-labs.github.io',
+              'Access-Control-Request-Method': 'GET',
+              'Access-Control-Request-Headers': 'apikey,authorization',
+            },
+          });
+          const allowOrigin = response.headers.get('access-control-allow-origin');
+          const allowMethods = response.headers.get('access-control-allow-methods') || '';
+          if (!response.ok || allowOrigin !== 'https://teba-labs.github.io' || !allowMethods.includes('GET')) {
+            throw new Error(`CORS preflight failed: HTTP ${response.status}, origin=${allowOrigin}, methods=${allowMethods}`);
+          }
+          console.log('PASS: GitHub Pages origin can perform the public-key bootstrap request.');
+          NODE
