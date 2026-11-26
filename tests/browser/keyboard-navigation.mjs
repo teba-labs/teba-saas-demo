@@ -42,11 +42,13 @@ try{
     const visibleFocusables=await page.locator('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])').evaluateAll(nodes=>nodes.filter(el=>el.getClientRects().length>0&&!el.hidden&&getComputedStyle(el).visibility!=='hidden').length);
     if(visibleFocusables){
       await page.keyboard.press('Tab');
-      const tabFocused=await page.evaluate(()=>document.activeElement!==document.body&&document.activeElement.getClientRects().length>0);
-      assert.ok(tabFocused,pagePath+': Tab did not focus a visible control');
+      const firstFocus=await page.evaluate(()=>document.activeElement);
+      const firstFocused=await page.evaluate(()=>document.activeElement!==document.body&&document.activeElement.getClientRects().length>0);
+      assert.ok(firstFocused,pagePath+': Tab did not focus a visible control');
+      await page.keyboard.press('Tab');
       await page.keyboard.press('Shift+Tab');
-      const reverseFocused=await page.evaluate(()=>document.activeElement!==document.body);
-      assert.ok(reverseFocused,pagePath+': Shift+Tab did not restore keyboard focus');
+      const reverseFocused=await page.evaluate(()=>document.activeElement===document.querySelector(':focus'));
+      assert.ok(reverseFocused && await page.evaluate(()=>document.activeElement!==document.body),pagePath+': Shift+Tab did not restore focus to the previous control');
     }
 
     await page.evaluate(()=>{
