@@ -11,6 +11,7 @@ test('new tenant creation provisions a usable first branch and owner operational
   const page = read('app/platform-admin.html');
   const js = read('assets/js/platform-admin.js');
   const doctorMigration = read('database/migrations/123_owner_doctor_name_onboarding.sql');
+  const compatibility = read('database/migrations/125_platform_admin_legacy_rpc_compatibility.sql');
   assert.ok(migration.includes("values(v_tenant_id,'الفرع الرئيسي')"));
   assert.ok(migration.includes('public.staff_directory'));
   assert.ok(migration.includes('auth_user_id'));
@@ -26,6 +27,9 @@ test('new tenant creation provisions a usable first branch and owner operational
   assert.ok(js.includes('p_owner_display_name'));
   assert.ok(doctorMigration.includes('p_owner_display_name text'));
   assert.ok(doctorMigration.includes('public.staff_directory'));
+  assert.ok(compatibility.includes('p_owner_email text,p_plan_id uuid default null'));
+  assert.ok(compatibility.includes('p_owner_display_name,null,p_plan_id'));
+  assert.ok(compatibility.includes('Backward-compatible wrapper'));
 });
 
 test('owner branch provisioning does not assign the owner to employee-only branch membership', () => {
