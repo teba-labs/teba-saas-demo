@@ -154,7 +154,7 @@ function renderCatalog(){
     const priceSetup=!price?(state.tenant?.accountType==='owner'
       ? `<div class="quick-price"><input type="number" min="0" step="0.01" data-quick-price="${escapeHtml(t.id)}" placeholder="حدد سعر التحليل"><button type="button" class="button button-secondary" data-save-quick-price="${escapeHtml(t.id)}">حفظ السعر</button></div>`
       : '<small class="price-missing">السعر لم يحدده مالك المعمل بعد</small>'):'';
-    return `<div class="catalog-item"><input type="checkbox" data-test="${escapeHtml(t.id)}" id="test-${escapeHtml(t.id)}" ${checked?'checked':''} ${!price?'disabled':''} aria-label="${escapeHtml(t.name)}"><label for="test-${escapeHtml(t.id)}"><strong>${escapeHtml(t.name)}</strong><small>${escapeHtml(t.code)}${t.category?' · '+escapeHtml(t.category):''}${!price?' · السعر غير محدد':''}</small></label><strong>${price?money(price.selling_price):'—'}</strong>${priceSetup}</div>`;
+    return `<div class="catalog-item"><input type="checkbox" data-test="${escapeHtml(t.id)}" id="test-${escapeHtml(t.id)}" ${checked?'checked':''} aria-label="${escapeHtml(t.name)}"><label for="test-${escapeHtml(t.id)}"><strong>${escapeHtml(t.name)}</strong><small>${escapeHtml(t.code)}${t.category?' · '+escapeHtml(t.category):''}${!price?' · بدون سجل سعر — يُعامل بصفر تشغيليًا':''}</small></label><strong>${money(price?.selling_price??0)}</strong>${priceSetup}</div>`;
   }).join(''):'<p class="muted">لا توجد تحاليل مطابقة لبحثك.</p>';
   host.querySelectorAll('[data-test]').forEach(input=>input.addEventListener('change',()=>toggleTest(input.dataset.test,input.checked)));
   host.querySelectorAll('[data-save-quick-price]').forEach(button=>button.addEventListener('click',()=>saveQuickCatalogPrice(button)));
