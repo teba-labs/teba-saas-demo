@@ -60,7 +60,7 @@ test('dashboard switches to a clearly limited local summary while offline', () =
   assert.match(dashboard, /getOfflineDashboardSummary/);
   assert.match(dashboard, /if\(navigator\.onLine===false\)/);
   assert.match(dashboard, /renderOfflineDashboard\(local\)/);
-  assert.match(summary, /البيانات المحفوظة على هذا الجهاز/);
+  assert.match(dashboard, /البيانات التالية من البيانات المحفوظة على هذا الجهاز فقط/);
   assert.match(summary, /pending/);
 });
 
