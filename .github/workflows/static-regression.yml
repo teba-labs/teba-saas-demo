@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, 'work/one-cycle-full-implementation-2026-11-24']
+    branches: [main, 'work/one-cycle-full-implementation-2026-11-24', 'fix/tenant-onboarding-regression-2026-11-26']
   workflow_dispatch:
 
 permissions:

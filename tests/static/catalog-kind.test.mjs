@@ -23,10 +23,14 @@ test('catalog distinguishes individual tests from panels and preserves kind in v
   assert.match(sql, /before insert on public\.visit_tests/);
 });
 
-test('new individual tests receive one distinct result parameter automatically; panels remain configurable', () => {
+test('new individual tests receive one distinct result parameter atomically online and queue it after the test offline; panels remain configurable', () => {
   const js = read('assets/js/catalog.js');
-  assert.match(js, /if\(isNew&&testKind==='individual'\)/);
+  const repo = read('modules/catalog/repository.js');
+  assert.match(js, /initialParameter:isNew&&testKind==='individual'/);
+  assert.match(js, /if\(isNew&&testKind==='individual'&&saved\.queued\)/);
   assert.match(js, /saveTestParameter\(/);
+  assert.match(repo, /createCatalogTestWithDefaultParameter/);
+  assert.match(repo, /initialParameterSaved: true/);
   assert.ok(js.includes('parameterInputMode'));
   assert.ok(js.includes('parameterRangeRows'));
   assert.ok(!js.includes("parseJsonField('parameterRanges'"));

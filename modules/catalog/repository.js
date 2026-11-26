@@ -124,7 +124,7 @@ export async function listTestParameters({ tenantId, branchId = null, testId, in
   return merged.visible.filter(row => includeInactive || row.is_active);
 }
 
-export async function saveCatalogTest({ tenantId, branchId, test, id } = {}) {
+export async function saveCatalogTest({ tenantId, branchId, test, id, initialParameter } = {}) {
   required(tenantId, 'tenantId');
   const code = String(test?.code ?? '').trim();
   const name = String(test?.name ?? '').trim();
@@ -154,6 +154,26 @@ export async function saveCatalogTest({ tenantId, branchId, test, id } = {}) {
   };
   const cached = (await getCachedRows('catalog', { tenantId })).find(row => row.id === recordId) || null;
   if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn: cached?.local_operation_id ? [cached.local_operation_id] : [] });
+  if (!id && initialParameter) {
+    const parameterPayload = buildParameterPayload({ tenantId, testId: recordId, parameter: initialParameter });
+    const { data: created, error: createError } = await db().rpc(RPC.createCatalogTestWithDefaultParameter, {
+      p_tenant_id: tenantId, p_test: payload, p_parameter: parameterPayload,
+    });
+    if (createError) {
+      if (/fetch|network|offline/i.test(createError.message || '') || globalThis.navigator?.onLine === false) {
+        return queueCatalogChange({ tenantId, branchId, kind: 'test', action: 'create', recordId, baseSnapshot: null, recordPayload: payload });
+      }
+      throw createError;
+    }
+    const savedTest = created?.test;
+    const savedParameter = created?.parameter;
+    if (!savedTest?.id || savedTest.id !== recordId || !savedParameter?.id || savedParameter.test_id !== recordId) {
+      throw new Error('لم يرجع الخادم التحليل والبارامتر الأول بعد الحفظ الذري.');
+    }
+    await cacheRows('catalog', [savedTest]);
+    await cacheRows('test_parameters', [savedParameter]);
+    return { ...savedTest, initialParameterSaved: true };
+  }
   const { data, error } = await db().from(TABLES.catalog).upsert(payload).select().single();
   if (error) {
     if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
@@ -289,12 +309,11 @@ const validateParameter = parameter => {
   };
 };
 
-/** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
-export async function saveTestParameter({ tenantId, branchId, testId, parameter, id, dependsOn = [] } = {}) {
-  required(tenantId, 'tenantId'); required(testId, 'testId');
+function buildParameterPayload({ tenantId, testId, parameter, id } = {}) {
+  required(tenantId, 'tenantId');
   const valid = validateParameter(parameter);
-  const payload = {
-    ...(id ? { id } : {}), tenant_id: tenantId, test_id: testId,
+  return {
+    id: id || crypto.randomUUID(), tenant_id: tenantId, ...(testId ? { test_id: testId } : {}),
     parameter_code: valid.code, parameter_name: valid.name,
     unit: parameter.unit?.trim() || null, value_type: valid.valueType,
     result_input_mode: valid.resultInputMode, result_config: valid.resultConfig, display_rules: valid.displayRules,
@@ -304,12 +323,18 @@ export async function saveTestParameter({ tenantId, branchId, testId, parameter,
     result_source: valid.resultSource, formula: valid.formula,
     unit_ucum: parameter.unitUcum?.trim() || null, alternate_units: parameter.alternateUnits ?? [],
     critical_ranges: parameter.criticalRanges ?? {}, interpretation_rules: parameter.interpretationRules ?? [],
-    applicability: parameter.applicability ?? {}, method_notes: parameter.methodNotes?.trim() || null, clinical_metadata: parameter.clinicalMetadata ?? {},
-    source_references: valid.sourceReferences, reference_interval_status: valid.referenceIntervalStatus, clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
+    applicability: parameter.applicability ?? {}, method_notes: parameter.methodNotes?.trim() || null,
+    clinical_metadata: parameter.clinicalMetadata ?? {}, source_references: valid.sourceReferences,
+    reference_interval_status: valid.referenceIntervalStatus, clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
-  const recordId = id || crypto.randomUUID();
-  payload.id = recordId;
+}
+
+/** Technical parameter data is editable by tenant members; database RLS remains authoritative. */
+export async function saveTestParameter({ tenantId, branchId, testId, parameter, id, dependsOn = [] } = {}) {
+  required(tenantId, 'tenantId'); required(testId, 'testId');
+  const payload = buildParameterPayload({ tenantId, testId, parameter, id });
+  const recordId = payload.id;
   const cached = (await getCachedRows('test_parameters', { tenantId, testId })).find(row => row.id === recordId) || null;
   if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn: [...dependsOn, ...(cached?.local_operation_id ? [cached.local_operation_id] : [])] });
   // Keep create and edit as explicit operations. This avoids ambiguous upsert

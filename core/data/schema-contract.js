@@ -23,4 +23,5 @@ export const RPC = Object.freeze({
   createVisitIntakeIdempotent: 'create_visit_intake_idempotent',
   setCurrentTestPrice: 'set_current_test_price',
   setBranchTestPrice: 'set_branch_test_price',
+  createCatalogTestWithDefaultParameter: 'create_catalog_test_with_default_parameter',
 });

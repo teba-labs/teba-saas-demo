@@ -13,12 +13,22 @@ const catalogBranchId = () => state.tenant?.branches?.find(branch => branch.id =
 function notice(message,error=false){const el=$('notice');el.textContent=message;el.className=`notice show${error?' error':''}`;clearTimeout(notice.timer);notice.timer=setTimeout(()=>el.className='notice',6500);}
 function requireOnline(){if(globalThis.navigator?.onLine===false)throw new Error('استيراد المكتبة المركزية يحتاج اتصالًا بالإنترنت.');}
 function setBusy(form,busy){form.querySelectorAll('button,input,select,textarea').forEach(el=>el.disabled=busy);if(form.id==='testForm')$('testKind').disabled=busy||!!state.selectedTest;}
-function parseJsonField(id,label,allowObject=false){const raw=$(id).value.trim();if(!raw)return [];let value;try{value=JSON.parse(raw);}catch{if(allowObject)return {text:raw};return raw.split(',').map(x=>x.trim()).filter(Boolean);}if(!Array.isArray(value)&&!(allowObject&&value!==null&&typeof value==='object'))throw new Error(allowObject?`${label} يجب أن يكون نصًا أو كائنًا أو قائمة.`:`${label} يجب أن تكون قائمة أو اختيارات مفصولة بفواصل.`);return value;}
-function displayRanges(value){if(!value||Array.isArray(value)&&!value.length)return '';if(typeof value==='object'&&value.text)return String(value.text);return JSON.stringify(value,null,2);}
+
+function textLines(id){return $(id).value.split(/[\r\n]+/).map(value=>value.trim()).filter(Boolean);}
+function parseTextObject(id){const raw=$(id).value.trim();return raw?{instructions:raw}:{};}
+function parseTextArray(id){return textLines(id);}
+function parseTextReferences(id){return textLines(id).map(line=>{const [title='',organization='',url='',version='']=line.split('|').map(x=>x.trim());return {title,organization,url,version};}).filter(row=>row.title||row.organization||row.url);}
+function parseTextKeyValues(id,label){const output={};for(const line of textLines(id)){const at=line.indexOf('=');if(at<1)throw new Error(label+': اكتب كل سطر بصيغة (البيان = القيمة).');const key=line.slice(0,at).trim(),value=line.slice(at+1).trim();if(!key||!value)throw new Error(label+': يوجد سطر ناقص.');output[key]=value;}return output;}
+function displayReferences(value){return Array.isArray(value)?value.map(v=>typeof v==='string'?v:[v.title,v.organization,v.url,v.version].filter(Boolean).join(' | ')).join('\n'):'';}
+function displayText(value){if(!value||typeof value!=='object')return String(value||'');if(Array.isArray(value))return value.map(v=>typeof v==='string'?v:Object.entries(v||{}).map(([k,item])=>k+' = '+(Array.isArray(item)?item.join('، '):String(item))).join(' | ')).join('\n');if(value.instructions&&Object.keys(value).length===1)return String(value.instructions);const rows=[];const flatten=(object,prefix='')=>Object.entries(object).forEach(([key,item])=>{const name=prefix?prefix+'.'+key:key;if(item&&typeof item==='object'&&!Array.isArray(item))flatten(item,name);else rows.push(name+' = '+(Array.isArray(item)?item.join('، '):String(item)));});flatten(value);return rows.join('\n');}
+function displayRanges(value){if(!value||Array.isArray(value)&&!value.length)return '';if(typeof value==='object'&&value.text)return String(value.text);return displayText(value);}
 function displayChoices(value){return Array.isArray(value)?value.join(', '):'';}
-function displayJson(value){return value&&typeof value==='object'&&Object.keys(value).length?JSON.stringify(value,null,2):'';}
-function parseJsonObjectField(id,label){const value=parseJsonField(id,label,true);return Array.isArray(value)?{}:value;}
-function parseJsonArrayField(id,label){const value=parseJsonField(id,label,false);if(!Array.isArray(value))throw new Error(label+' يجب أن تكون قائمة JSON.');return value;}
+function displayJson(value){return displayText(value);}
+function parseCriticalRanges(id){const raw=parseTextKeyValues(id,'القيم الحرجة');const out={};for(const [key,value] of Object.entries(raw)){const k=key.toLowerCase();if(['low','lower','الحد الأدنى','من'].includes(k))out.low=Number(value);else if(['high','upper','الحد الأعلى','إلى'].includes(k))out.high=Number(value);else if(['unit','الوحدة'].includes(k))out.unit=value;else out[key]=value;}if(('low'in out&&!Number.isFinite(out.low))||('high'in out&&!Number.isFinite(out.high)))throw new Error('حدود القيم الحرجة يجب أن تكون أرقامًا.');return out;}
+function parseAlternateUnits(id){return textLines(id).map(line=>{const at=line.lastIndexOf('=');if(at<1)throw new Error('الوحدة البديلة: اكتب كل سطر بصيغة الوحدة = معامل التحويل.');const unit=line.slice(0,at).trim(),factor=Number(line.slice(at+1).trim());if(!unit||!Number.isFinite(factor)||factor<=0)throw new Error('معامل تحويل الوحدة يجب أن يكون رقمًا موجبًا.');return {unit,factor};});}
+function parseApplicability(id){const raw=parseTextKeyValues(id,'الانطباق');const result={};for(const [key,value] of Object.entries(raw)){if(['العمر من','age_min'].includes(key))result.age={...(result.age||{}),min:Number(value)};else if(['العمر إلى','age_max'].includes(key))result.age={...(result.age||{}),max:Number(value)};else if(['وحدة العمر','age_unit'].includes(key))result.age={...(result.age||{}),unit:value==='سنة'?'years':value==='شهر'?'months':value==='يوم'?'days':value};else if(['النوع','sex'].includes(key))result.sex=value.split(/[،,]+/).map(x=>x.trim()==='ذكر'?'male':x.trim()==='أنثى'?'female':x.trim()).filter(Boolean);else if(['الحمل','pregnancy'].includes(key))result.pregnancy=['نعم','yes','true','1'].includes(value.toLowerCase());else result[key]=value;}if(result.age&&Object.values(result.age).some(v=>typeof v==='number'&&!Number.isFinite(v)))throw new Error('العمر يجب أن يكون رقمًا.');return result;}
+function displayApplicability(value){if(!value||typeof value!=='object')return '';const rows=[];if(value.age){if(value.age.min!=null)rows.push('العمر من = '+value.age.min);if(value.age.max!=null)rows.push('العمر إلى = '+value.age.max);if(value.age.unit)rows.push('وحدة العمر = '+({years:'سنة',months:'شهر',days:'يوم'}[value.age.unit]||value.age.unit));}if(value.sex){const sex=Array.isArray(value.sex)?value.sex:[value.sex];rows.push('النوع = '+sex.map(v=>({male:'ذكر',female:'أنثى'}[v]||v)).join('،'));}if(value.pregnancy)rows.push('الحمل = نعم');return rows.join('\n');}
+
 
 function normalizeInputMode(parameter){
  if(parameter.result_input_mode)return parameter.result_input_mode;
@@ -135,11 +145,11 @@ function resetTestForm(){state.selectionRequest++;state.selectedTest=null;$('edi
 function fillTestForm(test){state.selectedTest=test.id;$('editorTitle').textContent=`تعديل: ${test.name}`;$('testCode').value=test.code||'';$('testName').value=test.name||'';$('testKind').value=test.test_kind||'individual';$('testKind').disabled=true;$('testCategory').value=test.category||'';$('testSpecimen').value=test.specimen||'';$('testMethod').value=test.method||'';$('testTurnaround').value=test.turnaround_minutes??'';$('testInstructions').value=test.instructions||'';$('testActive').checked=!!test.is_active;
  $('testShortName').value=test.short_name||'';$('testSynonyms').value=(test.synonyms||[]).join(', ');$('testLoinc').value=test.loinc_code||'';
  $('testClinicalCategory').value=test.clinical_category||'';$('testClinicalPurpose').value=test.clinical_purpose||'';$('testServiceType').value=test.service_type||'laboratory_test';
- $('testPreparation').value=displayJson(test.patient_preparation);$('testCollection').value=displayJson(test.collection_requirements);
- $('testSpecimenRequirements').value=displayJson(test.specimen_requirements);$('testTransport').value=displayJson(test.transport_requirements);
- $('testStability').value=displayJson(test.stability_requirements);$('testRejection').value=(test.rejection_criteria||[]).join(', ');
- $('testCriticalPolicy').value=displayJson(test.critical_result_policy);$('testBiosafety').value=test.biosafety_notes||'';
- $('testReportingNotes').value=test.reporting_notes||'';$('testSources').value=displayJson(test.source_references);
+ $('testPreparation').value=displayText(test.patient_preparation);$('testCollection').value=displayText(test.collection_requirements);
+ $('testSpecimenRequirements').value=displayText(test.specimen_requirements);$('testTransport').value=displayText(test.transport_requirements);
+ $('testStability').value=displayText(test.stability_requirements);$('testRejection').value=(test.rejection_criteria||[]).join(', ');
+ $('testCriticalPolicy').value=displayText(test.critical_result_policy);$('testBiosafety').value=test.biosafety_notes||'';
+ $('testReportingNotes').value=test.reporting_notes||'';$('testSources').value=displayReferences(test.source_references);
  $('testReviewStatus').value=test.clinical_review_status||'needs_review';$('activateCatalogTest').hidden=!!test.is_active;$('testStatus').textContent=test.is_active?'نشط':'موقوف';$('testStatus').className=`status ${test.is_active?'active':'inactive'}`;$('parameterSection').hidden=false;$('priceSection').hidden=false;renderTests();}
 async function selectTest(id){const test=state.tests.find(t=>t.id===id);if(!test)return;const requestId=++state.selectionRequest;const tenantId=state.tenant.id;fillTestForm(test);state.selectedParameter=null;$('parameterForm').hidden=true;await Promise.all([loadParameters({tenantId,testId:test.id,requestId}),loadPrice()]);}
 async function loadCatalog(requestId=state.tenantRequest){const tenantId=state.tenant.id;const tests=await listCatalog({tenantId,branchId:catalogBranchId(),includeInactive:true});if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.tests=tests;const ids=tests.map(t=>t.id);const priceBranchId=state.role==='owner'?null:state.tenant.branches?.[0]?.id||null;const prices=ids.length?await listCurrentPrices({tenantId,branchId:priceBranchId,testIds:ids}):[];if(requestId!==state.tenantRequest||tenantId!==state.tenant?.id)return;state.prices=new Map(prices.map(p=>[priceKey(p.test_id,p.branch_id),p]));renderTests();if(state.selectedTest){const found=state.tests.find(t=>t.id===state.selectedTest);if(found)await selectTest(found.id);else resetTestForm();}}
@@ -182,10 +192,10 @@ function editParameter(id){
  $('parameterMaxSelections').value=p.result_config?.max_selections??'';
  $('parameterChoiceScores').value=Object.entries(p.result_config?.choice_scores||{}).map(([choice,score])=>choice+' = '+score).join('\n');
  $('parameterSource').value=p.result_source||'manual';
- $('parameterUnitUcum').value=p.unit_ucum||'';$('parameterAlternateUnits').value=displayJson(p.alternate_units);
- $('parameterCriticalRanges').value=displayJson(p.critical_ranges);$('parameterInterpretation').value=displayJson(p.interpretation_rules);
- $('parameterApplicability').value=displayJson(p.applicability);$('parameterMethodNotes').value=p.method_notes||'';
- $('parameterSources').value=displayJson(p.source_references);$('parameterClinicalMetadata').value=displayJson(p.clinical_metadata);
+ $('parameterUnitUcum').value=p.unit_ucum||'';$('parameterAlternateUnits').value=(p.alternate_units||[]).map(x=>x.unit+' = '+x.factor).join('\n');
+ $('parameterCriticalRanges').value=displayText(p.critical_ranges);$('parameterInterpretation').value=displayText(p.interpretation_rules);
+ $('parameterApplicability').value=displayApplicability(p.applicability);$('parameterMethodNotes').value=p.method_notes||'';
+ $('parameterSources').value=displayReferences(p.source_references);$('parameterClinicalMetadata').value=displayText(p.clinical_metadata);
  $('parameterReferenceStatus').value=p.reference_interval_status||'local_verification_required';
  $('parameterReviewStatus').value=p.clinical_review_status||'needs_review';
  $('parameterFormula').value=p.formula_expression||formulaToExpression(p.formula);
@@ -208,11 +218,11 @@ $('newTest').addEventListener('click',resetTestForm);$('resetTest').addEventList
 $('testForm').addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return;state.busy=true;setBusy(e.currentTarget,true);try{const isNew=!state.selectedTest;const testKind=$('testKind').value;const saved=await saveCatalogTest({tenantId:state.tenant.id,branchId:catalogBranchId(),id:state.selectedTest||undefined,test:{code:$('testCode').value,name:$('testName').value,testKind,category:$('testCategory').value,specimen:$('testSpecimen').value,method:$('testMethod').value,turnaroundMinutes:$('testTurnaround').value,instructions:$('testInstructions').value,isActive:$('testActive').checked,
  shortName:$('testShortName').value,synonyms:$('testSynonyms').value.split(',').map(x=>x.trim()).filter(Boolean),loincCode:$('testLoinc').value,
  clinicalCategory:$('testClinicalCategory').value,clinicalPurpose:$('testClinicalPurpose').value,serviceType:$('testServiceType').value,
- patientPreparation:parseJsonObjectField('testPreparation','تحضير المريض'),collectionRequirements:parseJsonObjectField('testCollection','متطلبات السحب'),
- specimenRequirements:parseJsonObjectField('testSpecimenRequirements','مواصفات العينة'),transportRequirements:parseJsonObjectField('testTransport','النقل'),
- stabilityRequirements:parseJsonObjectField('testStability','الثبات'),rejectionCriteria:$('testRejection').value.split(',').map(x=>x.trim()).filter(Boolean),
- criticalResultPolicy:parseJsonObjectField('testCriticalPolicy','سياسة النتائج الحرجة'),biosafetyNotes:$('testBiosafety').value,
- reportingNotes:$('testReportingNotes').value,sourceReferences:parseJsonArrayField('testSources','المراجع العلمية'),clinicalReviewStatus:$('testReviewStatus').value}});if(isNew&&testKind==='individual'){await saveTestParameter({tenantId:state.tenant.id,branchId:catalogBranchId(),testId:saved.id,dependsOn:saved.local_operation_id?[saved.local_operation_id]:[],parameter:{code:(`RES_${saved.code}`).slice(0,40),name:saved.name,valueType:'numeric',decimalPlaces:2,displayOrder:0,referenceRanges:[],choices:[],isRequired:true,isActive:true}});}notice(saved.queued?'تم حفظ تعديل التحليل محليًا، وسيظهر للمراجعة عند المزامنة.':isNew&&testKind==='individual'?'تم إنشاء التحليل وإضافة خانة نتيجته تلقائيًا.':'تم حفظ بيانات التحليل.');await loadCatalog();await selectTest(saved.id);}catch(err){notice(err.message||'تعذر حفظ التحليل.',true);}finally{state.busy=false;setBusy(e.currentTarget,false);}});
+ patientPreparation:parseTextObject('testPreparation'),collectionRequirements:parseTextObject('testCollection'),
+ specimenRequirements:parseTextObject('testSpecimenRequirements'),transportRequirements:parseTextObject('testTransport'),
+ stabilityRequirements:parseTextObject('testStability'),rejectionCriteria:$('testRejection').value.split(',').map(x=>x.trim()).filter(Boolean),
+ criticalResultPolicy:parseTextObject('testCriticalPolicy'),biosafetyNotes:$('testBiosafety').value,
+ reportingNotes:$('testReportingNotes').value,sourceReferences:parseTextReferences('testSources'),clinicalReviewStatus:$('testReviewStatus').value},initialParameter:isNew&&testKind==='individual'?{code:(`RES_${$('testCode').value.trim()}`).slice(0,40),name:$('testName').value.trim(),valueType:'numeric',decimalPlaces:2,displayOrder:0,referenceRanges:[],choices:[],isRequired:true,isActive:true}:undefined});if(isNew&&testKind==='individual'&&saved.queued){await saveTestParameter({tenantId:state.tenant.id,branchId:catalogBranchId(),testId:saved.id,dependsOn:saved.local_operation_id?[saved.local_operation_id]:[],parameter:{code:(`RES_${saved.code}`).slice(0,40),name:saved.name,valueType:'numeric',decimalPlaces:2,displayOrder:0,referenceRanges:[],choices:[],isRequired:true,isActive:true}});}notice(saved.queued?'تم حفظ تعديل التحليل محليًا، وسيظهر للمراجعة عند المزامنة.':isNew&&testKind==='individual'?'تم إنشاء التحليل وإضافة خانة نتيجته تلقائيًا.':'تم حفظ بيانات التحليل.');await loadCatalog();await selectTest(saved.id);}catch(err){notice(err.message||'تعذر حفظ التحليل.',true);}finally{state.busy=false;setBusy(e.currentTarget,false);}});
 $('activateCatalogTest').addEventListener('click',async e=>{
  const button=e.currentTarget;if(!state.selectedTest||button.disabled)return;
  button.disabled=true;
@@ -246,10 +256,10 @@ $('parameterForm').addEventListener('submit',async e=>{
     ...(resultInputMode==='graded_multi_choice'?{choice_scores:readChoiceScores(readParameterChoices())}:{})
    },
    displayRules:readDisplayRules(),
-   unitUcum:$('parameterUnitUcum').value,alternateUnits:parseJsonArrayField('parameterAlternateUnits','الوحدات البديلة'),
-   criticalRanges:parseJsonObjectField('parameterCriticalRanges','القيم الحرجة'),interpretationRules:parseJsonArrayField('parameterInterpretation','قواعد التفسير'),
-   applicability:parseJsonObjectField('parameterApplicability','الانطباق'),methodNotes:$('parameterMethodNotes').value,clinicalMetadata:parseJsonObjectField('parameterClinicalMetadata','بيانات الجودة والمنهجية'),
-   sourceReferences:parseJsonArrayField('parameterSources','المراجع العلمية'),referenceIntervalStatus:['numeric_integer','numeric_decimal'].includes(resultInputMode)?$('parameterReferenceStatus').value:'not_applicable',clinicalReviewStatus:$('parameterReviewStatus').value,
+   unitUcum:$('parameterUnitUcum').value,alternateUnits:parseAlternateUnits('parameterAlternateUnits'),
+   criticalRanges:parseCriticalRanges('parameterCriticalRanges'),interpretationRules:parseTextArray('parameterInterpretation'),
+   applicability:parseApplicability('parameterApplicability'),methodNotes:$('parameterMethodNotes').value,clinicalMetadata:parseTextObject('parameterClinicalMetadata'),
+   sourceReferences:parseTextReferences('parameterSources'),referenceIntervalStatus:['numeric_integer','numeric_decimal'].includes(resultInputMode)?$('parameterReferenceStatus').value:'not_applicable',clinicalReviewStatus:$('parameterReviewStatus').value,
    isRequired:$('parameterRequired').checked,isActive:$('parameterActive').checked
   };
   const savedParameter=await saveTestParameter({tenantId:state.tenant.id,branchId:catalogBranchId(),testId:state.selectedTest,id:state.selectedParameter||undefined,parameter});
