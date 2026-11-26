@@ -44,3 +44,19 @@ test('catalog and parameter reads cache inactive rows before filtering the visib
   const parameters = source.slice(source.indexOf('export async function listTestParameters'), source.indexOf('export async function saveCatalogTest'));
   assert.ok(parameters.indexOf("replaceCachedRows('test_parameters', data ?? [], { tenantId, testId })") < parameters.indexOf("return (data ?? []).filter(row => includeInactive || row.is_active)"));
 });
+
+
+test('parameter creation and editing use explicit tenant/test-scoped insert and update operations', () => {
+  const source = read('modules/catalog/repository.js');
+  assert.match(source, /const response = id[\\s\\S]*?query\\.update\\(payload\\)[\\s\\S]*?query\\.insert\\(payload\\)/);
+  assert.match(source, /eq\\('tenant_id', tenantId\\)\\.eq\\('test_id', testId\\)\\.eq\\('id', id\\)/);
+  assert.match(source, /كود البارامتر مستخدم بالفعل داخل هذا التحليل/);
+  assert.match(source, /لم يرجع الخادم بيانات البارامتر بعد الحفظ/);
+});
+
+test('zero is a valid base price and is seeded for imported/new catalog tests', () => {
+  const migration = read('database/migrations/109_promote_verified_profiles_enable_zero_price_and_master_import.sql');
+  assert.match(migration, /ensure_zero_base_price_for_new_test/);
+  assert.match(migration, /selling_price, is_current[\\s\\S]*?0, true/);
+  assert.match(migration, /v_test_id := public\\.import_master_catalog_test_unchecked/);
+});
