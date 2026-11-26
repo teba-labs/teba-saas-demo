@@ -151,3 +151,6 @@
 @media(max-width:420px){.owner-dashboard-home .owner-nav-groups{grid-template-columns:1fr}}
 
 .owner-nav-group{display:block}
+
+.owner-nav-extra{display:none}
+.owner-dashboard-home.show-all-groups .owner-nav-extra{display:block}
