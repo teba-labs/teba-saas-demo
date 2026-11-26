@@ -42,3 +42,29 @@
 .condition-editor>.form-grid{margin-top:10px}
 @media(max-width:760px){.range-row{grid-template-columns:repeat(2,minmax(0,1fr))}.range-editor-head{align-items:flex-start;flex-direction:column}}
 @media(max-width:480px){.range-row{grid-template-columns:1fr}.range-row-top{grid-column:auto}}
+
+/* Catalog workspace: list and editor scroll independently; master library is a separate destination. */
+.catalog-page{height:100dvh;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.catalog-page>.shell{width:100%;max-width:none;height:calc(100dvh - 60px);min-height:0;margin:0;padding:10px 14px;display:flex;flex-direction:column;overflow:hidden}
+.catalog-page #workspace{display:flex;flex:1;flex-direction:column;min-height:0;gap:9px}
+.catalog-page #workspace>.context{flex:0 0 auto;margin:0;padding:10px 13px}
+.catalog-page #workspace>.layout{display:grid;grid-template-columns:minmax(260px,.72fr) minmax(0,1.6fr);flex:1;min-height:0;gap:10px;overflow:hidden}
+.catalog-page .layout>.panel{min-width:0;min-height:0;max-height:100%;overflow:auto;margin:0;padding:12px}
+.catalog-page .test-list{max-height:calc(100dvh - 285px);overflow:auto}
+.catalog-page .editor-panel .form-grid{min-width:0}
+.catalog-page #masterCatalogPanel{flex:1;min-height:0;max-height:100%;overflow:auto;margin:0}
+.catalog-page #masterCatalogList{max-height:calc(100dvh - 270px);overflow:auto}
+.catalog-page #workspace [hidden]{display:none!important}
+@media(max-width:900px){
+ .catalog-page>.shell{height:calc(100dvh - 56px);padding:8px}
+ .catalog-page #workspace>.layout{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr)}
+ .catalog-page .layout>.panel{padding:10px}
+ .catalog-page .test-list{max-height:calc(100dvh - 310px)}
+}
+@media(max-width:680px){
+ .catalog-page{overflow:auto;height:auto;min-height:100dvh}
+ .catalog-page>.shell{height:auto;min-height:calc(100dvh - 56px);overflow:visible}
+ .catalog-page #workspace>.layout{display:flex;flex-direction:column;overflow:visible}
+ .catalog-page .layout>.panel{max-height:none;overflow:visible}
+ .catalog-page .test-list,.catalog-page .parameter-list,.catalog-page #masterCatalogList{max-height:42dvh;overflow:auto}
+}
