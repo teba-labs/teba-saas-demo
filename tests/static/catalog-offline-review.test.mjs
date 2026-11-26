@@ -13,7 +13,7 @@ test('catalog test and parameter edits queue locally when offline instead of req
   assert.match(catalog, /queueCatalogChange/);
   assert.match(catalog, /entityType: 'catalog_change'/);
   assert.match(catalog, /globalThis\.navigator\?\.onLine === false/);
-  assert.match(catalogUi, /branchId:state\.tenant\.branches\?\.\[0\]\?\.id/);
+  assert.match(catalogUi, /branchId:catalogBranchId\(\)/);
   const editHandlers = catalogUi.slice(catalogUi.indexOf("$('testForm')"), catalogUi.indexOf("$('masterCatalogSearch')"));
   assert.doesNotMatch(editHandlers, /requireOnline\(\)/);
 });
