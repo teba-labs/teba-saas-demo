@@ -9,7 +9,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const output=path.join(root,'artifacts','responsive-zoom');
 await mkdir(output,{recursive:true});
 const pages=[
-  'app/index.html','app/dashboard.html','app/settings.html','app/catalog.html',
+  'index.html','app/index.html','app/dashboard.html','app/settings.html','app/catalog.html',
   'app/data-import.html','app/reception.html','app/results-workbench.html',
   'app/result-entry.html','app/workday.html','app/cms-editor.html',
   'app/platform-admin.html','app/site-management.html','app/site-preview.html',
