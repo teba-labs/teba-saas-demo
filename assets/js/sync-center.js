@@ -138,7 +138,7 @@ async function refresh() {
     const record = local.record_payload || {};
     const label = change.entity_type === 'catalog_test_change' ? 'تعديل تحليل' : 'تعديل بارامتر';
     const name = record.name || record.parameter_name || record.code || record.parameter_code || change.entity_id;
-    const server = esc(JSON.stringify(change.server_payload || {}, null, 2));
+    const server = esc(JSON.stringify(change.resolution_payload?.server_snapshot || change.server_payload || {}, null, 2));
     const proposed = esc(JSON.stringify(record, null, 2));
     return `<div class="item"><strong>${esc(label)} · ${esc(name)}</strong><small>الجهاز/العملية: ${esc(change.operation_id)} · ${new Date(change.created_at).toLocaleString('ar-EG')}</small><details><summary>مقارنة النسخة المقترحة ونسخة الخادم</summary><h4>التعديل المقترح</h4><pre>${proposed}</pre><h4>نسخة الخادم وقت المزامنة</h4><pre>${server}</pre></details><div class="actions"><button class="btn" type="button" data-approve-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>اعتماد التعديل</button><button class="btn quiet-dark" type="button" data-reject-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>رفض مع الاحتفاظ بالسجل</button></div></div>`;
   }).join('') : '<p class="muted">لا توجد تعديلات كتالوج معلقة للمراجعة.</p>';
