@@ -34,6 +34,7 @@ test('offline accounts are device-bound and require a password verifier, never a
   const database = read('offline/database.js');
   const identity = read('offline/device-identity.js');
   const auth = read('core/auth/session.js');
+  const backup = read('offline/backup.js');
   assert.match(database, /version\(6\).*offline_sessions/s);
   assert.match(identity, /PBKDF2/);
   assert.match(identity, /password_salt/);
