@@ -26,3 +26,12 @@ footer{display:flex;align-items:center;justify-content:center;gap:9px;padding:28
 
 /* Launcher behaves like a desktop application: compact horizontal task bar, responsive columns. */
 .apps-grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.app-card{min-height:112px;padding:14px;min-width:0}.app-card strong{font-size:12px}.app-card small{font-size:10px;line-height:1.55}.workspace-heading{min-width:0}.welcome-clock{margin:4px 0 0;color:var(--muted);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}.workspace-selectors{min-width:min(440px,44%)}@media(max-width:1100px){.apps-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:650px){.apps-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.workspace-heading{align-items:flex-start;flex-direction:column}.workspace-selectors{width:100%;min-width:0}}@media(max-width:380px){.apps-grid{grid-template-columns:1fr}.app-card{min-height:90px}}
+/* Primary launchpad: secondary owner destinations are revealed only on request. */
+.apps-more-toggle{grid-column:1/-1;justify-self:start;display:inline-flex;align-items:center;gap:10px;padding:9px 13px;border:1px dashed #c9d9de;border-radius:10px;background:#fff;color:#315865;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.apps-more-grid{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.apps-more-grid[hidden]{display:none!important}
+.owner-tools-toggle{margin-inline-start:auto;padding:8px 12px;border:1px solid #d4e2e4;border-radius:9px;background:#f5f9f9;color:#285561;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.owner-heading{display:flex;align-items:center;gap:12px}
+.owner-area:not(.is-expanded) .owner-links{display:none}
+@media(max-width:650px){.apps-more-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.owner-heading{flex-wrap:wrap}.owner-tools-toggle{margin-inline-start:0}}
+@media(max-width:380px){.apps-more-grid{grid-template-columns:1fr}}
