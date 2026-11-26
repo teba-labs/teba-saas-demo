@@ -850,8 +850,11 @@ function bindCultureForms(host) {
 }
 
 
-function computeReferenceFlag(value,rangesInput,ageValue,sexValue,status,valueType='numeric') {
- if(valueType!=='numeric'||status!=='verified_local')return null;
+function computeReferenceFlag(value,rangesInput,ageValue,sexValue,_status,valueType='numeric') {
+ // Imported reference intervals are operational immediately. Their source/review
+ // provenance stays in the catalog, but it must not suppress range display or
+ // result comparison in the customer's day-to-day workflow.
+ if(valueType!=='numeric')return null;
  const numericValue=Number(value);if(!Number.isFinite(numericValue))return null;
  const ranges=Array.isArray(rangesInput)?rangesInput:(rangesInput&&typeof rangesInput==='object'?[rangesInput]:[]);
  const age=ageValue==null||ageValue===''?NaN:Number(ageValue),sex=String(sexValue||'').toLowerCase();
