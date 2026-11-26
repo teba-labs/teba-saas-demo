@@ -138,7 +138,7 @@ export async function saveCatalogTest({ tenantId, branchId, test, id } = {}) {
     source_references: test.sourceReferences ?? [], clinical_review_status: test.clinicalReviewStatus || 'needs_review',
   };
   const cached = (await getCachedRows('catalog', { tenantId })).find(row => row.id === recordId) || null;
-  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn });
+  if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
   const { data, error } = await db().from(TABLES.catalog).upsert(payload).select().single();
   if (error) {
     if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload });
