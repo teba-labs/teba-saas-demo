@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v77';
+const CACHE_NAME = 'taiba-smart-lab-shell-v78';
 const APP_SHELL = [
   './app/index.html', './app/site-preview.html', './website/index.html', './website/site.css', './website/public-site-ui.js', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/result-entry.html', './app/sync-center.html',
   './app/dashboard.html', './portal/index.html', './app/cms-editor.html', './app/platform-admin.html', './app/site-management.html', './app/settings.html', './app/data-import.html',
@@ -18,7 +18,7 @@ const APP_SHELL = [
   './offline/database.js', './offline/outbox.js', './offline/cache.js', './offline/backup.js', './offline/supabase-adapters.js', './offline/background-sync.js', './offline/prepare.js',
   './offline/device-identity.js', './offline/entitlement.js', './offline/entitlement-public-key.js', './offline/queue-policy.js', './offline/result-fingerprint.js', './offline/dashboard-summary.js',
   './modules/ui/keyboard-navigation.js', './modules/dashboard/financial-import-engine.js', './modules/catalog/repository.js', './modules/results/culture-repository.js', './modules/catalog/formula-engine.js', './modules/migration/workbook-inspector.js', './modules/migration/catalog-importer.js', './modules/migration/price-importer.js', './modules/dashboard/expense-breakdown.js', './modules/dashboard/live-status.js', './modules/files/repository.js', './modules/reception/repository.js', './modules/expenses/repository.js', './modules/laboratory/repository.js',
-  './modules/results/repository.js', './modules/results/input-mode.js', './modules/reports/repository.js', './modules/settings/repository.js', './modules/settings/assets-repository.js', './modules/settings/audit-repository.js', './modules/settings/cloud-backup-repository.js', './modules/staff/repository.js',
+  './modules/results/repository.js', './modules/results/historical-display.js', './modules/results/input-mode.js', './modules/reports/repository.js', './modules/settings/repository.js', './modules/settings/assets-repository.js', './modules/settings/audit-repository.js', './modules/settings/cloud-backup-repository.js', './modules/staff/repository.js',
   './modules/workday/repository.js', './dashboard/repository.js', './dashboard/owner-financial-repository.js', './website/cms-repository.js', './website/public-site.js'
 ];
 
