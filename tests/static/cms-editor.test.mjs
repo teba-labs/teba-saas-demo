@@ -56,3 +56,9 @@ test('website section order and visibility are persisted and rendered',()=>{
  const page=fs.readFileSync(path.join(root,'website/public-site-page.js'),'utf8');
  assert.match(page,/ordered\.forEach/);assert.match(page,/sectionVisibility/);
 });
+
+test('CMS edit forms repopulate saved input values and local datetime fields',()=>{
+ assert.match(js,/valueAttr=tag==='input'\?' value="'\+esc\(v\)\+'"'/);
+ assert.match(js,/type==='datetime-local'&&v/);
+ assert.match(js,/toISOString\(\)\.slice\(0,16\)/);
+});

@@ -150,3 +150,10 @@ body.results-workbench-page{height:100dvh;overflow:hidden}
  .results-workbench-page .results-columns{height:100%;min-height:0}
  .results-workbench-page .historical-results-lookup{max-height:22dvh;overflow:auto}
 }
+
+.historical-result-values{display:grid;gap:6px;margin:10px 0;padding:10px;border:1px solid var(--line,#dbe5e1);border-radius:10px;background:var(--surface-soft,#f7faf9)}
+.historical-result-values>div{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(0,1.3fr);gap:10px;padding:4px 0;border-bottom:1px solid var(--line,#e5ece9)}
+.historical-result-values>div:last-child{border-bottom:0}
+.historical-result-values dt{font-size:12px;font-weight:800;color:var(--muted,#64748b)}
+.historical-result-values dd{margin:0;min-width:0;overflow-wrap:anywhere;font-size:13px;color:var(--text,#1f2937)}
+@media(max-width:520px){.historical-result-values>div{grid-template-columns:1fr;gap:2px}}

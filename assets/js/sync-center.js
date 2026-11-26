@@ -12,16 +12,42 @@ import { listPendingCatalogChanges, resolveCatalogChangeProposal } from '../../m
 const $ = id => document.getElementById(id);
 const state = { context: null, tenant: null, branch: null, syncing: false, preparing: false, refreshingEntitlement: false };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const FIELD_LABELS = {
+  code:'الكود', name:'الاسم', parameter_code:'كود البارامتر', parameter_name:'اسم البارامتر',
+  test_kind:'نوع التحليل', result_input_mode:'طريقة إدخال النتيجة', value_type:'نوع القيمة',
+  specimen:'العينة', unit:'الوحدة', category:'التصنيف', reference_ranges:'المديات المرجعية',
+  choices:'الاختيارات', formula_expression:'المعادلة الحسابية', is_active:'الحالة',
+  instructions:'التعليمات', patient_preparation:'تحضير المريض', collection_requirements:'متطلبات السحب',
+  specimen_requirements:'مواصفات العينة', transport_requirements:'النقل', stability_requirements:'الثبات',
+  critical_result_policy:'سياسة النتائج الحرجة', source_references:'المراجع العلمية',
+  record_payload:'بيانات التعديل', base_snapshot:'البيانات السابقة', record_id:'السجل المرتبط',
+  action:'نوع العملية', kind:'نوع السجل', reason:'سبب التعارض', status:'الحالة',
+  selling_price:'السعر', quantity:'الكمية', amount:'القيمة', notes:'ملاحظات',
+};
+function readableValue(value) {
+  if (value === null || value === undefined || value === '') return '<span class="muted">—</span>';
+  if (Array.isArray(value)) {
+    if (!value.length) return '<span class="muted">لا توجد عناصر</span>';
+    return '<ul class="sync-readable-list">' + value.map(item => '<li>' + readableValue(item) + '</li>').join('') + '</ul>';
+  }
+  if (typeof value === 'object') {
+    const rows = Object.entries(value).filter(([,item]) => item !== null && item !== undefined && item !== '');
+    if (!rows.length) return '<span class="muted">لا توجد بيانات</span>';
+    return '<dl class="sync-readable-fields">' + rows.map(([key,item]) => '<div><dt>' + esc(FIELD_LABELS[key] || key.replaceAll('_',' ')) + '</dt><dd>' + readableValue(item) + '</dd></div>').join('') + '</dl>';
+  }
+  if (typeof value === 'boolean') return value ? 'نعم' : 'لا';
+  return esc(value);
+}
 function catalogProposalFields(record={}) {
   const fields = [
     ['الكود', record.code || record.parameter_code], ['الاسم', record.name || record.parameter_name],
     ['نوع التحليل/النتيجة', record.test_kind || record.result_input_mode || record.value_type],
     ['العينة', record.specimen], ['الوحدة', record.unit], ['التصنيف', record.category],
     ['المديات المرجعية', record.reference_ranges], ['الاختيارات', record.choices],
-    ['المعادلة', record.formula_expression], ['الحالة', typeof record.is_active === 'boolean' ? (record.is_active ? 'مفعّل' : 'موقوف') : null],
+    ['المعادلة الحسابية', record.formula_expression], ['الحالة', typeof record.is_active === 'boolean' ? (record.is_active ? 'مفعّل' : 'موقوف') : null],
   ].filter(([,value]) => value !== null && value !== undefined && value !== '');
   if (!fields.length) return '<p class="muted">لا يوجد سجل سابق على الخادم.</p>';
-  return '<dl class="catalog-review-fields">' + fields.map(([label,value]) => '<div><dt>'+esc(label)+'</dt><dd>'+esc(typeof value === 'object' ? JSON.stringify(value) : value)+'</dd></div>').join('') + '</dl>';
+  return '<dl class="catalog-review-fields">' + fields.map(([label,value]) => '<div><dt>'+esc(label)+'</dt><dd>'+readableValue(value)+'</dd></div>').join('') + '</dl>';
 }
 
 const entityLabel = type => ({visit_approval:'اعتماد محلي بانتظار التحقق',report_delivery:'تسليم نسخة عمل',catalog_change:'تعديل كتالوج',workday_open:'فتح يوم عمل',workday_close:'إغلاق يوم عمل',draft_results:'حفظ نتائج',visit_intake:'تسجيل زيارة',payment:'تحصيل',expense:'مصروف',patient:'تسجيل مريض'}[type]||type);
@@ -142,9 +168,9 @@ async function refresh() {
   $('pending').textContent = summary.pending; $('syncing').textContent = summary.syncing;
   $('failed').textContent = summary.failed; $('conflict').textContent = summary.conflict;
   $('conflicts').innerHTML = conflicts.length ? conflicts.map(c => {
-    const local = esc(JSON.stringify(c.local_payload ?? {}, null, 2));
-    const server = c.server_snapshot == null ? 'لم تُرجع الخادم لقطة مقارنة لهذه العملية.' : esc(JSON.stringify(c.server_snapshot, null, 2));
-    return `<div class="item"><strong>${esc(entityLabel(c.entity_type))} · ${esc(c.reason)}</strong><small>رقم العملية: ${esc(c.operation_id)} · ${new Date(c.created_at).toLocaleString('ar-EG')}</small><details><summary>مراجعة تفاصيل التعارض</summary><h4>البيانات المحلية المحفوظة</h4><pre>${local}</pre><h4>لقطة الخادم</h4><pre>${server}</pre></details><button class="btn quiet-dark" type="button" data-retry-conflict="${esc(c.conflict_id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>إعادة المحاولة بنفس رقم العملية</button></div>`;
+    const local = readableValue(c.local_payload ?? {});
+    const server = c.server_snapshot == null ? 'لم تُرجع الخادم لقطة مقارنة لهذه العملية.' : readableValue(c.server_snapshot);
+    return `<div class="item"><strong>${esc(entityLabel(c.entity_type))} · ${esc(c.reason)}</strong><small>رقم العملية: ${esc(c.operation_id)} · ${new Date(c.created_at).toLocaleString('ar-EG')}</small><details><summary>مراجعة تفاصيل التعارض</summary><h4>البيانات المحلية المحفوظة</h4><div class="sync-data-view">${local}</div><h4>لقطة الخادم</h4><div class="sync-data-view">${server}</div></details><button class="btn quiet-dark" type="button" data-retry-conflict="${esc(c.conflict_id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>إعادة المحاولة بنفس رقم العملية</button></div>`;
   }).join('') : '<p class="muted">لا توجد تعارضات مفتوحة.</p>';
   $('conflicts').querySelectorAll('[data-retry-conflict]').forEach(button => button.addEventListener('click', () => retryConflict(button.dataset.retryConflict)));
   $('catalogChanges').innerHTML = catalogChanges.length ? catalogChanges.map(change => {
@@ -155,7 +181,7 @@ async function refresh() {
     const name = record.name || record.parameter_name || record.code || record.parameter_code || change.entity_id;
     const server = catalogProposalFields(change.resolution_payload?.server_snapshot || change.server_payload || {});
     const proposed = catalogProposalFields(record);
-    return `<div class="item"><strong>${esc(label)} · ${esc(name)}</strong><small>الجهاز/العملية: ${esc(change.operation_id)} · ${new Date(change.created_at).toLocaleString('ar-EG')}</small><details><summary>مقارنة النسخة المقترحة ونسخة الخادم</summary><h4>التعديل المقترح</h4><pre>${proposed}</pre><h4>نسخة الخادم وقت المزامنة</h4><pre>${server}</pre></details>${state.tenant?.accountType === 'owner' ? `<div class="actions"><button class="btn" type="button" data-approve-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>اعتماد التعديل</button><button class="btn quiet-dark" type="button" data-reject-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>رفض مع الاحتفاظ بالسجل</button></div>` : '<small class="muted">قرار الاعتماد أو الرفض متاح لمالك المعمل فقط.</small>'}</div>`;
+    return `<div class="item"><strong>${esc(label)} · ${esc(name)}</strong><small>الجهاز/العملية: ${esc(change.operation_id)} · ${new Date(change.created_at).toLocaleString('ar-EG')}</small><details><summary>مقارنة النسخة المقترحة ونسخة الخادم</summary><h4>التعديل المقترح</h4><div class="sync-data-view">${proposed}</div><h4>نسخة الخادم وقت المزامنة</h4><div class="sync-data-view">${server}</div></details>${state.tenant?.accountType === 'owner' ? `<div class="actions"><button class="btn" type="button" data-approve-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>اعتماد التعديل</button><button class="btn quiet-dark" type="button" data-reject-catalog-change="${esc(change.id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>رفض مع الاحتفاظ بالسجل</button></div>` : '<small class="muted">قرار الاعتماد أو الرفض متاح لمالك المعمل فقط.</small>'}</div>`;
   }).join('') : '<p class="muted">لا توجد تعديلات كتالوج معلقة للمراجعة.</p>';
   $('catalogChanges').querySelectorAll('[data-approve-catalog-change]').forEach(button => button.addEventListener('click', () => resolveCatalogProposal(button.dataset.approveCatalogChange, 'approve')));
   $('catalogChanges').querySelectorAll('[data-reject-catalog-change]').forEach(button => button.addEventListener('click', () => resolveCatalogProposal(button.dataset.rejectCatalogChange, 'reject')));

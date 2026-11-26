@@ -5,6 +5,7 @@ import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection 
 import { findPatients, createPatient, getOpenWorkday, createVisitIntake, recordPayment, listBranchOutstandingBalances } from '../../modules/reception/repository.js';
 import { listCatalog, listCurrentPrices, listTestParameters, warmCatalogParameters, setCurrentPrice } from '../../modules/catalog/repository.js';
 import { listHistoricalResults } from '../../modules/migration/historical-results-repository.js';
+import { renderHistoricalResultValues } from '../../modules/results/historical-display.js';
 import { startBackgroundSync } from '../../offline/background-sync.js';
 import { getLabAssetPublicUrl } from '../../modules/settings/assets-repository.js';
 import { cacheRows, getCachedRows, replaceCachedRows } from '../../offline/cache.js';
@@ -85,7 +86,7 @@ async function showPatientHistory(button){
       const card=document.createElement('article');card.className='historical-result-card';
       const heading=document.createElement('strong');heading.textContent=row.test_name_snapshot+' · '+row.result_date;card.append(heading);
       const label=document.createElement('small');label.textContent='نتيجة تاريخية · '+row.patient_name_snapshot+(row.patient_age_raw?' · العمر وقتها: '+row.patient_age_raw+' '+(row.patient_age_unit||''):'');card.append(label);
-      const data=document.createElement('pre');data.textContent=JSON.stringify(row.result_data,null,2);card.append(data);
+      card.append(renderHistoricalResultValues(row.result_data));
       const source=document.createElement('small');source.textContent='المصدر: '+(row.source_file_name||'سجل تاريخي')+' · '+(row.source_sheet_name||'')+' · صف '+(row.source_row_number||'—');card.append(source);host.append(card);
     }
     $('patientHistoricalPanel').hidden=false;
