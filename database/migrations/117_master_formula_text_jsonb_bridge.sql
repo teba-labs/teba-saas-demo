@@ -32,7 +32,8 @@ begin
 end;
 $function$;
 
-revoke all on function private.master_formula_text_to_jsonb(text) from public, anon, authenticated;
+revoke all on function private.master_formula_text_to_jsonb(text) from public, anon;
+grant execute on function private.master_formula_text_to_jsonb(text) to authenticated;
 
 -- The tenant table stores a JSONB formula AST, while the master table deliberately
 -- stores the AST as TEXT. Convert explicitly at the single copy boundary.
