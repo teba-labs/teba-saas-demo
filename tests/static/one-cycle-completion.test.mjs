@@ -44,7 +44,7 @@ test('master catalog supports bulk import, groups, formula text parsing, and num
   for(const operator of ['lt','lte','gt','gte'])assert.ok(html.includes(`value="${operator}"`));
   assert.match(js,/importAllMasterLibrary/);
   assert.match(js,/موجود في المعمل/);
-  assert.match(repository,/parseMasterFormulaAst/);
+  assert.match(repository,/hasMasterFormulaText/);
   assert.match(repository,/supportedOperators = \['equals','not_equals','lt','lte','gt','gte'\]/);
 });
 
