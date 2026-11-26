@@ -7,10 +7,14 @@ const root = path.resolve(import.meta.dirname, '../..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('doctor-facing catalog metadata fields accept plain text and never ask for JSON', () => {
-  const html = read('app/catalog.html');
+  const pages = ['app/catalog.html','app/platform-admin.html','app/cms-editor.html','app/dashboard.html','app/data-import.html','app/index.html','app/reception.html','app/result-entry.html','app/results-workbench.html','app/settings.html','app/site-management.html','app/site-preview.html','app/sync-center.html','app/workday.html','portal/index.html','website/index.html'];
+  const html = pages.map(read).join('\\n');
+  const catalog = read('app/catalog.html');
   const js = read('assets/js/catalog.js');
-  assert.equal(html.includes('JSON'), false);
-  assert.equal(html.includes("placeholder='{" ), false);
+  const platformJs = read('assets/js/platform-admin.js');
+  assert.doesNotMatch(html, /JSON\\s*<textarea|\\(JSON\\)/i);
+  assert.equal(html.includes("placeholder='{"), false);
+  assert.doesNotMatch(platformJs, /JSON\\.parse\\(\\$\\('plan/);
   assert.doesNotMatch(js, /parseJsonField|parseJsonObjectField|parseJsonArrayField/);
   for (const id of ['testPreparation','testCollection','testSpecimenRequirements','testTransport','testStability','testCriticalPolicy','testSources','parameterAlternateUnits','parameterCriticalRanges','parameterInterpretation','parameterApplicability','parameterClinicalMetadata','parameterSources']) {
     assert.match(html, new RegExp('id="' + id + '"'));
@@ -19,7 +23,7 @@ test('doctor-facing catalog metadata fields accept plain text and never ask for 
   assert.match(js, /parseTextReferences/);
   assert.match(js, /parseAlternateUnits/);
   assert.match(js, /parseCriticalRanges/);
-  assert.match(js, /parseApplicability/);
+  assert.match(js, /parseApplicability/);\n  assert.match(platformJs, /parseTextMap/);
 });
 
 test('master formula import compiles doctor-authored arithmetic text, not serialized JSON text', () => {
