@@ -61,3 +61,15 @@ test('zero-price tests remain registrable offline and resolve a server price ID 
   assert.match(adapters, /OFFLINE_PRICE_CONFLICT/);
   assert.match(zeroPriceMigration, /ensure_zero_base_price_for_new_test/);
 });
+
+test('reconnecting does not erase pending local catalog edits or leak another branch proposal into reception', () => {
+  assert.match(catalog, /mergePendingCatalogCache/);
+  assert.match(catalog, /local_branch_id: branchId/);
+  assert.match(catalog, /local_branch_id/);
+  assert.match(catalogUi, /listCatalog\(\{tenantId,branchId:/);
+  const reception = read('assets/js/reception.js');
+  assert.match(reception, /listCatalog\(\{tenantId:state\.tenant\.id,branchId:state\.branch\.id\}\)/);
+  assert.match(reception, /catalogDependencies/);
+  assert.match(reception, /state\.workday\.local_open_operation_id/);
+  assert.match(catalog, /delete cleanRecord\[key\]/);
+});
