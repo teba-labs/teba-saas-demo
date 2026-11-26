@@ -148,28 +148,18 @@ function renderMasterCatalog(){
  $('importAllMasterLibrary').disabled=!state.masterTests.length;
  const existingCodes=new Set((state.tests||[]).map(test=>test.code));
  const rows=state.masterTests.filter(t=>!term||`${t.canonical_name} ${t.master_code} ${(t.alternate_names||[]).join(' ')}`.toLocaleLowerCase().includes(term));
- const verified=state.masterTests.filter(t=>t.clinical_review_status==='verified').length;
- $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف منشور متاح للاستيراد · ${verified} مراجَع مركزيًا · حالة المراجعة لا تمنع الاستيراد أو التشغيل.`;
+ $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف منشور متاح للاستيراد. كل تحليل يصبح جاهزًا للاستخدام فور استيراده ويمكن تعديله من كتالوج المعمل.`;
  $('masterCatalogList').innerHTML=rows.length?rows.map(t=>{
   const parameterCount=Number(t.parameter_count||0);
-  const review=t.clinical_review_status==='verified'?'مراجَع مركزيًا':'مراجعة البيانات إرشادية وغير مانعة';
   const exists=existingCodes.has(t.master_code);
-  const missing=[];
-  if(!t.definition?.specimen)missing.push('العينة');
-  if(!t.definition?.method)missing.push('الطريقة');
-  if(t.missing_units)missing.push(`الوحدات (${t.missing_units})`);
-  if(t.missing_numeric_ranges)missing.push(`الرينجات (${t.missing_numeric_ranges})`);
-  if(t.missing_choices)missing.push(`الاختيارات (${t.missing_choices})`);
-  if(t.missing_formulas)missing.push(`المعادلات (${t.missing_formulas})`);
-  if(t.placeholder_parameters)missing.push('بارامترات عامة قابلة للتعديل');
-  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'بروفايل / مجموعة':t.test_kind==='group'?'مجموعة تحاليل':'تحليل فردي'} · ${esc(t.category||'غير مصنف')} · ${parameterCount} بارامتر · إصدار ${esc(t.release?.version||'—')}</small><small>${review}.${missing.length?' بيانات تحتاج استكمالًا: '+esc(missing.join('، '))+'.':' لا توجد نواقص مسجلة.'} الاستيراد متاح دون اعتماد محلي؛ لا تُنشأ رينجات أو وحدات بالتخمين.</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}" ${exists?'disabled':''}>${exists?'موجود في المعمل':'استيراد الآن'}</button></div>`;
+  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'بروفايل / مجموعة':t.test_kind==='group'?'مجموعة تحاليل':'تحليل فردي'} · ${esc(t.category||'غير مصنف')} · ${parameterCount} بارامتر · إصدار ${esc(t.release?.version||'—')}</small><small>جاهز للاستخدام والتعديل داخل كتالوج المعمل بعد الاستيراد. لا توجد خطوة اعتماد محلي.</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}" ${exists?'disabled':''}>${exists?'موجود في المعمل':'استيراد الآن'}</button></div>`;
  }).join(''):'<p class="empty">لا توجد تعريفات منشورة تطابق البحث.</p>';
 }
 async function loadMasterCatalog(){
  try{state.masterTests=await listMasterCatalogTests();renderMasterCatalog();}
  catch(error){state.masterTests=[];$('importAllMasterLibrary').disabled=true;$('masterCatalogCount').textContent='تعذر التحميل';$('masterCatalogList').innerHTML=`<p class="empty">${esc(error.message||'تعذر تحميل المكتبة الطبية.')}</p>`;}
 }
-function renderParameters(){const rows=state.parameters;$('parameterList').innerHTML=rows.length?rows.map(p=>`<div class="parameter-item"><div><strong>${esc(p.parameter_name)} <span class="muted-inline">(${esc(p.parameter_code)})</span></strong><small>${esc(p.unit||'بدون وحدة')} · ${esc(modeLabels[normalizeInputMode(p)]||p.value_type)} · ${p.result_source==='calculated'?'محسوب تلقائيًا':'إدخال يدوي'} · ${p.is_active?'نشط':'موقوف'} · ${p.reference_interval_status==='verified_local'?'المدى معتمد محليًا':p.reference_interval_status==='not_applicable'?'لا يحتاج مدى':'المدى يحتاج تحققًا محليًا'} · ترتيب ${p.display_order}</small></div><div class="parameter-actions"><button type="button" data-edit-param="${esc(p.id)}">تعديل</button><button type="button" data-toggle-param="${esc(p.id)}">${p.is_active?'إيقاف':'تنشيط'}</button></div></div>`).join(''):'<p class="empty">لا توجد بارامترات لهذا التحليل حتى الآن.</p>';}
+function renderParameters(){const rows=state.parameters;$('parameterList').innerHTML=rows.length?rows.map(p=>{const rangeLabel=Array.isArray(p.reference_ranges)&&p.reference_ranges.length?'مدى مرجعي متاح وقابل للتعديل':p.reference_interval_status==='not_applicable'?'لا يحتاج مدى مرجعي':'لم يُحدد مدى مرجعي بعد';return `<div class="parameter-item"><div><strong>${esc(p.parameter_name)} <span class="muted-inline">(${esc(p.parameter_code)})</span></strong><small>${esc(p.unit||'بدون وحدة')} · ${esc(modeLabels[normalizeInputMode(p)]||p.value_type)} · ${p.result_source==='calculated'?'محسوب تلقائيًا':'إدخال يدوي'} · ${p.is_active?'نشط':'موقوف'} · ${rangeLabel} · ترتيب ${p.display_order}</small></div><div class="parameter-actions"><button type="button" data-edit-param="${esc(p.id)}">تعديل</button><button type="button" data-toggle-param="${esc(p.id)}">${p.is_active?'إيقاف':'تنشيط'}</button></div></div>`;}).join(''):'<p class="empty">لا توجد بارامترات لهذا التحليل حتى الآن.</p>';}
 async function loadPrice(){const branchId=$('priceBranchSelect').value||null;const base=state.prices.get(priceKey(state.selectedTest));const override=branchId?state.prices.get(priceKey(state.selectedTest,branchId)):null;const price=override||base;$('currentPrice').textContent=price?money(price.selling_price):'لا يوجد سعر حالي';$('priceHint').textContent=branchId&&!override?(base?`هذا الفرع يستخدم السعر الأساسي (${money(base.selling_price)}). أدخل سعرًا لإضافة استثناء لهذا الفرع.` :'سيُستخدم السعر الأساسي الافتراضي صفرًا عند عدم وجود سعر خاص.'):(price?.effective_from?`آخر سريان: ${new Date(price.effective_from).toLocaleString('ar-EG')}`:'السعر الأساسي الافتراضي صفر إذا لم يُحدد سعر آخر.');$('priceForm').hidden=state.role!=='owner';$('newPrice').value=branchId?(override?.selling_price??''):(base?.selling_price??'');}
 function resetParameterForm(){
  state.selectedParameter=null;$('parameterForm').reset();
@@ -258,11 +248,11 @@ $('parameterForm').addEventListener('submit',async e=>{
    unitUcum:$('parameterUnitUcum').value,alternateUnits:parseJsonArrayField('parameterAlternateUnits','الوحدات البديلة'),
    criticalRanges:parseJsonObjectField('parameterCriticalRanges','القيم الحرجة'),interpretationRules:parseJsonArrayField('parameterInterpretation','قواعد التفسير'),
    applicability:parseJsonObjectField('parameterApplicability','الانطباق'),methodNotes:$('parameterMethodNotes').value,clinicalMetadata:parseJsonObjectField('parameterClinicalMetadata','بيانات الجودة والمنهجية'),
-   sourceReferences:parseJsonArrayField('parameterSources','المراجع العلمية'),referenceIntervalStatus:$('parameterReferenceStatus').value,clinicalReviewStatus:$('parameterReviewStatus').value,
+   sourceReferences:parseJsonArrayField('parameterSources','المراجع العلمية'),referenceIntervalStatus:['numeric_integer','numeric_decimal'].includes(resultInputMode)?$('parameterReferenceStatus').value:'not_applicable',clinicalReviewStatus:$('parameterReviewStatus').value,
    isRequired:$('parameterRequired').checked,isActive:$('parameterActive').checked
   };
   await saveTestParameter({tenantId:state.tenant.id,testId:state.selectedTest,id:state.selectedParameter||undefined,parameter});
-  notice('تم حفظ تعريف النتيجة والمدى والاختيارات.');resetParameterForm();await loadParameters();
+  notice('تم حفظ البارامتر في كتالوج المعمل. سيظهر في الزيارات الجديدة؛ الزيارات المسجلة تحتفظ بنسختها وقت التسجيل.');resetParameterForm();await loadParameters();
  }catch(err){notice(err.message||'تعذر حفظ البارامتر.',true);}
  finally{setBusy(form,false);}
 });
