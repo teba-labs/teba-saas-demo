@@ -74,3 +74,16 @@ test('offline context, workday, staff, catalog and price snapshots are available
   assert.match(catalog, /getCachedRows\('test_prices'/);
   assert.match(workdayUi, /getCachedRows\('staff_directory'/);
 });
+
+test('sync conflict review uses readable field summaries instead of raw JSON dumps',()=>{
+ const script=read('assets/js/sync-center.js');
+ const css=read('assets/css/sync-center.css');
+ assert.match(script,/function readableValue\(value\)/);
+ assert.match(script,/sync-readable-fields/);
+ assert.match(script,/const local = readableValue\(c\.local_payload/);
+ assert.match(script,/const server = c\.server_snapshot == null/);
+ assert.doesNotMatch(script,/JSON\.stringify\(c\.local_payload/);
+ assert.doesNotMatch(script,/JSON\.stringify\(c\.server_snapshot/);
+ assert.doesNotMatch(script,/<pre>\$\{local\}/);
+ assert.match(css,/\.sync-readable-fields/);
+});
