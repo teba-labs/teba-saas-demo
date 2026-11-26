@@ -42,6 +42,7 @@ test('results workbench reads cached visit work and queues draft results behind 
   assert.match(results, /entityType: 'draft_results', action: 'save'/);
   assert.match(results, /if \(globalThis\.navigator\?\.onLine === false\) return queue\(\)/);
   assert.match(ui, /dependsOn: item\.local_intake_operation_id \? \[item\.local_intake_operation_id\] : \[\]/);
+  assert.match(ui, /if \(!\/fetch\|network\|offline\/i\.test\(error\?\.message \|\| ''\)\) throw error/);
   assert.match(outbox, /async function dependencyReady/);
   assert.match(outbox, /ack:\$\{operationId\}/);
 });
