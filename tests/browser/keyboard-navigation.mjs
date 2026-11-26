@@ -52,6 +52,24 @@ try{
     }
 
     await page.evaluate(()=>{
+      document.querySelectorAll('#workspace[hidden]').forEach(el=>{el.hidden=false;});
+      document.querySelectorAll('#loginPanel').forEach(el=>{el.hidden=true;});
+    });
+    const tabGroups=page.locator('[role="tablist"]');
+    for(let groupIndex=0;groupIndex<await tabGroups.count();groupIndex++){
+      const group=tabGroups.nth(groupIndex);
+      if(!(await group.isVisible())) continue;
+      const tabs=group.locator('[role="tab"]:visible');
+      if(await tabs.count()<2) continue;
+      const rtl=await group.evaluate(el=>getComputedStyle(el).direction==='rtl');
+      await tabs.nth(0).focus();
+      await page.keyboard.press(rtl?'ArrowLeft':'ArrowRight');
+      assert.equal(await page.evaluate(()=>document.activeElement.id),await tabs.nth(1).getAttribute('id'),pagePath+': arrow key did not move between actual page tabs');
+      assert.equal(await tabs.nth(1).getAttribute('aria-selected'),'true',pagePath+': actual page tab was not activated by arrow key');
+      break;
+    }
+
+    await page.evaluate(()=>{
       const fixture=document.createElement('section');
       fixture.id='keyboard-qa-fixture';
       fixture.innerHTML=`
