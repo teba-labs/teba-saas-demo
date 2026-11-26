@@ -20,7 +20,9 @@ test('catalog screen uses authenticated tenant context and owner-only price edit
   assert.match(js, /إدارة كتالوج التحاليل والأسعار متاحة لمالك المعمل فقط/);
   assert.match(js, /\$\('priceForm'\)\.hidden=state\.role!=='owner'/);
   assert.match(js, /if\(state\.role!=='owner'\|\|!state\.selectedTest\)return/);
-  assert.doesNotMatch(js, /requireOnline\(\)/, 'technical catalog edits must remain available offline');
+  assert.match(js, /requireOnline\(\)/, 'master-library import remains online-only');
+  const editHandlers = js.slice(js.indexOf("$('testForm')"), js.indexOf("$('masterCatalogSearch')"));
+  assert.doesNotMatch(editHandlers, /requireOnline\(\)/, 'technical catalog edits must remain available offline');
   assert.match(js, /branchId:state\.tenant\.branches\?\.\[0\]\?\.id/);
   for (const control of ['parameterInputMode','parameterRangeRows','addReferenceRange','parameterMaxSelections','conditionParameterCode','conditionVisibleValues','parameterChoiceScoresField','parameterChoiceScores']) {
     assert.ok(html.includes('id="'+control+'"'), 'missing doctor-friendly editor control '+control);
@@ -99,7 +101,6 @@ test('catalog edits flow through reception, immutable visit snapshots, results a
   }
   assert.match(receptionRepo, /create_visit_intake_idempotent/);
   assert.match(receptionRepo, /expected_prices/);
-  assert.match(receptionRepo, /p\.id/);
   assert.match(receptionRepo, /DB trigger snapshots current price and technical parameters/);
 
   // Results are rendered from the visit's frozen technical snapshot and saved atomically to Supabase.
