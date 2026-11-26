@@ -43,6 +43,8 @@ test('catalog approval is guarded by the base updated_at and never silently over
   assert.match(catalog, /resolution: 'approved'/);
   assert.match(catalog, /record\.tenant_id !== tenantId/);
   assert.match(catalog, /allowedColumns/);
+  assert.match(catalog, /matchesCurrent/);
+  assert.match(catalog, /Idempotent recovery after a successful update/);
 });
 
 test('Sync Center lists cloud proposals and requires an explicit approve or reject decision', () => {
