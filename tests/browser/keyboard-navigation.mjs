@@ -90,6 +90,12 @@ try{
     await page.keyboard.press('Enter');
     assert.equal(await page.locator('#kb-form').getAttribute('data-submitted'),'yes',pagePath+': Enter did not submit the completed form');
 
+    await page.locator('#kb-first').focus();
+    await page.keyboard.press('ArrowUp');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'kb-first',pagePath+': ArrowUp stole focus from a text input');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'kb-first',pagePath+': ArrowDown stole focus from a text input');
+
     await page.locator('#kb-option-one').focus();
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.evaluate(()=>document.activeElement.id),'kb-option-two',pagePath+': ArrowDown did not move within a list');
