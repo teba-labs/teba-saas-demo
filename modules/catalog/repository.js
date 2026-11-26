@@ -555,6 +555,18 @@ export async function resolveCatalogChangeProposal({ tenantId, branchId, proposa
   const table = kind === 'test' ? TABLES.catalog : TABLES.parameters;
   const record = { ...payload.record_payload };
   for (const key of ['local_pending','local_operation_id','local_branch_id','local_base_updated_at','cached_at','created_at','updated_at']) delete record[key];
+  const allowedColumns = kind === 'test'
+    ? new Set(['id','tenant_id','code','name','test_kind','category','specimen','method','turnaround_minutes','instructions','is_active','short_name','synonyms','loinc_code','clinical_category','clinical_purpose','service_type','patient_preparation','collection_requirements','specimen_requirements','transport_requirements','stability_requirements','rejection_criteria','biosafety_notes','critical_result_policy','reporting_notes','source_references','clinical_review_status','catalog_version'])
+    : new Set(['id','tenant_id','test_id','parameter_code','parameter_name','unit','value_type','decimal_places','reference_ranges','choices','display_order','is_required','is_active','result_source','formula','unit_ucum','alternate_units','critical_ranges','interpretation_rules','applicability','method_notes','clinical_metadata','source_references','clinical_review_status','reference_interval_status','result_input_mode','result_config','display_rules','formula_expression']);
+  if (record.id !== proposal.entity_id || record.tenant_id !== tenantId || Object.keys(record).some(key => !allowedColumns.has(key))) {
+    throw new Error('طلب التعديل يحتوي على نطاق أو حقول غير مسموح بها؛ لم يتم تطبيقه.');
+  }
+  if (kind === 'parameter') {
+    if (!record.test_id) throw new Error('البارامتر لا يرتبط بتحليل صالح.');
+    const parent = await db().from(TABLES.catalog).select('id').eq('tenant_id', tenantId).eq('id', record.test_id).maybeSingle();
+    if (parent.error) throw parent.error;
+    if (!parent.data) throw new Error('لا يمكن اعتماد البارامتر قبل اعتماد التحليل الأب.');
+  }
   const { data: current, error: currentError } = await db().from(table).select('*').eq('tenant_id', tenantId).eq('id', proposal.entity_id).maybeSingle();
   if (currentError) throw currentError;
   let applied = null;
