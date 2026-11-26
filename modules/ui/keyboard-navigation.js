@@ -26,12 +26,10 @@ document.querySelectorAll('[data-keyboard-tabs]').forEach(group => {
         button.dataset.kind === 'offers' ? 'form-offers' : 'form-content';
       if (document.getElementById(targetId)) button.setAttribute('aria-controls', targetId);
     }
-    if (button.dataset.view || button.dataset.receptionView) {
-      const panel = document.getElementById(button.getAttribute('aria-controls'));
-      if (panel) {
-        panel.setAttribute('role', 'tabpanel');
-        panel.setAttribute('aria-labelledby', button.id || (button.id = 'keyboard-tab-' + (button.dataset.view || button.dataset.receptionView)));
-      }
+    const controlledPanel = document.getElementById(button.getAttribute('aria-controls'));
+    if (controlledPanel && (button.dataset.view || button.dataset.receptionView || button.dataset.kind)) {
+      controlledPanel.setAttribute('role', 'tabpanel');
+      controlledPanel.setAttribute('aria-labelledby', button.id || (button.id = 'keyboard-tab-' + (button.dataset.view || button.dataset.receptionView || button.dataset.kind)));
     }
     button.setAttribute('role', 'tab');
     const active = button.classList.contains('active') || button.getAttribute('aria-selected') === 'true' || button.getAttribute('aria-pressed') === 'true';
@@ -51,6 +49,8 @@ document.addEventListener('click', event => {
       const selected = item === tab;
       item.setAttribute('aria-selected', String(selected));
       item.tabIndex = selected ? 0 : -1;
+      const panel = document.getElementById(item.getAttribute('aria-controls'));
+      if (panel && selected) panel.setAttribute('aria-labelledby', item.id || (item.id = 'keyboard-tab-active'));
     });
   }
 });
