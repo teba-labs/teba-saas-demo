@@ -123,7 +123,7 @@ async function refresh() {
   const [summary, conflicts, catalogChanges] = await Promise.all([
     getOutboxSummary({ tenantId: state.tenant.id, branchId: state.branch.id }),
     listOpenConflicts({ tenantId: state.tenant.id, branchId: state.branch.id }),
-    listPendingCatalogChanges({ tenantId: state.tenant.id, branchId: state.branch.id }),
+    navigator.onLine ? listPendingCatalogChanges({ tenantId: state.tenant.id, branchId: state.branch.id }) : Promise.resolve([]),
   ]);
   $('pending').textContent = summary.pending; $('syncing').textContent = summary.syncing;
   $('failed').textContent = summary.failed; $('conflict').textContent = summary.conflict;
