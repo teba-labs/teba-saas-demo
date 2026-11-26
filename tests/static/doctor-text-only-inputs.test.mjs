@@ -40,5 +40,5 @@ test('master formula import compiles doctor-authored arithmetic text, not serial
   assert.ok(migration.includes('set formula=formula_expression'));
   assert.ok(migration.includes('Human-readable arithmetic expression text'));
   assert.ok(formulaGuard.includes('formula_ast_has_parameter'));
-  assert.ok(formulaGuard.includes('constant-only'));
+  assert.ok(formulaGuard.includes('المعادلة يجب أن تعتمد على بارامتر واحد على الأقل'));
 });
