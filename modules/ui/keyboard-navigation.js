@@ -30,7 +30,7 @@ document.addEventListener('click', event => {
   const controlled = id && document.getElementById(id);
   if (trigger && controlled?.tagName === 'DIALOG') lastDialogInvoker = trigger;
   const tab = event.target.closest?.('[role="tab"]');
-  const group = tab?.closest('[role="tablist]');
+  const group = tab?.closest('[role="tablist"]');
   if (tab && group) {
     tabItems(group).forEach(item => {
       const selected = item === tab;
@@ -83,7 +83,7 @@ document.addEventListener('keydown', event => {
     return;
   }
 
-  const tabGroup = target.closest('[role="tablist]');
+  const tabGroup = target.closest('[role="tablist"]');
   if (tabGroup && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
     const items = tabItems(tabGroup);
     if (!items.length) return;
