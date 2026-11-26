@@ -27,6 +27,25 @@ async function queueCatalogChange({ tenantId, branchId, kind, action, recordId, 
   return { ...localRow, queued: true, operationId };
 }
 const required = (value, name) => { if (!value) throw new Error(`${name} is required.`); };
+const requireJsonObject = (value, name, fallback = {}) => {
+  const normalized = value ?? fallback;
+  if (!normalized || typeof normalized !== 'object' || Array.isArray(normalized)) {
+    throw new Error(`${name} must be a JSON object; convert human-readable text before saving.`);
+  }
+  return normalized;
+};
+const requireJsonArray = (value, name, fallback = []) => {
+  const normalized = value ?? fallback;
+  if (!Array.isArray(normalized)) {
+    throw new Error(`${name} must be a JSON array; convert human-readable text before saving.`);
+  }
+  return normalized;
+};
+const requireOptionalText = (value, name) => {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string') throw new Error(`${name} must be plain text.`);
+  return value.trim() || null;
+};
 
 export async function ensureTenantCoreCatalog(tenantId) {
   required(tenantId, 'tenantId');
@@ -143,14 +162,14 @@ export async function saveCatalogTest({ tenantId, branchId, test, id, initialPar
     category: test.category?.trim() || null, specimen: test.specimen?.trim() || null,
     method: test.method?.trim() || null, turnaround_minutes: turnaround,
     instructions: test.instructions?.trim() || null, is_active: test.isActive !== false,
-    short_name: test.shortName?.trim() || null, synonyms: test.synonyms ?? [], loinc_code: test.loincCode?.trim() || null,
+    short_name: test.shortName?.trim() || null, synonyms: requireJsonArray(test.synonyms, 'test.synonyms'), loinc_code: test.loincCode?.trim() || null,
     clinical_category: test.clinicalCategory?.trim() || null, clinical_purpose: test.clinicalPurpose?.trim() || null,
-    service_type: test.serviceType || 'laboratory_test', patient_preparation: test.patientPreparation ?? {},
-    collection_requirements: test.collectionRequirements ?? {}, specimen_requirements: test.specimenRequirements ?? {},
-    transport_requirements: test.transportRequirements ?? {}, stability_requirements: test.stabilityRequirements ?? {},
-    rejection_criteria: test.rejectionCriteria ?? [], biosafety_notes: test.biosafetyNotes?.trim() || null,
-    critical_result_policy: test.criticalResultPolicy ?? {}, reporting_notes: test.reportingNotes?.trim() || null,
-    source_references: test.sourceReferences ?? [], clinical_review_status: test.clinicalReviewStatus || 'needs_review',
+    service_type: test.serviceType || 'laboratory_test', patient_preparation: requireJsonObject(test.patientPreparation, 'test.patientPreparation'),
+    collection_requirements: requireJsonObject(test.collectionRequirements, 'test.collectionRequirements'), specimen_requirements: requireJsonObject(test.specimenRequirements, 'test.specimenRequirements'),
+    transport_requirements: requireJsonObject(test.transportRequirements, 'test.transportRequirements'), stability_requirements: requireJsonObject(test.stabilityRequirements, 'test.stabilityRequirements'),
+    rejection_criteria: requireJsonArray(test.rejectionCriteria, 'test.rejectionCriteria'), biosafety_notes: test.biosafetyNotes?.trim() || null,
+    critical_result_policy: requireJsonObject(test.criticalResultPolicy, 'test.criticalResultPolicy'), reporting_notes: test.reportingNotes?.trim() || null,
+    source_references: requireJsonArray(test.sourceReferences, 'test.sourceReferences'), clinical_review_status: test.clinicalReviewStatus || 'needs_review',
   };
   const cached = (await getCachedRows('catalog', { tenantId })).find(row => row.id === recordId) || null;
   if (globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'test', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn: cached?.local_operation_id ? [cached.local_operation_id] : [] });
@@ -317,14 +336,14 @@ function buildParameterPayload({ tenantId, testId, parameter, id } = {}) {
     parameter_code: valid.code, parameter_name: valid.name,
     unit: parameter.unit?.trim() || null, value_type: valid.valueType,
     result_input_mode: valid.resultInputMode, result_config: valid.resultConfig, display_rules: valid.displayRules,
-    formula_expression: parameter.formulaExpression?.trim() || null,
+    formula_expression: requireOptionalText(parameter.formulaExpression, 'parameter.formulaExpression'),
     decimal_places: valid.decimalPlaces, reference_ranges: valid.ranges,
     choices: valid.choices, display_order: valid.displayOrder,
     result_source: valid.resultSource, formula: valid.formula,
-    unit_ucum: parameter.unitUcum?.trim() || null, alternate_units: parameter.alternateUnits ?? [],
-    critical_ranges: parameter.criticalRanges ?? {}, interpretation_rules: parameter.interpretationRules ?? [],
-    applicability: parameter.applicability ?? {}, method_notes: parameter.methodNotes?.trim() || null,
-    clinical_metadata: parameter.clinicalMetadata ?? {}, source_references: valid.sourceReferences,
+    unit_ucum: parameter.unitUcum?.trim() || null, alternate_units: requireJsonArray(parameter.alternateUnits, 'parameter.alternateUnits'),
+    critical_ranges: requireJsonObject(parameter.criticalRanges, 'parameter.criticalRanges'), interpretation_rules: requireJsonArray(parameter.interpretationRules, 'parameter.interpretationRules'),
+    applicability: requireJsonObject(parameter.applicability, 'parameter.applicability'), method_notes: parameter.methodNotes?.trim() || null,
+    clinical_metadata: requireJsonObject(parameter.clinicalMetadata, 'parameter.clinicalMetadata'), source_references: valid.sourceReferences,
     reference_interval_status: valid.referenceIntervalStatus, clinical_review_status: parameter.clinicalReviewStatus || 'needs_review',
     is_required: parameter.isRequired !== false, is_active: parameter.isActive !== false,
   };
