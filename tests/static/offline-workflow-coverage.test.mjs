@@ -64,6 +64,14 @@ test('dashboard switches to a clearly limited local summary while offline', () =
   assert.match(summary, /pending/);
 });
 
+test('missing current price is represented as a zero-price operation, not an offline-preparation blocker', () => {
+  const prepare = read('offline/prepare.js');
+  const syncUi = read('assets/js/sync-center.js');
+  assert.match(prepare, /missingPrices = Math\.max\(0, testIds\.length - prices\.length\)/);
+  assert.doesNotMatch(prepare, /if \(missingPrices\) issues\.push/);
+  assert.match(syncUi, /تحاليل بسعر صفري تشغيلي/);
+});
+
 test('offline application shell includes the requested core pages and dependencies', () => {
   const sw = read('service-worker.js');
   for (const path of [
