@@ -20,7 +20,8 @@ test('catalog screen uses authenticated tenant context and owner-only price edit
   assert.match(js, /إدارة كتالوج التحاليل والأسعار متاحة لمالك المعمل فقط/);
   assert.match(js, /\$\('priceForm'\)\.hidden=state\.role!=='owner'/);
   assert.match(js, /if\(state\.role!=='owner'\|\|!state\.selectedTest\)return/);
-  assert.match(js, /requireOnline\(\)/);
+  assert.doesNotMatch(js, /requireOnline\(\)/, 'technical catalog edits must remain available offline');
+  assert.match(js, /branchId:state\.tenant\.branches\?\.\[0\]\?\.id/);
   for (const control of ['parameterInputMode','parameterRangeRows','addReferenceRange','parameterMaxSelections','conditionParameterCode','conditionVisibleValues','parameterChoiceScoresField','parameterChoiceScores']) {
     assert.ok(html.includes('id="'+control+'"'), 'missing doctor-friendly editor control '+control);
   }
@@ -84,6 +85,9 @@ test('catalog edits flow through reception, immutable visit snapshots, results a
 
   // Catalog and parameter changes are persisted to the tenant's cloud tables.
   assert.match(catalogRepo, /from\(TABLES\.catalog\)\.upsert\(payload\)/);
+  assert.match(catalogRepo, /entityType: 'catalog_change'/);
+  assert.match(catalogRepo, /queueCatalogChange/);
+  assert.match(catalogRepo, /base_updated_at/);
   assert.match(catalogRepo, /query\.update\(payload\)/);
   assert.match(catalogRepo, /query\.insert\(payload\)/);
   assert.match(catalogRepo, /eq\('tenant_id', tenantId\)\.eq\('test_id', testId\)\.eq\('id', id\)/);
@@ -95,6 +99,7 @@ test('catalog edits flow through reception, immutable visit snapshots, results a
   }
   assert.match(receptionRepo, /create_visit_intake_idempotent/);
   assert.match(receptionRepo, /expected_prices/);
+  assert.match(receptionRepo, /p\.id/);
   assert.match(receptionRepo, /DB trigger snapshots current price and technical parameters/);
 
   // Results are rendered from the visit's frozen technical snapshot and saved atomically to Supabase.
