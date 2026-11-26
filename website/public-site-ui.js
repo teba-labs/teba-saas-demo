@@ -17,7 +17,7 @@ nav?.querySelectorAll('a').forEach(link => link.addEventListener('click', () => 
 }));
 
 document.addEventListener('keydown', event => {
-  if (event.key !== 'Escape' || !nav?.classList.contains('is-open')) return;
+  if (event.key !== 'Escape' || dialog?.open || !nav?.classList.contains('is-open')) return;
   nav.classList.remove('is-open');
   menu?.setAttribute('aria-expanded', 'false');
   menu?.setAttribute('aria-label', 'فتح القائمة');
