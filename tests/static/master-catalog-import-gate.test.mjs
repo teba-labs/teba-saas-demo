@@ -19,10 +19,12 @@ const proteinSemen = await readFile(new URL('database/migrations/097_complete_pr
 const versionedCore = await readFile(new URL('database/migrations/098_publish_versioned_core_catalog_and_sync_clean_tenants.sql', root), 'utf8');
 const retireLegacy = await readFile(new URL('database/migrations/099_retire_legacy_name_only_catalog.sql', root), 'utf8');
 
-test('customer master library exposes all published definitions and labels review state', () => {
+test('customer master library exposes published definitions without making central review a customer task', () => {
   assert.doesNotMatch(repository, /eq\('clinical_review_status','verified'\)/);
   assert.doesNotMatch(repository, /\.filter\(row=>row\.parameter_count>0/);
   assert.match(repository, /Published definitions remain importable even when clinical metadata is incomplete/);
+  assert.match(ui, /جاهز للاستخدام والتعديل داخل كتالوج المعمل بعد الاستيراد/);
+  assert.doesNotMatch(ui, /مراجعة البيانات إرشادية وغير مانعة|المدى يحتاج تحققًا محليًا/);
 });
 
 test('central import stays tenant-owner scoped while missing clinical metadata remains optional', async () => {
@@ -38,8 +40,8 @@ test('central import stays tenant-owner scoped while missing clinical metadata r
 });
 
 test('catalog UI lets owners import incomplete definitions and complete them later', () => {
-  assert.match(ui, /مراجعة البيانات إرشادية وغير مانعة/);
-  assert.match(ui, /الاستيراد متاح دون اعتماد محلي/);
+  assert.match(ui, /جاهز للاستخدام والتعديل داخل كتالوج المعمل بعد الاستيراد/);
+  assert.doesNotMatch(ui, /مراجعة البيانات إرشادية وغير مانعة|الاستيراد متاح دون اعتماد محلي/);
   assert.match(ui, /استيراد كل التعريفات/);
   assert.match(ui, /استيراد الآن/);
   assert.doesNotMatch(ui, /التعريفات الناقصة لا تظهر للعميل/);
