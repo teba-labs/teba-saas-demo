@@ -103,7 +103,7 @@ export async function listTestParameters({ tenantId, testId, includeInactive = f
   required(tenantId, 'tenantId'); required(testId, 'testId');
   if (globalThis.navigator?.onLine === false) return (await getCachedRows('test_parameters', { tenantId, testId })).filter(row => includeInactive || row.is_active).sort((a,b) => a.display_order-b.display_order);
   let query = db().from(TABLES.parameters)
-    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression')
+    .select('id, tenant_id, test_id, parameter_code, parameter_name, unit, value_type, decimal_places, reference_ranges, choices, display_order, is_required, is_active, result_source, formula, unit_ucum, alternate_units, critical_ranges, interpretation_rules, applicability, method_notes, clinical_metadata, source_references, clinical_review_status, reference_interval_status, result_input_mode, result_config, display_rules, formula_expression, created_at, updated_at')
     .eq('tenant_id', tenantId).eq('test_id', testId)
     .order('display_order');
   const { data, error } = await query;
@@ -311,6 +311,7 @@ export async function saveTestParameter({ tenantId, branchId, testId, parameter,
     : await query.insert(payload).select().single();
   const { data, error } = response;
   if (error) {
+    if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queueCatalogChange({ tenantId, branchId, kind: 'parameter', action: cached ? 'update' : 'create', recordId, baseSnapshot: cached, recordPayload: payload, dependsOn: [...dependsOn, ...(cached?.local_operation_id ? [cached.local_operation_id] : [])] });
     if (error.code === '23505') {
       throw new Error('كود البارامتر مستخدم بالفعل داخل هذا التحليل. غيّر الكود أو افتح البارامتر الموجود للتعديل.');
     }
