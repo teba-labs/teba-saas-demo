@@ -13,10 +13,12 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const apps = [
   { id:'reception', title:'الاستقبال والزيارات', desc:'تسجيل المرضى والزيارات واختيار التحاليل والتحصيل.', href:'reception.html', icon:'＋', roles:['owner','staff'] },
   { id:'results', title:'النتائج وتشغيل المعمل', desc:'قائمة العمل وإدخال النتائج والمراجعة واعتماد التقارير.', href:'results-workbench.html', icon:'▤', roles:['owner','staff'] },
-  { id:'catalog', title:'التحاليل والكتالوج', desc:'إدارة التحاليل والبارامترات الفنية؛ الأسعار للمالك فقط.', href:'catalog.html', icon:'⚗', roles:['owner','staff'] },
-  { id:'workday', title:'يوم العمل والنقدية', desc:'فتح وإغلاق اليوم ومتابعة التحصيل والمصروفات.', href:'workday.html', icon:'◷', roles:['owner','staff'] },
-  { id:'sync', title:'المزامنة والنسخ المحلي', desc:'متابعة العمليات المعلقة والتعارضات وحالة البيانات المحلية.', href:'sync-center.html', icon:'⟳', roles:['owner','staff'] },
   { id:'dashboard', title:'لوحة الإدارة والتحليل', desc:'مؤشرات الأداء والتحصيل والمصروفات ومقارنة الفروع.', href:'dashboard.html', icon:'▥', roles:['owner'] },
+  { id:'catalog', title:'التحاليل والكتالوج', desc:'إدارة التحاليل والبارامترات الفنية؛ الأسعار للمالك فقط.', href:'catalog.html', icon:'⚗', roles:['owner','staff'] },
+  { id:'publicSite', title:'الموقع العام للمعمل', desc:'إدارة واجهة المعمل والخدمات والباقات والفروع المنشورة.', href:'cms-editor.html', icon:'⌂', roles:['owner'] },
+  { id:'workday', title:'يوم العمل والنقدية', desc:'فتح وإغلاق اليوم ومتابعة التحصيل والمصروفات.', href:'workday.html', icon:'◷', roles:['owner','staff'], secondary:true },
+  { id:'sync', title:'المزامنة والنسخ المحلي', desc:'متابعة العمليات المعلقة والتعارضات وحالة البيانات المحلية.', href:'sync-center.html', icon:'⟳', roles:['owner','staff'], secondary:true },
+  { id:'patientPortal', title:'بوابة نتائج المرضى', desc:'إعداد بوابة المريض ومتابعة نشر التقارير.', href:'site-management.html', icon:'▣', roles:['owner'], secondary:true },
 ];
 function updateWelcomeClock() {
   const now = new Date();
@@ -42,8 +44,13 @@ function renderApps() {
   const role = state.tenant?.accountType === 'owner' ? 'owner' : 'staff';
   $('roleBadge').textContent = role === 'owner' ? 'مالك المعمل · صلاحية كاملة' : 'موظف المعمل · صلاحيات التشغيل';
   const allowed = apps.filter(item => item.roles.includes(role));
-  $('appsGrid').innerHTML = allowed.map(item => `<a class="app-card" href="${item.href}" data-app="${item.id}"><span class="app-icon" aria-hidden="true">${item.icon}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.desc)}</small></span></a>`).join('');
+  const card=item=>`<a class="app-card" href="${item.href}" data-app="${item.id}"><span class="app-icon" aria-hidden="true">${item.icon}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.desc)}</small></span></a>`;
+  const primary=allowed.filter(item=>!item.secondary),extra=allowed.filter(item=>item.secondary);
+  $('appsGrid').innerHTML=primary.map(card).join('')+(extra.length?`<button type="button" class="apps-more-toggle" aria-expanded="false" data-apps-more>المزيد من الأقسام <span aria-hidden="true">＋</span></button><div class="apps-more-grid" data-apps-more-grid hidden>${extra.map(card).join('')}</div>`:'');
+  if(!$('appsGrid').dataset.moreBound){$('appsGrid').addEventListener('click',event=>{const toggle=event.target.closest('[data-apps-more]');if(!toggle)return;const grid=$('appsGrid').querySelector('[data-apps-more-grid]'),open=grid.hidden;grid.hidden=!open;toggle.setAttribute('aria-expanded',String(open));toggle.innerHTML=open?'إخفاء الأقسام الإضافية <span aria-hidden="true">−</span>':'المزيد من الأقسام <span aria-hidden="true">＋</span>';});$('appsGrid').dataset.moreBound='true';}
   $('ownerArea').hidden = role !== 'owner';
+  const ownerHeading=$('ownerArea').querySelector('.owner-heading');
+  if(ownerHeading&&!ownerHeading.querySelector('[data-owner-tools-toggle]')){const toggle=document.createElement('button');toggle.type='button';toggle.className='owner-tools-toggle';toggle.dataset.ownerToolsToggle='';toggle.setAttribute('aria-expanded','false');toggle.textContent='إظهار أدوات المالك';ownerHeading.append(toggle);toggle.addEventListener('click',()=>{const open=$('ownerArea').classList.toggle('is-expanded');toggle.setAttribute('aria-expanded',String(open));toggle.textContent=open?'إخفاء أدوات المالك':'إظهار أدوات المالك';});}
 }
 function renderBranches() {
   const branches = state.tenant?.branches || [];

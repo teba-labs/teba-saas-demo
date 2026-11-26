@@ -72,3 +72,85 @@
 
 /* Owner dashboard: compact report launcher first; each selected report owns the workspace below. */
 .owner-dashboard-home{margin-block:14px}.owner-report-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}.owner-report-card{min-width:0;min-height:112px;padding:10px;border-radius:11px;display:grid;grid-template-rows:auto 1fr auto;gap:5px;text-align:right}.owner-report-card strong{font-size:12px;line-height:1.5}.owner-report-card small{font-size:10px;line-height:1.5}.owner-report-open{font-size:10px}@media(max-width:1100px){.owner-report-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:760px){.owner-report-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:480px){.owner-report-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Adaptive owner dashboard workspace: permanent report rail + one focused work area. */
+.dashboard-page{height:100dvh;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.dashboard-page .shell{flex:1;min-height:0;width:100%;max-width:none;margin:0;padding:12px clamp(10px,1.4vw,20px);display:flex;flex-direction:column}
+.dashboard-page #workspace{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+.dashboard-page #workspace>.panel:first-child{flex:0 0 auto;margin:0;padding:11px 14px}
+.dashboard-page #workspace>.panel:first-child .filters{margin-top:9px}
+.owner-dashboard-layout{display:grid;grid-template-columns:minmax(205px,248px) minmax(0,1fr);gap:12px;flex:1;min-height:0}
+.owner-dashboard-home{margin:0;min-width:0;min-height:0;max-height:100%;overflow:auto;padding:12px;align-self:stretch}
+.owner-sidebar-heading{position:sticky;top:-12px;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 2px 12px;background:#fff;border-bottom:1px solid #e6edf0}
+.owner-sidebar-heading strong{font-size:15px;color:#173c4b}
+.owner-sidebar-heading>span{font-size:11px;color:#647681;background:#edf3f5;padding:4px 8px;border-radius:20px}
+.owner-nav-group{margin-top:13px}
+.owner-nav-group h3{font-size:11px;color:#73848d;margin:0 0 6px;padding:0 5px}
+.owner-nav-group nav{display:grid;gap:4px}
+.owner-report-nav{width:100%;display:flex;align-items:center;gap:9px;padding:8px 9px;border:1px solid transparent;border-radius:8px;background:transparent;color:#344d59;text-align:right;font:inherit;font-size:12px;line-height:1.5;cursor:pointer}
+.owner-report-nav:hover{background:#f2f7f8;border-color:#e1ebee}
+.owner-report-nav.active,.owner-report-nav[aria-current="page"]{background:#e8f3f4;border-color:#b9d7dc;color:#14596b;font-weight:800;box-shadow:inset -3px 0 #267d8e}
+.owner-report-nav .owner-report-number{flex:0 0 27px;text-align:center;padding:3px 5px;font-size:10px}
+.owner-nav-toggle{display:none;border:1px solid #d5e2e6;border-radius:8px;padding:7px 10px;background:#f4f8f9;color:#244b5a;font:inherit;font-size:12px;font-weight:700}
+.owner-dashboard-workspace{min-width:0;min-height:0;max-height:100%;overflow:auto;overscroll-behavior:contain;padding:0 2px 10px}
+.owner-report-screen{min-width:0}
+.owner-report-screen[hidden]{display:none!important}
+.owner-screen-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;margin:0 0 12px;background:#fff;box-shadow:0 3px 12px #122c3b08}
+.owner-screen-head>div:first-child{min-width:180px;flex:1}
+.owner-screen-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.owner-screen-head h2{font-size:19px}
+.owner-screen-content{min-width:0}
+.owner-screen-content>.panel{margin-bottom:12px}
+@media(max-width:900px){
+ .owner-dashboard-layout{grid-template-columns:minmax(180px,205px) minmax(0,1fr);gap:9px}
+ .owner-dashboard-home{padding:9px}
+ .owner-report-nav{font-size:11px;padding:7px}
+ .owner-screen-head{align-items:flex-start}
+}
+@media(max-width:760px){
+ .dashboard-page{height:100dvh}
+ .dashboard-page .shell{padding:8px;overflow:hidden}
+ .dashboard-page #workspace>.panel:first-child{padding:9px}
+ .dashboard-page #workspace>.panel:first-child .filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .owner-dashboard-layout{display:flex;flex-direction:column;gap:8px}
+ .owner-dashboard-home{flex:0 0 auto;max-height:none;overflow:visible;padding:9px}
+ .owner-sidebar-heading{position:static;padding:0;border:0}
+ .owner-nav-toggle{display:inline-flex}
+ .owner-nav-group{display:none;margin-top:9px}
+ .owner-dashboard-home.is-open .owner-nav-group{display:block}
+ .owner-dashboard-home.is-open{max-height:42dvh;overflow:auto}
+ .owner-dashboard-workspace{flex:1;max-height:none;min-height:0}
+ .owner-screen-head{position:static;padding:11px;flex-wrap:wrap}
+ .owner-screen-actions{width:100%}
+}
+@media(max-width:420px){
+ .dashboard-page #workspace>.panel:first-child .filters{grid-template-columns:1fr}
+ .owner-screen-actions>.btn{flex:1 1 100%}
+}
+
+
+/* Progressive disclosure: show report categories first, then one category's actions. */
+.owner-dashboard-home{display:flex;flex-direction:column;gap:8px}
+.owner-nav-groups{display:grid;gap:7px}
+.owner-nav-group{margin:0;padding:0;border:0}
+.owner-group-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px;border:1px solid #e1e9ec;border-radius:10px;background:#f8fafb;color:#284b58;text-align:right;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.owner-group-toggle small{margin-inline-start:auto;color:#71828a;font-size:10px;font-weight:600;white-space:nowrap}
+.owner-group-toggle b{font-size:15px;color:#287c80}
+.owner-group-toggle[aria-expanded="true"]{background:#eaf4f3;border-color:#c5dfdc;color:#145a61}
+.owner-group-toggle[aria-expanded="true"] b{transform:rotate(45deg)}
+.owner-nav-group nav{display:grid;gap:4px;padding:7px 5px 2px}
+.owner-nav-group nav[hidden]{display:none!important}
+.owner-more-groups{width:100%;padding:9px;border:1px dashed #c9d9de;border-radius:9px;background:#fff;color:#49636e;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.owner-nav-extra{display:none}
+.owner-dashboard-home.show-all-groups .owner-nav-extra{display:block}
+@media(max-width:760px){
+ .owner-dashboard-home .owner-nav-groups{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .owner-dashboard-home .owner-nav-group nav{grid-column:1/-1}
+ .owner-dashboard-home .owner-more-groups{grid-column:1/-1}
+}
+@media(max-width:420px){.owner-dashboard-home .owner-nav-groups{grid-template-columns:1fr}}
+
+.owner-nav-group{display:block}
+
+.owner-nav-extra{display:none}
+.owner-dashboard-home.show-all-groups .owner-nav-extra{display:block}

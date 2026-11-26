@@ -1,10 +1,16 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v71';
+const CACHE_NAME = 'taiba-smart-lab-shell-v72';
 const APP_SHELL = [
   './app/index.html', './app/site-preview.html', './website/index.html', './website/site.css', './website/public-site-ui.js', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/result-entry.html', './app/sync-center.html',
   './app/dashboard.html', './portal/index.html', './app/cms-editor.html', './app/platform-admin.html', './app/site-management.html', './app/settings.html', './app/data-import.html',
   './assets/css/app-viewport.css', './assets/css/app-home.css', './assets/css/catalog.css', './assets/css/reception.css', './assets/css/workday.css', './assets/css/results-workbench.css', './assets/css/sync-center.css',
   './assets/css/dashboard.css', './assets/css/theme-system.css', './assets/css/cms-editor.css', './assets/css/platform-admin.css', './assets/css/site-management.css', './assets/css/settings-center.css', './assets/css/data-import.css',
   './assets/js/site-preview.js', './website/public-site-page.js', './assets/js/theme-controller.js', './assets/js/tenant-branding.js', './assets/js/app-home.js', './assets/js/catalog.js', './assets/js/reception.js', './assets/js/workday.js', './assets/js/results-workbench.js', './assets/js/results-workbench-layout.js', './portal/lookup.js', './assets/js/sync-center.js',
+  './assets/css/app-home.css?v=progressive-20261126-v2', './assets/js/app-home.js?v=progressive-20261126-v2',
+  './assets/css/catalog.css?v=catalog-workspace-20261126-v2', './assets/js/catalog.js?v=catalog-workspace-20261126-v2',
+  './assets/css/dashboard.css?v=dashboard-workspace-20261126-v2', './assets/js/dashboard.js?v=dashboard-workspace-20261126-v2',
+  './assets/css/reception.css?v=reception-workspace-20261126-v2', './assets/js/reception.js?v=enter-flow-20261126-v2',
+  './assets/css/results-workbench.css?v=results-workspace-20261126-v2', './assets/js/results-workbench-layout.js?v=enter-flow-20261126-v2',
+  './assets/css/site-management.css?v=portal-sidebar-20261126', './assets/js/site-management.js?v=portal-sidebar-20261126',
   './assets/js/dashboard.js', './assets/js/dashboard-history.js', './assets/js/dashboard-financial-import.js', './assets/js/cms-editor.js', './assets/js/platform-admin.js', './assets/js/site-management.js', './assets/js/settings-center.js', './assets/js/data-import.js', './modules/migration/historical-results-repository.js',
   './core/supabase-client.js', './core/auth/session.js', './core/tenant/context.js', './core/tenant/workspace-selection.js', './core/data/schema-contract.js', './config/environment.js',
   './offline/database.js', './offline/outbox.js', './offline/cache.js', './offline/backup.js', './offline/supabase-adapters.js', './offline/background-sync.js', './offline/prepare.js',

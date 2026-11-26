@@ -38,7 +38,7 @@ test('every local service-worker shell asset exists in the repository', () => {
   assert.ok(assets.length > 40, 'the complete application shell must be cached');
   for (const asset of assets) {
     if (/^https?:\/\//.test(asset)) continue;
-    const localPath = path.join(root, asset.replace(/^\.\//, ''));
+    const localPath = path.join(root, asset.replace(/^\.\//, '').split('?')[0]);
     assert.ok(fs.existsSync(localPath), `missing offline shell asset: ${asset}`);
   }
   for (const required of [

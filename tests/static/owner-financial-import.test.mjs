@@ -54,5 +54,5 @@ assert.match(dashboard,/function mountAccountantReportCards/);
 assert.match(dashboard,/ownerFinancialAnalysisResults/);
 assert.match(dashboard,/\['annual','الرسم السنوي'\]/);
 assert.match(dashboard,/\['bcg','مصفوفة BCG'\]/);
-assert.match(dashboard,/const historicalScreens=\['upload'\]/);
+assert.match(dashboard,/historyPeriod\.hidden=id!=='upload'/);
 console.log('PASS accountant-derived BCG, annual, seasonality, demand and profitability panels are mounted in their dedicated report screens');

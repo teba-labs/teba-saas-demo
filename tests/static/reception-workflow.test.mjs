@@ -70,7 +70,8 @@ test('new patient requires manually entered age and unit while birth date stays 
   assert.doesNotMatch(js,/ageFromDateOfBirth/);
   assert.match(js,/newPatientForm'\)\.addEventListener\('keydown'/);
   assert.match(js,/fields\[index\+1\]/);
-  assert.match(js,/\(next\|\|\$\('createPatient'\)\)\.focus\(\)/);
+  assert.match(js,/if\(next\)\{next\.focus\(\);return;\}/);
+  assert.match(js,/requestSubmit\(submit\)/);
 });
 
 test('reception is arranged as one numbered and readable sequence',()=>{

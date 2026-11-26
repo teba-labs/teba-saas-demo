@@ -62,7 +62,7 @@ function showPaymentReceipt({patientName,visitNumber,amount,method,staffName,pay
   $('paymentReceiptContent').innerHTML=`<div style="text-align:center">${logo?'<img src="'+escapeHtml(logo)+'" alt="شعار المعمل" style="max-width:120px;max-height:65px;object-fit:contain">':''}<h2>${escapeHtml(print.title||'إيصال تحصيل')}</h2><strong>${escapeHtml(labName)}</strong>${doctor?'<p>'+escapeHtml(doctor)+'</p>':''}${contact?'<small>'+escapeHtml(contact)+'</small>':''}</div><hr><p>اسم المريض: <b>${escapeHtml(patientName)}</b></p><p>رقم الزيارة: <b>${escapeHtml(visitNumber)}</b></p><p>المبلغ المحصل: <b>${money(amount)}</b></p><p>طريقة الدفع: <b>${escapeHtml(paymentMethodLabels[method]||method)}</b></p><p>الموظف: <b>${escapeHtml(staffName||'—')}</b></p><p>التاريخ والوقت: <b>${new Date().toLocaleString('ar-EG')}</b></p>${paymentId?'<p>مرجع العملية: '+escapeHtml(paymentId)+'</p>':''}${signature?'<div style="text-align:left"><img src="'+escapeHtml(signature)+'" alt="التوقيع" style="max-width:130px;max-height:65px;object-fit:contain"></div>':''}<hr><p style="text-align:center">${escapeHtml(footer)}</p>`;
   const paper=print.paperSize==='A5'?'A5':'A4', orientation=print.orientation==='landscape'?'landscape':'portrait', margin=Math.min(30,Math.max(5,Number(print.margin)||12));
   let style=document.getElementById('tenant-print-page-style');if(!style){style=document.createElement('style');style.id='tenant-print-page-style';document.head.append(style);}
-  style.textContent='@page{size:'+paper+' '+orientation+';margin:'+margin+'mm}';$('paymentReceipt').hidden=false;
+  style.textContent='@page{size:'+paper+' '+orientation+';margin:'+margin+'mm}';$('paymentReceipt').dataset.receiptReady='true';$('paymentReceipt').hidden=false;
 }
 function setPatient(patient){
   state.patient=patient;$('selectedPatient').hidden=!patient;$('patientHistoricalPanel').hidden=true;
@@ -115,8 +115,8 @@ async function loadBranch(){
   state.stopSync?.();state.stopSync=null;
   state.branch=state.tenant.branches.find(b=>b.id===$('branchSelect').value);if(!state.branch)return;
   rememberWorkspaceSelection(state.tenant.id,state.branch.id);
-  state.patient=null;state.selected.clear();$('patientMatches').innerHTML='<p class="muted">ابدأ البحث لاختيار مريض مسجل.</p>';setPatient(null);
-  $('intakePanel').hidden=true;$('recentVisits').innerHTML='<p class="muted">جارٍ تحميل الزيارات…</p>';$('balancesList').innerHTML='<p class="muted">جارٍ تحميل المديونيات…</p>';
+  state.patient=null;state.selected.clear();state.workday=null;state.staff=[];$('patientMatches').innerHTML='<p class="muted">ابدأ البحث لاختيار مريض مسجل.</p>';setPatient(null);
+  $('intakePanel').hidden=true;setReceptionView('intake');$('recentVisits').innerHTML='<p class="muted">جارٍ تحميل الزيارات…</p>';$('balancesList').innerHTML='<p class="muted">جارٍ تحميل المديونيات…</p>';
   state.stopSync=startBackgroundSync({tenantId:state.tenant.id,branchId:state.branch.id});
   const db=getSupabaseClient();let staffRows=[];
   if(navigator.onLine===false)staffRows=(await getCachedRows('staff_directory',{tenantId:state.tenant.id,branchId:state.branch.id})).filter(x=>x.is_active);
@@ -138,12 +138,12 @@ async function loadBranch(){
   $('intakeWorkdayChip').textContent=state.workday?`يوم العمل · ${state.workday.work_date}`:'يوم العمل مغلق';
   $('visitDate').value=state.workday?.work_date||'—';
   if(!state.staff.length)$('workdayStatus').textContent+=' لا توجد هوية موظف نشطة مرتبطة بهذا الحساب في الفرع.';
-  if(!state.workday||!state.staff.length){await loadRecent();await loadBalances();return;}
+  if(!state.workday||!state.staff.length){await loadRecent();await loadBalances();setReceptionView('recent');return;}
   const catalog=await listCatalog({tenantId:state.tenant.id});state.catalog=catalog;
   const prices=await listCurrentPrices({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});
   state.prices=new Map(prices.map(p=>[p.test_id,p]));state.parameters.clear();
   if(navigator.onLine!==false){try{await warmCatalogParameters({tenantId:state.tenant.id,testIds:catalog.map(t=>t.id)});}catch(error){notice('تعذر استكمال تجهيز بيانات التحاليل للعمل دون اتصال: '+(error.message||''),true);}}
-  $('intakePanel').hidden=false;await newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();
+  $('intakePanel').hidden=false;await newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();setReceptionView('intake');
 }
 function renderCatalog(){
   const term=$('catalogSearch').value.trim().toLowerCase(),host=$('catalogList');
@@ -361,6 +361,14 @@ function goToResults(visitId=state.lastVisit?.visitId){
   if(!visitId){notice('لا يوجد رقم زيارة مؤكد لفتح النتائج.',true);return;}
   const url=new URL('results-workbench.html',location.href);url.searchParams.set('visit_id',visitId);location.href=url.href;
 }
+function setReceptionView(view){
+ const panels={intake:$('intakePanel'),recent:$('recentPanel'),balances:$('balancePanel')};
+ if(!panels[view])view='intake';
+ Object.entries(panels).forEach(([key,panel])=>{if(panel)panel.hidden=key!==view||(key==='intake'&&(!state.workday||!state.staff.length));});
+ const receipt=$('paymentReceipt');if(receipt&&receipt.dataset.receiptReady==='true')receipt.hidden=view!=='balances';
+ document.querySelectorAll('[data-reception-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.receptionView===view)));
+}
+document.querySelector('.reception-section-nav')?.addEventListener('click',event=>{const button=event.target.closest('[data-reception-view]');if(button)setReceptionView(button.dataset.receptionView);});
 function focusNewPatient(){ $('newPatientDetails').open=true; $('patientName').focus(); }
 function bindKeyboard(){
   $('patientDob').addEventListener('change',syncAgeFromDob);
@@ -369,7 +377,7 @@ function bindKeyboard(){
     if(e.key!=='Enter'||e.target.matches('textarea,button,input[type="submit"],input[type="button"],input[type="checkbox"],input[type="radio"]'))return;
     const fields=[...$('newPatientForm').querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly]),select:not([disabled]),textarea:not([disabled])')].filter(el=>el.getClientRects().length);
     const index=fields.indexOf(e.target);if(index<0)return;
-    e.preventDefault();e.stopPropagation();const next=fields[index+1];(next||$('createPatient')).focus();
+    e.preventDefault();e.stopPropagation();const next=fields[index+1];if(next){next.focus();return;}const submit=$('createPatient');if(submit&&!submit.disabled)$('newPatientForm').requestSubmit(submit);else submit?.focus();
   });
   $('newPatientForm').addEventListener('submit',e=>{e.preventDefault();addNewPatient($('createPatient'));});
   $('patientMatches').addEventListener('keydown',e=>{if(e.key==='Escape')$('patientSearch').focus();});
@@ -381,10 +389,12 @@ function bindKeyboard(){
   });
   $('intakePanel').addEventListener('keydown',e=>{
     if(e.key==='Escape'&&$('patientHistoricalPanel').hidden===false){$('patientHistoricalPanel').hidden=true;$('showPatientHistory')?.focus();}
-    if(e.key!=='Enter'||e.target.matches('textarea,input[type="search"],button,input[type="checkbox"]'))return;
-    if(e.target.matches('input[type="text"],input[type="number"],input[type="tel"]')){
-      const fields=[...$('intakePanel').querySelectorAll('input:not([disabled]):not([readonly]),select:not([disabled]),textarea:not([disabled]),button:not([disabled])')].filter(el=>el.getClientRects().length&&el.type!=='button');
-      const next=fields[fields.indexOf(e.target)+1];if(next){e.preventDefault();next.focus();}
+    if(e.key!=='Enter'||e.target.matches('textarea,input[type="search"],button,input[type="checkbox"],input[type="radio"],input[type="file"]'))return;
+    if(e.target.matches('input:not([type="hidden"]),select')){
+      const fields=[...$('intakePanel').querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly]):not([type="search"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),select:not([disabled]),button:not([disabled])')].filter(el=>el.getClientRects().length&&el.type!=='button');
+      const index=fields.indexOf(e.target);if(index<0)return;const next=fields[index+1]||null;
+      if(next){e.preventDefault();next.focus();return;}
+      if(!$('createVisit').disabled){e.preventDefault();$('createVisit').click();}
     }
   });
 }

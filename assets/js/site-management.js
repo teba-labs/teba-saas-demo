@@ -21,5 +21,27 @@ $('refresh').addEventListener('click',()=>loadData().catch(e=>notify(e.message,t
 $('publicationFilter').addEventListener('change',renderVisits);
 $('portalSettingsForm').addEventListener('submit',async e=>{e.preventDefault();try{const portal_settings=portalSettingsFromForm();if(!portal_settings.title||!portal_settings.patient_name_label||!portal_settings.visit_number_label||!portal_settings.submit_label)throw new Error('أكمل العنوان وعناوين الحقول وزر البحث.');const {error}=await db().from('site_settings').upsert({tenant_id:state.tenant.id,portal_settings,updated_by:state.userId,updated_at:new Date().toISOString()},{onConflict:'tenant_id'});if(error)throw error;notify('تم حفظ إعدادات بوابة المرضى.');$('portalFrame').src='../portal/index.html?lab='+encodeURIComponent(state.tenant.slug)+'&preview='+Date.now();}catch(err){notify(err.message||'تعذر حفظ إعدادات البوابة.',true);}});
 
-document.querySelectorAll('.tabs a').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('.tabs a').forEach(x=>x.classList.toggle('active',x===a));}));
+const portalTabs=document.querySelector('.tabs');
+if(portalTabs){
+ const toggle=document.createElement('button');toggle.type='button';toggle.className='tabs-toggle';toggle.textContent='☰ أقسام الإدارة';toggle.setAttribute('aria-expanded','false');portalTabs.prepend(toggle);
+ const sections=['overview','portal','publication'].map(id=>$(id)).filter(Boolean);
+ const activate=id=>{
+  const selected=sections.find(section=>section.id===id)||sections[0];
+  sections.forEach(section=>section.hidden=section!==selected);
+  portalTabs.querySelectorAll('a').forEach(link=>{
+   const active=link.hash==='#'+selected.id;
+   link.classList.toggle('active',active);
+   link.setAttribute('aria-current',active?'page':'false');
+  });
+  portalTabs.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');
+ };
+ portalTabs.addEventListener('click',event=>{
+  if(event.target.closest('.tabs-toggle')){
+   const open=portalTabs.classList.toggle('is-open');toggle.setAttribute('aria-expanded',String(open));return;
+  }
+  const link=event.target.closest('a[href^="#"]');if(!link)return;
+  event.preventDefault();activate(link.hash.slice(1));
+ });
+ activate(location.hash.slice(1)||'overview');
+}
 try{await start();}catch(e){$('loginPanel').hidden=false;notify(e.message||'تعذر تحميل مركز إدارة الموقع.',true);}
