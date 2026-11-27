@@ -194,3 +194,78 @@ html[data-theme="dark"] :where(.portal-card,.portal-results-card,.report-card,.r
 html[data-theme="dark"] :where(.portal-card,.portal-results-card,.report-card,.report-sheet,.report-preview,.public-card,.site-section,.site-panel,.lookup-card) :where(h1,h2,h3,strong,label,p,small,span){color:inherit}
 
 html[data-theme="dark"] :is(.workspace-heading,.workspace-selectors,.welcome-copy){background:#142530!important;color:#e4edf2!important;border-color:#304754!important}html[data-theme="dark"] .welcome-copy h1{color:#e7f0f4!important}html[data-theme="dark"] .welcome-clock{color:#a9bdc7!important}
+
+/* Taiba workspace visual system v2 — shared visual rhythm, never rewrites page grids. */
+:root{
+  --taiba-font:Almarai,"Noto Sans Arabic",Tahoma,Arial,sans-serif;
+  --taiba-page:#f3f6f8;--taiba-surface:#fff;--taiba-surface-soft:#f7fafb;
+  --taiba-ink:#183746;--taiba-muted:#647985;--taiba-border:#dce6e9;
+  --taiba-accent:#0a6847;--taiba-accent-soft:#e8f3ee;
+  --taiba-shadow:0 8px 26px rgba(23,55,70,.055);
+  --taiba-radius:16px;--taiba-control-height:44px;
+}
+html,body{font-family:var(--taiba-font)!important}
+body{background:var(--taiba-page)!important;color:var(--taiba-ink)!important;line-height:1.65}
+body>.topbar{
+  min-height:68px;padding:12px clamp(16px,3vw,36px);
+  background:linear-gradient(112deg,#103b36,#0a6847)!important;
+  border-bottom:3px solid #d6a94d;box-shadow:0 5px 20px rgba(18,52,55,.12)
+}
+body>.topbar nav,body>.topbar .top-actions{gap:8px}
+body>.topbar nav a,body>.topbar .top-actions a{font-weight:700;text-decoration:none}
+:where(.panel,.card,.work-card,.results-column,.owner-area,.section-card,.settings-tab-panel,.login-panel,.context,.workspace-context,.receipt-panel,.master-panel,.list-panel,.editor-panel,.module-card,.app-card,.stat-card,.dashboard-card,.workday-overview,.results-actionbar,.parameter,.parameter-group,.history-panel,.history-file-card,.owner-report-card){
+  border-color:var(--taiba-border)!important;border-radius:var(--taiba-radius)!important;
+  box-shadow:var(--taiba-shadow)!important
+}
+:where(.panel,.card,.work-card,.results-column,.owner-area,.section-card,.settings-tab-panel,.login-panel,.context,.workspace-context,.receipt-panel,.master-panel,.list-panel,.editor-panel){
+  padding:clamp(16px,1.8vw,24px)
+}
+:where(h1,h2,h3,h4){font-family:var(--taiba-font)!important;color:var(--taiba-ink);line-height:1.35}
+:where(h1){font-size:clamp(21px,2vw,28px)}
+:where(h2){font-size:clamp(17px,1.45vw,21px)}
+:where(p,.muted,.helper-text,.hint){line-height:1.8}
+:where(label){font-size:13px;font-weight:700;line-height:1.6}
+:where(input:not([type=checkbox]):not([type=radio]),select,textarea){
+  min-height:var(--taiba-control-height);border:1px solid #cbd9de;border-radius:10px;
+  padding:10px 12px;background:#fff;color:var(--taiba-ink);font-family:var(--taiba-font)!important;
+  font-size:14px;box-shadow:0 1px 2px rgba(20,50,60,.025)
+}
+:where(textarea){min-height:88px;line-height:1.75}
+:where(input,select,textarea):focus{
+  border-color:#16877f!important;box-shadow:0 0 0 3px rgba(22,135,127,.13)!important
+}
+:where(button,.button,.btn,a.button){
+  min-height:40px;border-radius:10px;font-family:var(--taiba-font)!important;
+  font-weight:700;letter-spacing:0;padding:9px 14px
+}
+:where(.button-primary,.button:not(.button-secondary):not(.button-ghost):not(.button-outline):not(.button-light)){
+  background:#0a6847;color:#fff;border-color:#0a6847
+}
+:where(.button-secondary,.button-ghost,.button-light,.button-outline){
+  border:1px solid #d4e2dc
+}
+:where(.section-head,.panel-heading,.section-divider,.results-column-head){
+  gap:14px
+}
+:where(.section-head h2,.panel-heading h2){margin-block:0 4px}
+:where(.status,.badge){border-radius:999px}
+:where(.empty,.empty-state){padding:22px;border-radius:12px;line-height:1.8}
+:where(table){width:100%;border-color:var(--taiba-border)}
+:where(th){font-weight:800;background:#f3f7f8}
+:where(th,td){padding:10px 12px;vertical-align:middle}
+html[data-theme=dark]{
+  --taiba-page:#101d28;--taiba-surface:#172a37;--taiba-surface-soft:#203744;
+  --taiba-ink:#eaf2f5;--taiba-muted:#afc0c9;--taiba-border:#344c59;
+  --taiba-accent:#35a987;--taiba-accent-soft:#23483f;
+  --taiba-shadow:0 8px 26px rgba(0,0,0,.18)
+}
+html[data-theme=dark] body{background:var(--taiba-page)!important;color:var(--taiba-ink)!important}
+html[data-theme=dark] :where(h1,h2,h3,h4,label,strong,b,th){color:var(--taiba-ink)}
+html[data-theme=dark] :where(p,.muted,.hint,.helper-text,small){color:var(--taiba-muted)}
+html[data-theme=dark] :where(input:not([type=checkbox]):not([type=radio]),select,textarea){background:#10212c!important;color:var(--taiba-ink)!important;border-color:var(--taiba-border)!important}
+html[data-theme=dark] :where(th){background:#203744}
+@media(max-width:680px){
+  body>.topbar{min-height:0;padding:10px 12px}
+  :where(.panel,.card,.work-card,.results-column,.owner-area,.section-card,.settings-tab-panel,.login-panel,.context,.workspace-context,.receipt-panel,.master-panel,.list-panel,.editor-panel){padding:15px}
+  :where(input:not([type=checkbox]):not([type=radio]),select,textarea){font-size:16px}
+}
