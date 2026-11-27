@@ -27,14 +27,17 @@ test('all core workspaces load the shared responsive viewport layer', async () =
   }
 });
 
-test('shared responsive layer provides zoom-aware reflow at desktop, tablet and phone widths', async () => {
+test('shared responsive layer protects overflow and adapts generic card collections without overriding workbench layouts', async () => {
   const css = await readFile('assets/css/app-viewport.css', 'utf8');
   for (const breakpoint of ['1099px', '767px', '420px']) {
     assert.ok(css.includes(breakpoint), 'missing responsive breakpoint ' + breakpoint);
   }
-  for (const selector of ['.apps-grid', '.settings-tabs', '.collection-layout', '.table-wrap', '.fields']) {
-    assert.ok(css.includes(selector), 'missing shared responsive selector ' + selector);
+  for (const selector of ['.apps-grid', '.owner-links', '.owner-report-grid', '.modules', '.cards', '.table-wrap']) {
+    assert.ok(css.includes(selector), 'missing safe shared responsive selector ' + selector);
   }
+  assert.match(css, /overflow-x:auto/);
+  assert.doesNotMatch(css, /\.layout\s*\{|\.form-grid\s*\{|\.results-columns\s*\{/,
+    'page-specific layouts must remain owned by their page stylesheets');
 });
 
 test('reception has a three-column desktop and collapsible mobile intake layout', async () => {
