@@ -111,13 +111,13 @@ function testLauncher(node,record,kind,workspace){
    }
   });
   save.addEventListener('click',async()=>{
-   if(typeof window.taibaSaveAndMaybeApproveVisit!=='function'){window.alert('تعذر تحميل خدمة حفظ واعتماد التحليل.');return;}
+   if(typeof window.taibaSaveAndAcceptResults!=='function'){window.alert('تعذر تحميل خدمة حفظ النتائج.');return;}
    save.disabled=true;save.textContent='جارٍ الحفظ والتحقق…';
    try{
     const result=await window.taibaSaveAndMaybeApproveVisit(record.visitId,node.dataset.testId);
     if(result?.saved)node.dataset.resultSaved='true';
     if(result?.completed){closeModal(true);}
-    else {save.disabled=false;save.textContent='حفظ واستكمال التحليل';}
+    else {save.disabled=false;save.textContent='حفظ واعتماد القيم المسجلة';}
    }catch(error){save.disabled=false;save.textContent='حفظ واستكمال التحليل';window.alert(error.message||'تعذر حفظ التحليل أو استكماله.');}
   });
   footer.append(back,save);dialog.append(head,body,footer);overlay.append(dialog);document.body.append(overlay);
@@ -148,13 +148,11 @@ function selectRecord(record,records,shell,setMobileColumn){
   $('entryContext').textContent=[record.title,record.visitDate,record.patientSex==='male'?'ذكر':record.patientSex==='female'?'أنثى':'',record.patientAge?('العمر '+record.patientAge+' '+({days:'يوم',months:'شهر',years:'سنة'}[record.patientAgeUnit]||'')):'',record.phone?'الهاتف '+record.phone:''].filter(Boolean).join(' · ');
   const back=new URL('results-workbench.html',location.href);back.searchParams.set('visit_id',record.visitId);$('entryBack').href=back.href;
   const visitActions=document.createElement('div');visitActions.className='entry-visit-actions';
-  const saveButton=button('حفظ كل النتائج','button button-secondary');
+  const saveButton=button('حفظ واعتماد النتائج المسجلة','button button-secondary');
   saveButton.addEventListener('click',()=>window.taibaSaveVisitDrafts?.(record.visitId,saveButton));
-  const approveButton=button('اعتماد الزيارة','button button-primary');
-  approveButton.addEventListener('click',()=>window.taibaApproveVisit?.(record.visitId,approveButton));
   const previewButton=button('معاينة التقرير','button button-preview');
   previewButton.addEventListener('click',()=>window.taibaPreviewVisitReport?.(record.visitId));
-  visitActions.append(saveButton,approveButton,previewButton);
+  visitActions.append(saveButton,previewButton);
   entry.replaceChildren(visitActions,node);view.hidden=false;shell.hidden=true;return;
  }
  const ih=shell.querySelector('[data-individual-workspace]'),ph=shell.querySelector('[data-profile-workspace]');ih.replaceChildren();ph.replaceChildren();
@@ -192,7 +190,7 @@ function selectRecord(record,records,shell,setMobileColumn){
  actions.prepend(whatsapp);actions.prepend(hide);actions.prepend(preview);
  if(setMobileColumn)setMobileColumn(individual.length?'individual':'profiles');
  shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
- const canAdd=record.visitStatus!=='approved'&&!record.published;shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>{b.disabled=!canAdd;b.title=canAdd?'إضافة تحليل لهذه الزيارة':'لا يمكن إضافة تحاليل بعد اعتماد الزيارة أو نشرها';});
+ const canAdd=record.visitStatus!=='approved'&&!record.published;shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>{b.disabled=!canAdd;b.title=canAdd?'إضافة تحليل لهذه الزيارة':'لا يمكن إضافة تحاليل بعد إغلاق الزيارة أو نشر نتائجها';});
 }
 async function loadHiddenVisits(column){
  const host=column.querySelector('.hidden-visits-list');if(!host.hidden){host.hidden=true;return;}host.hidden=false;host.textContent='جارٍ تحميل الحالات المخفية…';
