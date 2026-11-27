@@ -252,3 +252,73 @@ body.reception-page{height:100dvh;overflow:hidden}
 .historical-result-values dt{font-size:12px;font-weight:800;color:var(--muted,#64748b)}
 .historical-result-values dd{margin:0;min-width:0;overflow-wrap:anywhere;font-size:13px;color:var(--text,#1f2937)}
 @media(max-width:520px){.historical-result-values>div{grid-template-columns:1fr;gap:2px}}
+
+
+/* Stable reception columns: visible headers and reliable native details toggling. */
+@media (min-width:768px){
+  .reception-shell .intake-content.intake-flow{
+    display:grid;
+    grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr) minmax(0,.98fr);
+    grid-template-areas:"patient catalog cart";
+    gap:12px;
+    height:min(calc(100dvh - 270px),700px);
+    min-height:420px;
+    max-height:calc(100dvh - 220px);
+    overflow:hidden;
+    align-items:stretch;
+  }
+  .reception-shell .patient-column{grid-area:patient}
+  .reception-shell .catalog-column{grid-area:catalog}
+  .reception-shell .cart-column{grid-area:cart}
+  .reception-shell .intake-column{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    min-height:0;
+    height:100%;
+    overflow:hidden;
+    border:1px solid var(--line,#dce7e9);
+    border-radius:16px;
+    background:#fff;
+  }
+  .reception-shell .intake-column>summary{
+    display:flex!important;
+    flex:0 0 auto;
+    min-height:58px;
+    align-items:center;
+    justify-content:space-between;
+    cursor:pointer;
+    padding:12px 38px 12px 14px;
+  }
+  .reception-shell .intake-column>summary::after{content:"＋";position:absolute;inset-inline-end:14px}
+  .reception-shell .intake-column[open]>summary::after{content:"−"}
+  .reception-shell .intake-column-body{
+    display:flex!important;
+    flex:1;
+    flex-direction:column;
+    gap:10px;
+    min-height:0;
+    padding:10px;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
+  .reception-shell .intake-column:not([open])>.intake-column-body{display:none!important}
+  .reception-shell .intake-block{flex:0 0 auto;min-width:0;margin:0;padding:12px}
+  .reception-shell .catalog-column .catalog-list{max-height:none;min-height:160px;overflow-y:auto}
+  .reception-shell .cart-column .selected-tests-list{max-height:220px;overflow:auto}
+}
+@media (min-width:768px) and (max-width:1099px){
+  .reception-shell .intake-content.intake-flow{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    grid-template-areas:"patient patient" "catalog cart";
+    grid-template-rows:minmax(0,1fr) minmax(0,1fr);
+    height:calc(100dvh - 250px);
+    min-height:500px;
+  }
+  .reception-shell .patient-column{grid-column:1/-1}
+}
+@media (max-width:767px){
+  .reception-shell .intake-column>summary{display:flex!important}
+  .reception-shell .intake-column:not([open])>.intake-column-body{display:none!important}
+  .reception-shell .intake-column[open]>.intake-column-body{display:grid!important}
+}
