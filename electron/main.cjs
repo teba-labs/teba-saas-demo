@@ -1,9 +1,8 @@
 'use strict';
 
-const { app, BrowserWindow, dialog, net, protocol, shell } = require('electron');
+const { app, BrowserWindow, dialog, protocol, shell } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { pathToFileURL } = require('node:url');
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'taiba', privileges: { standard: true, secure: true, allowServiceWorkers: true, supportFetchAPI: true, corsEnabled: true, stream: true } }
