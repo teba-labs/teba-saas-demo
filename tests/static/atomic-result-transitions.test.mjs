@@ -76,10 +76,10 @@ test('one-action approval checks required visible values, preserves branch secur
 });
 
 test('saving a partially entered result never attempts visit-wide approval', () => {
- const start=repository.indexOf('async function saveAndMaybeApproveVisit(');
- const end=repository.indexOf('window.taibaSaveAndMaybeApproveVisit =',start);
+ const start=page.indexOf('async function saveAndMaybeApproveVisit(');
+ const end=page.indexOf('window.taibaSaveAndMaybeApproveVisit =',start);
  assert.ok(start>=0 && end>start);
- const saveFlow=repository.slice(start,end);
+ const saveFlow=page.slice(start,end);
  assert.match(saveFlow,/await saveVisitDrafts\(visitId\)/);
  assert.doesNotMatch(saveFlow,/approveVisitWithAutoCompletion\(/);
  assert.match(saveFlow,/visitApproved: false/);
