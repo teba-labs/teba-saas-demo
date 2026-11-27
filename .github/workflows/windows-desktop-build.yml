@@ -36,9 +36,19 @@ jobs:
           if ($install.ExitCode -ne 0) { throw "NSIS installer failed with exit code $($install.ExitCode)" }
           $appExe = Join-Path $env:LOCALAPPDATA 'Programs\\Taiba Smart Lab\\Taiba Smart Lab.exe'
           if (-not (Test-Path $appExe)) { throw "Installed desktop executable not found at $appExe" }
-          $desktop = Start-Process -FilePath $appExe -PassThru
-          Start-Sleep -Seconds 12
-          if ($desktop.HasExited) { throw "Taiba Smart Lab exited during startup (code $($desktop.ExitCode))" }
+          $desktop = Start-Process -FilePath $appExe -ArgumentList '--remote-debugging-port=9222' -PassThru
+          $deadline = (Get-Date).AddSeconds(45)
+          $page = $null
+          while ((Get-Date) -lt $deadline -and -not $page) {
+            if ($desktop.HasExited) { throw "Taiba Smart Lab exited during startup (code $($desktop.ExitCode))" }
+            try {
+              $targets = Invoke-RestMethod -Uri 'http://127.0.0.1:9222/json/list' -TimeoutSec 2
+              $page = $targets | Where-Object { $_.type -eq 'page' -and $_.url -eq 'taiba://app/app/index.html' } | Select-Object -First 1
+            } catch { Start-Sleep -Seconds 1 }
+          }
+          if (-not $page) { throw "Local renderer did not load taiba://app/app/index.html within 45 seconds" }
+          if (-not $page.title -or $page.title -notmatch 'Taiba|طيبة') { throw "Unexpected desktop renderer title: $($page.title)" }
+          if ($desktop.HasExited) { throw "Taiba Smart Lab exited after renderer load (code $($desktop.ExitCode))" }
           Stop-Process -Id $desktop.Id -Force
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
