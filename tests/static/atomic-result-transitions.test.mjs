@@ -9,11 +9,13 @@ const worklist = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js
 const page = fs.readFileSync(path.join(root, 'assets/js/results-workbench.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'database/migrations/017_atomic_result_transitions.sql'), 'utf8');
 
-test('staff workflow completes each finished test atomically and approves the visit only after all required results', () => {
+test('staff workflow accepts saved results without a separate visit approval action', () => {
   assert.ok(repository.includes("rpc('approve_visit_with_auto_completion'"));
   assert.ok(repository.includes("rpc('complete_visit_test_atomic'"));
   assert.ok(page.includes('await completeVisitTestAtomic('));
-  assert.ok(page.includes('await approveVisitWithAutoCompletion('));
+  assert.ok(!page.includes('approveVisitWithAutoCompletion'));
+  assert.ok(!page.includes('async function approve(button)'));
+  assert.ok(page.includes('حفظ النتائج واعتمادها'));
   assert.ok(!page.includes('complete-test'));
   assert.ok(!repository.includes(".update({ status: 'completed' })"));
   assert.doesNotMatch(repository, /approved_by_staff_id: staffId/);
@@ -31,7 +33,7 @@ test('atomic result transitions validate branch access and active operational st
   assert.match(migration, /Every requested test must be completed before approval/);
   assert.match(migration, /Required results are missing; approval is blocked/);
   assert.match(migration, /Visit is already approved/);
-  assert.match(page, /group\.visit\?\.status === 'approved'/);
+  assert.doesNotMatch(page, /async function approve\(/);
   assert.match(page, /const locked = item\.status === 'completed'/);
   assert.match(migration, /revoke all on function public\.complete_visit_test_atomic/);
   assert.match(migration, /revoke all on function public\.approve_visit_atomic/);
