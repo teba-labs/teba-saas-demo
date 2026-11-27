@@ -27,7 +27,7 @@ jobs:
       - name: Run desktop contract tests
         run: npm test
       - name: Build Windows installer
-        run: npm run build:icons; npx electron-builder --win nsis --x64
+        run: npm run build:icons; npx electron-builder --win nsis --x64 --publish never
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
