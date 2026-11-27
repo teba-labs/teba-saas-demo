@@ -42,5 +42,5 @@ test('portal lookup accepts a published partial version without marking the visi
   assert.match(portalEdge, /isPartial = report\.publication_type === 'partial'/);
   assert.match(portalEdge, /eligibleVisits/);
   assert.match(portalClient, /partialNotice\.hidden=!data\.isPartial/);
-  assert.match(portalClient, /تقرير جزئي/);
+  assert.match(portalClient, /النتائج المسجلة/);
 });
