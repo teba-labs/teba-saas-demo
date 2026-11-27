@@ -1,26 +1,9 @@
 import { listCatalog } from '../../modules/catalog/repository.js';
 import { addTestToVisit } from '../../modules/reception/repository.js';
 import { listHiddenWorkbenchVisits, setVisitWorkbenchHidden } from '../../modules/laboratory/repository.js';
-import { APP_ENV } from '../../config/environment.js';
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let selectedVisitId = null, catalogCache = null, rebuilding = false;
-const portalEnabledCache = new Map();
-async function isPatientPortalEnabled(slug) {
-  if (!slug) return false;
-  if (!portalEnabledCache.has(slug)) {
-    const request = fetch(APP_ENV.supabase.url + '/functions/v1/patient-portal-config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: APP_ENV.supabase.publishableKey },
-      body: JSON.stringify({ slug })
-    }).then(async response => {
-      const data = await response.json().catch(() => ({}));
-      return response.ok && data.ok === true && data.settings?.enabled === true;
-    }).catch(() => false);
-    portalEnabledCache.set(slug, request);
-  }
-  return portalEnabledCache.get(slug);
-}
 function button(label, cls='button button-secondary'){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;return b;}
 if($('entryBack'))$('entryBack').addEventListener('click',event=>{
  if(window.taibaGetDirtyResultInputs?.().length){event.preventDefault();window.alert('احفظ كل نتائج الزيارة أولًا قبل الرجوع حتى لا تفقد أي قيمة أدخلتها.');}
@@ -166,32 +149,7 @@ function selectRecord(record,records,shell,setMobileColumn){
  preview.addEventListener('click',()=>{if(typeof window.taibaPreviewVisitReport!=='function'){window.alert('تعذر تحميل أداة معاينة التقرير.');return;}window.taibaPreviewVisitReport(record.visitId);});
  const hide=button('إخفاء الحالة من قائمة العمل','button button-secondary');
  hide.addEventListener('click',async()=>{if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ النتائج قبل إخفاء الحالة.');return;}const reason=window.prompt('سبب إخفاء الحالة (اختياري):')||'';if(!window.confirm('سيتم إخفاء الحالة من قائمة العمل فقط، مع الاحتفاظ بكل نتائجها وسجلها. متابعة؟'))return;hide.disabled=true;try{await setVisitWorkbenchHidden({tenantId:window.taibaResultsContext.tenantId,branchId:window.taibaResultsContext.branchId,visitId:record.visitId,staffId:$('staffSelect')?.value,hidden:true,reason});window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));}catch(error){hide.disabled=false;window.alert(error.message||'تعذر إخفاء الحالة.');}});
- const whatsapp=button('إرسال واتساب للنتائج','button button-secondary');
- const rawPhone=String(record.phone||'').replace(/[^0-9]/g,'');let waPhone=rawPhone.replace(/^00/,'');
- if(waPhone.startsWith('0'))waPhone='20'+waPhone.slice(1);
- else if(/^1[0125]\d{8}$/.test(waPhone))waPhone='20'+waPhone;
- const validPatientPhone=/^20\d{9,11}$/.test(waPhone);
- const baseShareReady=record.published&&validPatientPhone&&Boolean(window.taibaResultsContext?.tenantSlug);
- whatsapp.disabled=true;
- whatsapp.title=!validPatientPhone?'رقم موبايل المريض غير مكتمل؛ راجعه في بيانات الاستقبال':!record.published?'انشر النتائج المحفوظة أولًا قبل إرسال رابطها':!window.taibaResultsContext?.tenantSlug?'تعذر تحديد المعمل':'جارٍ التحقق من تفعيل بوابة المريض…';
- if(baseShareReady)isPatientPortalEnabled(window.taibaResultsContext.tenantSlug).then(enabled=>{
-   const shareReady=baseShareReady&&enabled;
-   whatsapp.disabled=!shareReady;
-   whatsapp.title=shareReady?'إرسال رابط بوابة المريض عبر واتساب':enabled?'تعذر تجهيز رابط البوابة الآن':'فعّل بوابة المريض من إعدادات الموقع أولًا';
- });
- whatsapp.addEventListener('click',()=>{
-  if(whatsapp.disabled)return;
-  const slug=String(window.taibaResultsContext?.tenantSlug||'').trim().toLowerCase();
-  if(!slug){window.alert('تعذر تحديد المعمل. حدّث شاشة النتائج ثم حاول مرة أخرى.');return;}
-  const portal=new URL('../portal/index.html',location.href);portal.searchParams.set('lab',slug);
-  const publicSite=new URL('../website/index.html',location.href);publicSite.searchParams.set('lab',slug);
-  const laboratoryName=String(window.taibaResultsContext?.tenantName||'معملك');
-  const patientName=String(record.patientName||record.title||'').trim();
-  const message='نتائج تحاليلك جاهزة من '+laboratoryName+'.\nاسم المريض: '+patientName+'\nرقم الزيارة: '+record.visitNumber+'\nلعرض التقرير المنشور افتح بوابة النتائج:\n'+portal.href+'\nوللتعرف على خدمات المعمل وفروعه وعروضه، تفضل بزيارة الموقع الرسمي:\n'+publicSite.href;
-  window.open('https://wa.me/'+waPhone+'?text='+encodeURIComponent(message),'_blank','noopener');
- });
- actions.prepend(whatsapp);actions.prepend(hide);actions.prepend(preview);
- if(setMobileColumn)setMobileColumn(individual.length?'individual':'profiles');
+ actions.prepend(hide);actions.prepend(preview); if(setMobileColumn)setMobileColumn(individual.length?'individual':'profiles');
  shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
  const canAdd=!['approved','published','cancelled'].includes(record.visitStatus)&&!record.published;shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>{b.disabled=!canAdd;b.title=canAdd?'إضافة تحليل لهذه الزيارة':'لا يمكن إضافة تحاليل بعد إغلاق الزيارة أو نشر نتائجها';});
 }
