@@ -106,7 +106,9 @@ test('WhatsApp sharing without a patient portal attaches a device-generated PDF 
  const end=js.indexOf('async function searchHistorical',start);
  const share=js.slice(start,end);
  assert.ok(share.includes('new File([blob]'));
- assert.ok(share.includes('navigator.share({files:[file]'));
+ assert.ok(share.includes("shareWindow.location.href=waUrl"))
+  assert.ok(share.includes("download.click()"))
+  assert.ok(share.includes("wa.me/"));
  assert.ok(share.includes('URL.createObjectURL(file)'));
  assert.ok(share.includes('download.click()'));
  assert.ok(share.includes('https://wa.me/'));
