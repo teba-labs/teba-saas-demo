@@ -111,13 +111,13 @@ function testLauncher(node,record,kind,workspace){
    }
   });
   save.addEventListener('click',async()=>{
-   if(typeof window.taibaSaveAndAcceptResults!=='function'){window.alert('تعذر تحميل خدمة حفظ النتائج.');return;}
+   if(typeof window.taibaSaveResultsForTest!=='function'){window.alert('تعذر تحميل خدمة حفظ النتائج.');return;}
    save.disabled=true;save.textContent='جارٍ الحفظ والتحقق…';
    try{
     const result=await window.taibaSaveAndAcceptResults(record.visitId,node.dataset.testId);
     if(result?.saved)node.dataset.resultSaved='true';
     if(result?.completed){closeModal(true);}
-    else {save.disabled=false;save.textContent='حفظ واعتماد القيم المسجلة';}
+    else {save.disabled=false;save.textContent='حفظ النتائج';}
    }catch(error){save.disabled=false;save.textContent='حفظ واستكمال التحليل';window.alert(error.message||'تعذر حفظ التحليل أو استكماله.');}
   });
   footer.append(back,save);dialog.append(head,body,footer);overlay.append(dialog);document.body.append(overlay);
@@ -148,7 +148,7 @@ function selectRecord(record,records,shell,setMobileColumn){
   $('entryContext').textContent=[record.title,record.visitDate,record.patientSex==='male'?'ذكر':record.patientSex==='female'?'أنثى':'',record.patientAge?('العمر '+record.patientAge+' '+({days:'يوم',months:'شهر',years:'سنة'}[record.patientAgeUnit]||'')):'',record.phone?'الهاتف '+record.phone:''].filter(Boolean).join(' · ');
   const back=new URL('results-workbench.html',location.href);back.searchParams.set('visit_id',record.visitId);$('entryBack').href=back.href;
   const visitActions=document.createElement('div');visitActions.className='entry-visit-actions';
-  const saveButton=button('حفظ واعتماد النتائج المسجلة','button button-secondary');
+  const saveButton=button('حفظ النتائج','button button-secondary');
   saveButton.addEventListener('click',()=>window.taibaSaveVisitDrafts?.(record.visitId,saveButton));
   const previewButton=button('معاينة التقرير','button button-preview');
   previewButton.addEventListener('click',()=>window.taibaPreviewVisitReport?.(record.visitId));
