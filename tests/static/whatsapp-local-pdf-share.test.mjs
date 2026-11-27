@@ -24,7 +24,7 @@ test('direct WhatsApp report sharing creates a local PDF and never uploads or si
 test('no-portal WhatsApp action remains available and the updated module is precached', () => {
   assert.match(source, /share-direct-report/);
   assert.match(source, /!state\.portalEnabled && state\.portalConfigKnown/);
-  assert.match(page, /visit-results-management-20261127-v2/);
-  assert.match(worker, /taiba-smart-lab-shell-v99/);
-  assert.match(worker, /visit-results-management-20261127-v2/);
+  assert.match(page, /visit-results-management-20261127-v3/);
+  assert.match(worker, /taiba-smart-lab-shell-v100/);
+  assert.match(worker, /visit-results-management-20261127-v3/);
 });
