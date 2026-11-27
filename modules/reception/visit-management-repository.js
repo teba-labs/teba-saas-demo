@@ -33,7 +33,7 @@ export async function listVisitHistory({tenantId,branchId=null,accountType='empl
       &&(!term||((String(v.visit_number||'')+' '+String(v.patient_name||'')+' '+String(v.patients?.full_name||'')+' '+String(patientMap.get(v.patient_id)?.full_name||'')+' '+String(patientMap.get(v.patient_id)?.phone||'')+' '+String(patientMap.get(v.patient_id)?.patient_number||'')).toLowerCase().includes(term.toLowerCase()))))
       .map(v=>({...v,patients:v.patients||patientMap.get(v.patient_id)||{},visit_tests:testMap.get(v.id)||[]}))
       .sort((a,b)=>String(b.visit_work_date||b.created_at||'').localeCompare(String(a.visit_work_date||a.created_at||'')));
-    return {rows:all.slice(from,from+size),count:all.length,totalCount:visits.length,page:currentPage,pageSize:size,offline:true,complete:false};
+    return {rows:all.slice(from,from+size),count:all.length,totalCount:visits.filter(v=>accountType!=='employee'||v.branch_id===branchId).length,page:currentPage,pageSize:size,offline:true,complete:false};
   }
   let patientIds=[];
   if(term){
@@ -228,6 +228,14 @@ async function purgeVisitLocalData({tenantId,branchId,visitId}){
 export async function deleteVisitPermanently({tenantId,branchId,visitId,staffId}={}){
   if(!tenantId||!branchId||!visitId||!staffId)throw new Error('بيانات الحذف غير مكتملة.');
   if(globalThis.navigator?.onLine===false)throw new Error('الحذف النهائي يحتاج اتصالًا بالسحابة.');
+  const [queued,tests]=await Promise.all([
+    offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray(),
+    offlineDb.visit_tests.where('visit_id').equals(visitId).toArray(),
+  ]);
+  const testIds=new Set(tests.map(test=>test.id));
+  if(queued.some(op=>{const p=op.payload||{};return p.visit_id===visitId||p.local_visit_id===visitId
+    ||testIds.has(p.visit_test_id)||(Array.isArray(p.visit_test_ids)&&p.visit_test_ids.some(id=>testIds.has(id)));}))
+    throw new Error('توجد عمليات تخص الزيارة لم تتم مزامنتها. أكمل المزامنة أولًا ثم نفّذ الحذف النهائي.');
   const {data,error}=await db().rpc('delete_visit_permanently',{p_tenant_id:tenantId,p_branch_id:branchId,p_visit_id:visitId,p_staff_id:staffId});
   if(error)throw error;
   await purgeVisitLocalData({tenantId,branchId,visitId});
