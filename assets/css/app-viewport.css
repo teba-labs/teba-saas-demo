@@ -21,13 +21,13 @@ pre,code{max-width:100%;overflow:auto}
 /* Generic card collections may reflow globally; task-specific workbenches may not. */
 :is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards,.kpis,.secondary-kpis,.metrics,.tiles,.totals){min-width:0}
 @media(max-width:1099px){
-  :is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards){grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+  :is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards,.kpis,.secondary-kpis,.metrics,.tiles,.totals){grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
 }
 @media(max-width:767px){
-  :is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards){grid-template-columns:repeat(2,minmax(0,1fr))}
+  :is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards,.kpis,.secondary-kpis,.metrics,.tiles,.totals){grid-template-columns:repeat(2,minmax(0,1fr))}
   :is(.tabs,.settings-tabs,[role=tablist]){max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
 }
 @media(max-width:420px){
-  :is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards){grid-template-columns:minmax(0,1fr)}
+  :is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards,.kpis,.secondary-kpis,.metrics,.tiles,.totals){grid-template-columns:minmax(0,1fr)}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
