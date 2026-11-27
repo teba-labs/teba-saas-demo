@@ -167,14 +167,17 @@ function selectRecord(record,records,shell,setMobileColumn){
  const hide=button('إخفاء الحالة من قائمة العمل','button button-secondary');
  hide.addEventListener('click',async()=>{if(window.taibaGetDirtyResultInputs?.().length){window.alert('احفظ النتائج قبل إخفاء الحالة.');return;}const reason=window.prompt('سبب إخفاء الحالة (اختياري):')||'';if(!window.confirm('سيتم إخفاء الحالة من قائمة العمل فقط، مع الاحتفاظ بكل نتائجها وسجلها. متابعة؟'))return;hide.disabled=true;try{await setVisitWorkbenchHidden({tenantId:window.taibaResultsContext.tenantId,branchId:window.taibaResultsContext.branchId,visitId:record.visitId,staffId:$('staffSelect')?.value,hidden:true,reason});window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));}catch(error){hide.disabled=false;window.alert(error.message||'تعذر إخفاء الحالة.');}});
  const whatsapp=button('إرسال واتساب للنتائج','button button-secondary');
- const rawPhone=String(record.phone||'').replace(/[^0-9+]/g,'');let waPhone=rawPhone.replace(/^00/,'');
- if(waPhone.startsWith('0'))waPhone='20'+waPhone.slice(1);else if(waPhone.startsWith('+'))waPhone=waPhone.slice(1);
- const baseShareReady=record.published&&/^20\d{9,11}$/.test(waPhone)&&Boolean(window.taibaResultsContext?.tenantSlug);
- whatsapp.disabled=true;whatsapp.title=baseShareReady?'جارٍ التحقق من تفعيل بوابة المريض…':'يتطلب رقم هاتف صالحًا وتقريرًا منشورًا وتحديد المعمل';
+ const rawPhone=String(record.phone||'').replace(/[^0-9]/g,'');let waPhone=rawPhone.replace(/^00/,'');
+ if(waPhone.startsWith('0'))waPhone='20'+waPhone.slice(1);
+ else if(/^1[0125]\d{8}$/.test(waPhone))waPhone='20'+waPhone;
+ const validPatientPhone=/^20\d{9,11}$/.test(waPhone);
+ const baseShareReady=record.published&&validPatientPhone&&Boolean(window.taibaResultsContext?.tenantSlug);
+ whatsapp.disabled=true;
+ whatsapp.title=!validPatientPhone?'رقم موبايل المريض غير مكتمل؛ راجعه في بيانات الاستقبال':!record.published?'انشر النتائج المحفوظة أولًا قبل إرسال رابطها':!window.taibaResultsContext?.tenantSlug?'تعذر تحديد المعمل':'جارٍ التحقق من تفعيل بوابة المريض…';
  if(baseShareReady)isPatientPortalEnabled(window.taibaResultsContext.tenantSlug).then(enabled=>{
    const shareReady=baseShareReady&&enabled;
    whatsapp.disabled=!shareReady;
-   whatsapp.title=shareReady?'إرسال رابط بوابة المريض عبر واتساب':enabled?'تعذر تجهيز رابط البوابة الآن':'بوابة المريض غير مفعلة لهذا المعمل';
+   whatsapp.title=shareReady?'إرسال رابط بوابة المريض عبر واتساب':enabled?'تعذر تجهيز رابط البوابة الآن':'فعّل بوابة المريض من إعدادات الموقع أولًا';
  });
  whatsapp.addEventListener('click',()=>{
   if(whatsapp.disabled)return;
