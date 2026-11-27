@@ -24,7 +24,8 @@ const APP_SHELL = [
 ];
 
 const REQUIRED_APP_SHELL = [
-  './app/index.html', './app/reception.html', './app/manifest.webmanifest',\n  './app/icons/icon-192.svg', './app/icons/icon-512.svg',
+  './app/index.html', './app/reception.html', './app/manifest.webmanifest',
+  './app/icons/icon-192.svg', './app/icons/icon-512.svg',
   './assets/js/reception.js', './assets/js/results-workbench.js',
   './assets/js/sync-center.js', './modules/ui/keyboard-navigation.js',
   './core/supabase-client.js', './offline/database.js', './offline/outbox.js',
@@ -32,6 +33,58 @@ const REQUIRED_APP_SHELL = [
 ];
 
 async function cacheOptionalShellAsset(cache, asset) {
-  // Cache.add handles URL resolution against the worker scope and rejects only
-  // this optional asset; the caller settles each optional request independently.
+  // Cache.add resolves paths against the service worker scope.
   await cache.add(asset);
+}
+
+async function fetchWithTimeout(request, timeoutMs = 4500) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try { return await fetch(request, { signal: controller.signal }); }
+  finally { clearTimeout(timeout); }
+}
+
+self.addEventListener('install', event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    // Essential workflow files and local icons gate installation. Optional
+    // pages/assets are cached independently so one stale URL cannot prevent
+    // the complete application shell from installing.
+    await cache.addAll(REQUIRED_APP_SHELL);
+    const required = new Set(REQUIRED_APP_SHELL);
+    await Promise.allSettled(APP_SHELL.filter(asset => !required.has(asset)).map(asset => cacheOptionalShellAsset(cache, asset)));
+    await Promise.all(['https://esm.sh/dexie@4', 'https://esm.sh/@supabase/supabase-js@2'].map(async url => {
+      try { const response = await fetch(url); if (response.ok) await cache.put(url, response.clone()); } catch { /* shell remains installable */ }
+    }));
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('taiba-smart-lab-') && key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+});
+
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.hostname.endsWith('.supabase.co')) return; // Never cache authenticated API or patient data responses.
+  if (url.hostname === 'esm.sh' || url.origin === self.location.origin) {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      try {
+        const response = await fetchWithTimeout(request);
+        if (response.ok) await cache.put(request, response.clone());
+        return response;
+      } catch (error) {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        if (request.mode === 'navigate') {
+          const appShell = await cache.match('./app/index.html');
+          if (appShell) return appShell;
+        }
+        throw error;
+      }
+    })());
+  }
+});
