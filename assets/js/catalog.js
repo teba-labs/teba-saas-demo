@@ -159,7 +159,10 @@ function renderMasterCatalog(){
  $('importAllMasterLibrary').disabled=!state.masterTests.length;
  const existingCodes=new Set((state.tests||[]).map(test=>test.code));
  const rows=state.masterTests.filter(t=>!term||`${t.canonical_name} ${t.master_code} ${(t.alternate_names||[]).join(' ')}`.toLocaleLowerCase().includes(term));
- $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف منشور متاح للاستيراد. كل تحليل يصبح جاهزًا للاستخدام فور استيراده ويمكن تعديله من كتالوج المعمل.`;
+ const verifiedCount=state.masterTests.filter(t=>t.clinical_review_status==='verified').length;
+ const reviewCount=state.masterTests.length-verifiedCount;
+ const parameterCount=state.masterTests.reduce((sum,t)=>sum+Number(t.parameter_count||0),0);
+ $('masterCatalogCount').textContent=`${state.masterTests.length} تعريف منشور · ${parameterCount} بارامتر · ${verifiedCount} مراجَع علميًا · ${reviewCount} يحتاج استكمال/مراجعة`;
  $('masterCatalogList').innerHTML=rows.length?rows.map(t=>{
   const parameterCount=Number(t.parameter_count||0);
   const exists=existingCodes.has(t.master_code);
