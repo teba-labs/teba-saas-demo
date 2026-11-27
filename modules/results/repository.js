@@ -229,12 +229,23 @@ export async function listVisitParameterRangeOverrides({ tenantId, branchId, vis
   for(const row of rows)await offlineDb.sync_meta.put({...row,key:`range-override:${row.visit_test_id}:${row.parameter_code}`});
   return rows;
 }
-export async function saveVisitParameterRangeOverride({tenantId,branchId,visitTestId,parameterCode,referenceRanges,staffId,reason}={}) {
-  if(!tenantId||!branchId||!visitTestId||!parameterCode||!staffId||!referenceRanges||!reason)throw new Error('بيانات تعديل المدى المرجعي غير مكتملة.');
-  if(globalThis.navigator?.onLine===false)throw new Error('تعديل المدى المرجعي يحتاج اتصالًا بالإنترنت لحفظ أثر التعديل بأمان.');
-  const {data,error}=await db().rpc('set_visit_parameter_range_override',{
-    p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTestId,
-    p_parameter_code:parameterCode,p_reference_ranges:referenceRanges,p_staff_id:staffId,p_reason:reason,
+export async function saveVisitParameterRangeOverride({tenantId,branchId,visitTestId,parameterCode,referenceRanges,staffId}={}) {
+  if(!tenantId||!branchId||!visitTestId||!parameterCode||!staffId||!referenceRanges)throw new Error('بيانات تعديل المدى المرجعي غير مكتملة.');
+  const operationId=crypto.randomUUID();
+  const payload={visit_test_id:visitTestId,parameter_code:parameterCode,reference_ranges:referenceRanges,staff_id:staffId};
+  const queue=async()=>{
+    await enqueueOperation({tenantId,branchId,entityType:'range_override',action:'update',operationId,payload,priority:3});
+    await offlineDb.sync_meta.put({key:`range-override:${visitTestId}:${parameterCode}`,tenant_id:tenantId,branch_id:branchId,
+      visit_test_id:visitTestId,parameter_code:parameterCode,reference_ranges:referenceRanges,reason:null,
+      operation_id:operationId,local_pending:true,updated_at:new Date().toISOString()});
+    return {queued:true,operationId};
+  };
+  if(globalThis.navigator?.onLine===false)return queue();
+  const {data,error}=await db().rpc('set_visit_parameter_range_override_idempotent',{
+    p_operation_id:operationId,p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTestId,
+    p_parameter_code:parameterCode,p_reference_ranges:referenceRanges,p_staff_id:staffId,
   });
-  if(error)throw error;return data;
+  if(error){if(/fetch|network|offline/i.test(error.message||''))return queue();throw error;}
+  await offlineDb.sync_meta.put({...data,key:`range-override:${visitTestId}:${parameterCode}`,local_pending:false});
+  return data;
 }
