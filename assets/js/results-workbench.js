@@ -1002,7 +1002,7 @@ async function saveAndAcceptResults(visitId, testId = null) {
   state.reportPreviewHtml.delete(visitId);
   const completed = Boolean(testId && state.work.some(item => item.id === testId && item.status === 'completed'));
   if (saved.queuedCount) {
-    showNotice('تم حفظ النتائج واعتمادها محليًا على هذا الجهاز. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ النشر على بوابة المريض يحتاج اتصالًا.');
+    showNotice('تم حفظ النتائج واعتمادها محليًا على هذا الجهاز. هناك نتائج محلية لم تصل إلى السحابة بعد؛ ستتم مزامنتها تلقائيًا عند عودة الإنترنت. النشر على بوابة المريض يحتاج اتصالًا.');
     return { saved: true, queued: true, resultAccepted: true, completed: false };
   }
   if (completed) {
@@ -1010,7 +1010,7 @@ async function saveAndAcceptResults(visitId, testId = null) {
   } else {
     showNotice('تم حفظ النتائج واعتماد القيم المسجلة. يمكنك معاينة وطباعة ونشر النتائج الحالية، واستكمال أي بارامترات أخرى لاحقًا.');
   }
-  return { saved: true, visitApproved: false, completed, savedCount: saved.savedCount, completedTestCount: saved.completedTestCount };
+  return { saved: true, resultAccepted: true, completed, savedCount: saved.savedCount, completedTestCount: saved.completedTestCount };
 }
 window.taibaSaveAndAcceptResults = saveAndAcceptResults;
 
