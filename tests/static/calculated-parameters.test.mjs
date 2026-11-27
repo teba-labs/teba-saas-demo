@@ -39,5 +39,5 @@ test('catalog editor saves calculated numeric formulas and results UI is read-on
   assert.match(repository,/result_source: valid\.resultSource, formula: valid\.formula/);
   assert.match(results,/data-result-source="calculated"/);
   assert.match(results,/input\.dataset\.resultSource !== 'calculated'/);
-  assert.match(results,/حساب البارامترات المشتقة تلقائيًا على السحابة/);
+  assert.match(results,/حفظ النتائج واعتمادها وحساب البارامترات المشتقة تلقائيًا/);
 });
