@@ -45,7 +45,7 @@ jobs:
           }
           $shortcut.Arguments = '--remote-debugging-port=9222'
           $shortcut.Save()
-          Invoke-Item -LiteralPath $desktopShortcut
+          $shortcutShell.Run('"' + $desktopShortcut + '"', 1, $false) | Out-Null
           $desktop = $null
           $launchDeadline = (Get-Date).AddSeconds(45)
           while ((Get-Date) -lt $launchDeadline -and -not $desktop) {
