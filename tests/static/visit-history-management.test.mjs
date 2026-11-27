@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
 
-const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, receptionUi, page, workbench, layout, migration, worker] = await Promise.all([
+const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, receptionUi, page, workbench, layout, migration131, migration132, worker] = await Promise.all([
   read('../../modules/reception/visit-management-repository.js'),
   read('../../modules/reception/repository.js'),
   read('../../modules/results/repository.js'),
@@ -14,9 +14,11 @@ const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, recepti
   read('../../app/reception.html'),
   read('../../assets/js/results-workbench.js'),
   read('../../assets/js/results-workbench-layout.js'),
+  read('../../database/migrations/131_visit_history_management.sql'),
   read('../../database/migrations/132_fix_published_correction_and_owner_delete.sql'),
   read('../../service-worker.js'),
 ]);
+const migration = migration131 + '\\n' + migration132;
 
 test('reception history searches all tenant visits and shows an exact registered visit count', () => {
   assert.match(historyRepo, /export async function listVisitHistory/);
