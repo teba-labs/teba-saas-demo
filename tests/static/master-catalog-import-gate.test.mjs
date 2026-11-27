@@ -23,7 +23,7 @@ test('customer master library exposes published definitions without making centr
   assert.doesNotMatch(repository, /eq\('clinical_review_status','verified'\)/);
   assert.doesNotMatch(repository, /\.filter\(row=>row\.parameter_count>0/);
   assert.match(repository, /Published definitions remain importable even when clinical metadata is incomplete/);
-  assert.match(ui, /جاهز للاستخدام والتعديل داخل كتالوج المعمل بعد الاستيراد/);
+  assert.match(ui, /تعريف منشور قابل للاستيراد/);
   assert.doesNotMatch(ui, /مراجعة البيانات إرشادية وغير مانعة|المدى يحتاج تحققًا محليًا/);
 });
 
@@ -40,7 +40,7 @@ test('central import stays tenant-owner scoped while missing clinical metadata r
 });
 
 test('catalog UI lets owners import incomplete definitions and complete them later', () => {
-  assert.match(ui, /جاهز للاستخدام والتعديل داخل كتالوج المعمل بعد الاستيراد/);
+  assert.match(ui, /تعريف منشور قابل للاستيراد/);
   assert.doesNotMatch(ui, /مراجعة البيانات إرشادية وغير مانعة|الاستيراد متاح دون اعتماد محلي/);
   assert.match(ui, /استيراد كل التعريفات/);
   assert.match(ui, /استيراد الآن/);
