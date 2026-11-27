@@ -1293,20 +1293,16 @@ async function shareDirectReport(button){
     if(!(blob instanceof Blob)||blob.size<1000)throw new Error('تعذر إنشاء ملف PDF صالح.');
     const file=new File([blob],'taiba-report-'+visitId+'.pdf',{type:'application/pdf'});
     const message='نتائج التحاليل من '+(state.tenant.name||'المعمل')+'.\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\nمرفق تقرير PDF صادر مباشرة من جهاز المعمل.';
-    if(navigator.canShare?.({files:[file]})&&typeof navigator.share==='function'){
-      shareWindow.close();shareWindow=null;
-      await navigator.share({files:[file],title:'تقرير التحاليل - '+patientName,text:message});
-      showNotice('تم فتح مشاركة ملف PDF من الجهاز. اختر واتساب ثم محادثة المريض واضغط إرسال.');
-      return;
-    }
+    // Keep the PDF as a normal device download, then open the patient's WhatsApp chat.
+    // Do not use the native share sheet here: the requested workflow is a pre-addressed chat.
     objectUrl=URL.createObjectURL(file);
     const download=document.createElement('a');
     download.href=objectUrl;download.download='taiba-report-'+visitId+'.pdf';
     document.body.append(download);download.click();download.remove();
-    const waUrl='https://wa.me/'+phone+'?text='+encodeURIComponent(message+'\nتم تنزيل التقرير على الجهاز؛ أرفق ملف PDF المحفوظ قبل الإرسال.');
+    const waUrl='https://wa.me/'+phone+'?text='+encodeURIComponent(message+'\\nتم تنزيل التقرير على الجهاز؛ أرفق ملف PDF المحفوظ قبل الإرسال.');
     shareWindow.location.href=waUrl;
-    shareWindow=null; // Keep the WhatsApp tab alive; the finally block must not close it.
-    showNotice('تم تنزيل PDF على الجهاز وفتح واتساب برسالة جاهزة. أرفق الملف الذي تم تنزيله ثم اضغط إرسال.');
+    shareWindow=null; // Keep the WhatsApp chat tab alive; the finally block must not close it.
+    showNotice('تم تنزيل PDF على الجهاز وفتح محادثة واتساب الخاصة بالمريض. أرفق الملف الذي تم تنزيله ثم اضغط إرسال.');
   }catch(error){
     showNotice(error.message||'تعذر تجهيز التقرير لمشاركته من الجهاز.',true);
   }finally{

@@ -12,11 +12,11 @@ test('direct WhatsApp report sharing creates a local PDF and never uploads or si
   assert.ok(start >= 0 && end > start);
   const share = source.slice(start, end);
   assert.match(share, /new File\(\[blob\]/);
-  assert.match(share, /navigator\.canShare\?\.\(\{files:\[file\]\}\)/);
-  assert.match(share, /navigator\.share\(\{files:\[file\]/);
   assert.match(share, /URL\.createObjectURL\(file\)/);
   assert.match(share, /download\.click\(\)/);
   assert.match(share, /wa\.me\//);
+  assert.match(share, /shareWindow\.location\.href=waUrl/);
+  assert.doesNotMatch(share, /navigator\.share/);
   assert.match(share, /work-source-card/, 'resolve the source visit card after action-bar reparenting');
   assert.doesNotMatch(share, /uploadVisitAttachment|createAttachmentDownloadUrl|signedUrl|storage_path|createSignedUrl/);
 });
@@ -24,7 +24,7 @@ test('direct WhatsApp report sharing creates a local PDF and never uploads or si
 test('no-portal WhatsApp action remains available and the updated module is precached', () => {
   assert.match(source, /share-direct-report/);
   assert.match(source, /!state\.portalEnabled && state\.portalConfigKnown/);
-  assert.match(page, /visit-results-management-20261127-v2/);
-  assert.match(worker, /taiba-smart-lab-shell-v99/);
-  assert.match(worker, /visit-results-management-20261127-v2/);
+  assert.match(page, /visit-results-management-20261127-v3/);
+  assert.match(worker, /taiba-smart-lab-shell-v100/);
+  assert.match(worker, /visit-results-management-20261127-v3/);
 });
