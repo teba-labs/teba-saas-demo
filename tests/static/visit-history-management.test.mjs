@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
 
-const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, receptionUi, page, workbench, layout, migration131, migration132, migration134, worker] = await Promise.all([
+const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, receptionUi, page, workbench, layout, migration131, migration132, migration134, migration135, worker] = await Promise.all([
   read('../../modules/reception/visit-management-repository.js'),
   read('../../modules/reception/repository.js'),
   read('../../modules/results/repository.js'),
@@ -17,9 +17,10 @@ const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, recepti
   read('../../database/migrations/131_visit_history_management.sql'),
   read('../../database/migrations/132_fix_published_correction_and_owner_delete.sql'),
   read('../../database/migrations/134_owner_only_approved_visit_corrections.sql'),
+  read('../../database/migrations/135_remove_reasons_from_all_correction_rpcs.sql'),
   read('../../service-worker.js'),
 ]);
-const migration = migration131 + '\\n' + migration132 + '\\n' + migration134;
+const migration = migration131 + '\\n' + migration132 + '\\n' + migration134 + '\\n' + migration135;
 
 test('reception history searches all tenant visits and shows an exact registered visit count', () => {
   assert.match(historyRepo, /export async function listVisitHistory/);
@@ -92,6 +93,15 @@ test('published correction preserves the report history but no longer requires a
   assert.match(migration, /app\.result_correction/);
   assert.doesNotMatch(migration, /A published result correction requires a documented reason/);
   assert.match(migration, /correction_reason=null/);
+});
+
+
+test('no result correction RPC requires a user-entered reason', () => {
+  assert.doesNotMatch(migration135, /Correction reason is required/);
+  assert.match(migration135, /correction_reason=null/);
+  assert.match(reportRepo, /correctPublishedResult[\s\S]*?p_reason: null/);
+  assert.match(reportRepo, /correctCompletedVisitResult[\s\S]*?p_reason:null/);
+  assert.doesNotMatch(reportRepo, /\[reason,'reason'\]|String\(reason\|\|'\)/);
 });
 
 test('visit cancellation and individual test removal are branch-scoped; hard delete is owner-only', () => {
