@@ -1301,6 +1301,7 @@ async function shareDirectReport(button){
     document.body.append(download);download.click();download.remove();
     const waUrl='https://wa.me/'+phone+'?text='+encodeURIComponent(message+'\\nتم تنزيل التقرير على الجهاز؛ أرفق ملف PDF المحفوظ قبل الإرسال.');
     shareWindow.location.href=waUrl;
+    shareWindow=null; // Keep the WhatsApp tab alive; the finally block must not close it.
     showNotice('تم تنزيل PDF على الجهاز وفتح واتساب برسالة جاهزة. أرفق الملف الذي تم تنزيله ثم اضغط إرسال.');
   }catch(error){
     showNotice(error.message||'تعذر تجهيز التقرير لمشاركته من الجهاز.',true);
