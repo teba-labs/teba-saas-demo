@@ -48,17 +48,31 @@ export async function listVisitHistory({tenantId,branchId=null,accountType='empl
       if(page.length<1000)break;
     }
   }
-  let query=db().from('visits')
-    .select('id,tenant_id,branch_id,patient_id,visit_number,visit_work_date,status,is_published,referred_by,notes,updated_at,created_at,patients!inner(id,full_name,phone,patient_number,age_value,age_unit,age_years,date_of_birth,sex,updated_at),visit_tests(id,test_name_snapshot,status)',{count:'exact'});
-  query=query.eq('tenant_id',tenantId);
-  if(accountType==='employee')query=query.eq('branch_id',branchId);
+  const selection='id,tenant_id,branch_id,patient_id,visit_number,visit_work_date,status,is_published,referred_by,notes,updated_at,created_at,patients!inner(id,full_name,phone,patient_number,age_value,age_unit,age_years,date_of_birth,sex,updated_at),visit_tests(id,test_name_snapshot,status)';
+  const base=()=>{let q=db().from('visits').select(selection);q=q.eq('tenant_id',tenantId);if(accountType==='employee')q=q.eq('branch_id',branchId);return q;};
+  let rows=[],count=0;
   if(term){
-    const parts=['visit_number.ilike.%'+term+'%'];
-    if(patientIds.length)parts.push('patient_id.in.('+patientIds.join(',')+')');
-    query=query.or(parts.join(','));
+    const found=new Map();
+    const collect=async build=>{
+      for(let offset=0;offset<100000;offset+=500){
+        const {data,error}=await build().order('visit_work_date',{ascending:false}).order('created_at',{ascending:false}).range(offset,offset+499);
+        if(error)throw error;
+        const page=data||[];for(const row of page)found.set(row.id,row);
+        if(page.length<500)break;
+      }
+    };
+    for(let i=0;i<patientIds.length;i+=250){
+      const ids=patientIds.slice(i,i+250);
+      await collect(()=>base().in('patient_id',ids));
+    }
+    await collect(()=>base().ilike('visit_number','%'+term+'%'));
+    const all=[...found.values()].sort((a,b)=>String(b.visit_work_date||b.created_at||'').localeCompare(String(a.visit_work_date||a.created_at||'')));
+    count=all.length;rows=all.slice(from,from+size);
+  }else{
+    const {data,error,count:serverCount}=await base().select(selection,{count:'exact'}).order('visit_work_date',{ascending:false}).order('created_at',{ascending:false}).range(from,from+size-1);
+    if(error)throw error;
+    rows=data||[];count=serverCount||0;
   }
-  const {data,error,count}=await query.order('visit_work_date',{ascending:false}).order('created_at',{ascending:false}).range(from,from+size-1);
-  if(error)throw error;
   const hidden=await localHiddenSet(tenantId,null);
   const rows=(data||[]).filter(v=>!hidden.has(hiddenKey(tenantId,v.branch_id,v.id))).map(v=>({...v,patient_name:v.patients?.full_name||'مريض'}));
   let totalQuery=db().from('visits').select('id',{count:'exact',head:true}).eq('tenant_id',tenantId);
