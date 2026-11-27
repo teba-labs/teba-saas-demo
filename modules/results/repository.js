@@ -244,7 +244,7 @@ export async function saveVisitParameterRangeOverride({tenantId,branchId,visitTe
       operation_id:operationId,local_pending:true,updated_at:new Date().toISOString()});
     return {queued:true,operationId};
   };
-  if(globalThis.navigator?.onLine===false)return queue();
+  if(globalThis.navigator?.onLine===false||localVisit?.local_intake_operation_id)return queue();
   const {data,error}=await db().rpc('set_visit_parameter_range_override_idempotent',{
     p_operation_id:operationId,p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTestId,
     p_parameter_code:parameterCode,p_reference_ranges:referenceRanges,p_staff_id:staffId,
