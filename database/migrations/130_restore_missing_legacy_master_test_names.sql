@@ -1,7 +1,8 @@
 begin;
 -- Source-name index from the legacy Taiba catalogue. Names/categories only; no legacy prices or clinical ranges copied.
 insert into public.master_catalog_releases(version,title,description,status,published_at)
-values('taiba-expanded-index-2026.11.27-r1','Taiba Expanded Legacy Name Index — 27 Nov 2026','Restored legacy test names and categories only. No prices, parameters, methods, specimens or reference intervals were copied. Entries remain needs_review and can be imported by the owner for local completion.','published',now()) on conflict(version) do update set status='published', title=excluded.title, description=excluded.description, published_at=coalesce(public.master_catalog_releases.published_at,excluded.published_at);
+select 'taiba-expanded-index-2026.11.27-r1','Taiba Expanded Legacy Name Index — 27 Nov 2026','Restored legacy test names and categories only. No prices, parameters, methods, specimens or reference intervals were copied. Entries remain needs_review and can be imported by the owner for local completion.','published',now()
+where not exists(select 1 from public.master_catalog_releases where version='taiba-expanded-index-2026.11.27-r1');
 insert into public.master_catalog_tests(release_id,master_code,canonical_name,alternate_names,test_kind,category,service_type,definition,clinical_review_status,source_name)
 select r.id,v.master_code,v.canonical_name,v.alternate_names,v.test_kind,v.category,'laboratory_test',v.definition::jsonb,'needs_review','Legacy Taiba data.js source-name index'
 from public.master_catalog_releases r cross join (values
