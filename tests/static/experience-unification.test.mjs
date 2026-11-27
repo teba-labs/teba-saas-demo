@@ -59,11 +59,11 @@ test('clinical result entry queues drafts and local approval while keeping final
   const repository = read('modules/results/repository.js');
   assert.doesNotMatch(ui, /requireCloudConnection\('حفظ النتائج'\)/);
   assert.doesNotMatch(ui, /requireCloudConnection\('اعتماد الزيارة'\)/);
-  assert.match(ui, /approveVisitWithAutoCompletion/);
+  assert.doesNotMatch(ui, /approveVisitWithAutoCompletion/);
   assert.match(repository, /entityType:'visit_approval'/);
   assert.match(ui, /اعتماد محلي/);
-  assert.match(ui, /النشر النهائي يظل خطوة منفصلة/);
-  assert.match(ui, /Print work copy — not approved/);
+  assert.match(ui, /النشر على بوابة المريض يحتاج اتصالًا/);
+  assert.match(ui, /Print work copy — awaiting synchronization/);
   assert.match(ui, /Not a final report/);
   assert.match(ui, /reportPreviewHtml\.set/);
   assert.match(ui, /pdf\.output\('blob'\)/);
