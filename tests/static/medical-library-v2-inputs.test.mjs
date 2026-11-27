@@ -66,8 +66,11 @@ test('visit-specific reference range editing parses numeric intervals and report
  assert.ok(ui.includes('تعذر تحديد البارامتر والزيارة لتعديل المدى المرجعي'));
 });
 
-test('browser zoom can reflow results columns and wraps application tabs',()=>{
+test('browser zoom keeps workbench reflow page-owned and preserves scrollable tabs',()=>{
  const css=read('assets/css/app-viewport.css');
- assert.ok(css.includes('body .results-columns{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}'));
- assert.ok(css.includes('body :is(.tabs,.settings-tabs,[role=tablist])'));
+ const pageCss=read('assets/css/results-workbench.css');
+ assert.ok(pageCss.includes('grid-template-columns:minmax(220px,.8fr) minmax(0,1.2fr)!important'));
+ assert.ok(pageCss.includes('.results-mobile-tabs{display:grid'));
+ assert.ok(css.includes(':is(.tabs,.settings-tabs,[role=tablist])'));
+ assert.ok(!css.includes('body .results-columns{'));
 });
