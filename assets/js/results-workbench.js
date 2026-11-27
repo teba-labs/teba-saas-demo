@@ -16,7 +16,7 @@ import { renderHistoricalResultValues } from '../../modules/results/historical-d
 import { listCultureResults, saveCultureIsolate, saveCultureSusceptibility } from '../../modules/results/culture-repository.js';
 
 const $ = (id) => document.getElementById(id);
-const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 100, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), partialPublishedVisits: new Set(), portalEnabled: false, reportPreviewHtml: new Map(), deliveryStatus: new Map(), stopBackgroundSync: null };
+const state = { context: null, userId: null, tenant: null, branch: null, staff: [], work: [], workPage: 0, workPageSize: 100, workCount: 0, historicalSelections: new Map(), previewedVisits: new Set(), partialPublishedVisits: new Set(), portalEnabled: false, portalConfigKnown: false, reportPreviewHtml: new Map(), deliveryStatus: new Map(), stopBackgroundSync: null };
 window.taibaGetResultsContext=()=>({tenantId:state.tenant?.id,branchId:state.branch?.id,tenantSlug:state.tenant?.slug,tenantName:state.tenant?.name});
 window.taibaGetDirtyResultInputs=()=>[...document.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultSource!=='calculated'&&input.value.trim()!==(input.dataset.originalValue??'').trim());
 window.addEventListener('taiba:results-work-refresh',()=>refreshWork().catch(error=>showNotice(error.message||'تعذر تحديث قائمة النتائج.',true)));
@@ -260,8 +260,8 @@ async function renderWork() {
   const rangeOverridesByKey = new Map(rangeOverrides.map(row=>[row.visit_test_id+'|'+row.parameter_code,row]));
   try {
     const {data:portalConfig,error:portalConfigError}=await getSupabaseClient().functions.invoke('patient-portal-config',{body:{slug:state.tenant.slug}});
-    state.portalEnabled=!portalConfigError && portalConfig?.settings?.enabled===true;
-  } catch { state.portalEnabled=false; }
+    state.portalConfigKnown=!portalConfigError; state.portalEnabled=!portalConfigError && portalConfig?.settings?.enabled===true;
+  } catch { state.portalConfigKnown=false; state.portalEnabled=false; }
   const resultRows = await listResultsForVisitTests({tenantId:state.tenant.id,visitTestIds:state.work.map(item=>item.id)});
   const resultsByTest = new Map();
   for (const result of resultRows) {
@@ -334,7 +334,7 @@ async function renderWork() {
       <div class="file-row report-publish-row"><p class="muted">احفظ النتائج أولًا، ثم عاينها وانشر النتائج المسجلة على بوابة المريض.</p><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${!state.portalEnabled ? 'بوابة المريض غير مفعلة' : 'نشر نسخة مصححة'}</button>${canPublishPartial ? '<button class="button button-secondary publish-partial-report" data-partial="true" data-visit-id="' + escapeHtml(visitId) + '">' + (isPartialPublished ? 'نشر تحديث النتائج' : 'نشر النتائج المحفوظة') + '</button>' : ''}</div>
       ${isPartialPublished && state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-partial-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط النتائج عبر واتساب</button></div>' : ''}
       ${isPublished && state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-published-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط التقرير المصحح عبر واتساب</button></div>' : ''}
-      ${hasAnySavedResults && !state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-direct-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال نسخة PDF عبر واتساب</button></div><p class="muted">متاح بدون بوابة مرضى أو موقع عام؛ رابط خاص مؤقت لملف التقرير.</p>' : ''}
+      ${hasAnySavedResults && !state.portalEnabled && state.portalConfigKnown && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-direct-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال نسخة PDF عبر واتساب</button></div><p class="muted">متاح بدون بوابة مرضى أو موقع عام؛ رابط خاص مؤقت لملف التقرير.</p>' : ''}
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
       <p class="danger-note">اسم المستخدم الذي أجرى التصحيح يُسجل تلقائيًا في سجل المراجعة، ولا يحتاج الفني إلى كتابة سبب للتصحيح.</p>`;
@@ -1231,7 +1231,7 @@ function sharePortalLinkViaWhatsApp(button, publicationType) {
   const publicSiteUrl=new URL('../website/index.html',globalThis.location.href);
   publicSiteUrl.searchParams.set('lab',state.tenant.slug);
   const intro='تم نشر نتائج التحاليل المسجلة من '+(state.tenant.name||'المعمل')+'. يمكنك الآن الاطلاع على التقرير وتحميله.';
-  const message=intro+'\\nاسم المريض: '+patientName+'\\nرقم الزيارة: '+visitNumber+'\\nلعرض التقرير افتح بوابة النتائج:\\n'+portalUrl.href+'\\nوللتعرف على خدمات المعمل وفروعه وعروضه، تفضل بزيارة الموقع الرسمي:\\n'+publicSiteUrl.href;
+  const message=intro+'\\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\\nلعرض التقرير افتح بوابة النتائج:\\n'+portalUrl.href+'\\nوللتعرف على خدمات المعمل وفروعه وعروضه، تفضل بزيارة الموقع الرسمي:\\n'+publicSiteUrl.href;
   const url='https://wa.me/'+phone+'?text='+encodeURIComponent(message);
   window.open(url,'_blank','noopener,noreferrer');
 }
@@ -1289,7 +1289,7 @@ async function shareDirectReport(button){
     const file=new File([blob],'taiba-report-'+visitId+'.pdf',{type:'application/pdf'});
     const uploaded=await uploadVisitAttachment({tenantId:state.tenant.id,branchId:state.branch.id,visitId,file});
     const signedUrl=await createAttachmentDownloadUrl({tenantId:state.tenant.id,branchId:state.branch.id,fileId:uploaded.id,expiresIn:86400});
-    const message='نتائج التحاليل المسجلة من '+(state.tenant.name||'المعمل')+'.\\nاسم المريض: '+patientName+'\\nرقم الزيارة: '+visitNumber+'\\nرابط آمن لملف التقرير (صالح لمدة 24 ساعة):\\n'+signedUrl;
+    const message='نتائج التحاليل المسجلة من '+(state.tenant.name||'المعمل')+'.\\nاسم المريض: '+patientName+'\\nرقم الزيارة: '+visitNumber+'\nرابط آمن لملف التقرير (صالح لمدة 24 ساعة):\n'+signedUrl;
     shareWindow.location.href='https://wa.me/'+phone+'?text='+encodeURIComponent(message);
     showNotice('تم تجهيز رابط آمن لنسخة التقرير وفتح واتساب. اضغط إرسال داخل واتساب.');
   }catch(error){if(shareWindow&&!shareWindow.closed)shareWindow.close();showNotice(error.message||'تعذر تجهيز التقرير لإرساله عبر واتساب.',true);}
