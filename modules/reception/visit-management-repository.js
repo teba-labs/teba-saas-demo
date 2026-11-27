@@ -37,12 +37,16 @@ export async function listVisitHistory({tenantId,branchId=null,accountType='empl
   }
   let patientIds=[];
   if(term){
-    let pQuery=db().from('patients').select('id').eq('tenant_id',tenantId);
-    if(accountType==='employee')pQuery=pQuery.eq('branch_id',branchId);
-    pQuery=pQuery.or('full_name.ilike.%'+term+'%,phone.ilike.%'+term+'%,patient_number.ilike.%'+term+'%').limit(5000);
-    const {data,error}=await pQuery;
-    if(error)throw error;
-    patientIds=(data||[]).map(x=>x.id);
+    for(let offset=0;offset<100000;offset+=1000){
+      let pQuery=db().from('patients').select('id').eq('tenant_id',tenantId);
+      if(accountType==='employee')pQuery=pQuery.eq('branch_id',branchId);
+      pQuery=pQuery.or('full_name.ilike.%'+term+'%,phone.ilike.%'+term+'%,patient_number.ilike.%'+term+'%')
+        .order('id').range(offset,offset+999);
+      const {data,error}=await pQuery;
+      if(error)throw error;
+      const page=data||[];patientIds.push(...page.map(x=>x.id));
+      if(page.length<1000)break;
+    }
   }
   let query=db().from('visits')
     .select('id,tenant_id,branch_id,patient_id,visit_number,visit_work_date,status,is_published,referred_by,notes,updated_at,created_at,patients!inner(id,full_name,phone,patient_number,age_value,age_unit,age_years,date_of_birth,sex,updated_at),visit_tests(id,test_name_snapshot,status)',{count:'exact'});
@@ -91,6 +95,19 @@ export async function warmVisitHistory({tenantId,branchId=null,accountType='empl
   const visitRows=rows.map(({patients,...v})=>{if(patients)patientRows.set(patients.id,{...patients,tenant_id:tenantId,branch_id:v.branch_id});return v;});
   await cacheRows('visits',visitRows);
   if(patientRows.size)await cacheRows('patients',[...patientRows.values()]);
+  for(let start=0;start<visitRows.length;start+=100){
+    const ids=visitRows.slice(start,start+100).map(row=>row.id);
+    if(!ids.length)continue;
+    for(let offset=0;;offset+=500){
+      const {data,error}=await db().from('visit_tests')
+        .select('id,tenant_id,branch_id,visit_id,test_id,test_code_snapshot,test_name_snapshot,status,created_at')
+        .eq('tenant_id',tenantId).in('visit_id',ids).range(offset,offset+499);
+      if(error)throw error;
+      const page=data||[];
+      if(page.length)await cacheRows('visit_tests',page);
+      if(page.length<500)break;
+    }
+  }
   return {cachedRows:rows.length,totalRows:total??rows.length,truncated:(total??rows.length)>rows.length};
 }
 
