@@ -212,6 +212,20 @@ export function createSupabaseSyncHandlers() {
       if(error)return throwUnlessConflict(error,/Branch access denied|Active staff identity|Visit test not found|Visit is cancelled|Authentication/i);
       await cacheRows('visit_tests',[data]);return {acknowledged:true,resultId:visitTestId};
     },
+    result_correction: async operation => {
+      const p=operation.payload;let visitTestId=p.visit_test_id;
+      for(const dependency of operation.depends_on||[]){const m=await offlineDb.sync_meta.get(`visit-map:${dependency}`);if(m?.visit_test_ids?.[visitTestId]){visitTestId=m.visit_test_ids[visitTestId];break;}}
+      const all=await offlineDb.sync_meta.toArray();const mapped=all.find(x=>x.tenant_id===operation.tenant_id&&x.branch_id===operation.branch_id&&x.visit_test_ids?.[visitTestId]);
+      if(mapped)visitTestId=mapped.visit_test_ids[visitTestId];
+      const {data,error}=await db().rpc('correct_visit_result_with_flag',{
+        p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,p_visit_test_id:visitTestId,p_result_id:p.result_id,
+        p_value_numeric:p.value_numeric,p_value_text:p.value_text,p_flag:p.flag??null,p_reason:null,p_staff_id:p.staff_id,
+      });
+      if(error)return throwUnlessConflict(error,/Branch access denied|active staff identity|Only a completed visit test|Cancelled visits|Result not found|approved unpublished|Authentication required|Unsupported result flag|Provide exactly one/i);
+      if(!data?.id)throw new Error('Server did not confirm the corrected result.');
+      await cacheRows('test_results',[{...data,branch_id:operation.branch_id}]);
+      return {acknowledged:true,resultId:data.id};
+    },
     draft_results: async operation => {
       const p = operation.payload;
       let visitTestId = p.visit_test_id;
