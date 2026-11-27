@@ -20,6 +20,6 @@ test('reception and results workbench render historical results as readable valu
 
 test('historical result renderer is part of the offline application shell', () => {
   const worker = read('service-worker.js');
-    assert.match(worker, /const CACHE_NAME = 'taiba-smart-lab-shell-v\d+'/);
+    assert.match(worker, /const CACHE_NAME = 'taiba-smart-lab-shell-v[0-9]+'/);
   assert.match(worker, /modules\/results\/historical-display\.js/);
 });
