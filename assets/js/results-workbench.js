@@ -334,7 +334,7 @@ async function renderWork() {
       <div class="file-row report-publish-row"><p class="muted">احفظ النتائج أولًا، ثم عاينها وانشر النتائج المسجلة على بوابة المريض.</p><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${!state.portalEnabled ? 'بوابة المريض غير مفعلة' : 'نشر نسخة مصححة'}</button>${canPublishPartial ? '<button class="button button-secondary publish-partial-report" data-partial="true" data-visit-id="' + escapeHtml(visitId) + '">' + (isPartialPublished ? 'نشر تحديث النتائج' : 'نشر النتائج المحفوظة') + '</button>' : ''}</div>
       ${isPartialPublished && state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-partial-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط النتائج عبر واتساب</button></div>' : ''}
       ${isPublished && state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-published-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط التقرير المصحح عبر واتساب</button></div>' : ''}
-      ${hasAnySavedResults && !state.portalEnabled ? '<p class="muted">معاينة وطباعة النتائج المحفوظة متاحة الآن؛ فعّل بوابة المريض من إعدادات الموقع لإتاحة النشر وواتساب.</p>' : ''}
+      ${hasAnySavedResults && !state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-direct-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال نسخة PDF عبر واتساب</button></div><p class="muted">متاح بدون بوابة مرضى أو موقع عام؛ رابط خاص مؤقت لملف التقرير.</p>' : ''}
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
       <p class="danger-note">اسم المستخدم الذي أجرى التصحيح يُسجل تلقائيًا في سجل المراجعة، ولا يحتاج الفني إلى كتابة سبب للتصحيح.</p>`;
@@ -368,6 +368,7 @@ async function renderWork() {
   host.querySelectorAll('.publish-report, .publish-partial-report').forEach(btn => btn.addEventListener('click', () => publish(btn)));
   host.querySelectorAll('.share-partial-report').forEach(btn => btn.addEventListener('click', () => sharePartialReport(btn)));
   host.querySelectorAll('.share-published-report').forEach(btn => btn.addEventListener('click', () => sharePublishedReport(btn)));
+   host.querySelectorAll('.share-direct-report').forEach(btn => btn.addEventListener('click', () => shareDirectReport(btn)));
   host.querySelectorAll('.upload-attachment').forEach(btn => btn.addEventListener('click', () => uploadAttachment(btn)));
   host.querySelectorAll('.list-attachments').forEach(btn => btn.addEventListener('click', () => loadAttachments(btn.dataset.visitId)));
   host.querySelectorAll('.attachment-download').forEach(btn => btn.addEventListener('click', () => downloadAttachment(btn)));
@@ -1242,6 +1243,59 @@ async function sharePublishedReport(button){
   try{sharePortalLinkViaWhatsApp(button,'final');}
   catch(error){showNotice(error.message||'تعذر تجهيز رسالة واتساب.',true);}
 }
+
+async function shareDirectReport(button){
+  let shareWindow=null;
+  try{
+    requireCloudConnection('مشاركة التقرير عبر واتساب');
+    const card=button.closest('.work-card'),visitId=button.dataset.visitId;
+    const patientName=String(card?.dataset.patientName||'').trim(),visitNumber=String(card?.dataset.visitNumber||'').trim();
+    const phone=normalizeWhatsAppNumber(card?.dataset.patientPhone||'');
+    if(!patientName||!visitNumber||!visitId)throw new Error('بيانات المريض أو الزيارة غير مكتملة.');
+    if(!state.previewedVisits.has(visitId)||!state.reportPreviewHtml.has(visitId)){
+      await window.taibaPreviewVisitReport(visitId);
+      throw new Error('تم فتح معاينة التقرير. راجعها ثم اضغط إرسال واتساب مرة أخرى.');
+    }
+    if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ أي تعديلات على النتائج قبل إرسال التقرير.');
+    const reportHtml=state.reportPreviewHtml.get(visitId);
+    setBusy(button,true,'جارٍ تجهيز نسخة PDF…');
+    shareWindow=window.open('','_blank');
+    if(!shareWindow)throw new Error('اسمح بفتح نافذة مؤقتة لتجهيز ملف التقرير.');
+    shareWindow.document.open();shareWindow.document.write(reportHtml);shareWindow.document.close();
+    await shareWindow.document.fonts?.ready;
+    await Promise.all([...shareWindow.document.images].map(img=>img.decode?.().catch(()=>null)));
+    await new Promise(resolve=>setTimeout(resolve,180));
+    await ensureHtml2Pdf();await ensureHtml2Canvas();
+    const body=shareWindow.document.body,pageTop=Number(body.dataset.pageTopMargin)||46,pageBottom=Number(body.dataset.pageBottomMargin)||24,pageSide=Number(body.dataset.pageSideMargin)||12;
+    const header=shareWindow.document.querySelector('.report-header'),footer=shareWindow.document.querySelector('.report-footer');
+    const rasterize=node=>node&&typeof window.html2canvas==='function'?window.html2canvas(node,{scale:2,useCORS:true,backgroundColor:'#fff',logging:false}):null;
+    const [headerCanvas,footerCanvas]=await Promise.all([rasterize(header),rasterize(footer)]);
+    const pdf=await window.html2pdf().set({
+      margin:[pageTop,pageSide,pageBottom,pageSide],filename:'taiba-report-'+visitId+'.pdf',
+      image:{type:'jpeg',quality:.98},
+      html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#fff',scrollY:0,onclone:cloned=>cloned.querySelectorAll('.report-header,.report-footer,.preview-controls').forEach(node=>node.style.display='none')},
+      jsPDF:{unit:'mm',format:String(body.dataset.pageSize||'a4').toLowerCase(),orientation:body.dataset.pageOrientation||'portrait'},
+      pagebreak:{mode:['css','legacy']}
+    }).from(body).toPdf().get('pdf');
+    const total=pdf.internal.getNumberOfPages(),width=pdf.internal.pageSize.getWidth(),height=pdf.internal.pageSize.getHeight(),contentWidth=width-pageSide*2;
+    for(let page=1;page<=total;page++){
+      pdf.setPage(page);
+      if(headerCanvas){const maxH=Math.max(8,pageTop-3),ratio=headerCanvas.width/headerCanvas.height,w=Math.min(contentWidth,maxH*ratio);pdf.addImage(headerCanvas.toDataURL('image/png'),'PNG',pageSide,2,w,w/ratio);}
+      if(footerCanvas){const maxH=Math.max(7,pageBottom-5),ratio=footerCanvas.width/footerCanvas.height,w=Math.min(contentWidth,maxH*ratio);pdf.addImage(footerCanvas.toDataURL('image/png'),'PNG',pageSide,height-w/ratio-4,w,w/ratio);}
+      pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(40);pdf.text('Page '+page+' of '+total,width-pageSide,height-2,{align:'right'});
+    }
+    const blob=pdf.output('blob');
+    if(!(blob instanceof Blob)||blob.size<1000)throw new Error('تعذر إنشاء ملف PDF صالح.');
+    const file=new File([blob],'taiba-report-'+visitId+'.pdf',{type:'application/pdf'});
+    const uploaded=await uploadVisitAttachment({tenantId:state.tenant.id,branchId:state.branch.id,visitId,file});
+    const signedUrl=await createAttachmentDownloadUrl({tenantId:state.tenant.id,branchId:state.branch.id,fileId:uploaded.id,expiresIn:86400});
+    const message='نتائج التحاليل المسجلة من '+(state.tenant.name||'المعمل')+'.\\nاسم المريض: '+patientName+'\\nرقم الزيارة: '+visitNumber+'\\nرابط آمن لملف التقرير (صالح لمدة 24 ساعة):\\n'+signedUrl;
+    shareWindow.location.href='https://wa.me/'+phone+'?text='+encodeURIComponent(message);
+    showNotice('تم تجهيز رابط آمن لنسخة التقرير وفتح واتساب. اضغط إرسال داخل واتساب.');
+  }catch(error){if(shareWindow&&!shareWindow.closed)shareWindow.close();showNotice(error.message||'تعذر تجهيز التقرير لإرساله عبر واتساب.',true);}
+  finally{setBusy(button,false);}
+}
+
 
 async function searchHistorical(){
  const term=$('historicalSearch').value.trim(),host=$('historicalResultsList');
