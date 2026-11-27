@@ -16,7 +16,7 @@ function init(){state.context=getContext();if(!state.context?.tenantId)return;lo
 async function load(){
  const c=getContext();if(!c?.tenantId)return;
  state.context=c;
- const host=$('recentVisits');if(!host)return;
+ const host=$('visitHistoryList');if(!host)return;
  host.innerHTML='<p class="muted">جارٍ تحميل سجل الزيارات بالكامل…</p>';
  try{
    const result=await listVisitHistory({tenantId:c.tenantId,branchId:c.branchId,accountType:c.accountType,
@@ -169,7 +169,7 @@ async function handleAction(button){
  }catch(error){notice(error.message||'تعذر تنفيذ الإجراء.',true);}
  finally{button.disabled=false;}
 }
-$('recentVisits')?.addEventListener('click',event=>{const button=event.target.closest('[data-history-action]');if(button)handleAction(button);});
+$('visitHistoryList')?.addEventListener('click',event=>{const button=event.target.closest('[data-history-action]');if(button)handleAction(button);});
 $('refreshRecent')?.addEventListener('click',()=>load().catch(error=>notice(error.message||'تعذر تحديث سجل الزيارات.',true)));
 $('visitHistorySearch')?.addEventListener('input',()=>{clearTimeout(state.searchTimer);state.searchTimer=setTimeout(()=>{state.page=0;load().catch(e=>notice(e.message,true));},250);});
 $('visitHistoryPrev')?.addEventListener('click',()=>{state.page=Math.max(0,state.page-1);load().catch(e=>notice(e.message,true));});
