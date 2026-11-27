@@ -226,6 +226,18 @@ export function createSupabaseSyncHandlers() {
         if(!lookup.data?.id)throw new Error('The saved result is still synchronizing; correction will retry automatically.');
         resultId=lookup.data.id;
       }
+      const current=await db().from('test_results').select('id,value_numeric,value_text,flag')
+        .eq('tenant_id',operation.tenant_id).eq('visit_test_id',visitTestId).eq('id',resultId).maybeSingle();
+      if(current.error)throw current.error;
+      if(current.data){
+        const valueMatches=p.value_numeric!=null
+          ?current.data.value_numeric!=null&&Number(current.data.value_numeric)===Number(p.value_numeric)
+          :current.data.value_text===p.value_text;
+        if(valueMatches&&(current.data.flag??null)===(p.flag??null)){
+          await cacheRows('test_results',[{...current.data,branch_id:operation.branch_id}]);
+          return {acknowledged:true,resultId};
+        }
+      }
       const {data,error}=await db().rpc('correct_visit_result_with_flag',{
         p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,p_visit_test_id:visitTestId,p_result_id:resultId,
         p_value_numeric:p.value_numeric,p_value_text:p.value_text,p_flag:p.flag??null,p_reason:null,p_staff_id:p.staff_id,
