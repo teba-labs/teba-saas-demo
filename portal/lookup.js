@@ -110,7 +110,7 @@ form?.addEventListener('submit', async (event) => {
     link.href = data.reportUrl;
     if(partialNotice)partialNotice.hidden=!data.isPartial;
     result.hidden = false;
-    showMessage(data.isPartial ? 'تم العثور على تقرير جزئي. بعض النتائج لم تصدر بعد؛ رابط التحميل صالح لمدة دقيقتين.' : 'تم العثور على التقرير. رابط التحميل صالح لمدة دقيقتين.', 'success');
+    showMessage(data.isPartial ? 'تم العثور على النتائج المسجلة. رابط التحميل صالح لمدة دقيقتين.' : 'تم العثور على التقرير. رابط التحميل صالح لمدة دقيقتين.', 'success');
   } catch (error) {
     console.error('Patient portal request failed.', error);
     showMessage('تعذر الاتصال بالخدمة الآن. تأكد من الإنترنت وحاول مرة أخرى.', 'error');
