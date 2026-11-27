@@ -1057,7 +1057,7 @@ async function correctTest(button) {
     setBusy(button,true,'جارٍ حفظ التصحيح…');
     for(const input of changed){
       const raw=input.value.trim(),isNumeric=['numeric_integer','numeric_decimal'].includes(input.dataset.inputMode),numeric=isNumeric?raw:null,text=isNumeric?null:raw;
-      const corrected=await correctVisitResultWithFlag({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,flag:classifyResultFlag(input),staffId:$('staffSelect').value});
+      const corrected=await correctVisitResultWithFlag({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,parameterCode:input.dataset.paramCode,valueNumeric:numeric,valueText:text,flag:classifyResultFlag(input),staffId:$('staffSelect').value});
       input.dataset.originalValue=input.value;
       if(corrected?.queued)input.dataset.correctionPending='true';
     }
