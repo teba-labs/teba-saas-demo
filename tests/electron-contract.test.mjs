@@ -19,7 +19,7 @@ test('Electron renderer is isolated and sandboxed', async () => {
   assert.match(main, /contextIsolation:\s*true/);
   assert.match(main, /sandbox:\s*true/);
   assert.match(main, /webSecurity:\s*true/);
-  assert.match(main, /allowServiceWorkers:\\s*true/);
+  assert.ok(main.includes('allowServiceWorkers: true'));
   assert.match(main, /protocol\.handle\(APP_SCHEME, serveLocalApp\)/);
   assert.match(main, /path\.relative\(root, candidate\)/);
   assert.match(main, /setPermissionRequestHandler[\s\S]*callback\(false\)/);
