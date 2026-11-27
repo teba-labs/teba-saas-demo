@@ -1231,7 +1231,7 @@ function sharePortalLinkViaWhatsApp(button, publicationType) {
   const publicSiteUrl=new URL('../website/index.html',globalThis.location.href);
   publicSiteUrl.searchParams.set('lab',state.tenant.slug);
   const intro='تم نشر نتائج التحاليل المسجلة من '+(state.tenant.name||'المعمل')+'. يمكنك الآن الاطلاع على التقرير وتحميله.';
-  const message=intro+'\\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\\nلعرض التقرير افتح بوابة النتائج:\\n'+portalUrl.href+'\\nوللتعرف على خدمات المعمل وفروعه وعروضه، تفضل بزيارة الموقع الرسمي:\\n'+publicSiteUrl.href;
+  const message=intro+'\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\nلعرض التقرير افتح بوابة النتائج:\n'+portalUrl.href+'\nوللتعرف على خدمات المعمل وفروعه وعروضه، تفضل بزيارة الموقع الرسمي:\n'+publicSiteUrl.href;
   const url='https://wa.me/'+phone+'?text='+encodeURIComponent(message);
   window.open(url,'_blank','noopener,noreferrer');
 }
@@ -1289,7 +1289,7 @@ async function shareDirectReport(button){
     const file=new File([blob],'taiba-report-'+visitId+'.pdf',{type:'application/pdf'});
     const uploaded=await uploadVisitAttachment({tenantId:state.tenant.id,branchId:state.branch.id,visitId,file});
     const signedUrl=await createAttachmentDownloadUrl({tenantId:state.tenant.id,branchId:state.branch.id,fileId:uploaded.id,expiresIn:86400});
-    const message='نتائج التحاليل المسجلة من '+(state.tenant.name||'المعمل')+'.\\nاسم المريض: '+patientName+'\\nرقم الزيارة: '+visitNumber+'\nرابط آمن لملف التقرير (صالح لمدة 24 ساعة):\n'+signedUrl;
+    const message='نتائج التحاليل المسجلة من '+(state.tenant.name||'المعمل')+'.\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\nرابط آمن لملف التقرير (صالح لمدة 24 ساعة):\n'+signedUrl;
     shareWindow.location.href='https://wa.me/'+phone+'?text='+encodeURIComponent(message);
     showNotice('تم تجهيز رابط آمن لنسخة التقرير وفتح واتساب. اضغط إرسال داخل واتساب.');
   }catch(error){if(shareWindow&&!shareWindow.closed)shareWindow.close();showNotice(error.message||'تعذر تجهيز التقرير لإرساله عبر واتساب.',true);}
