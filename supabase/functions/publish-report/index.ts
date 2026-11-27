@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
       ? 'اكتب سبب التصحيح قبل نشر نسخة جديدة.'
       : publishError?.message?.includes('Patient portal is disabled')
         ? 'بوابة المرضى غير مفعلة لهذا المعمل. يمكنك طباعة التقرير وتسليمه دون نشره على البوابة.'
-        : 'لم يتم نشر التقرير. راجع اكتمال النتائج واعتماد الزيارة وصلاحيات الفرع.' }, 409, origin);
+        : 'لم يتم نشر النتائج. راجع حفظ النتائج وتفعيل بوابة المرضى وصلاحيات الفرع.' }, 409, origin);
   }
 
   return reply({
@@ -125,6 +125,6 @@ Deno.serve(async (req) => {
     reportVersionId: version.id,
     versionNumber: version.version_number,
     isPartial,
-    message: isPartial ? 'تم نشر التقرير الجزئي دون اعتماد الزيارة.' : 'تم نشر التقرير وحفظ سجل النسخة بنجاح.',
+    message: isPartial ? 'تم نشر النتائج المسجلة بنجاح.' : 'تم نشر التقرير وحفظ سجل النسخة بنجاح.',
   }, 200, origin);
 });
