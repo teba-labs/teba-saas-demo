@@ -80,11 +80,12 @@ test('approved report publication and WhatsApp handoff use the private tenant re
   const reports = read('modules/reports/repository.js');
   const layout = read('assets/js/results-workbench-layout.js');
   const resultsWorkbench = read('assets/js/results-workbench.js');
-  assert.match(reports, /functions\.invoke\('publish-report'/);
-  assert.match(reports, /storage\.from\('tenant-reports'\)/);
-  assert.match(layout, /wa\.me\//);
-  assert.match(layout, /portal\/index\.html/);
-  assert.match(layout, /record\.published/);
+  assert.match(reports, /functions\\.invoke\\('publish-report'/);
+  assert.match(reports, /storage\\.from\\('tenant-reports'\\)/);
+  assert.match(resultsWorkbench, /wa\\.me\\//);
+  assert.match(resultsWorkbench, /portal\\/index\\.html/);
+  assert.match(resultsWorkbench, /sharePublishedReport/);
+  assert.match(layout, /record\\.actions\\.forEach/);
 });
 
 
