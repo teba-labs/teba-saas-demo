@@ -40,7 +40,7 @@ export async function createAttachmentDownloadUrl({tenantId,branchId,fileId,expi
     .eq('id',fileId).eq('tenant_id',tenantId).eq('branch_id',branchId)
     .eq('bucket_id','tenant-attachments').eq('file_kind','attachment').single();
   if(lookupError) throw lookupError;
-  const seconds=Math.min(Math.max(Number(expiresIn)||90,30),300);
+  const seconds=Math.min(Math.max(Number(expiresIn)||90,30),86400);
   const {data,error}=await client.storage.from('tenant-attachments').createSignedUrl(file.storage_path,seconds);
   if(error) throw error;
   return data.signedUrl;
