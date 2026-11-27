@@ -44,13 +44,18 @@ async function serveLocalApp(request) {
   let pathname;
   try { pathname = decodeURIComponent(url.pathname); }
   catch { return new Response('Bad request', { status: 400 }); }
-  const root = appRoot();
+  const root = await fs.realpath(appRoot());
   const filePath = path.resolve(root, '.' + pathname);
   if (!isInsideRoot(filePath, root)) return new Response('Forbidden', { status: 403 });
 
   try {
-    const stat = await fs.stat(filePath);
-    const resolved = stat.isDirectory() ? path.join(filePath, 'index.html') : filePath;
+    // Lexical containment is not enough: a packaged or development asset may
+    // be a symlink whose target escapes the application directory.
+    const realPath = await fs.realpath(filePath);
+    if (!isInsideRoot(realPath, root)) return new Response('Forbidden', { status: 403 });
+    const stat = await fs.stat(realPath);
+    const resolved = stat.isDirectory() ? await fs.realpath(path.join(realPath, 'index.html')) : realPath;
+    if (!isInsideRoot(resolved, root)) return new Response('Forbidden', { status: 403 });
     const body = await fs.readFile(resolved);
     const headers = {
       'Content-Type': MIME_TYPES[path.extname(resolved).toLowerCase()] || 'application/octet-stream',

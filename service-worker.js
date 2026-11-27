@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v104';
+const CACHE_NAME = 'taiba-smart-lab-shell-v105';
 const APP_SHELL = [
   './app/manifest.webmanifest', './app/icons/icon-192.svg', './app/icons/icon-512.svg',
   './app/index.html', './app/site-preview.html', './website/index.html', './website/site.css', './website/public-site-ui.js', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/result-entry.html', './app/sync-center.html',
@@ -23,6 +23,21 @@ const APP_SHELL = [
   './modules/workday/repository.js', './dashboard/repository.js', './dashboard/owner-financial-repository.js', './website/cms-repository.js', './website/public-site.js'
 ];
 
+const REQUIRED_APP_SHELL = [
+  './app/index.html', './app/reception.html', './app/manifest.webmanifest',
+  './assets/js/reception.js', './assets/js/results-workbench.js',
+  './assets/js/sync-center.js', './modules/ui/keyboard-navigation.js',
+  './core/supabase-client.js', './offline/database.js', './offline/outbox.js',
+  './offline/supabase-adapters.js'
+];
+
+async function cacheOptionalShellAsset(cache, asset) {
+  const request = new Request(asset, { cache: 'reload' });
+  const response = await fetch(request);
+  if (!response.ok) throw new Error(`Optional shell asset failed: ${asset} (${response.status})`);
+  await cache.put(request, response);
+}
+
 async function fetchWithTimeout(request, timeoutMs = 4500) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -33,7 +48,11 @@ async function fetchWithTimeout(request, timeoutMs = 4500) {
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    await cache.addAll(APP_SHELL);
+    // Essential workflow files gate installation; optional assets are cached
+    // independently so a stale URL cannot prevent the app shell from installing.
+    await cache.addAll(REQUIRED_APP_SHELL);
+    const required = new Set(REQUIRED_APP_SHELL);
+    await Promise.allSettled(APP_SHELL.filter(asset => !required.has(asset)).map(asset => cacheOptionalShellAsset(cache, asset)));
     await Promise.all(['https://esm.sh/dexie@4', 'https://esm.sh/@supabase/supabase-js@2'].map(async url => {
       try { const response = await fetch(url); if (response.ok) await cache.put(url, response.clone()); } catch { /* shell remains installable */ }
     }));

@@ -22,6 +22,10 @@ test('Electron renderer is isolated and sandboxed', async () => {
   assert.ok(main.includes('allowServiceWorkers: true'));
   assert.match(main, /protocol\.handle\(APP_SCHEME, serveLocalApp\)/);
   assert.match(main, /path\.relative\(root, candidate\)/);
+  assert.ok(main.includes('await fs.realpath(appRoot())'));
+  assert.ok(main.includes('await fs.realpath(filePath)'));
+  assert.ok(main.includes('!isInsideRoot(realPath, root)'));
+  assert.ok(main.includes('!isInsideRoot(resolved, root)'));
   assert.match(main, /setPermissionRequestHandler[\s\S]*callback\(false\)/);
 });
 
@@ -58,7 +62,10 @@ test('web workspace exposes an installable PWA manifest and local app icons', as
   assert.equal(manifest.display, 'standalone');
   assert.ok(manifest.icons.some(icon => icon.src === './icons/icon-192.svg' && icon.sizes === 'any'));
   assert.ok(manifest.icons.some(icon => icon.src === './icons/icon-512.svg' && icon.sizes === 'any'));
-  assert.match(worker, /taiba-smart-lab-shell-v104/);
+  assert.match(worker, /taiba-smart-lab-shell-v105/);
+  assert.ok(worker.includes('const REQUIRED_APP_SHELL = ['));
+  assert.ok(worker.includes('await cache.addAll(REQUIRED_APP_SHELL)'));
+  assert.ok(worker.includes('Promise.allSettled(APP_SHELL.filter'));
   assert.ok(worker.includes("'./app/manifest.webmanifest'"));
 });
 

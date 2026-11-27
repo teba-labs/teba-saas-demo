@@ -25,3 +25,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run responsive page checks
         run: node tests/responsive-smoke.mjs
+      - name: Verify keyboard navigation across all application pages
+        run: node tests/browser/keyboard-navigation.mjs
+      - name: Verify offline shell and IndexedDB/outbox persistence after reload
+        run: node tests/browser/offline-shell-smoke.mjs
