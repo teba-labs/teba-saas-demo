@@ -163,7 +163,7 @@ function renderMasterCatalog(){
  $('masterCatalogList').innerHTML=rows.length?rows.map(t=>{
   const parameterCount=Number(t.parameter_count||0);
   const exists=existingCodes.has(t.master_code);
-  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'بروفايل / مجموعة':t.test_kind==='group'?'مجموعة تحاليل':'تحليل فردي'} · ${esc(t.category||'غير مصنف')} · ${parameterCount} بارامتر · إصدار ${esc(t.release?.version||'—')}</small><small>جاهز للاستخدام والتعديل داخل كتالوج المعمل بعد الاستيراد. لا توجد خطوة اعتماد محلي.</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}" ${exists?'disabled':''}>${exists?'موجود في المعمل':'استيراد الآن'}</button></div>`;
+  return `<div class="master-item"><div><strong>${esc(t.canonical_name)}</strong><small>${esc(t.master_code)} · ${t.test_kind==='panel'?'بروفايل / مجموعة':t.test_kind==='group'?'مجموعة تحاليل':'تحليل فردي'} · ${esc(t.category||'غير مصنف')} · ${parameterCount} بارامتر · إصدار ${esc(t.release?.version||'—')}</small><small>${t.clinical_review_status==='verified'?'ملف فني مراجع علميًا.':'تعريف منشور قابل للاستيراد؛ بياناته الطبية تحتاج مراجعة واستكمالًا محليًا قبل اعتمادها سريريًا.'}</small></div><button type="button" class="button button-secondary" data-import-master="${esc(t.id)}" ${exists?'disabled':''}>${exists?'موجود في المعمل':'استيراد الآن'}</button></div>`;
  }).join(''):'<p class="empty">لا توجد تعريفات منشورة تطابق البحث.</p>';
 }
 async function loadMasterCatalog(){
