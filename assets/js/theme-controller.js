@@ -74,6 +74,15 @@ function buildControl() {
   host.append(wrap);
   applyTheme(currentTheme());
 }
+const fontPreconnect = document.createElement('link');
+fontPreconnect.rel = 'preconnect';
+fontPreconnect.href = 'https://fonts.googleapis.com';
+document.head.append(fontPreconnect);
+const fontStylesheet = document.createElement('link');
+fontStylesheet.rel = 'stylesheet';
+fontStylesheet.href = 'https://fonts.googleapis.com/css2?family=Almarai:wght@400;500;600;700;800&display=swap';
+document.head.append(fontStylesheet);
+
 const stylesheet = document.createElement('link');
 stylesheet.rel = 'stylesheet';
 stylesheet.href = new URL('../css/theme-system.css', import.meta.url).href;
