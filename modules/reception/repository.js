@@ -144,7 +144,7 @@ export async function addTestToVisit({ tenantId, branchId, visitId, testId, staf
       dependsOn:localVisit?.local_intake_operation_id?[localVisit.local_intake_operation_id]:[],priority:4});
     return {queued:true,operationId};
   };
-  if (globalThis.navigator?.onLine === false) return queue();
+  if (globalThis.navigator?.onLine === false || localVisit?.local_intake_operation_id) return queue();
   const { data, error } = await db().rpc('add_test_to_visit_atomic', {
     p_tenant_id: tenantId, p_branch_id: branchId, p_visit_id: visitId,
     p_test_id: testId, p_staff_id: staffId,
