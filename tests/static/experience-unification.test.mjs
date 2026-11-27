@@ -84,7 +84,7 @@ test('approved report publication and WhatsApp handoff use the private tenant re
   assert.match(reports, /storage\\.from\\('tenant-reports'\\)/);
   assert.match(resultsWorkbench, /wa\\.me\\//);
   assert.match(resultsWorkbench, /portal\\/index\\.html/);
-  assert.match(resultsWorkbench, /sharePublishedReport/);
+  assert.ok(resultsWorkbench.includes('sharePublishedReport'));
   assert.match(layout, /record\\.actions\\.forEach/);
 });
 
