@@ -66,8 +66,8 @@ test('individual and profile result forms open in an accessible same-screen moda
  assert.match(layout,/taiba:results-work-refresh/);
  assert.match(layout,/node\.dataset\.resultSaved/);
  assert.match(layout,/node\.addEventListener\('input'/);
- assert.match(js,/window\.taibaSaveAndAcceptResults = saveResultsForTest/);
- assert.match(js,/saveAndAcceptResults/);
+ assert.match(js,/window\.taibaSaveResultsForTest = saveResultsForTest/);
+ assert.match(js,/saveResultsForTest/);
  assert.match(js,/await saveVisitDrafts\(visitId\)/);
  assert.match(js,/تم حفظ النتائج/);
  assert.doesNotMatch(js.slice(js.indexOf('async function saveAndAcceptResults('),js.indexOf('window.taibaSaveAndAcceptResults =')),/approveVisitWithAutoCompletion\(/);
