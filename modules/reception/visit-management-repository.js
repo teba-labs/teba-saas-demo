@@ -4,7 +4,7 @@ import { offlineDb } from '../../offline/database.js';
 import { cacheRows, getCachedRows } from '../../offline/cache.js';
 
 const db=()=>getSupabaseClient();
-const safeText=value=>String(value??'').replace(/[%,_*]/g,' ').replace(/\s+/g,' ').trim();
+const safeText=value=>String(value??'').replace(/[,.*%_()\\\\\"']/g,' ').replace(/\s+/g,' ').trim();
 function hiddenKey(tenantId,branchId,visitId){return 'device-visit-hidden:'+tenantId+':'+branchId+':'+visitId;}
 async function localHiddenSet(tenantId,branchId){
   const rows=await offlineDb.sync_meta.toArray();
@@ -37,7 +37,7 @@ export async function listVisitHistory({tenantId,branchId=null,accountType='empl
   }
   let patientIds=[];
   if(term){
-    for(let offset=0;offset<100000;offset+=1000){
+    for(let offset=0;;offset+=1000){
       let pQuery=db().from('patients').select('id').eq('tenant_id',tenantId);
       if(accountType==='employee')pQuery=pQuery.eq('branch_id',branchId);
       pQuery=pQuery.or('full_name.ilike.%'+term+'%,phone.ilike.%'+term+'%,patient_number.ilike.%'+term+'%')
@@ -54,7 +54,7 @@ export async function listVisitHistory({tenantId,branchId=null,accountType='empl
   if(term){
     const found=new Map();
     const collect=async build=>{
-      for(let offset=0;offset<100000;offset+=500){
+      for(let offset=0;;offset+=500){
         const {data,error}=await build().order('visit_work_date',{ascending:false}).order('created_at',{ascending:false}).range(offset,offset+499);
         if(error)throw error;
         const page=data||[];for(const row of page)found.set(row.id,row);
@@ -90,10 +90,10 @@ export async function listVisitHistory({tenantId,branchId=null,accountType='empl
 }
 
 /** Preload historical visit summaries into the local browser so offline search covers the saved archive. */
-export async function warmVisitHistory({tenantId,branchId=null,accountType='employee',maxRows=50000}={}){
+export async function warmVisitHistory({tenantId,branchId=null,accountType='employee',maxRows=Number.MAX_SAFE_INTEGER}={}){
   if(!tenantId)throw new Error('tenantId is required.');
   if(globalThis.navigator?.onLine===false)throw new Error('تحميل سجل الزيارات للاستخدام دون إنترنت يحتاج اتصالًا.');
-  const limit=Math.min(100000,Math.max(500,Math.floor(Number(maxRows)||50000)));
+  const limit=Math.max(500,Math.floor(Number(maxRows)||Number.MAX_SAFE_INTEGER));
   const rows=[];let total=null;
   for(let offset=0;offset<limit;offset+=500){
     let query=db().from('visits').select('id,tenant_id,branch_id,patient_id,visit_number,visit_work_date,status,is_published,referred_by,notes,updated_at,created_at,patients!inner(id,full_name,phone,patient_number,age_value,age_unit,age_years,date_of_birth,sex,updated_at)',{count:'exact'})
