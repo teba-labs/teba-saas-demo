@@ -61,7 +61,7 @@ test('clinical result entry queues drafts and local approval while keeping final
   assert.doesNotMatch(ui, /requireCloudConnection\('اعتماد الزيارة'\)/);
   assert.doesNotMatch(ui, /approveVisitWithAutoCompletion/);
   assert.match(repository, /entityType:'visit_approval'/);
-  assert.match(ui, /اعتماد محلي/);
+  assert.match(ui, /نتائج محلية/);
   assert.match(ui, /النشر على بوابة المريض يحتاج اتصالًا/);
   assert.match(ui, /Print work copy — awaiting synchronization/);
   assert.match(ui, /not yet available on the patient portal/);
