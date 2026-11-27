@@ -84,6 +84,6 @@ test('saving a partially entered result never attempts visit-wide approval', () 
  const saveFlow=page.slice(start,end);
  assert.match(saveFlow,/await saveVisitDrafts\(visitId\)/);
  assert.doesNotMatch(saveFlow,/approveVisitWithAutoCompletion\(/);
- assert.match(saveFlow,/resultAccepted: true/);
+ assert.match(saveFlow,/تم حفظ النتائج/);
  assert.match(saveFlow,/معاينتها وطباعتها ونشرها/);
 });
