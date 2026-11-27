@@ -19,7 +19,7 @@ pre,code{max-width:100%;overflow:auto}
 :where(a,button,input,select,textarea,[tabindex],[role=button],[role=tab],[role=menuitem]):focus-visible{outline:3px solid #168c8c!important;outline-offset:3px;scroll-margin-block:18px}
 :where([role=tablist],[data-keyboard-list],[role=listbox],[role=menu]):focus-within{scroll-margin-block:18px}
 /* Generic card collections may reflow globally; task-specific workbenches may not. */
-:is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards){min-width:0}
+:is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards,.kpis,.secondary-kpis,.metrics,.tiles,.totals){min-width:0}
 @media(max-width:1099px){
   :is(.apps-grid,.owner-links,.owner-report-grid,.modules,.cards){grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
 }
