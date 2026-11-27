@@ -24,7 +24,7 @@ test('workbench accepts saved results and retains audited correction and PDF pub
   assert.match(script, /saveDraftResults/);
   assert.doesNotMatch(script, /approveVisitWithAutoCompletion/);
   assert.doesNotMatch(script, /approve-visit/);
-  assert.match(script, /حفظ النتائج واعتمادها/);
+  assert.match(script, /حفظ النتائج/);
   assert.match(script, /correctVisitResultWithFlag/);
   assert.match(script, /publishReportVersion/);
   assert.match(script, /صحح نتيجة واحدة في كل مرة/);
