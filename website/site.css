@@ -70,3 +70,5 @@ html[data-theme="dark"] .accordion-symbol{background:#294434}
 @media(max-width:650px){.test-catalog-toolbar{align-items:stretch;flex-direction:column;gap:8px}.test-catalog-list{grid-template-columns:1fr}.test-catalog-row{padding:13px 14px}}
 
 .service-card .service-action{display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:9px 12px;border:1px solid #d7e9df;border-radius:10px;background:#f4faf6;color:var(--teba);font:inherit;font-size:10px;font-weight:800;text-decoration:none;cursor:pointer}.service-card .service-action:hover{background:#eaf5ed;transform:translateY(-1px)}.service-card button.service-action{appearance:none}
+
+@media(max-width:480px){.hero-glow{width:min(100%,420px);height:min(100vw,420px);max-width:100%;left:0}}
