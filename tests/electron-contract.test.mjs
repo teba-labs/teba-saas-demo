@@ -67,3 +67,19 @@ test('core app entry and primary styles do not require Google-hosted fonts', asy
   const styles = await Promise.all(['assets/css/app-home.css','assets/css/reception.css','assets/css/settings-center.css','assets/css/data-import.css'].map(read));
   assert.doesNotMatch(html + reception + styles.join('\\n'), /fonts.googleapis.com|fonts.gstatic.com/i);
 });
+
+
+test('responsive shell protects mobile viewport and keeps wide tables locally scrollable', async () => {
+  const css = await read('assets/css/app-viewport.css');
+  assert.match(css, /min-width:320px/);
+  assert.match(css, /overflow-x:hidden/);
+  assert.match(css, /overflow-x:auto/);
+  assert.match(css, /-webkit-overflow-scrolling:touch/);
+  assert.match(css, /max-width:767px/);
+  assert.match(css, /max-width:420px/);
+});
+
+test('primary workflow pages declare device-width viewports', async () => {
+  const pages = await Promise.all(['app/index.html','app/reception.html','app/workday.html','app/results-workbench.html','app/result-entry.html','app/sync-center.html','portal/index.html'].map(read));
+  for (const html of pages) assert.match(html, /name="viewport"[^>]*content="width=device-width/);
+});
