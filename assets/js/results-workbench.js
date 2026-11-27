@@ -1258,6 +1258,7 @@ async function shareDirectReport(button){
     }
     if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ أي تعديلات على النتائج قبل إرسال التقرير.');
     const reportHtml=state.reportPreviewHtml.get(visitId);
+    if(reportHtml.includes('LOCAL WORK COPY — saved on this device and awaiting synchronization'))throw new Error('لا يمكن إرسال نسخة العمل المحلية قبل مزامنة النتائج مع السحابة.');
     setBusy(button,true,'جارٍ تجهيز نسخة PDF…');
     shareWindow=window.open('','_blank');
     if(!shareWindow)throw new Error('اسمح بفتح نافذة مؤقتة لتجهيز ملف التقرير.');
