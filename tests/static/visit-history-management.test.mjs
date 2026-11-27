@@ -85,7 +85,7 @@ test('visit-specific range edits require no reason, never alter catalog, and syn
 test('approved unpublished result and range corrections are owner-only', () => {
   assert.match(migration, /Only the lab owner may correct an approved unpublished visit/);
   assert.match(workbench, /canCorrectApproved = group\.visit\?\.status === 'approved' && !isPublished && state\.tenant\?\.accountType === 'owner'/);
-  assert.match(layout, /canEditApprovedRange = group\.visit\?\.status === 'approved' && !isPublished && state\.tenant\?\.accountType === 'owner'/);
+  assert.match(workbench, /canEditApprovedRange = group\.visit\?\.status === 'approved' && !isPublished && state\.tenant\?\.accountType === 'owner'/);
 });
 
 test('published correction preserves the report history but no longer requires a text reason', () => {
