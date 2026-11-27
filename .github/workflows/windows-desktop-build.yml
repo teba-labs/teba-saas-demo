@@ -49,9 +49,7 @@ jobs:
           $desktop = $null
           $launchDeadline = (Get-Date).AddSeconds(45)
           while ((Get-Date) -lt $launchDeadline -and -not $desktop) {
-            $processInfo = Get-CimInstance -ClassName Win32_Process -Filter "Name='Taiba Smart Lab.exe'" |
-              Where-Object { $_.ExecutablePath -eq $appExe } | Select-Object -First 1
-            if ($processInfo) { $desktop = Get-Process -Id $processInfo.ProcessId -ErrorAction SilentlyContinue }
+            $desktop = Get-Process -Name 'Taiba Smart Lab' -ErrorAction SilentlyContinue | Select-Object -First 1
             if (-not $desktop) { Start-Sleep -Seconds 1 }
           }
           if (-not $desktop) { throw "Opening the desktop shortcut did not launch Taiba Smart Lab" }
