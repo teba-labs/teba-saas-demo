@@ -79,11 +79,13 @@ test('clinical result entry queues drafts and local approval while keeping final
 test('approved report publication and WhatsApp handoff use the private tenant report path and patient portal', () => {
   const reports = read('modules/reports/repository.js');
   const layout = read('assets/js/results-workbench-layout.js');
-  assert.match(reports, /functions\.invoke\('publish-report'/);
-  assert.match(reports, /storage\.from\('tenant-reports'\)/);
-  assert.match(layout, /wa\.me\//);
-  assert.match(layout, /portal\/index\.html/);
-  assert.match(layout, /record\.published/);
+  const resultsWorkbench = read('assets/js/results-workbench.js');
+  assert.ok(reports.includes("functions.invoke('publish-report'"));
+  assert.ok(reports.includes("storage.from('tenant-reports')"));
+  assert.ok(resultsWorkbench.includes('wa.me/'));
+  assert.ok(resultsWorkbench.includes('portal/index.html'));
+  assert.ok(resultsWorkbench.includes('sharePublishedReport'));
+  assert.ok(layout.includes('record.actions.forEach'));
 });
 
 

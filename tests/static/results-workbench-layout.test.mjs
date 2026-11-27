@@ -39,8 +39,14 @@ test('hide and restore are branch-scoped, audited, and never hard-delete medical
  assert.ok(!layout.includes('.delete('));
 });
 
-test('WhatsApp sharing stays disabled unless the optional patient portal is enabled',()=>{
- for(const value of ['record.published','wa.me','tenantSlug','portal/index.html','isPatientPortalEnabled','settings?.enabled === true','whatsapp.disabled=true','APP_ENV.supabase.url','/^20\\d{9,11}$/']) assert.ok(layout.includes(value),value);
+test('WhatsApp action follows the lab portal subscription and the same visit action is moved to the action bar',()=>{
+ for(const value of ['state.portalEnabled','state.portalConfigKnown','group.visit?.patients?.phone','share-direct-report','share-published-report','share-partial-report']) assert.ok(js.includes(value),value);
+ assert.match(js,/async function shareDirectReport/);
+ assert.match(js,/window\.open\('','_blank'\)/);
+ assert.match(js,/shareWindow\.location\.href=waUrl/);
+ assert.match(layout,/record\.actions\.forEach/);
+ assert.match(layout,/actions\.append\(node\)/);
+ assert.doesNotMatch(layout,/إرسال واتساب للنتائج/);
 });
 
 test('test cards open in a same-screen modal instead of navigating to another page',()=>{
@@ -82,7 +88,7 @@ test('individual and profile result forms open in an accessible same-screen moda
 
 
 test('WhatsApp accepts Egyptian mobile numbers with or without the leading zero',()=>{
- assert.ok(layout.includes("else if(/^1[0125]\\d{8}$/.test(waPhone))waPhone='20'+waPhone;"));
- assert.match(layout,/انشر النتائج المحفوظة أولًا قبل إرسال رابطها/);
- assert.match(layout,/فعّل بوابة المريض من إعدادات الموقع أولًا/);
+ assert.match(js,/if\(phone\.startsWith\('0'\)\)phone='20'\+phone\.slice\(1\)/);
+ assert.match(js,/phone\.length===10&&\/\^1\[0125\]/);
+ assert.match(js,/wa\.me\//);
 });

@@ -24,7 +24,19 @@ test('direct WhatsApp report sharing creates a local PDF and never uploads or si
 test('no-portal WhatsApp action remains available and the updated module is precached', () => {
   assert.match(source, /share-direct-report/);
   assert.match(source, /!state\.portalEnabled && state\.portalConfigKnown/);
-  assert.match(page, /visit-results-management-20261127-v3/);
-  assert.match(worker, /taiba-smart-lab-shell-v101/);
-  assert.match(worker, /visit-results-management-20261127-v3/);
+  assert.match(page, /visit-results-management-20261127-v4/);
+  assert.match(worker, /taiba-smart-lab-shell-v102/);
+  assert.match(worker, /visit-results-management-20261127-v4/);
+});
+
+
+test('results action bar uses the subscription-aware WhatsApp action from the visit card without adding a disabled duplicate', async () => {
+  const layout = await readFile(new URL('../../assets/js/results-workbench-layout.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(layout, /إرسال واتساب للنتائج/);
+  assert.doesNotMatch(layout, /isPatientPortalEnabled/);
+  assert.match(layout, /record\.actions\.forEach/);
+  assert.match(layout, /actions\.append\(node\)/);
+  assert.match(source, /share-direct-report/);
+  assert.match(source, /share-published-report/);
+  assert.match(source, /share-partial-report/);
 });
