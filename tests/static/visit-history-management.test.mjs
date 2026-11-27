@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
 
-const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, receptionUi, page, workbench, layout, migration131, migration132, migration134, migration135, worker] = await Promise.all([
+const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, receptionUi, page, workbench, layout, migration131, migration132, migration134, migration135, migration136, worker] = await Promise.all([
   read('../../modules/reception/visit-management-repository.js'),
   read('../../modules/reception/repository.js'),
   read('../../modules/results/repository.js'),
@@ -18,9 +18,10 @@ const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, recepti
   read('../../database/migrations/132_fix_published_correction_and_owner_delete.sql'),
   read('../../database/migrations/134_owner_only_approved_visit_corrections.sql'),
   read('../../database/migrations/135_remove_reasons_from_all_correction_rpcs.sql'),
+  read('../../database/migrations/136_owner_only_approved_result_correction.sql'),
   read('../../service-worker.js'),
 ]);
-const migration = migration131 + '\\n' + migration132 + '\\n' + migration134 + '\\n' + migration135;
+const migration = migration131 + '\\n' + migration132 + '\\n' + migration134 + '\\n' + migration135 + '\\n' + migration136;
 
 test('reception history searches all tenant visits and shows an exact registered visit count', () => {
   assert.match(historyRepo, /export async function listVisitHistory/);
@@ -85,6 +86,7 @@ test('visit-specific range edits require no reason, never alter catalog, and syn
 
 test('approved unpublished result and range corrections are owner-only', () => {
   assert.match(migration, /Only the lab owner may correct an approved unpublished visit/);
+  assert.match(migration136, /An approved unpublished visit can only be corrected by the tenant owner/);
   assert.match(workbench, /canCorrectApproved = group\.visit\?\.status === 'approved' && !isPublished && state\.tenant\?\.accountType === 'owner'/);
   assert.match(workbench, /canEditApprovedRange = group\.visit\?\.status === 'approved' && !isPublished && state\.tenant\?\.accountType === 'owner'/);
 });
