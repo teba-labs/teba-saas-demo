@@ -1248,7 +1248,10 @@ async function shareDirectReport(button){
   let shareWindow=null;
   let objectUrl=null;
   try{
-    const card=button.closest('.work-card'),visitId=button.dataset.visitId;
+    const visitId=button.dataset.visitId;
+    // The results layout moves action buttons into a shared action bar, outside their source visit card.
+    // Resolve the original card by visit id so the patient phone is not lost after that move.
+    const card=button.closest('.work-card')||[...document.querySelectorAll('.work-source-card')].find(node=>node.dataset.visitId===visitId);
     const patientName=String(card?.dataset.patientName||'').trim(),visitNumber=String(card?.dataset.visitNumber||'').trim();
     const phone=normalizeWhatsAppNumber(card?.dataset.patientPhone||'');
     if(!patientName||!visitNumber||!visitId)throw new Error('بيانات المريض أو الزيارة غير مكتملة.');
