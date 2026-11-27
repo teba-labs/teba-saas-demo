@@ -54,7 +54,7 @@ try {
       const page = await context.newPage();
       try {
         await page.goto('http://127.0.0.1:4178' + route, {waitUntil:'domcontentloaded',timeout:30000});
-        const result = await page.evaluate(() => {
+        if (route === '/app/index.html' || route === '/app/reception.html') {\n          const email = page.locator('#email');\n          const password = page.locator('#password');\n          if (await email.count()) await email.fill('responsive-smoke@example.invalid');\n          if (await password.count()) await password.fill('not-a-real-password');\n          if (await email.count() && await email.inputValue() !== 'responsive-smoke@example.invalid') failures.push(`${device.name} ${route}: email field did not accept input`);\n          if (await password.count() && await password.inputValue() !== 'not-a-real-password') failures.push(`${device.name} ${route}: password field did not accept input`);\n        }\n        const result = await page.evaluate(() => {
           const width = document.documentElement.clientWidth;
           const scroll = Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth || 0);
           const viewport = document.querySelector('meta[name="viewport"]')?.content || '';
