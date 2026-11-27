@@ -114,7 +114,7 @@ function testLauncher(node,record,kind,workspace){
    if(typeof window.taibaSaveResultsForTest!=='function'){window.alert('تعذر تحميل خدمة حفظ النتائج.');return;}
    save.disabled=true;save.textContent='جارٍ الحفظ والتحقق…';
    try{
-    const result=await window.taibaSaveAndAcceptResults(record.visitId,node.dataset.testId);
+    const result=await window.taibaSaveResultsForTest(record.visitId,node.dataset.testId);
     if(result?.saved)node.dataset.resultSaved='true';
     if(result?.completed){closeModal(true);}
     else {save.disabled=false;save.textContent='حفظ النتائج';}
