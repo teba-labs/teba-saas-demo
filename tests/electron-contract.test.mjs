@@ -84,3 +84,28 @@ test('primary workflow pages declare device-width viewports', async () => {
   const pages = await Promise.all(['app/index.html','app/reception.html','app/workday.html','app/results-workbench.html','app/result-entry.html','app/sync-center.html','app/catalog.html','app/dashboard.html','app/settings.html','app/cms-editor.html','app/site-management.html','app/site-preview.html','app/data-import.html','app/platform-admin.html','portal/index.html'].map(read));
   for (const html of pages) assert.match(html, /name="viewport"[^>]*content="width=device-width/);
 });
+
+test('local protocol rejects traversal and non-read methods before file access', async () => {
+  const main = await read('electron/main.cjs');
+  assert.match(main, /request\.method !== 'GET' && request\.method !== 'HEAD'/);
+  assert.match(main, /path\.resolve\(root, '\.' \+ pathname\)/);
+  assert.match(main, /!isInsideRoot\(filePath, root\)/);
+  assert.match(main, /return new Response\('Forbidden', \{ status: 403 \}\)/);
+});
+
+test('external navigation is allow-listed and embedded webviews are blocked', async () => {
+  const main = await read('electron/main.cjs');
+  assert.match(main, /url\.protocol === 'https:' \|\| url\.protocol === 'mailto:' \|\| url\.protocol === 'tel:'/);
+  assert.match(main, /will-navigate/);
+  assert.match(main, /will-redirect/);
+  assert.match(main, /will-attach-webview/);
+  assert.match(main, /event\.preventDefault\(\)/);
+});
+
+test('desktop window keeps renderer security boundaries enabled', async () => {
+  const main = await read('electron/main.cjs');
+  assert.match(main, /webSecurity:\s*true/);
+  assert.match(main, /allowRunningInsecureContent:\s*false/);
+  assert.match(main, /webviewTag:\s*false/);
+  assert.match(main, /setPermissionCheckHandler\(\(\) => false\)/);
+});
