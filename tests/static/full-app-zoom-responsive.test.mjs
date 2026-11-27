@@ -28,17 +28,18 @@ test('every application, portal and public-site page loads the shared viewport l
   }
 });
 
-test('shared responsive layer overrides page-specific fixed grids at desktop zoom and tablet widths',async()=>{
+test('shared viewport layer preserves page-owned grids and only adapts generic card collections',async()=>{
   const css=await read('assets/css/app-viewport.css');
-  for(const selector of ['body .login-layout','body .results-columns','.layout','.workspace-context','.selectors','.filters','.form-grid','.fields','.studio-nav','.modules','.kpis','.tiles','.totals','.table-wrap']){
-    assert.ok(css.includes(selector),'missing shared responsive override: '+selector);
+  for(const selector of ['.apps-grid','.owner-links','.owner-report-grid','.modules','.cards','.table-wrap']){
+    assert.ok(css.includes(selector),'missing safe shared selector: '+selector);
   }
-  for(const breakpoint of ['1100px','900px','700px','520px','360px']){
-    assert.ok(css.includes('max-width:'+breakpoint),'missing viewport breakpoint '+breakpoint);
+  for(const breakpoint of ['1099px','767px','420px']){
+    assert.ok(css.includes('max-width:'+breakpoint),'missing safe viewport breakpoint '+breakpoint);
   }
   assert.match(css,/grid-template-columns:repeat\(auto-fit,minmax/);
   assert.match(css,/overflow-x:auto/);
-  assert.match(css,/flex-wrap:wrap/);
+  assert.doesNotMatch(css,/\.layout\s*\{|\.form-grid\s*\{|\.results-columns\s*\{/,
+    'shared viewport CSS must not overwrite page-specific workbench grids');
 });
 
 test('results workbench keeps three desktop columns, reflows at tablet, and uses phone tabs',async()=>{
