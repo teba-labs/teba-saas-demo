@@ -71,7 +71,7 @@ test('individual and profile result forms open in an accessible same-screen moda
  assert.match(js,/await saveVisitDrafts\(visitId\)/);
  assert.match(js,/تم حفظ النتائج واعتماد القيم المسجلة/);
  assert.doesNotMatch(js.slice(js.indexOf('async function saveAndAcceptResults('),js.indexOf('window.taibaSaveAndAcceptResults =')),/approveVisitWithAutoCompletion\(/);
- assert.match(js,/saveAndMaybeApproveVisit/);
+ assert.match(js,/saveAndAcceptResults/);
  assert.match(js,/completeVisitTestAtomic/);
  assert.match(js,/partialReport/);
  assert.match(js,/Print saved results/);
