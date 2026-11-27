@@ -105,6 +105,7 @@ test('WhatsApp sharing remains available without a patient portal through a priv
  assert.ok(js.includes("uploadVisitAttachment({tenantId:state.tenant.id,branchId:state.branch.id,visitId,file})"));
  assert.ok(js.includes("createAttachmentDownloadUrl({tenantId:state.tenant.id,branchId:state.branch.id,fileId:uploaded.id,expiresIn:86400})"));
  assert.ok(js.includes('رابط آمن لملف التقرير (صالح لمدة 24 ساعة)'));
+ assert.ok(js.includes('لا يمكن إرسال نسخة العمل المحلية قبل مزامنة النتائج مع السحابة.'));
  assert.ok(js.includes("sharePortalLinkViaWhatsApp(button,'partial')"));
  assert.ok(js.includes("sharePortalLinkViaWhatsApp(button,'final')"));
  const files=fs.readFileSync(new URL('modules/files/repository.js',root),'utf8');
