@@ -136,12 +136,23 @@ export async function createVisit({ tenantId, branchId, patientId, visitNumber, 
 export async function addTestToVisit({ tenantId, branchId, visitId, testId, staffId } = {}) {
   need(tenantId, 'tenantId'); need(branchId, 'branchId'); need(visitId, 'visitId'); need(testId, 'testId');
   if (!staffId) throw new Error('An active staff identity is required to add a test to this visit.');
-  if (globalThis.navigator?.onLine === false) throw new Error('إضافة تحليل لزيارة قائمة تحتاج اتصالًا بالإنترنت.');
+  const localVisit=(await getCachedRows('visits',{tenantId,branchId})).find(row=>row.id===visitId);
+  const queue=async()=>{
+    const operationId=uuid();
+    await enqueueOperation({tenantId,branchId,entityType:'visit_test_add',action:'add',operationId,
+      payload:{visit_id:visitId,test_id:testId,staff_id:staffId,local_visit_pending:Boolean(localVisit?.local_intake_operation_id)},
+      dependsOn:localVisit?.local_intake_operation_id?[localVisit.local_intake_operation_id]:[],priority:4});
+    return {queued:true,operationId};
+  };
+  if (globalThis.navigator?.onLine === false || localVisit?.local_intake_operation_id) return queue();
   const { data, error } = await db().rpc('add_test_to_visit_atomic', {
     p_tenant_id: tenantId, p_branch_id: branchId, p_visit_id: visitId,
     p_test_id: testId, p_staff_id: staffId,
   });
-  if (error) throw error;
+  if (error) {
+    if (/fetch|network|offline/i.test(error.message || '')) return queue();
+    throw error;
+  }
   return data;
 }
 

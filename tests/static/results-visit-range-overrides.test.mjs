@@ -17,7 +17,9 @@ test('reference range overrides are loaded and saved by visit-test and parameter
 });
 
 test('range editing is available before approval, including a previously completed test, but not after publication',()=>{
- assert.ok(ui.includes("isPublished || (group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled')"));
+ assert.ok(ui.includes("const canEditApprovedRange = group.visit?.status === 'approved' && !isPublished && state.tenant?.accountType === 'owner'"));
+ assert.ok(ui.includes("isPublished || (group.visit?.status !== 'cancelled' && (group.visit?.status !== 'approved' || canEditApprovedRange))"));
+ assert.ok(read('database/migrations/134_owner_only_approved_visit_corrections.sql').includes('Only the lab owner may correct an approved unpublished visit'));
  assert.ok(ui.includes('تصحيح رينج التقرير المنشور'));
  assert.ok(ui.includes('التقرير السابق محفوظ'));
  assert.ok(migration.includes('app.result_correction'));

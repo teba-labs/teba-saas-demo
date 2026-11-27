@@ -78,8 +78,8 @@ export async function publishReportVersion({ tenantId, branchId, visitId, staffI
 }
 
 /** Audited clinical correction. A new PDF version must be published after the correction. */
-export async function correctPublishedResult({ tenantId, branchId, visitId, resultId, valueNumeric = null, valueText = null, reason, staffId } = {}) {
-  for (const [v, n] of [[tenantId,'tenantId'],[branchId,'branchId'],[visitId,'visitId'],[resultId,'resultId'],[reason,'reason'],[staffId,'staffId']]) need(v, n);
+export async function correctPublishedResult({ tenantId, branchId, visitId, resultId, valueNumeric = null, valueText = null, staffId } = {}) {
+  for (const [v, n] of [[tenantId,'tenantId'],[branchId,'branchId'],[visitId,'visitId'],[resultId,'resultId'],[staffId,'staffId']]) need(v, n);
   const numeric = valueNumeric === '' || valueNumeric === null || valueNumeric === undefined ? null : Number(valueNumeric);
   const textValue = valueText === '' || valueText === null || valueText === undefined ? null : String(valueText);
   if ((numeric === null) === (textValue === null)) throw new Error('Provide exactly one numeric or text result value.');
@@ -87,7 +87,7 @@ export async function correctPublishedResult({ tenantId, branchId, visitId, resu
   const { data, error } = await db().rpc('correct_published_result', {
     p_tenant_id: tenantId, p_branch_id: branchId, p_visit_id: visitId,
     p_result_id: resultId, p_value_numeric: numeric, p_value_text: textValue,
-    p_reason: String(reason).trim(), p_staff_id: staffId,
+    p_reason: null, p_staff_id: staffId,
   });
   if (error) throw error;
   return data;
@@ -116,25 +116,53 @@ export function publicationRequiresServerWorkflow() {
 }
 
 /** Correct a completed result before approval; the visit and all other visits remain unchanged. */
-export async function correctCompletedVisitResult({tenantId,branchId,visitTestId,resultId,valueNumeric,valueText,reason,staffId}={}) {
-  if(!tenantId||!branchId||!visitTestId||!resultId||!staffId||!String(reason||'').trim()) throw new Error('بيانات تصحيح النتيجة غير مكتملة.');
+export async function correctCompletedVisitResult({tenantId,branchId,visitTestId,resultId,valueNumeric,valueText,staffId}={}) {
+  if(!tenantId||!branchId||!visitTestId||!resultId||!staffId) throw new Error('بيانات تصحيح النتيجة غير مكتملة.');
   if((valueNumeric==null)===(valueText==null)) throw new Error('أدخل قيمة رقمية أو نصية واحدة فقط.');
   if(globalThis.navigator?.onLine===false) throw new Error('تصحيح نتيجة محفوظة يحتاج اتصالًا بالإنترنت.');
   const {data,error}=await getSupabaseClient().rpc('correct_completed_visit_result',{
     p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTestId,p_result_id:resultId,
-    p_value_numeric:valueNumeric,p_value_text:valueText,p_reason:String(reason).trim(),p_staff_id:staffId,
+    p_value_numeric:valueNumeric,p_value_text:valueText,p_reason:null,p_staff_id:staffId,
   });
   if(error)throw error;return data;
 }
 
 /** Correct one completed result with its recalculated flag; preserves the previous published report version. */
-export async function correctVisitResultWithFlag({tenantId,branchId,visitTestId,resultId,valueNumeric,valueText,flag,reason,staffId}={}) {
-  if(!tenantId||!branchId||!visitTestId||!resultId||!staffId||!String(reason||'').trim()) throw new Error('بيانات تصحيح النتيجة غير مكتملة.');
+export async function correctVisitResultWithFlag({tenantId,branchId,visitTestId,resultId,parameterCode,valueNumeric,valueText,flag,staffId}={}) {
+  if(!tenantId||!branchId||!visitTestId||!resultId||!staffId) throw new Error('بيانات تصحيح النتيجة غير مكتملة.');
   if((valueNumeric==null)===(valueText==null)) throw new Error('أدخل قيمة رقمية أو نصية واحدة فقط.');
-  if(globalThis.navigator?.onLine===false) throw new Error('تصحيح نتيجة محفوظة يحتاج اتصالًا بالإنترنت.');
+  const numeric=valueNumeric==null?null:Number(valueNumeric);
+  if(numeric!==null&&!Number.isFinite(numeric))throw new Error('القيمة الرقمية غير صحيحة.');
+  const textValue=valueText==null?null:String(valueText);
+  const pending=await offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray();
+  const related=pending.filter(op=>
+    (op.entity_type==='draft_results'&&op.payload?.visit_test_id===visitTestId)
+    ||(op.entity_type==='visit_intake'&&(op.payload?.local_visit_test_ids||[]).some(item=>item.id===visitTestId)));
+  const visitTests=await getCachedRows('visit_tests',{tenantId,branchId});
+  const test=visitTests.find(row=>row.id===visitTestId);
+  const localVisit=test?(await getCachedRows('visits',{tenantId,branchId})).find(row=>row.id===test.visit_id):null;
+  const localVisitPending=Boolean(localVisit?.local_intake_operation_id);
+  const operationId=crypto.randomUUID();
+  const dependencies=[...new Set([
+    ...related.map(op=>op.operation_id),
+    ...(localVisitPending?[localVisit.local_intake_operation_id]:[]),
+  ].filter(Boolean))];
+  const queue=async()=>{
+    await enqueueOperation({tenantId,branchId,entityType:'result_correction',action:'correct',operationId,
+      payload:{visit_test_id:visitTestId,result_id:resultId,parameter_code:parameterCode||null,
+        visit_test_pending:localVisitPending,value_numeric:numeric,value_text:textValue,flag:flag??null,staff_id:staffId},
+      dependsOn:dependencies,priority:8});
+    const cached=await getCachedRows('test_results',{tenantId,branchId});
+    const existing=cached.find(row=>row.id===resultId||row.visit_test_id===visitTestId&&row.parameter_code===parameterCode);
+    if(existing)await cacheRows('test_results',[{...existing,value_numeric:numeric,value_text:textValue,flag:flag??null,local_correction_pending:true,updated_at:new Date().toISOString()}]);
+    return {queued:true,operationId};
+  };
+  if(globalThis.navigator?.onLine===false||dependencies.length)return queue();
   const {data,error}=await getSupabaseClient().rpc('correct_visit_result_with_flag',{
     p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTestId,p_result_id:resultId,
-    p_value_numeric:valueNumeric,p_value_text:valueText,p_flag:flag??null,p_reason:String(reason).trim(),p_staff_id:staffId,
+    p_value_numeric:numeric,p_value_text:textValue,p_flag:flag??null,p_reason:null,p_staff_id:staffId,
   });
-  if(error)throw error;return data;
+  if(error){if(/fetch|network|offline/i.test(error.message||''))return queue();throw error;}
+  await cacheRows('test_results',[{...data,branch_id:branchId}]);
+  return data;
 }

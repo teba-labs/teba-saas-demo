@@ -11,6 +11,34 @@
   <link rel="stylesheet" href="../assets/css/reception.css?v=reception-workspace-20261127-v3">
   <link rel="stylesheet" href="../assets/css/app-viewport.css">
   <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('../service-worker.js').catch(()=>{}));}</script>
+
+<style>
+.visit-history-toolbar{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(220px,1fr) auto;gap:12px;align-items:end;margin:16px 0}
+.visit-history-toolbar label{display:grid;gap:6px}.visit-history-toolbar input{width:100%;min-width:0}
+.visit-history-toolbar strong,.visit-history-toolbar small{display:block}.visit-history-toolbar small{margin-top:5px}
+.visit-history-pagination{display:flex;align-items:center;justify-content:center;gap:14px;margin:12px 0}
+.visit-history-card{border:1px solid var(--border,#d8e1df);border-radius:14px;padding:14px;margin:10px 0;background:var(--surface,#fff)}
+.visit-history-main{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.visit-history-main>div:first-child strong,.visit-history-main>div:first-child small{display:block}
+.visit-history-main>div:first-child small{margin-top:5px;color:var(--muted,#667)}
+.visit-history-actions{display:flex;flex-wrap:wrap;gap:7px;max-width:740px}
+.visit-history-actions .button{font-size:.84rem;padding:7px 10px}
+.visit-history-tests{border-top:1px solid var(--border,#d8e1df);margin-top:12px;padding-top:10px}
+.visit-history-test{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:6px 0}
+.visit-history-test .button{font-size:.8rem;padding:5px 9px}
+.visit-management-dialog{border:0;border-radius:16px;padding:0;width:min(560px,calc(100vw - 28px));max-height:85vh;box-shadow:0 20px 60px #0003}
+.visit-management-dialog::backdrop{background:#102b2b66}
+.visit-management-form{display:grid;gap:13px;padding:20px;overflow:auto;max-height:85vh}
+.visit-management-form header,.visit-management-form footer{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.visit-management-form h2{font-size:1.1rem;margin:0}.visit-management-form label{display:grid;gap:6px}
+.visit-management-form input,.visit-management-form select,.visit-management-form textarea{width:100%;min-width:0}
+.visit-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dialog-close{border:0;background:transparent;font-size:1.5rem;cursor:pointer}
+.history-catalog-rows>div{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid var(--border,#d8e1df);padding:9px 0}
+.history-catalog-rows small{display:block;color:var(--muted,#667)}
+@media(max-width:720px){.visit-history-toolbar{grid-template-columns:1fr}.visit-history-main{display:grid}.visit-history-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.visit-history-actions .button{width:100%}.visit-form-grid{grid-template-columns:1fr}}
+</style>
+
 </head>
 <body class="reception-page">
 <header class="topbar">
@@ -45,7 +73,7 @@
     <p id="pendingSyncNotice" class="status bad" hidden>توجد عمليات محفوظة على هذا الجهاز تنتظر المزامنة. افتح <a href="sync-center.html">مركز المزامنة</a> لمتابعتها.</p>
     <nav class="reception-section-nav" data-keyboard-tabs="reception" aria-label="أقسام الاستقبال">
       <button type="button" data-reception-view="intake" aria-pressed="true">تسجيل زيارة جديدة</button>
-      <button type="button" data-reception-view="recent" aria-pressed="false">آخر الزيارات</button>
+      <button type="button" data-reception-view="recent" aria-pressed="false">سجل الزيارات</button>
       <button type="button" data-reception-view="balances" aria-pressed="false">المديونيات والتحصيلات</button>
     </nav>
 
@@ -138,8 +166,14 @@
 
 
     <section id="recentPanel" class="panel">
-      <div class="section-head"><div><span class="step-kicker">متابعة الفرع</span><h2>آخر الزيارات المسجلة</h2><p class="muted">آخر الزيارات التي تم تسجيلها في الفرع الحالي.</p></div><button id="refreshRecent" class="button button-secondary" type="button">تحديث القائمة</button></div>
-      <div id="recentVisits" class="matches"><p class="muted">اختر الفرع لعرض الزيارات.</p></div>
+      <div class="section-head"><div><span class="step-kicker">السجل الطبي الكامل</span><h2>البحث وإدارة كل الزيارات</h2><p class="muted">ابحث بالاسم أو الهاتف أو كود المريض أو رقم الزيارة. مالك المعمل يبحث في كل الفروع.</p></div><button id="refreshRecent" class="button button-secondary" type="button">تحديث السجل</button></div>
+      <div class="visit-history-toolbar">
+        <label for="visitHistorySearch">بحث شامل في الزيارات<input id="visitHistorySearch" type="search" placeholder="اسم المريض أو الهاتف أو رقم الزيارة أو كود الملف"></label>
+        <div><strong id="visitHistoryTotal">جارٍ حساب عدد الزيارات…</strong><small id="visitHistoryScope" class="muted"></small></div>
+        <button id="visitHistoryLoadOffline" class="button button-secondary" type="button">تجهيز السجل للعمل دون إنترنت</button>
+      </div>
+      <div class="visit-history-pagination"><button id="visitHistoryPrev" class="button button-ghost" type="button" disabled>السابق</button><small id="visitHistoryPage">—</small><button id="visitHistoryNext" class="button button-ghost" type="button" disabled>التالي</button></div>
+      <div id="visitHistoryList" class="matches"><p class="muted">اختر الفرع لعرض سجل الزيارات الكامل.</p></div><div id="recentVisits" class="matches" hidden aria-hidden="true"></div>
     </section>
     <section id="paymentReceipt" class="panel receipt-panel" hidden><div id="paymentReceiptContent"></div><div class="actions print-actions"><button id="printPaymentReceipt" class="button button-secondary" type="button">طباعة إيصال التحصيل</button></div></section>
     <section id="balancePanel" class="panel">
@@ -150,7 +184,8 @@
   <div id="notice" class="notice" role="status" aria-live="polite"></div>
 </main>
 <script type="module" src="../assets/js/tenant-branding.js"></script>
-<script type="module" src="../assets/js/reception.js?v=enter-flow-20261126-v2"></script>
+<script type="module" src="../assets/js/reception.js?v=visit-management-20261127-v2"></script>
+<script type="module" src="../assets/js/reception-visit-history.js?v=visit-management-20261127-v3"></script>
 <script type="module" src="../modules/ui/keyboard-navigation.js"></script>
 <script type="module" src="../assets/js/theme-controller.js"></script>
 </body>

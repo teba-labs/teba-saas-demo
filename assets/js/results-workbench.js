@@ -302,7 +302,7 @@ async function renderWork() {
     const canPublishReport = state.portalEnabled && isPublished;
     const itemsMarkup = group.items.map(item => {
       const locked = item.status === 'completed';
-      const canCorrectApproved = state.tenant.accountType === 'owner' && group.visit?.status === 'approved' && !isPublished;
+      const canCorrectApproved = group.visit?.status === 'approved' && !isPublished && state.tenant?.accountType === 'owner';
       const params = item.technical_snapshot?.parameters ?? [];
       const groupedParams = new Map();
       for (const p of params) { const sectionName = p.clinical_metadata?.section || 'النتائج'; if (!groupedParams.has(sectionName)) groupedParams.set(sectionName, []); groupedParams.get(sectionName).push(p); }
@@ -314,7 +314,8 @@ async function renderWork() {
         const metadata=`aria-label="${name}" data-param-code="${code}" data-param-name="${name}" data-unit="${escapeHtml(p.unit??'')}" data-value-type="${escapeHtml(type)}" data-input-mode="${escapeHtml(mode)}" data-result-config='${escapeHtml(JSON.stringify(p.result_config||{}))}' data-range='${escapeHtml(JSON.stringify(parameterRange))}' data-choices='${escapeHtml(JSON.stringify(resultChoices(p)))}' data-reference-interval-status='${escapeHtml(p.reference_interval_status??'local_verification_required')}' data-patient-age='${escapeHtml(patientAgeInYears(item.visits?.patients||{})??'')}' data-patient-sex='${escapeHtml(item.visits?.patients?.sex??'')}' data-critical-range='${escapeHtml(JSON.stringify(p.critical_ranges??[]))}'`;
         const control=renderResultControl(p,metadata,locked,mode);
         const rangeText = resolveReferenceRange(parameterRange, item.visits?.patients || {}, p.reference_interval_status);
-        const rangeEditButton = (isPublished || (group.visit?.status !== 'approved' && group.visit?.status !== 'cancelled'))
+        const canEditApprovedRange = group.visit?.status === 'approved' && !isPublished && state.tenant?.accountType === 'owner';
+        const rangeEditButton = (isPublished || (group.visit?.status !== 'cancelled' && (group.visit?.status !== 'approved' || canEditApprovedRange)))
           ? '<button type="button" class="edit-reference-range" data-visit-test-id="' + escapeHtml(item.id) + '" data-param-code="' + code + '" data-range="' + escapeHtml(JSON.stringify(parameterRange)) + '" data-published="' + String(isPublished) + '">' + (isPublished ? 'تصحيح رينج التقرير المنشور' : 'تعديل الرينج لهذه الزيارة') + '</button>' : '';
         return '<div class="result-field" data-display-rules=\'' + escapeHtml(JSON.stringify(displayRules)) + '\'><span class="result-field-name">' + name + (p.is_required === false ? ' (اختياري)' : '') + '</span><small>' + escapeHtml(p.unit ?? '') + ' ' + escapeHtml(rangeText) + '</small>' + control + rangeEditButton + '</div>';
       }).join('')}</fieldset>`).join('');
@@ -334,7 +335,7 @@ async function renderWork() {
       <div class="file-row report-publish-row"><p class="muted">احفظ النتائج أولًا، ثم عاينها وانشر النتائج المسجلة على بوابة المريض.</p><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${!state.portalEnabled ? 'بوابة المريض غير مفعلة' : 'نشر نسخة مصححة'}</button>${canPublishPartial ? '<button class="button button-secondary publish-partial-report" data-partial="true" data-visit-id="' + escapeHtml(visitId) + '">' + (isPartialPublished ? 'نشر تحديث النتائج' : 'نشر النتائج المحفوظة') + '</button>' : ''}</div>
       ${isPartialPublished && state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-partial-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط النتائج عبر واتساب</button></div>' : ''}
       ${isPublished && state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-published-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط التقرير المصحح عبر واتساب</button></div>' : ''}
-      ${hasAnySavedResults && !state.portalEnabled && state.portalConfigKnown && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-direct-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال نسخة PDF عبر واتساب</button></div><p class="muted">متاح بدون بوابة مرضى أو موقع عام؛ رابط خاص مؤقت لملف التقرير.</p>' : ''}
+      ${hasAnySavedResults && !state.portalEnabled && state.portalConfigKnown && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-direct-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال نسخة PDF عبر واتساب</button></div><p class="muted">متاح بدون بوابة مرضى؛ يتم تجهيز ملف PDF محليًا على الجهاز دون رفعه إلى السحابة.</p>' : ''}
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
       <p class="danger-note">اسم المستخدم الذي أجرى التصحيح يُسجل تلقائيًا في سجل المراجعة، ولا يحتاج الفني إلى كتابة سبب للتصحيح.</p>`;
@@ -454,13 +455,14 @@ async function editReferenceRange(button) {
     referenceRanges=[{lower,upper}];
   }else referenceRanges=[{text:clean}];
   if(button.dataset.published==='true'&&!window.confirm('هذه الزيارة منشورة بالفعل. سيظل التقرير السابق محفوظًا، وسيحتاج التعديل إلى معاينة ونشر نسخة مصححة. هل تريد المتابعة؟'))return;
-  const reason=window.prompt('سبب تعديل المدى (سيُحفظ في سجل التعديلات):','تعديل محلي للمدى المرجعي أثناء تسجيل النتيجة');
-  if(reason===null)return;
-  const saveReason=reason.trim()||'تعديل محلي للمدى المرجعي أثناء تسجيل النتيجة';
   button.disabled=true;
   try{
-    await saveVisitParameterRangeOverride({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId,parameterCode,referenceRanges,staffId:$('staffSelect').value,reason:saveReason});
-    showNotice(button.dataset.published==='true'?'تم حفظ تصحيح المدى. التقرير المنشور السابق محفوظ، ويجب معاينة ونشر النسخة المصححة.':'تم حفظ المدى المرجعي لهذه الزيارة والبارامتر فقط. لم يتغير كتالوج التحاليل أو أي زيارة أخرى.');
+    const saved=await saveVisitParameterRangeOverride({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId,parameterCode,referenceRanges,staffId:$('staffSelect').value});
+    showNotice(saved?.queued
+      ? 'تم حفظ تعديل المدى على هذا الجهاز وسيُزامن تلقائيًا عند عودة الإنترنت. لم يتغير الكتالوج العام.'
+      : button.dataset.published==='true'
+        ? 'تم حفظ تصحيح المدى. التقرير المنشور السابق محفوظ؛ عاين ثم انشر النسخة المصححة.'
+        : 'تم حفظ المدى المرجعي لهذه الزيارة فقط. لم يتغير كتالوج التحاليل أو أي زيارة أخرى.');
     window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));
   }catch(error){button.disabled=false;showNotice(error.message||'تعذر حفظ المدى المرجعي.',true);}
 }
@@ -1048,24 +1050,23 @@ async function correctTest(button) {
     return;
   }
   try {
-    requireCloudConnection('تصحيح النتائج');
     const changed=[...section.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultId&&input.value.trim()!==''&&input.value.trim()!==(input.dataset.originalValue??'').trim());
     if(!changed.length)throw new Error('لا توجد نتيجة محفوظة تغيرت قيمتها للتصحيح.');
     if(changed.length>1)throw new Error('صحح نتيجة واحدة في كل مرة لتجنب حفظ بعض التصحيحات دون غيرها.');
     const visitId=state.work.find(row=>row.id===section.dataset.testId)?.visit_id;
     if(!visitId)throw new Error('تعذر تحديد الزيارة المرتبطة بالنتيجة.');
-    const reason='تصحيح يدوي من شاشة النتائج';
     setBusy(button,true,'جارٍ حفظ التصحيح…');
     for(const input of changed){
       const raw=input.value.trim(),isNumeric=['numeric_integer','numeric_decimal'].includes(input.dataset.inputMode),numeric=isNumeric?raw:null,text=isNumeric?null:raw;
-      await correctVisitResultWithFlag({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,flag:classifyResultFlag(input),reason,staffId:$('staffSelect').value});
+      const corrected=await correctVisitResultWithFlag({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,parameterCode:input.dataset.paramCode,valueNumeric:numeric,valueText:text,flag:classifyResultFlag(input),staffId:$('staffSelect').value});
       input.dataset.originalValue=input.value;
+      if(corrected?.queued)input.dataset.correctionPending='true';
     }
     state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
     section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=true;});
     section.querySelectorAll('.multi-choice-item').forEach(input=>{input.disabled=true;});
     button.dataset.correctionMode='false';button.textContent=isPublished?'تصحيح نتيجة منشورة':'تصحيح نتيجة محفوظة';button.dataset.oldLabel=button.textContent;
-    showNotice(isPublished?'تم تصحيح النتيجة. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع النسخة المصححة.':'تم تصحيح النتيجة، وسُجل اسم المستخدم تلقائيًا.');
+    showNotice(changed.some(input=>input.dataset.correctionPending==='true')?'تم حفظ التصحيح على هذا الجهاز وسيُزامن تلقائيًا عند عودة الإنترنت.':isPublished?'تم تصحيح النتيجة. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع النسخة المصححة.':'تم تصحيح النتيجة، وسُجل اسم المستخدم تلقائيًا.');
   } catch(error){showNotice(error.message||'تعذر تصحيح النتيجة.',true);}
   finally{setBusy(button,false);}
 }
@@ -1248,7 +1249,10 @@ async function shareDirectReport(button){
   let shareWindow=null;
   let objectUrl=null;
   try{
-    const card=button.closest('.work-card'),visitId=button.dataset.visitId;
+    const visitId=button.dataset.visitId;
+    // The results layout moves action buttons into a shared action bar, outside their source visit card.
+    // Resolve the original card by visit id so the patient phone is not lost after that move.
+    const card=button.closest('.work-card')||[...document.querySelectorAll('.work-source-card')].find(node=>node.dataset.visitId===visitId);
     const patientName=String(card?.dataset.patientName||'').trim(),visitNumber=String(card?.dataset.visitNumber||'').trim();
     const phone=normalizeWhatsAppNumber(card?.dataset.patientPhone||'');
     if(!patientName||!visitNumber||!visitId)throw new Error('بيانات المريض أو الزيارة غير مكتملة.');
