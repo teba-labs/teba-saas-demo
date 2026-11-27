@@ -128,13 +128,27 @@ export async function correctCompletedVisitResult({tenantId,branchId,visitTestId
 }
 
 /** Correct one completed result with its recalculated flag; preserves the previous published report version. */
-export async function correctVisitResultWithFlag({tenantId,branchId,visitTestId,resultId,valueNumeric,valueText,flag,reason,staffId}={}) {
-  if(!tenantId||!branchId||!visitTestId||!resultId||!staffId||!String(reason||'').trim()) throw new Error('بيانات تصحيح النتيجة غير مكتملة.');
+export async function correctVisitResultWithFlag({tenantId,branchId,visitTestId,resultId,valueNumeric,valueText,flag,staffId}={}) {
+  if(!tenantId||!branchId||!visitTestId||!resultId||!staffId) throw new Error('بيانات تصحيح النتيجة غير مكتملة.');
   if((valueNumeric==null)===(valueText==null)) throw new Error('أدخل قيمة رقمية أو نصية واحدة فقط.');
-  if(globalThis.navigator?.onLine===false) throw new Error('تصحيح نتيجة محفوظة يحتاج اتصالًا بالإنترنت.');
+  const numeric=valueNumeric==null?null:Number(valueNumeric);
+  if(numeric!==null&&!Number.isFinite(numeric))throw new Error('القيمة الرقمية غير صحيحة.');
+  const textValue=valueText==null?null:String(valueText);
+  const queue=async()=>{
+    const operationId=crypto.randomUUID();
+    await enqueueOperation({tenantId,branchId,entityType:'result_correction',action:'correct',operationId,
+      payload:{visit_test_id:visitTestId,result_id:resultId,value_numeric:numeric,value_text:textValue,flag:flag??null,staff_id:staffId},priority:8});
+    const cached=await getCachedRows('test_results',{tenantId});
+    const existing=cached.find(row=>row.id===resultId);
+    if(existing)await cacheRows('test_results',[{...existing,value_numeric:numeric,value_text:textValue,flag:flag??null,local_correction_pending:true,updated_at:new Date().toISOString()}]);
+    return {queued:true,operationId};
+  };
+  if(globalThis.navigator?.onLine===false)return queue();
   const {data,error}=await getSupabaseClient().rpc('correct_visit_result_with_flag',{
     p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTestId,p_result_id:resultId,
-    p_value_numeric:valueNumeric,p_value_text:valueText,p_flag:flag??null,p_reason:String(reason).trim(),p_staff_id:staffId,
+    p_value_numeric:numeric,p_value_text:textValue,p_flag:flag??null,p_reason:null,p_staff_id:staffId,
   });
-  if(error)throw error;return data;
+  if(error){if(/fetch|network|offline/i.test(error.message||''))return queue();throw error;}
+  await cacheRows('test_results',[{...data,branch_id:branchId}]);
+  return data;
 }
