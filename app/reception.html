@@ -73,7 +73,7 @@
     <p id="pendingSyncNotice" class="status bad" hidden>توجد عمليات محفوظة على هذا الجهاز تنتظر المزامنة. افتح <a href="sync-center.html">مركز المزامنة</a> لمتابعتها.</p>
     <nav class="reception-section-nav" data-keyboard-tabs="reception" aria-label="أقسام الاستقبال">
       <button type="button" data-reception-view="intake" aria-pressed="true">تسجيل زيارة جديدة</button>
-      <button type="button" data-reception-view="recent" aria-pressed="false">آخر الزيارات</button>
+      <button type="button" data-reception-view="recent" aria-pressed="false">سجل الزيارات</button>
       <button type="button" data-reception-view="balances" aria-pressed="false">المديونيات والتحصيلات</button>
     </nav>
 
@@ -173,7 +173,7 @@
         <button id="visitHistoryLoadOffline" class="button button-secondary" type="button">تجهيز السجل للعمل دون إنترنت</button>
       </div>
       <div class="visit-history-pagination"><button id="visitHistoryPrev" class="button button-ghost" type="button" disabled>السابق</button><small id="visitHistoryPage">—</small><button id="visitHistoryNext" class="button button-ghost" type="button" disabled>التالي</button></div>
-      <div id="recentVisits" class="matches"><p class="muted">اختر الفرع لعرض الزيارات.</p></div>
+      <div id="visitHistoryList" class="matches"><p class="muted">اختر الفرع لعرض سجل الزيارات الكامل.</p></div><div id="recentVisits" class="matches" hidden aria-hidden="true"></div>
     </section>
     <section id="paymentReceipt" class="panel receipt-panel" hidden><div id="paymentReceiptContent"></div><div class="actions print-actions"><button id="printPaymentReceipt" class="button button-secondary" type="button">طباعة إيصال التحصيل</button></div></section>
     <section id="balancePanel" class="panel">
