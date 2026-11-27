@@ -165,6 +165,7 @@ async function handleAction(button){
  finally{button.disabled=false;}
 }
 $('recentVisits')?.addEventListener('click',event=>{const button=event.target.closest('[data-history-action]');if(button)handleAction(button);});
+$('refreshRecent')?.addEventListener('click',()=>load().catch(error=>notice(error.message||'تعذر تحديث سجل الزيارات.',true)));
 $('visitHistorySearch')?.addEventListener('input',()=>{clearTimeout(state.searchTimer);state.searchTimer=setTimeout(()=>{state.page=0;load().catch(e=>notice(e.message,true));},250);});
 $('visitHistoryPrev')?.addEventListener('click',()=>{state.page=Math.max(0,state.page-1);load().catch(e=>notice(e.message,true));});
 $('visitHistoryNext')?.addEventListener('click',()=>{state.page+=1;load().catch(e=>notice(e.message,true));});
