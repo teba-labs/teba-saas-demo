@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
 
-const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, receptionUi, page, workbench, layout, migration131, migration132, worker] = await Promise.all([
+const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, receptionUi, page, workbench, layout, migration131, migration132, migration134, worker] = await Promise.all([
   read('../../modules/reception/visit-management-repository.js'),
   read('../../modules/reception/repository.js'),
   read('../../modules/results/repository.js'),
@@ -16,9 +16,10 @@ const [historyRepo, receptionRepo, resultRepo, reportRepo, syncAdapters, recepti
   read('../../assets/js/results-workbench-layout.js'),
   read('../../database/migrations/131_visit_history_management.sql'),
   read('../../database/migrations/132_fix_published_correction_and_owner_delete.sql'),
+  read('../../database/migrations/134_owner_only_approved_visit_corrections.sql'),
   read('../../service-worker.js'),
 ]);
-const migration = migration131 + '\\n' + migration132;
+const migration = migration131 + '\\n' + migration132 + '\\n' + migration134;
 
 test('reception history searches all tenant visits and shows an exact registered visit count', () => {
   assert.match(historyRepo, /export async function listVisitHistory/);
@@ -81,10 +82,10 @@ test('visit-specific range edits require no reason, never alter catalog, and syn
   assert.match(migration, /old_reference_ranges,new_reference_ranges/);
 });
 
-test('approved unpublished correction allows both owner and branch employee', () => {
-  assert.match(migration, /if v_account_type='employee'/);
-  assert.match(migration, /Both owner and branch employee may correct an approved, unpublished visit/);
-  assert.match(workbench, /group\.visit\?\.status === 'approved'/);
+test('approved unpublished result and range corrections are owner-only', () => {
+  assert.match(migration, /Only the lab owner may correct an approved unpublished visit/);
+  assert.match(workbench, /canCorrectApproved = group\.visit\?\.status === 'approved' && !isPublished && state\.tenant\?\.accountType === 'owner'/);
+  assert.match(layout, /canEditApprovedRange = group\.visit\?\.status === 'approved' && !isPublished && state\.tenant\?\.accountType === 'owner'/);
 });
 
 test('published correction preserves the report history but no longer requires a text reason', () => {
