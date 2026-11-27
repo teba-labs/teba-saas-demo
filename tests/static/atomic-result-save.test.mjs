@@ -9,7 +9,7 @@ test('saving results accepts entered values without a separate visit-wide approv
   const ui = read('assets/js/results-workbench.js');
   assert.ok(ui.includes('for (const item of items)'));
   assert.ok(ui.includes('await saveDraftResults('));
-  assert.ok(ui.includes('saveAndAcceptResults('));
+  assert.ok(ui.includes('saveResultsForTest('));
   assert.ok(!ui.includes('approveVisitWithAutoCompletion('));
   assert.ok(!ui.includes('await saveDraftResult('));
 });
