@@ -5,11 +5,12 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '../..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('visit approval saves all non-empty values from every test before one atomic visit transition', () => {
+test('saving results accepts entered values without a separate visit-wide approval action', () => {
   const ui = read('assets/js/results-workbench.js');
   assert.ok(ui.includes('for (const item of items)'));
   assert.ok(ui.includes('await saveDraftResults('));
-  assert.ok(ui.includes('await approveVisitWithAutoCompletion('));
+  assert.ok(ui.includes('saveAndAcceptResults('));
+  assert.ok(!ui.includes('approveVisitWithAutoCompletion('));
   assert.ok(!ui.includes('await saveDraftResult('));
 });
 
