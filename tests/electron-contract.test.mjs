@@ -66,7 +66,7 @@ test('core app entry and primary styles do not require Google-hosted fonts', asy
   const html = await read('app/index.html');
   const reception = await read('app/reception.html');
   const styles = await Promise.all(['assets/css/app-home.css','assets/css/reception.css','assets/css/settings-center.css','assets/css/data-import.css'].map(read));
-  assert.doesNotMatch(html + reception + styles.join('\\n'), /fonts.googleapis.com|fonts.gstatic.com/i);
+  assert.doesNotMatch(html + reception + styles.join('\\n'), /fonts.googleapis.com|fonts.gstatic.com|Cairo/i);
 });
 
 
