@@ -33,7 +33,7 @@ test('shared keyboard handler covers form flow, list movement, tabs, Space and E
   assert.match(module,/setAttribute\('role', 'tablist'\)/);
   assert.match(module,/dialog\.close\(\)/);
   assert.ok(sw.includes('./modules/ui/keyboard-navigation.js'));
-  assert.match(sw,/taiba-smart-lab-shell-v94/);
+  assert.match(sw,/taiba-smart-lab-shell-v95/);
   assert.match(css,/:focus-visible/);
 });
 
