@@ -218,7 +218,8 @@ async function purgeVisitLocalData({tenantId,branchId,visitId}){
       const meta=await offlineDb.sync_meta.toArray();
       for(const row of meta){
         const rangeForTest=testIds.some(id=>row.key?.startsWith('range-override:'+id+':'));
-        if(row.tenant_id===tenantId&&row.branch_id===branchId
+        if(row.key!==hiddenKey(tenantId,branchId,visitId)
+          &&row.tenant_id===tenantId&&row.branch_id===branchId
           &&(row.visit_id===visitId||row.visit_test_id&&testIds.includes(row.visit_test_id)||rangeForTest))
           await offlineDb.sync_meta.delete(row.key);
       }
