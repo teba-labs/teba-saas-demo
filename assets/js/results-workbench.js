@@ -327,14 +327,14 @@ async function renderWork() {
       </section>`;
     }).join('');
     card.innerHTML = `<div class="card-head"><div><h2>${escapeHtml(visitTitle)}</h2><p class="muted">${escapeHtml(group.visit?.visit_work_date ?? '')}</p></div><span class="pill">${group.visit?.local_approval_status === 'local_approval_conflict' ? 'اعتماد محلي متعارض — راجع المزامنة' : group.visit?.local_approval_status === 'pending_server_validation' ? 'اعتماد محلي — بانتظار المزامنة' : state.deliveryStatus.get(visitId)?.delivery_status === 'pending_sync' ? 'تسليم نسخة عمل — بانتظار المزامنة' : state.deliveryStatus.get(visitId)?.delivery_status === 'synced' ? (state.deliveryStatus.get(visitId)?.copy_type === 'published_report_copy' ? 'تم تسجيل تسليم نسخة من التقرير المنشور' : 'تم تسجيل تسليم نسخة عمل') : (isPublished ? 'منشور' : escapeHtml(group.visit?.status ?? 'مفتوح'))}</span></div>${itemsMarkup}
-      <div class="actions"><button class="button save-visit-drafts" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>حفظ النتائج واعتمادها</button></div>
+      <div class="actions"><button class="button save-visit-drafts" data-visit-id="${escapeHtml(visitId)}" ${(isPublished || group.visit?.status === 'approved') ? 'disabled' : ''}>حفظ النتائج</button></div>
       <div class="actions"><button class="button button-secondary print-visit-report" data-visit-id="${escapeHtml(visitId)}" ${!isPublished && group.visit?.status !== 'approved' && !hasCompletedTests && !hasAnySavedResults ? 'disabled' : ''}>${canPrintPartial ? 'معاينة وطباعة النتائج المحفوظة' : 'طباعة التقرير بإعدادات المعمل / حفظ PDF'}</button></div>
       ${!isPublished && hasAnySavedResults ? `<div class="actions"><button class="button button-secondary mark-work-copy-delivered" data-visit-id="${escapeHtml(visitId)}" ${state.deliveryStatus.get(visitId)?.delivery_status ? 'disabled' : ''}>تسجيل تسليم نسخة عمل مطبوعة</button></div>` : ''}
       <div class="actions"><button class="button button-secondary select-historical-report" data-visit-id="${escapeHtml(visitId)}" type="button">اختيار نتائج تاريخية لإضافتها للتقرير (اختياري)</button></div><div class="historical-report-picker" data-historical-picker="${escapeHtml(visitId)}" hidden></div>
       <div class="file-row report-publish-row"><p class="muted">احفظ النتائج أولًا، ثم عاينها وانشر النتائج المسجلة على بوابة المريض.</p><button class="button publish-report" data-visit-id="${escapeHtml(visitId)}" ${!canPublishReport ? 'disabled' : ''}>${!state.portalEnabled ? 'بوابة المريض غير مفعلة' : 'نشر نسخة مصححة'}</button>${canPublishPartial ? '<button class="button button-secondary publish-partial-report" data-partial="true" data-visit-id="' + escapeHtml(visitId) + '">' + (isPartialPublished ? 'نشر تحديث النتائج' : 'نشر النتائج المحفوظة') + '</button>' : ''}</div>
       ${isPartialPublished && state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-partial-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط النتائج عبر واتساب</button></div>' : ''}
       ${isPublished && state.portalEnabled && group.visit?.patients?.phone ? '<div class="actions"><button class="button button-secondary share-published-report" data-visit-id="' + escapeHtml(visitId) + '">إرسال رابط التقرير المصحح عبر واتساب</button></div>' : ''}
-      ${hasAnySavedResults && !state.portalEnabled ? '<p class="muted">الطباعة الجزئية متاحة الآن؛ فعّل بوابة المريض من إعدادات الموقع لإتاحة النشر وواتساب.</p>' : ''}
+      ${hasAnySavedResults && !state.portalEnabled ? '<p class="muted">معاينة وطباعة النتائج المحفوظة متاحة الآن؛ فعّل بوابة المريض من إعدادات الموقع لإتاحة النشر وواتساب.</p>' : ''}
       <div class="file-row"><label>مرفق للزيارة (PDF أو JPG أو PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" data-attachment-file="${escapeHtml(visitId)}"></label><button class="button button-secondary upload-attachment" data-visit-id="${escapeHtml(visitId)}">رفع مرفق</button><button class="button button-secondary list-attachments" data-visit-id="${escapeHtml(visitId)}">عرض المرفقات</button></div>
       <div class="attachment-list" data-attachment-list="${escapeHtml(visitId)}"></div>
       <p class="danger-note">اسم المستخدم الذي أجرى التصحيح يُسجل تلقائيًا في سجل المراجعة، ولا يحتاج الفني إلى كتابة سبب للتصحيح.</p>`;
@@ -991,7 +991,7 @@ async function saveVisitDrafts(visitId) {
   if (savedCount || queuedCount || completedTestCount) state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
   return { savedCount, queuedCount, completedTestCount };
 }
-async function saveAndAcceptResults(visitId, testId = null) {
+async function saveResultsForTest(visitId, testId = null) {
   if (!visitId) throw new Error('تعذر تحديد الزيارة.');
   // Saving a result card is deliberately separate from approving the whole visit.
   // saveVisitDrafts saves entered values and completes only tests whose required
@@ -1002,17 +1002,17 @@ async function saveAndAcceptResults(visitId, testId = null) {
   state.reportPreviewHtml.delete(visitId);
   const completed = Boolean(testId && state.work.some(item => item.id === testId && item.status === 'completed'));
   if (saved.queuedCount) {
-    showNotice('تم حفظ النتائج واعتمادها محليًا على هذا الجهاز. هناك نتائج محلية لم تصل إلى السحابة بعد؛ ستتم مزامنتها تلقائيًا عند عودة الإنترنت. النشر على بوابة المريض يحتاج اتصالًا.');
-    return { saved: true, queued: true, resultAccepted: true, completed: false };
+    showNotice('تم حفظ النتائج على هذا الجهاز. هناك نتائج محلية لم تصل إلى السحابة بعد؛ ستتم مزامنتها تلقائيًا عند عودة الإنترنت. النشر على بوابة المريض يحتاج اتصالًا.');
+    return { saved: true, queued: true, completed: false };
   }
   if (completed) {
-    showNotice('تم حفظ النتائج واعتمادها. يمكنك الآن معاينتها وطباعتها ونشرها؛ ويمكن استكمال باقي التحاليل لاحقًا.');
+    showNotice('تم حفظ النتائج. يمكنك الآن معاينتها وطباعتها ونشرها؛ ويمكن استكمال باقي التحاليل لاحقًا.');
   } else {
-    showNotice('تم حفظ النتائج واعتماد القيم المسجلة. يمكنك معاينة وطباعة ونشر النتائج الحالية، واستكمال أي بارامترات أخرى لاحقًا.');
+    showNotice('تم حفظ النتائج. يمكنك معاينة وطباعة ونشر النتائج الحالية، واستكمال أي بارامترات أخرى لاحقًا.');
   }
-  return { saved: true, resultAccepted: true, completed, savedCount: saved.savedCount, completedTestCount: saved.completedTestCount };
+  return { saved: true, completed, savedCount: saved.savedCount, completedTestCount: saved.completedTestCount };
 }
-window.taibaSaveAndAcceptResults = saveAndAcceptResults;
+window.taibaSaveResultsForTest = saveResultsForTest;
 
 async function saveVisitDraftsAction(button) {
   try {
@@ -1021,9 +1021,9 @@ async function saveVisitDraftsAction(button) {
     if (!result.savedCount && !result.queuedCount) {
       showNotice('لا توجد نتائج جديدة للحفظ. أدخل القيم أولًا.');
     } else if (result.queuedCount) {
-      showNotice('تم حفظ النتائج واعتمادها محليًا. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ النشر يحتاج اتصالًا.');
+      showNotice('تم حفظ النتائج محليًا. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ النشر يحتاج اتصالًا.');
     } else if (result.completedTestCount) {
-      showNotice('تم حفظ واعتماد النتائج. يمكنك معاينة وطباعة ونشر النتائج المسجلة، واستكمال بقية التحاليل لاحقًا.');
+      showNotice('تم حفظ النتائج. يمكنك معاينة وطباعة ونشر النتائج المسجلة، واستكمال بقية التحاليل لاحقًا.');
       await refreshWork();
     } else {
       showNotice('تم حفظ النتائج واعتمادها وحساب البارامترات المشتقة تلقائيًا. يمكنك معاينة وطباعة ونشر النتائج المسجلة.');
@@ -1106,7 +1106,7 @@ async function downloadAttachment(button) {
 
 async function markWorkCopyDelivered(button) {
   const visitId=button.dataset.visitId;
-  if(!visitId||!confirm('تسجيل تسليم نسخة عمل مطبوعة للمريض؟ هذا الإجراء لا يعني اعتمادًا نهائيًا أو نشرًا على بوابة المريض.'))return;
+  if(!visitId||!confirm('تسجيل تسليم نسخة عمل مطبوعة للمريض؟ هذا يسجل تسليم نسخة محلية فقط ولا ينشرها على بوابة المريض.'))return;
   try{
     setBusy(button,true,'جارٍ تسجيل التسليم…');
     const result=await recordLocalWorkCopyDelivery({tenantId:state.tenant.id,branchId:state.branch.id,visitId,staffId:$('staffSelect').value});
@@ -1200,7 +1200,7 @@ async function publish(button) {
     await publishReportVersion({tenantId:state.tenant.id,branchId:state.branch.id,visitId,staffId:$('staffSelect').value,file,changeReason:reason,isPartial:partial});
     if(partial)state.partialPublishedVisits.add(visitId);else state.partialPublishedVisits.delete(visitId);
     state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
-    showNotice(partial?'تم نشر التقرير الجزئي على بوابة المريض. الزيارة ما زالت مفتوحة وغير معتمدة.':'تم إنشاء PDF من نفس معاينة التقرير ورفعه تلقائيًا إلى بوابة المريض.');
+    showNotice(partial?'تم نشر النتائج المسجلة على بوابة المريض. يمكنك إضافة بقية النتائج لاحقًا.':'تم إنشاء PDF من نفس معاينة التقرير ورفعه تلقائيًا إلى بوابة المريض.');
     try{await refreshWork();}catch(error){showNotice('تم نشر التقرير بنجاح، لكن تعذر تحديث قائمة النتائج تلقائيًا.',true);}
   } catch(error) {
     showNotice(error.message||'تعذر إنشاء التقرير أو نشره.',true);
