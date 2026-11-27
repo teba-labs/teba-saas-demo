@@ -22,8 +22,18 @@ test('reference ranges are normalized, age/sex matched and never rendered as raw
  assert.ok(!js.includes('Object.entries(value).map(([key, item]) => key +'));
 });
 
+test('report labels prefer English catalog fields and patient metadata is compact in two rows',()=>{
+ assert.ok(js.includes('function firstEnglishReportLabel(candidates, fallback)'));
+ assert.ok(js.includes('result.parameter_name_en'));
+ assert.ok(js.includes('item.tests_catalog?.name_en'));
+ assert.ok(js.includes("item.test_code_snapshot || 'Laboratory Test'"));
+ assert.ok(js.includes('grid-template-columns:repeat(3,minmax(0,1fr))'));
+ assert.ok(js.includes('min-height:34px'));
+ assert.ok(js.includes('.parameter-cell{direction:ltr;text-align:left;font-weight:600'));
+});
+
 test('result table uses fixed clinical column widths, wrapping and correct cell directions',()=>{
- for(const value of ['table-layout:fixed','width:100%','width:40%','width:15%','width:10%','width:25%','word-break:break-word','overflow-wrap:anywhere','.parameter-cell{direction:rtl;text-align:right}','.result-cell,.reference-cell{direction:ltr;text-align:left;font-variant-numeric:tabular-nums}']) assert.ok(js.includes(value),value);
+ for(const value of ['table-layout:fixed','width:100%','width:34%','width:16%','width:10%','width:26%','width:14%','word-break:break-word','overflow-wrap:anywhere','.result-cell,.reference-cell{direction:ltr;text-align:left;font-variant-numeric:tabular-nums}']) assert.ok(js.includes(value),value);
 });
 
 test('bilingual report header repeats patient visit metadata and footer per PDF page',()=>{
@@ -35,7 +45,7 @@ test('bilingual report header repeats patient visit metadata and footer per PDF 
 });
 
 test('analysis headings are separated from tables and report body is English on white paper',()=>{
- assert.ok(js.includes('.analysis-heading{font-size:13px;margin:20px 0 7px;clear:both'));
+ assert.ok(js.includes('.analysis-heading{font-size:13px;margin:14px 0 7px;padding:6px 9px'));
  assert.ok(js.includes('lang="en" dir="ltr"'));
  assert.ok(js.includes('LABORATORY REPORT'));
  assert.ok(js.includes('Parameter</th><th>Result</th><th>Unit</th><th>Reference Interval</th><th>Flag'));
