@@ -27,7 +27,7 @@ test('local approval is distinct from final publication and depends on queued wo
   assert.match(adapters,/setApprovalMarker/);
   assert.match(ui,/approvalByVisit/);
   assert.match(ui,/اعتماد محلي — بانتظار المزامنة/);
-  assert.match(ui,/النشر النهائي يظل خطوة منفصلة/);
+  assert.match(ui,/النشر على بوابة المريض يحتاج اتصالًا/);
   assert.match(reports,/publish_report_version|publishReportVersion/);
 });
 
