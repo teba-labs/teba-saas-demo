@@ -996,40 +996,24 @@ async function saveVisitDrafts(visitId) {
 }
 async function saveAndMaybeApproveVisit(visitId, testId = null) {
   if (!visitId) throw new Error('تعذر تحديد الزيارة.');
+  // Saving a result card is deliberately separate from approving the whole visit.
+  // saveVisitDrafts saves entered values and completes only tests whose required
+  // visible parameters are all present. A partial CBC save must never trigger
+  // visit-wide approval or surface the expected missing-parameters validation.
   const saved = await saveVisitDrafts(visitId);
+  state.previewedVisits.delete(visitId);
+  state.reportPreviewHtml.delete(visitId);
+  const completed = Boolean(testId && state.work.some(item => item.id === testId && item.status === 'completed'));
   if (saved.queuedCount) {
-    showNotice('تم حفظ المدخلات محليًا بأمان. الاعتماد النهائي سيتم بعد المزامنة واكتمال نتائج الزيارة.');
-    return { saved: true, queued: true, completed: false };
+    showNotice('تم حفظ القيم على هذا الجهاز بأمان. ستتم مزامنتها عند عودة الإنترنت؛ الاعتماد النهائي يظل خطوة منفصلة.');
+    return { saved: true, queued: true, visitApproved: false, completed: false };
   }
-  try {
-    const approval = await approveVisitWithAutoCompletion({
-      tenantId: state.tenant.id,
-      branchId: state.branch.id,
-      visitId,
-      staffId: $('staffSelect').value
-    });
-    state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
-    if (approval?.is_published || approval?.status === 'published') {
-      showNotice('الزيارة معتمدة ومنشورة بالفعل؛ لا حاجة لإعادة اعتمادها. افتح المعاينة ثم أعد نشر النسخة المصححة بعد مراجعتها.');
-    } else if (approval?.status === 'approved') {
-      showNotice('الزيارة معتمدة بالفعل. تم حفظ التعديل؛ يمكنك معاينة التقرير ومتابعة النشر.');
-    } else {
-      showNotice('تم حفظ النتيجة واعتماد الزيارة تلقائيًا بعد اكتمال كل النتائج المطلوبة. يمكنك معاينة التقرير الآن.');
-    }
-    return { saved: true, visitApproved: true, alreadyApproved: approval?.status === 'approved' || approval?.status === 'published' || approval?.is_published === true, completed: !testId || state.work.some(item => item.id === testId && item.status === 'completed') };
-  } catch (error) {
-    const detail = error.message || 'تعذر إكمال اعتماد الزيارة.';
-    const missingRequired = /required|missing|مفقود|ناقص|غير مكتمل/i.test(detail);
-    if (missingRequired) {
-      const completed = state.work.filter(item => item.visit_id === visitId && item.status === 'completed').length;
-      showNotice(completed
-        ? 'تم حفظ النتائج وإكمال ' + completed + ' تحليل. يمكنك طباعة النتائج المكتملة الآن، والزيارة ستظل مفتوحة لاستكمال الباقي.'
-        : 'تم حفظ النتائج. الزيارة ما زالت مفتوحة لحين اكتمال التحاليل المطلوبة: ' + detail);
-    } else {
-      showNotice('تم حفظ نتيجة التحليل، لكن تعذر اعتماد الزيارة الآن. النتائج محفوظة ولم تُفقد: ' + detail, true);
-    }
-    return { saved: true, visitApproved: false, completed: Boolean(testId && state.work.some(item => item.id === testId && item.status === 'completed')), approvalError: detail };
+  if (completed) {
+    showNotice('تم حفظ النتائج واكتمال هذا التحليل. الزيارة ما زالت مفتوحة حتى اكتمال واعتماد باقي التحاليل.');
+  } else {
+    showNotice('تم حفظ النتائج المدخلة بنجاح. هذا التحليل لم يكتمل بعد؛ استكمل البارامترات المتبقية ثم احفظ مرة أخرى. لم يتم اعتماد الزيارة.');
   }
+  return { saved: true, visitApproved: false, completed, savedCount: saved.savedCount, completedTestCount: saved.completedTestCount };
 }
 window.taibaSaveAndMaybeApproveVisit = saveAndMaybeApproveVisit;
 
