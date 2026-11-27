@@ -1,5 +1,6 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v103';
+const CACHE_NAME = 'taiba-smart-lab-shell-v104';
 const APP_SHELL = [
+  './app/manifest.webmanifest', './app/icons/icon-192.svg', './app/icons/icon-512.svg',
   './app/index.html', './app/site-preview.html', './website/index.html', './website/site.css', './website/public-site-ui.js', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/result-entry.html', './app/sync-center.html',
   './app/dashboard.html', './portal/index.html', './app/cms-editor.html', './app/platform-admin.html', './app/site-management.html', './app/settings.html', './app/data-import.html',
   './assets/css/app-viewport.css', './assets/css/app-home.css', './assets/css/catalog.css', './assets/css/reception.css', './assets/css/workday.css', './assets/css/results-workbench.css', './assets/css/sync-center.css',
