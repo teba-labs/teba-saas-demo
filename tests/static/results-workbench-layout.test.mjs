@@ -70,8 +70,8 @@ test('individual and profile result forms open in an accessible same-screen moda
  assert.match(js,/saveResultsForTest/);
  assert.match(js,/await saveVisitDrafts\(visitId\)/);
  assert.match(js,/تم حفظ النتائج/);
- assert.doesNotMatch(js.slice(js.indexOf('async function saveAndAcceptResults('),js.indexOf('window.taibaSaveAndAcceptResults =')),/approveVisitWithAutoCompletion\(/);
- assert.match(js,/saveAndAcceptResults/);
+ assert.doesNotMatch(js.slice(js.indexOf('async function saveResultsForTest('),js.indexOf('window.taibaSaveResultsForTest =')),/approveVisitWithAutoCompletion\(/);
+ assert.match(js,/saveResultsForTest/);
  assert.match(js,/completeVisitTestAtomic/);
  assert.match(js,/partialReport/);
  assert.match(js,/Print saved results/);
