@@ -49,7 +49,48 @@ jobs:
           if (-not $page) { throw "Local renderer did not load taiba://app/app/index.html within 45 seconds" }
           if (-not $page.title -or $page.title -notmatch 'Taiba|طيبة') { throw "Unexpected desktop renderer title: $($page.title)" }
           if ($desktop.HasExited) { throw "Taiba Smart Lab exited after renderer load (code $($desktop.ExitCode))" }
-          Stop-Process -Id $desktop.Id -Force
+
+          # Close the actual renderer window through DevTools, then verify the
+          # Electron process exits cleanly because all windows are closed.
+          $targetJson = $page | ConvertTo-Json -Compress
+          $closeScript = @'
+          const target = JSON.parse(process.argv[1]);
+          const socket = new WebSocket(target.webSocketDebuggerUrl);
+          await new Promise((resolve, reject) => {
+            socket.addEventListener('open', resolve, { once: true });
+            socket.addEventListener('error', reject, { once: true });
+          });
+          socket.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression: 'window.close()' } }));
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          socket.close();
+          '@
+          node -e $closeScript $targetJson
+          $desktop.Refresh()
+          $closeDeadline = (Get-Date).AddSeconds(20)
+          while ((Get-Date) -lt $closeDeadline -and -not $desktop.HasExited) {
+            Start-Sleep -Milliseconds 500
+            $desktop.Refresh()
+          }
+          if (-not $desktop.HasExited) {
+            Stop-Process -Id $desktop.Id -Force
+            throw "Taiba Smart Lab did not exit after its main window was closed"
+          }
+
+          # Reopen from the installed executable and verify a fresh local renderer.
+          $reopened = Start-Process -FilePath $appExe -ArgumentList '--remote-debugging-port=9223' -PassThru
+          $reopenDeadline = (Get-Date).AddSeconds(45)
+          $reopenedPage = $null
+          while ((Get-Date) -lt $reopenDeadline -and -not $reopenedPage) {
+            if ($reopened.HasExited) { throw "Taiba Smart Lab failed on second launch (code $($reopened.ExitCode))" }
+            try {
+              $targets = Invoke-RestMethod -Uri 'http://127.0.0.1:9223/json/list' -TimeoutSec 2
+              $reopenedPage = $targets | Where-Object { $_.type -eq 'page' -and $_.url -eq 'taiba://app/app/index.html' } | Select-Object -First 1
+            } catch { Start-Sleep -Seconds 1 }
+          }
+          if (-not $reopenedPage) { throw "The installed app did not reopen its local renderer" }
+          if (-not $reopenedPage.title -or $reopenedPage.title -notmatch 'Taiba|طيبة') { throw "Unexpected reopened renderer title: $($reopenedPage.title)" }
+          if ($reopened.HasExited) { throw "Taiba Smart Lab exited after its second renderer load" }
+          Stop-Process -Id $reopened.Id -Force
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
