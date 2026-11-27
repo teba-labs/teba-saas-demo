@@ -1,0 +1,60 @@
+name: Cycle 2 - Responsive and Windows validation
+
+on:
+  push:
+    branches:
+      - feature/windows-electron-desktop-2026-11-28
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  responsive-browser-smoke:
+    name: Mobile and desktop viewport smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser test runner
+        run: npm install --no-save --ignore-scripts playwright
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run responsive page checks
+        run: node tests/responsive-smoke.mjs
+
+  windows-installer:
+    name: Windows installer build and startup smoke
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Run contract tests and build installer
+        run: npm run build:win
+      - name: Silently install and launch packaged app
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path "dist/Taiba-Smart-Lab-Setup-1.0.0-x64.exe").Path
+          $installDir = Join-Path $env:RUNNER_TEMP "Taiba-Smart-Lab-Cycle2"
+          $install = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$installDir") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "NSIS installer failed with exit code $($install.ExitCode)" }
+          $exe = Join-Path $installDir "Taiba Smart Lab.exe"
+          if (-not (Test-Path $exe)) { throw "Installed executable was not found: $exe" }
+          $app = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 8
+          $app.Refresh()
+          if ($app.HasExited) { throw "Installed application exited during startup (code $($app.ExitCode))" }
+          Stop-Process -Id $app.Id -Force
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Taiba-Smart-Lab-Windows-Installer-Cycle2
+          path: dist/Taiba-Smart-Lab-Setup-1.0.0-x64.exe
+          if-no-files-found: error
