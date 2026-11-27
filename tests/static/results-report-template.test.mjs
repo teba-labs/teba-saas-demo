@@ -99,15 +99,22 @@ test('imported source ranges are used immediately for result comparison without 
  assert.ok(js.includes('const displayFlag=calculatedFlag || result.flag'));
 });
 
-test('WhatsApp sharing remains available without a patient portal through a private expiring PDF link',()=>{
+test('WhatsApp sharing without a patient portal attaches a device-generated PDF without cloud storage',()=>{
  assert.ok(js.includes('shareDirectReport(button)'));
  assert.ok(js.includes("!state.portalEnabled && state.portalConfigKnown && group.visit?.patients?.phone"));
- assert.ok(js.includes("uploadVisitAttachment({tenantId:state.tenant.id,branchId:state.branch.id,visitId,file})"));
- assert.ok(js.includes("createAttachmentDownloadUrl({tenantId:state.tenant.id,branchId:state.branch.id,fileId:uploaded.id,expiresIn:86400})"));
- assert.ok(js.includes('رابط آمن لملف التقرير (صالح لمدة 24 ساعة)'));
- assert.ok(js.includes('لا يمكن إرسال نسخة العمل المحلية قبل مزامنة النتائج مع السحابة.'));
+ const start=js.indexOf('async function shareDirectReport(button){');
+ const end=js.indexOf('async function searchHistorical',start);
+ const share=js.slice(start,end);
+ assert.ok(share.includes('new File([blob]'));
+ assert.ok(share.includes('navigator.share({files:[file]'));
+ assert.ok(share.includes('URL.createObjectURL(file)'));
+ assert.ok(share.includes('download.click()'));
+ assert.ok(share.includes('https://wa.me/'));
+ assert.ok(!share.includes('uploadVisitAttachment'));
+ assert.ok(!share.includes('createAttachmentDownloadUrl'));
+ assert.ok(!share.includes('expiresIn:86400'));
+ assert.ok(!share.includes('رابط آمن لملف التقرير (صالح لمدة 24 ساعة)'));
+ assert.ok(share.includes('لا يمكن إرسال نسخة العمل المحلية قبل مزامنة النتائج مع السحابة.'));
  assert.ok(js.includes("sharePortalLinkViaWhatsApp(button,'partial')"));
  assert.ok(js.includes("sharePortalLinkViaWhatsApp(button,'final')"));
- const files=fs.readFileSync(new URL('modules/files/repository.js',root),'utf8');
- assert.ok(files.includes('Number(expiresIn)||90,30),86400'));
 });

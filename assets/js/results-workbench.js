@@ -1246,8 +1246,8 @@ async function sharePublishedReport(button){
 
 async function shareDirectReport(button){
   let shareWindow=null;
+  let objectUrl=null;
   try{
-    requireCloudConnection('مشاركة التقرير عبر واتساب');
     const card=button.closest('.work-card'),visitId=button.dataset.visitId;
     const patientName=String(card?.dataset.patientName||'').trim(),visitNumber=String(card?.dataset.visitNumber||'').trim();
     const phone=normalizeWhatsAppNumber(card?.dataset.patientPhone||'');
@@ -1259,7 +1259,7 @@ async function shareDirectReport(button){
     if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ أي تعديلات على النتائج قبل إرسال التقرير.');
     const reportHtml=state.reportPreviewHtml.get(visitId);
     if(reportHtml.includes('LOCAL WORK COPY — saved on this device and awaiting synchronization'))throw new Error('لا يمكن إرسال نسخة العمل المحلية قبل مزامنة النتائج مع السحابة.');
-    setBusy(button,true,'جارٍ تجهيز نسخة PDF…');
+    setBusy(button,true,'جارٍ تجهيز PDF على الجهاز…');
     shareWindow=window.open('','_blank');
     if(!shareWindow)throw new Error('اسمح بفتح نافذة مؤقتة لتجهيز ملف التقرير.');
     shareWindow.document.open();shareWindow.document.write(reportHtml);shareWindow.document.close();
@@ -1288,13 +1288,28 @@ async function shareDirectReport(button){
     const blob=pdf.output('blob');
     if(!(blob instanceof Blob)||blob.size<1000)throw new Error('تعذر إنشاء ملف PDF صالح.');
     const file=new File([blob],'taiba-report-'+visitId+'.pdf',{type:'application/pdf'});
-    const uploaded=await uploadVisitAttachment({tenantId:state.tenant.id,branchId:state.branch.id,visitId,file});
-    const signedUrl=await createAttachmentDownloadUrl({tenantId:state.tenant.id,branchId:state.branch.id,fileId:uploaded.id,expiresIn:86400});
-    const message='نتائج التحاليل المسجلة من '+(state.tenant.name||'المعمل')+'.\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\nرابط آمن لملف التقرير (صالح لمدة 24 ساعة):\n'+signedUrl;
-    shareWindow.location.href='https://wa.me/'+phone+'?text='+encodeURIComponent(message);
-    showNotice('تم تجهيز رابط آمن لنسخة التقرير وفتح واتساب. اضغط إرسال داخل واتساب.');
-  }catch(error){if(shareWindow&&!shareWindow.closed)shareWindow.close();showNotice(error.message||'تعذر تجهيز التقرير لإرساله عبر واتساب.',true);}
-  finally{setBusy(button,false);}
+    const message='نتائج التحاليل من '+(state.tenant.name||'المعمل')+'.\nاسم المريض: '+patientName+'\nرقم الزيارة: '+visitNumber+'\nمرفق تقرير PDF صادر مباشرة من جهاز المعمل.';
+    if(navigator.canShare?.({files:[file]})&&typeof navigator.share==='function'){
+      shareWindow.close();shareWindow=null;
+      await navigator.share({files:[file],title:'تقرير التحاليل - '+patientName,text:message});
+      showNotice('تم فتح مشاركة ملف PDF من الجهاز. اختر واتساب ثم محادثة المريض واضغط إرسال.');
+      return;
+    }
+    objectUrl=URL.createObjectURL(file);
+    const download=document.createElement('a');
+    download.href=objectUrl;download.download='taiba-report-'+visitId+'.pdf';
+    document.body.append(download);download.click();download.remove();
+    const waUrl='https://wa.me/'+phone+'?text='+encodeURIComponent(message+'\nتم تنزيل التقرير على الجهاز؛ أرفق ملف PDF المحفوظ قبل الإرسال.');
+    shareWindow.location.href=waUrl;
+    shareWindow=null; // Keep the WhatsApp tab alive; the finally block must not close it.
+    showNotice('تم تنزيل PDF على الجهاز وفتح واتساب برسالة جاهزة. أرفق الملف الذي تم تنزيله ثم اضغط إرسال.');
+  }catch(error){
+    showNotice(error.message||'تعذر تجهيز التقرير لمشاركته من الجهاز.',true);
+  }finally{
+    if(shareWindow&&!shareWindow.closed)shareWindow.close();
+    if(objectUrl)setTimeout(()=>URL.revokeObjectURL(objectUrl),60_000);
+    setBusy(button,false);
+  }
 }
 
 
