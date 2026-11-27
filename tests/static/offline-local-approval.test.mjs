@@ -26,7 +26,7 @@ test('local approval is distinct from final publication and depends on queued wo
   assert.match(repository,/key:`approval:/);
   assert.match(adapters,/setApprovalMarker/);
   assert.match(ui,/approvalByVisit/);
-  assert.match(ui,/اعتماد محلي — بانتظار المزامنة/);
+  assert.match(ui,/نتائج محلية — بانتظار المزامنة/);
   assert.match(ui,/النشر على بوابة المريض يحتاج اتصالًا/);
   assert.match(reports,/publish_report_version|publishReportVersion/);
 });
@@ -66,7 +66,7 @@ test('offline work-copy delivery is an auditable local event and is not final pu
   assert.match(edge,/audit_logs/);
   assert.match(edge,/report_work_copy_handed_over/);
   assert.match(ui,/mark-work-copy-delivered/);
-  assert.match(ui,/لا يعني اعتمادًا نهائيًا أو نشرًا/);
+  assert.match(ui,/يسجل تسليم نسخة محلية فقط ولا ينشرها على بوابة المريض/);
 });
 
 test('local clinical fingerprints ignore local UUID aliases but include test and result values',()=>{
