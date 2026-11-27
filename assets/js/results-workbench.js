@@ -302,7 +302,7 @@ async function renderWork() {
     const canPublishReport = state.portalEnabled && isPublished;
     const itemsMarkup = group.items.map(item => {
       const locked = item.status === 'completed';
-      const canCorrectApproved = state.tenant.accountType === 'owner' && group.visit?.status === 'approved' && !isPublished;
+      const canCorrectApproved = group.visit?.status === 'approved' && !isPublished;
       const params = item.technical_snapshot?.parameters ?? [];
       const groupedParams = new Map();
       for (const p of params) { const sectionName = p.clinical_metadata?.section || 'النتائج'; if (!groupedParams.has(sectionName)) groupedParams.set(sectionName, []); groupedParams.get(sectionName).push(p); }
@@ -454,13 +454,14 @@ async function editReferenceRange(button) {
     referenceRanges=[{lower,upper}];
   }else referenceRanges=[{text:clean}];
   if(button.dataset.published==='true'&&!window.confirm('هذه الزيارة منشورة بالفعل. سيظل التقرير السابق محفوظًا، وسيحتاج التعديل إلى معاينة ونشر نسخة مصححة. هل تريد المتابعة؟'))return;
-  const reason=window.prompt('سبب تعديل المدى (سيُحفظ في سجل التعديلات):','تعديل محلي للمدى المرجعي أثناء تسجيل النتيجة');
-  if(reason===null)return;
-  const saveReason=reason.trim()||'تعديل محلي للمدى المرجعي أثناء تسجيل النتيجة';
   button.disabled=true;
   try{
-    await saveVisitParameterRangeOverride({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId,parameterCode,referenceRanges,staffId:$('staffSelect').value,reason:saveReason});
-    showNotice(button.dataset.published==='true'?'تم حفظ تصحيح المدى. التقرير المنشور السابق محفوظ، ويجب معاينة ونشر النسخة المصححة.':'تم حفظ المدى المرجعي لهذه الزيارة والبارامتر فقط. لم يتغير كتالوج التحاليل أو أي زيارة أخرى.');
+    const saved=await saveVisitParameterRangeOverride({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId,parameterCode,referenceRanges,staffId:$('staffSelect').value});
+    showNotice(saved?.queued
+      ? 'تم حفظ تعديل المدى على هذا الجهاز وسيُزامن تلقائيًا عند عودة الإنترنت. لم يتغير الكتالوج العام.'
+      : button.dataset.published==='true'
+        ? 'تم حفظ تصحيح المدى. التقرير المنشور السابق محفوظ؛ عاين ثم انشر النسخة المصححة.'
+        : 'تم حفظ المدى المرجعي لهذه الزيارة فقط. لم يتغير كتالوج التحاليل أو أي زيارة أخرى.');
     window.dispatchEvent(new CustomEvent('taiba:results-work-refresh'));
   }catch(error){button.disabled=false;showNotice(error.message||'تعذر حفظ المدى المرجعي.',true);}
 }
@@ -1048,24 +1049,23 @@ async function correctTest(button) {
     return;
   }
   try {
-    requireCloudConnection('تصحيح النتائج');
     const changed=[...section.querySelectorAll('[data-param-code]')].filter(input=>input.dataset.resultId&&input.value.trim()!==''&&input.value.trim()!==(input.dataset.originalValue??'').trim());
     if(!changed.length)throw new Error('لا توجد نتيجة محفوظة تغيرت قيمتها للتصحيح.');
     if(changed.length>1)throw new Error('صحح نتيجة واحدة في كل مرة لتجنب حفظ بعض التصحيحات دون غيرها.');
     const visitId=state.work.find(row=>row.id===section.dataset.testId)?.visit_id;
     if(!visitId)throw new Error('تعذر تحديد الزيارة المرتبطة بالنتيجة.');
-    const reason='تصحيح يدوي من شاشة النتائج';
     setBusy(button,true,'جارٍ حفظ التصحيح…');
     for(const input of changed){
       const raw=input.value.trim(),isNumeric=['numeric_integer','numeric_decimal'].includes(input.dataset.inputMode),numeric=isNumeric?raw:null,text=isNumeric?null:raw;
-      await correctVisitResultWithFlag({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,flag:classifyResultFlag(input),reason,staffId:$('staffSelect').value});
+      const corrected=await correctVisitResultWithFlag({tenantId:state.tenant.id,branchId:state.branch.id,visitTestId:section.dataset.testId,resultId:input.dataset.resultId,valueNumeric:numeric,valueText:text,flag:classifyResultFlag(input),staffId:$('staffSelect').value});
       input.dataset.originalValue=input.value;
+      if(corrected?.queued)input.dataset.correctionPending='true';
     }
     state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
     section.querySelectorAll('[data-param-code]').forEach(input=>{if(input.dataset.resultSource!=='calculated')input.disabled=true;});
     section.querySelectorAll('.multi-choice-item').forEach(input=>{input.disabled=true;});
     button.dataset.correctionMode='false';button.textContent=isPublished?'تصحيح نتيجة منشورة':'تصحيح نتيجة محفوظة';button.dataset.oldLabel=button.textContent;
-    showNotice(isPublished?'تم تصحيح النتيجة. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع النسخة المصححة.':'تم تصحيح النتيجة، وسُجل اسم المستخدم تلقائيًا.');
+    showNotice(changed.some(input=>input.dataset.correctionPending==='true')?'تم حفظ التصحيح على هذا الجهاز وسيُزامن تلقائيًا عند عودة الإنترنت.':isPublished?'تم تصحيح النتيجة. النسخة المنشورة السابقة محفوظة؛ راجع المعاينة ثم ارفع النسخة المصححة.':'تم تصحيح النتيجة، وسُجل اسم المستخدم تلقائيًا.');
   } catch(error){showNotice(error.message||'تعذر تصحيح النتيجة.',true);}
   finally{setBusy(button,false);}
 }
