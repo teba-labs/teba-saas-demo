@@ -193,7 +193,7 @@ function selectRecord(record,records,shell,setMobileColumn){
  actions.prepend(whatsapp);actions.prepend(hide);actions.prepend(preview);
  if(setMobileColumn)setMobileColumn(individual.length?'individual':'profiles');
  shell.querySelectorAll('[data-catalog-results]').forEach(el=>{el.hidden=true;el.replaceChildren();});
- const canAdd=record.visitStatus!=='approved'&&!record.published;shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>{b.disabled=!canAdd;b.title=canAdd?'إضافة تحليل لهذه الزيارة':'لا يمكن إضافة تحاليل بعد إغلاق الزيارة أو نشر نتائجها';});
+ const canAdd=!['approved','published','cancelled'].includes(record.visitStatus)&&!record.published;shell.querySelectorAll('[data-catalog-toggle]').forEach(b=>{b.disabled=!canAdd;b.title=canAdd?'إضافة تحليل لهذه الزيارة':'لا يمكن إضافة تحاليل بعد إغلاق الزيارة أو نشر نتائجها';});
 }
 async function loadHiddenVisits(column){
  const host=column.querySelector('.hidden-visits-list');if(!host.hidden){host.hidden=true;return;}host.hidden=false;host.textContent='جارٍ تحميل الحالات المخفية…';
