@@ -19,6 +19,7 @@ test('Electron renderer is isolated and sandboxed', async () => {
   assert.match(main, /contextIsolation:\s*true/);
   assert.match(main, /sandbox:\s*true/);
   assert.match(main, /webSecurity:\s*true/);
+  assert.match(main, /allowServiceWorkers:\\s*true/);
   assert.match(main, /protocol\.handle\(APP_SCHEME, serveLocalApp\)/);
   assert.match(main, /path\.relative\(root, candidate\)/);
   assert.match(main, /setPermissionRequestHandler[\s\S]*callback\(false\)/);
@@ -40,6 +41,6 @@ test('primary Supabase target remains the existing SaaS project', async () => {
 test('desktop runtime opens the local workspace rather than GitHub Pages', async () => {
   const main = await read('electron/main.cjs');
   assert.match(main, /app\.getAppPath\(\)/);
-  assert.match(main, /taiba:\/\/app\//);
+  assert.match(main, /APP_SCHEME.*APP_HOST/);
   assert.doesNotMatch(main, /github\.io\/teba-labs/);
 });
