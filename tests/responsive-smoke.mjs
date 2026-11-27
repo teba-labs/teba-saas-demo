@@ -29,7 +29,7 @@ await new Promise(resolve => server.listen(4178, '127.0.0.1', resolve));
 
 const routes = [
   '/app/index.html','/app/reception.html','/app/workday.html',
-  '/app/results-workbench.html','/app/result-entry.html','/app/sync-center.html','/portal/index.html'
+  '/app/results-workbench.html','/app/result-entry.html','/app/sync-center.html',\n  '/app/catalog.html','/app/dashboard.html','/app/settings.html','/app/cms-editor.html',\n  '/app/site-management.html','/app/site-preview.html','/app/data-import.html','/app/platform-admin.html','/portal/index.html'
 ];
 const devices = [
   {name:'Android small 360x800',width:360,height:800,isMobile:true},
