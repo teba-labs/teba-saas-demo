@@ -56,6 +56,8 @@ test('operator can save, preview, print and publish results without visit-wide a
   assert.match(script, /await completeVisitTestAtomic\(/);
   assert.doesNotMatch(script, /approveVisitWithAutoCompletion/);
   assert.match(script, /partialReport/);
+  assert.match(script, /SAVED RESULTS REPORT/);
+  assert.doesNotMatch(script, /PARTIAL REPORT/);
   assert.match(repository, /complete_visit_test_atomic/);
   assert.match(repository, /approve_visit_with_auto_completion/);
 });
