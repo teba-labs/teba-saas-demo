@@ -78,8 +78,8 @@ export async function publishReportVersion({ tenantId, branchId, visitId, staffI
 }
 
 /** Audited clinical correction. A new PDF version must be published after the correction. */
-export async function correctPublishedResult({ tenantId, branchId, visitId, resultId, valueNumeric = null, valueText = null, reason, staffId } = {}) {
-  for (const [v, n] of [[tenantId,'tenantId'],[branchId,'branchId'],[visitId,'visitId'],[resultId,'resultId'],[reason,'reason'],[staffId,'staffId']]) need(v, n);
+export async function correctPublishedResult({ tenantId, branchId, visitId, resultId, valueNumeric = null, valueText = null, staffId } = {}) {
+  for (const [v, n] of [[tenantId,'tenantId'],[branchId,'branchId'],[visitId,'visitId'],[resultId,'resultId'],[staffId,'staffId']]) need(v, n);
   const numeric = valueNumeric === '' || valueNumeric === null || valueNumeric === undefined ? null : Number(valueNumeric);
   const textValue = valueText === '' || valueText === null || valueText === undefined ? null : String(valueText);
   if ((numeric === null) === (textValue === null)) throw new Error('Provide exactly one numeric or text result value.');
@@ -87,7 +87,7 @@ export async function correctPublishedResult({ tenantId, branchId, visitId, resu
   const { data, error } = await db().rpc('correct_published_result', {
     p_tenant_id: tenantId, p_branch_id: branchId, p_visit_id: visitId,
     p_result_id: resultId, p_value_numeric: numeric, p_value_text: textValue,
-    p_reason: String(reason).trim(), p_staff_id: staffId,
+    p_reason: null, p_staff_id: staffId,
   });
   if (error) throw error;
   return data;
@@ -116,13 +116,13 @@ export function publicationRequiresServerWorkflow() {
 }
 
 /** Correct a completed result before approval; the visit and all other visits remain unchanged. */
-export async function correctCompletedVisitResult({tenantId,branchId,visitTestId,resultId,valueNumeric,valueText,reason,staffId}={}) {
-  if(!tenantId||!branchId||!visitTestId||!resultId||!staffId||!String(reason||'').trim()) throw new Error('بيانات تصحيح النتيجة غير مكتملة.');
+export async function correctCompletedVisitResult({tenantId,branchId,visitTestId,resultId,valueNumeric,valueText,staffId}={}) {
+  if(!tenantId||!branchId||!visitTestId||!resultId||!staffId) throw new Error('بيانات تصحيح النتيجة غير مكتملة.');
   if((valueNumeric==null)===(valueText==null)) throw new Error('أدخل قيمة رقمية أو نصية واحدة فقط.');
   if(globalThis.navigator?.onLine===false) throw new Error('تصحيح نتيجة محفوظة يحتاج اتصالًا بالإنترنت.');
   const {data,error}=await getSupabaseClient().rpc('correct_completed_visit_result',{
     p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTestId,p_result_id:resultId,
-    p_value_numeric:valueNumeric,p_value_text:valueText,p_reason:String(reason).trim(),p_staff_id:staffId,
+    p_value_numeric:valueNumeric,p_value_text:valueText,p_reason:null,p_staff_id:staffId,
   });
   if(error)throw error;return data;
 }
