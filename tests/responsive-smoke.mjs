@@ -80,6 +80,41 @@ try {
     }
     await context.close();
   }
+  const pwaContext = await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,serviceWorkers:'allow'});
+  const pwaPage = await pwaContext.newPage();
+  try {
+    await pwaPage.goto('http://127.0.0.1:4178/app/index.html',{waitUntil:'domcontentloaded',timeout:30000});
+    const manifest = await pwaPage.evaluate(async () => {
+      const link = document.querySelector('link[rel=manifest]');
+      if (!link) return null;
+      const response = await fetch(link.href);
+      return response.ok ? response.json() : null;
+    });
+    if (!manifest || manifest.display !== 'standalone') failures.push('PWA: manifest is not reachable or is not standalone');
+    await pwaPage.evaluate(async () => { await navigator.serviceWorker.ready; return true; });
+    await pwaPage.reload({waitUntil:'domcontentloaded'});
+    await pwaPage.waitForFunction(() => Boolean(navigator.serviceWorker.controller), null, {timeout:30000});
+    const cacheCheck = await pwaPage.evaluate(async () => {
+      const names = await caches.keys();
+      const name = names.find(value => value === 'taiba-smart-lab-shell-v104');
+      if (!name) return {name:null,manifest:false,icon:false};
+      const cache = await caches.open(name);
+      return {
+        name,
+        manifest:Boolean(await cache.match(new URL('./manifest.webmanifest',location.href).href)),
+        icon:Boolean(await cache.match(new URL('./icons/icon-192.svg',location.href).href))
+      };
+    });
+    if (!cacheCheck.name || !cacheCheck.manifest || !cacheCheck.icon) failures.push('PWA: active service worker cache is missing the manifest or local icon');
+    await pwaContext.setOffline(true);
+    await pwaPage.goto('http://127.0.0.1:4178/app/reception.html',{waitUntil:'domcontentloaded',timeout:20000});
+    if (!(await pwaPage.title()).includes('Taiba Smart Lab')) failures.push('PWA: cached reception page did not open while offline');
+  } catch (error) {
+    failures.push(`PWA/offline smoke: ${error.message}`);
+  } finally {
+    try { await pwaContext.setOffline(false); } catch {}
+    await pwaContext.close();
+  }
 } finally {
   await browser.close();
   await new Promise(resolve => server.close(resolve));
