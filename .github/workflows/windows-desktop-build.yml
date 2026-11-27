@@ -28,6 +28,18 @@ jobs:
         run: npm test
       - name: Build Windows installer
         run: npm run build:icons; npx electron-builder --win nsis --x64 --publish never
+      - name: Install and launch desktop smoke test
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path 'dist\\Taiba-Smart-Lab-Setup-1.0.0-x64.exe').Path
+          $install = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "NSIS installer failed with exit code $($install.ExitCode)" }
+          $appExe = Join-Path $env:LOCALAPPDATA 'Programs\\Taiba Smart Lab\\Taiba Smart Lab.exe'
+          if (-not (Test-Path $appExe)) { throw "Installed desktop executable not found at $appExe" }
+          $desktop = Start-Process -FilePath $appExe -PassThru
+          Start-Sleep -Seconds 12
+          if ($desktop.HasExited) { throw "Taiba Smart Lab exited during startup (code $($desktop.ExitCode))" }
+          Stop-Process -Id $desktop.Id -Force
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
