@@ -74,7 +74,7 @@ export async function listVisitHistory({tenantId,branchId=null,accountType='empl
     rows=data||[];count=serverCount||0;
   }
   const hidden=await localHiddenSet(tenantId,null);
-  const rows=(data||[]).filter(v=>!hidden.has(hiddenKey(tenantId,v.branch_id,v.id))).map(v=>({...v,patient_name:v.patients?.full_name||'مريض'}));
+  rows=rows.filter(v=>!hidden.has(hiddenKey(tenantId,v.branch_id,v.id))).map(v=>({...v,patient_name:v.patients?.full_name||'مريض'}));
   let totalQuery=db().from('visits').select('id',{count:'exact',head:true}).eq('tenant_id',tenantId);
   if(accountType==='employee')totalQuery=totalQuery.eq('branch_id',branchId);
   const totalResult=await totalQuery;
