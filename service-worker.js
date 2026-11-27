@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v88';
+const CACHE_NAME = 'taiba-smart-lab-shell-v89';
 const APP_SHELL = [
   './app/index.html', './app/site-preview.html', './website/index.html', './website/site.css', './website/public-site-ui.js', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/result-entry.html', './app/sync-center.html',
   './app/dashboard.html', './portal/index.html', './app/cms-editor.html', './app/platform-admin.html', './app/site-management.html', './app/settings.html', './app/data-import.html',
@@ -8,7 +8,7 @@ const APP_SHELL = [
   './assets/css/app-home.css?v=progressive-20261126-v2', './assets/js/app-home.js?v=progressive-20261126-v2',
   './assets/css/catalog.css?v=catalog-workspace-20261126-v2', './assets/js/catalog.js?v=catalog-workspace-20261126-v2',
   './assets/js/catalog.js?v=catalog-ops-20261126-v1',
-  './assets/js/results-workbench.js?v=saved-results-20261127-v2',
+  './assets/js/results-workbench.js?v=saved-results-20261127-v3',
   './assets/css/dashboard.css?v=dashboard-workspace-20261126-v2', './assets/js/dashboard.js?v=dashboard-workspace-20261126-v2',
   './assets/css/reception.css?v=reception-workspace-20261126-v2', './assets/js/reception.js?v=enter-flow-20261126-v2',
   './assets/css/results-workbench.css?v=results-workspace-20261126-v2', './assets/js/results-workbench-layout.js?v=enter-flow-20261126-v2',
