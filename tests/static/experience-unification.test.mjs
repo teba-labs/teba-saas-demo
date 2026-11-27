@@ -64,7 +64,7 @@ test('clinical result entry queues drafts and local approval while keeping final
   assert.match(ui, /اعتماد محلي/);
   assert.match(ui, /النشر على بوابة المريض يحتاج اتصالًا/);
   assert.match(ui, /Print work copy — awaiting synchronization/);
-  assert.match(ui, /Not a final report/);
+  assert.match(ui, /not yet available on the patient portal/);
   assert.match(ui, /reportPreviewHtml\.set/);
   assert.match(ui, /pdf\.output\('blob'\)/);
   assert.match(ui, /\.toPdf\(\)/);
