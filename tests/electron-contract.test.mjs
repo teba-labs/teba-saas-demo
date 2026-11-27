@@ -80,6 +80,6 @@ test('responsive shell protects mobile viewport and keeps wide tables locally sc
 });
 
 test('primary workflow pages declare device-width viewports', async () => {
-  const pages = await Promise.all(['app/index.html','app/reception.html','app/workday.html','app/results-workbench.html','app/result-entry.html','app/sync-center.html','portal/index.html'].map(read));
+  const pages = await Promise.all(['app/index.html','app/reception.html','app/workday.html','app/results-workbench.html','app/result-entry.html','app/sync-center.html','app/catalog.html','app/dashboard.html','app/settings.html','app/cms-editor.html','app/site-management.html','app/site-preview.html','app/data-import.html','app/platform-admin.html','portal/index.html'].map(read));
   for (const html of pages) assert.match(html, /name="viewport"[^>]*content="width=device-width/);
 });
