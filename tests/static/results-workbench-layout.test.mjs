@@ -79,3 +79,10 @@ test('individual and profile result forms open in an accessible same-screen moda
  assert.match(read('assets/css/results-workbench.css'),/\.result-entry-modal/);
  assert.doesNotMatch(layout,/className='test-detail'/);
 });
+
+
+test('WhatsApp accepts Egyptian mobile numbers with or without the leading zero',()=>{
+ assert.match(layout,/else if\(\^1\[0125\]\\d\{8\}\$\)\.test\(waPhone\)\)waPhone='20'\+waPhone;/);
+ assert.match(layout,/انشر النتائج المحفوظة أولًا قبل إرسال رابطها/);
+ assert.match(layout,/فعّل بوابة المريض من إعدادات الموقع أولًا/);
+});
