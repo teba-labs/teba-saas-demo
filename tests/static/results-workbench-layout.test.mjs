@@ -49,10 +49,10 @@ test('test cards open in a same-screen modal instead of navigating to another pa
  assert.match(layout,/placeholder\.replaceWith\(node\)/);
  assert.doesNotMatch(layout,/location\.href=url\.href/);
 });
-test('dedicated result entry page exposes visit-wide save, approval and preview controls',()=>{
- assert.ok(layout.includes('حفظ كل النتائج'));
- assert.ok(layout.includes('اعتماد الزيارة'));
- assert.match(layout,/window\.taibaApproveVisit/);
+test('dedicated result entry page exposes result save and preview controls without visit approval',()=>{
+ assert.ok(layout.includes('حفظ واعتماد النتائج المسجلة'));
+ assert.doesNotMatch(layout,/اعتماد الزيارة/);
+ assert.doesNotMatch(layout,/window\.taibaApproveVisit/);
  assert.match(layout,/window\.taibaPreviewVisitReport/);
 });
 
@@ -61,20 +61,20 @@ test('individual and profile result forms open in an accessible same-screen moda
  assert.match(layout,/role','dialog'/);
  assert.match(layout,/aria-modal','true'/);
  assert.match(layout,/رجوع دون فقد المدخلات/);
- assert.match(layout,/window\.taibaSaveAndMaybeApproveVisit\(record\.visitId,node\.dataset\.testId\)/);
+ assert.match(layout,/window\.taibaSaveAndAcceptResults\(record\.visitId,node\.dataset\.testId\)/);
  assert.doesNotMatch(layout,/taibaSaveAndCompleteTest/);
  assert.match(layout,/taiba:results-work-refresh/);
  assert.match(layout,/node\.dataset\.resultSaved/);
  assert.match(layout,/node\.addEventListener\('input'/);
- assert.match(js,/window\.taibaSaveAndMaybeApproveVisit = saveAndMaybeApproveVisit/);
- assert.match(js,/approveVisitWithAutoCompletion/);
+ assert.match(js,/window\.taibaSaveAndAcceptResults = saveAndAcceptResults/);
+ assert.match(js,/saveAndAcceptResults/);
  assert.match(js,/await saveVisitDrafts\(visitId\)/);
- assert.match(js,/تم حفظ النتائج المدخلة بنجاح/);
- assert.doesNotMatch(js.slice(js.indexOf('async function saveAndMaybeApproveVisit('),js.indexOf('window.taibaSaveAndMaybeApproveVisit =')),/approveVisitWithAutoCompletion\(/);
+ assert.match(js,/تم حفظ النتائج واعتماد القيم المسجلة/);
+ assert.doesNotMatch(js.slice(js.indexOf('async function saveAndAcceptResults('),js.indexOf('window.taibaSaveAndAcceptResults =')),/approveVisitWithAutoCompletion\(/);
  assert.match(js,/saveAndMaybeApproveVisit/);
  assert.match(js,/completeVisitTestAtomic/);
  assert.match(js,/partialReport/);
- assert.match(js,/طباعة النتائج المكتملة فقط/);
+ assert.match(js,/Print saved results/);
  assert.doesNotMatch(js,/سبب تصحيح النتيجة المنشورة/);
  assert.match(read('assets/css/results-workbench.css'),/\.result-entry-modal/);
  assert.doesNotMatch(layout,/className='test-detail'/);
