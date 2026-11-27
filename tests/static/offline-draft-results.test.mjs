@@ -79,7 +79,7 @@ test('offline culture isolate and susceptibility writes are durable, dependency 
 
 test('offline report printing is explicitly provisional and includes queued local draft values', () => {
   assert.match(ui, /Print work copy — awaiting synchronization/);
-  assert.match(ui, /Not a final report/);
+  assert.match(ui, /not yet available on the patient portal/);
   assert.match(ui, /pendingRows/);
 });
 
