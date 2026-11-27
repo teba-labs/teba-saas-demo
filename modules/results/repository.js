@@ -232,9 +232,13 @@ export async function listVisitParameterRangeOverrides({ tenantId, branchId, vis
 export async function saveVisitParameterRangeOverride({tenantId,branchId,visitTestId,parameterCode,referenceRanges,staffId}={}) {
   if(!tenantId||!branchId||!visitTestId||!parameterCode||!staffId||!referenceRanges)throw new Error('بيانات تعديل المدى المرجعي غير مكتملة.');
   const operationId=crypto.randomUUID();
-  const payload={visit_test_id:visitTestId,parameter_code:parameterCode,reference_ranges:referenceRanges,staff_id:staffId};
+  const localTest=(await getCachedRows('visit_tests',{tenantId,branchId})).find(row=>row.id===visitTestId);
+  const localVisit=localTest?(await getCachedRows('visits',{tenantId,branchId})).find(row=>row.id===localTest.visit_id):null;
+  const payload={visit_test_id:visitTestId,parameter_code:parameterCode,reference_ranges:referenceRanges,staff_id:staffId,
+    visit_test_pending:Boolean(localVisit?.local_intake_operation_id)};
   const queue=async()=>{
-    await enqueueOperation({tenantId,branchId,entityType:'range_override',action:'update',operationId,payload,priority:3});
+    await enqueueOperation({tenantId,branchId,entityType:'range_override',action:'update',operationId,payload,
+      dependsOn:localVisit?.local_intake_operation_id?[localVisit.local_intake_operation_id]:[],priority:3});
     await offlineDb.sync_meta.put({key:`range-override:${visitTestId}:${parameterCode}`,tenant_id:tenantId,branch_id:branchId,
       visit_test_id:visitTestId,parameter_code:parameterCode,reference_ranges:referenceRanges,reason:null,
       operation_id:operationId,local_pending:true,updated_at:new Date().toISOString()});
