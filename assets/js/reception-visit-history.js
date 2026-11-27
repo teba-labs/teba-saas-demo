@@ -131,8 +131,13 @@ async function addTest(row){
 }
 async function handleAction(button){
  const action=button.dataset.historyAction,row=state.rows.get(button.dataset.visitId);if(!row)return;
- const c=getContext();button.disabled=true;
+ let c=getContext();button.disabled=true;
  try{
+  if(row.branch_id!==c.branchId){
+    if(c.accountType!=='owner'||typeof window.taibaSwitchReceptionBranch!=='function')throw new Error('هذه الزيارة تخص فرعًا آخر. اختر الفرع من أعلى الشاشة ثم أعد المحاولة.');
+    await window.taibaSwitchReceptionBranch(row.branch_id);
+    c=getContext();
+  }
   if(action==='open'){window.taibaOpenVisitFromHistory?.(row.id,row.branch_id);return;}
   if(action==='edit-patient'){await editPatient(row);return;}
   if(action==='edit-visit'){await editVisit(row);return;}
