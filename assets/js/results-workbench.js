@@ -1275,16 +1275,19 @@ async function shareDirectReport(button){
     const patientName=String(card?.dataset.patientName||'').trim(),visitNumber=String(card?.dataset.visitNumber||'').trim();
     const phone=normalizeWhatsAppNumber(card?.dataset.patientPhone||'');
     if(!patientName||!visitNumber||!visitId)throw new Error('بيانات المريض أو الزيارة غير مكتملة.');
-    if(!state.previewedVisits.has(visitId)||!state.reportPreviewHtml.has(visitId)){
-      await window.taibaPreviewVisitReport(visitId);
-      throw new Error('تم فتح معاينة التقرير. راجعها ثم اضغط إرسال واتساب مرة أخرى.');
-    }
     if(window.taibaGetDirtyResultInputs?.().length)throw new Error('احفظ أي تعديلات على النتائج قبل إرسال التقرير.');
-    const reportHtml=state.reportPreviewHtml.get(visitId);
-    if(reportHtml.includes('LOCAL WORK COPY — saved on this device and awaiting synchronization'))throw new Error('لا يمكن إرسال نسخة العمل المحلية قبل مزامنة النتائج مع السحابة.');
-    setBusy(button,true,'جارٍ تجهيز PDF على الجهاز…');
+    // Open one user-gesture window immediately, then build the report in it when no preview exists.
+    // This keeps the no-portal workflow to one click instead of asking the operator to preview and click again.
     shareWindow=window.open('','_blank');
     if(!shareWindow)throw new Error('اسمح بفتح نافذة مؤقتة لتجهيز ملف التقرير.');
+    if(!state.previewedVisits.has(visitId)||!state.reportPreviewHtml.has(visitId)){
+      await printVisitReport(visitId,shareWindow,{autoPrint:false});
+      state.previewedVisits.add(visitId);
+    }
+    const reportHtml=state.reportPreviewHtml.get(visitId);
+    if(!reportHtml)throw new Error('تعذر تكوين التقرير لهذه الزيارة.');
+    if(reportHtml.includes('LOCAL WORK COPY — saved on this device and awaiting synchronization'))throw new Error('لا يمكن إرسال نسخة العمل المحلية قبل مزامنة النتائج مع السحابة.');
+    setBusy(button,true,'جارٍ تجهيز PDF على الجهاز…');
     shareWindow.document.open();shareWindow.document.write(reportHtml);shareWindow.document.close();
     await shareWindow.document.fonts?.ready;
     await Promise.all([...shareWindow.document.images].map(img=>img.decode?.().catch(()=>null)));
