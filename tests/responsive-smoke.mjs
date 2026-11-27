@@ -106,7 +106,7 @@ try {
     await pwaPage.waitForFunction(() => Boolean(navigator.serviceWorker.controller), null, {timeout:30000});
     const cacheCheck = await pwaPage.evaluate(async () => {
       const names = await caches.keys();
-      const name = names.find(value => value === 'taiba-smart-lab-shell-v104');
+      const name = names.find(value => value === 'taiba-smart-lab-shell-v105');
       if (!name) return {name:null,manifest:false,icon:false};
       const cache = await caches.open(name);
       return {
