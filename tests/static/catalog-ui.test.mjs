@@ -7,7 +7,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('catalog screen is Arabic RTL and exposes test, parameter and price management controls', () => {
   const html = read('app/catalog.html');
-  for (const token of ['lang="ar"', 'dir="rtl"', 'testForm', 'parameterForm', 'priceForm', 'tenantSelect', 'showInactive', 'masterCatalogPanel', 'masterCatalogSearch', 'testPreparation', 'parameterApplicability']) assert.ok(html.includes(token), `missing ${token}`);
+  for (const token of ['lang="ar"', 'dir="rtl"', 'testForm', 'parameterForm', 'priceForm', 'tenantSelect', 'showInactive', 'masterCatalogPanel', 'masterCatalogSearch', 'testPreparation', 'parameterApplicability', 'لا تجمعهما كعدد تحاليل فريدة']) assert.ok(html.includes(token), `missing ${token}`);
   assert.ok(fs.existsSync(path.join(root, 'assets/css/catalog.css')));
   assert.ok(fs.existsSync(path.join(root, 'assets/js/catalog.js')));
 });
