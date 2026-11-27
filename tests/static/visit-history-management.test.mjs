@@ -110,7 +110,7 @@ test('cancelled or published visits cannot receive new analyses from the result 
 });
 
 test('the full visit history modules are included in the offline shell', () => {
-  assert.match(worker, /taiba-smart-lab-shell-v98/);
+  assert.match(worker, /taiba-smart-lab-shell-v99/);
   assert.match(worker, /reception-visit-history\.js/);
   assert.match(worker, /visit-management-repository\.js/);
 });
