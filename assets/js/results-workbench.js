@@ -809,7 +809,7 @@ async function printVisitReport(visitId, win, { autoPrint = true } = {}) {
     '.analysis-heading{margin-top:20px;clear:both}.profile-report{break-before:page;page-break-before:always}.profile-report.first-profile{break-before:auto;page-break-before:auto}.report-footer{break-inside:avoid}}' +
     '</style></head><body data-page-top-margin="' + pageTopMargin + '" data-page-bottom-margin="' + pageBottomMargin + '" data-page-side-margin="' + margin + '" data-page-size="' + paper + '" data-page-orientation="' + orientation + '">' + (watermarkImage ? '<div class="watermark-image"><img src="' + escapeHtml(watermarkImage) + '" alt=""></div>' : '') + (watermarkText ? '<div class="watermark-text">' + escapeHtml(watermarkText) + '</div>' : '') +
     '<div class="preview-controls">' + (canPrint ? '<button onclick="window.print()">' + (localOffline ? 'Print work copy — awaiting synchronization' : partialReport ? 'Print saved results' : 'Print report') + '</button>' : '<button disabled>Complete at least one test before printing</button>') + '<button onclick="window.close()">Close preview</button></div>' +
-    (localOffline ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">UNAPPROVED WORK COPY — saved on this device and awaiting synchronization and review. Not a final report.</div>' : '') +
+    (localOffline ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">LOCAL WORK COPY — saved on this device and awaiting synchronization. It is not yet available on the patient portal.</div>' : '') +
     (partialReport ? '<div style="border:2px solid #777;padding:10px;margin:10px 0;text-align:center;font-weight:700">SAVED RESULTS REPORT — only saved results are shown. Additional results may be added later.</div>' : '') +
     '<header class="report-header' + (showPrintHeader ? '' : ' patient-only') + '">' + (showPrintHeader ? '<div class="header-grid"><div class="header-left">' + headerLeft + '</div><div class="logo-zone">' + centerLogo + '</div><div class="header-right">' + headerRight + '</div></div>' : '') + patientMetaHtml + '</header>' +
     '<section class="report-cover-meta"><h1>LABORATORY REPORT</h1><div class="report-title">' + escapeHtml(title) + '</div><div class="branch-performed">' + escapeHtml(performedAt) + '</div></section>' +
@@ -991,7 +991,7 @@ async function saveVisitDrafts(visitId) {
   if (savedCount || queuedCount || completedTestCount) state.previewedVisits.delete(visitId); state.reportPreviewHtml.delete(visitId);
   return { savedCount, queuedCount, completedTestCount };
 }
-async function saveAndMaybeApproveVisit(visitId, testId = null) {
+async function saveAndAcceptResults(visitId, testId = null) {
   if (!visitId) throw new Error('تعذر تحديد الزيارة.');
   // Saving a result card is deliberately separate from approving the whole visit.
   // saveVisitDrafts saves entered values and completes only tests whose required
@@ -1003,7 +1003,7 @@ async function saveAndMaybeApproveVisit(visitId, testId = null) {
   const completed = Boolean(testId && state.work.some(item => item.id === testId && item.status === 'completed'));
   if (saved.queuedCount) {
     showNotice('تم حفظ النتائج واعتمادها محليًا على هذا الجهاز. ستتم مزامنتها تلقائيًا عند عودة الإنترنت؛ النشر على بوابة المريض يحتاج اتصالًا.');
-    return { saved: true, queued: true, visitApproved: false, resultAccepted: true, completed: false };
+    return { saved: true, queued: true, resultAccepted: true, completed: false };
   }
   if (completed) {
     showNotice('تم حفظ النتائج واعتمادها. يمكنك الآن معاينتها وطباعتها ونشرها؛ ويمكن استكمال باقي التحاليل لاحقًا.');
@@ -1012,7 +1012,7 @@ async function saveAndMaybeApproveVisit(visitId, testId = null) {
   }
   return { saved: true, visitApproved: false, completed, savedCount: saved.savedCount, completedTestCount: saved.completedTestCount };
 }
-window.taibaSaveAndMaybeApproveVisit = saveAndMaybeApproveVisit;
+window.taibaSaveAndAcceptResults = saveAndAcceptResults;
 
 async function saveVisitDraftsAction(button) {
   try {
