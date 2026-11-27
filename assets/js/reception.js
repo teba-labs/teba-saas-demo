@@ -21,6 +21,13 @@ window.taibaOpenVisitFromHistory=(visitId,branchId)=>{
   if(branchId&&state.tenant?.id&&branchId!==state.branch?.id)rememberWorkspaceSelection(state.tenant.id,branchId);
   goToResults(visitId);
 };
+window.taibaSwitchReceptionBranch=async branchId=>{
+  if(!branchId||!state.tenant?.branches?.some(branch=>branch.id===branchId))throw new Error('الفرع المطلوب غير متاح لهذا الحساب.');
+  if(state.branch?.id===branchId)return;
+  $('branchSelect').value=branchId;
+  await loadBranch();
+  window.dispatchEvent(new CustomEvent('taiba:reception-context'));
+};
 const money = n => `${Number(n || 0).toFixed(2)} ج.م`;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateStamp = () => new Date().toISOString().slice(0,10).replaceAll('-','');
