@@ -52,8 +52,8 @@ test('results workbench reads cached visit work and queues draft results behind 
 
 test('offline report preview and printing are visibly marked as unapproved local work copies', () => {
   const ui = read('assets/js/results-workbench.js');
-  assert.match(ui, /UNAPPROVED WORK COPY/);
-  assert.match(ui, /Print work copy — not approved/);
+  assert.match(ui, /LOCAL WORK COPY — awaiting synchronization/);
+  assert.match(ui, /Print work copy — awaiting synchronization/);
   assert.match(ui, /const localOffline = .*visit\.local_offline/);
   assert.match(ui, /if \(globalThis\.navigator\?\.onLine === false \|\| localOffline\)/);
 });
