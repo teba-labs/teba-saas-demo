@@ -44,3 +44,26 @@ test('desktop runtime opens the local workspace rather than GitHub Pages', async
   assert.match(main, /APP_SCHEME.*APP_HOST/);
   assert.doesNotMatch(main, /github\.io\/teba-labs/);
 });
+
+
+test('web workspace exposes an installable PWA manifest and local app icons', async () => {
+  const html = await read('app/index.html');
+  const manifest = JSON.parse(await read('app/manifest.webmanifest'));
+  const worker = await read('service-worker.js');
+  assert.match(html, /rel="manifest" href="\\.\\/manifest\\.webmanifest"/);
+  assert.equal(manifest.name, 'Taiba Smart Lab');
+  assert.equal(manifest.start_url, './index.html');
+  assert.equal(manifest.scope, './');
+  assert.equal(manifest.display, 'standalone');
+  assert.ok(manifest.icons.some(icon => icon.src === './icons/icon-192.svg' && icon.sizes === 'any'));
+  assert.ok(manifest.icons.some(icon => icon.src === './icons/icon-512.svg' && icon.sizes === 'any'));
+  assert.match(worker, /taiba-smart-lab-shell-v104/);
+  assert.match(worker, /\\.\\/app\\/manifest\\.webmanifest/);
+});
+
+test('core app entry and primary styles do not require Google-hosted fonts', async () => {
+  const html = await read('app/index.html');
+  const reception = await read('app/reception.html');
+  const styles = await Promise.all(['assets/css/app-home.css','assets/css/reception.css','assets/css/settings-center.css','assets/css/data-import.css'].map(read));
+  assert.doesNotMatch(html + reception + styles.join('\\n'), /fonts\\.(?:googleapis|gstatic)\\.com/i);
+});
