@@ -119,9 +119,9 @@ export async function updatePatientDemographics({tenantId,branchId,patient,staff
 
 export async function updateVisitDetails({tenantId,branchId,visit,staffId}={}){
   if(!tenantId||!branchId||!visit?.id||!staffId)throw new Error('بيانات تعديل الزيارة غير مكتملة.');
-  const payload={referred_by:String(visit.referred_by||'').trim()||null,notes:String(visit.notes||'').trim()||null,expected_updated_at:visit.updated_at||null};
+  const payload={referred_by:String(visit.referred_by||'').trim()||null,notes:String(visit.notes||'').trim()||null,expected_updated_at:visit.updated_at||null,local_visit_pending:Boolean(visit.local_intake_operation_id)};
   const queue=async()=>{
-    await enqueueOperation({tenantId,branchId,entityType:'visit_update',action:'update',payload:{visit_id:visit.id,staff_id:staffId,...payload},priority:2});
+    await enqueueOperation({tenantId,branchId,entityType:'visit_update',action:'update',payload:{visit_id:visit.id,staff_id:staffId,...payload},dependsOn:visit.local_intake_operation_id?[visit.local_intake_operation_id]:[],priority:2});
     await cacheRows('visits',[{...visit,...payload,local_update_pending:true}]);
     return {queued:true};
   };
@@ -152,8 +152,11 @@ export async function cancelVisit({tenantId,branchId,visitId,staffId}={}){
 
 export async function cancelVisitTest({tenantId,branchId,visitTest,staffId}={}){
   if(!tenantId||!branchId||!visitTest?.id||!staffId)throw new Error('بيانات حذف التحليل غير مكتملة.');
+  const localVisit=(await getCachedRows('visits',{tenantId,branchId})).find(row=>row.id===visitTest.visit_id);
   const queue=async()=>{
-    await enqueueOperation({tenantId,branchId,entityType:'visit_test_cancel',action:'cancel',payload:{visit_test_id:visitTest.id,visit_id:visitTest.visit_id,staff_id:staffId},priority:2});
+    await enqueueOperation({tenantId,branchId,entityType:'visit_test_cancel',action:'cancel',
+      payload:{visit_test_id:visitTest.id,visit_id:visitTest.visit_id,staff_id:staffId,visit_test_pending:Boolean(localVisit?.local_intake_operation_id)},
+      dependsOn:localVisit?.local_intake_operation_id?[localVisit.local_intake_operation_id]:[],priority:2});
     await cacheRows('visit_tests',[{...visitTest,status:'cancelled',local_cancel_pending:true}]);
     return {queued:true};
   };
@@ -163,18 +166,50 @@ export async function cancelVisitTest({tenantId,branchId,visitTest,staffId}={}){
   await cacheRows('visit_tests',[data]);return data;
 }
 
+async function purgeVisitLocalData({tenantId,branchId,visitId}){
+  const tests=await offlineDb.visit_tests.where('visit_id').equals(visitId).toArray();
+  const testIds=tests.map(row=>row.id).filter(Boolean);
+  const isolates=testIds.length?await offlineDb.culture_isolates.where('visit_test_id').anyOf(testIds).toArray():[];
+  const isolateIds=isolates.map(row=>row.id).filter(Boolean);
+  await offlineDb.transaction('rw',offlineDb.visits,offlineDb.visit_tests,offlineDb.test_results,
+    offlineDb.culture_isolates,offlineDb.culture_susceptibilities,offlineDb.sync_meta,async()=>{
+      if(testIds.length){
+        await offlineDb.test_results.where('visit_test_id').anyOf(testIds).delete();
+        await offlineDb.visit_tests.where('id').anyOf(testIds).delete();
+        await offlineDb.culture_isolates.where('visit_test_id').anyOf(testIds).delete();
+      }
+      if(isolateIds.length)await offlineDb.culture_susceptibilities.where('isolate_id').anyOf(isolateIds).delete();
+      await offlineDb.visits.delete(visitId);
+      const meta=await offlineDb.sync_meta.toArray();
+      for(const row of meta){
+        const rangeForTest=testIds.some(id=>row.key?.startsWith('range-override:'+id+':'));
+        if(row.tenant_id===tenantId&&row.branch_id===branchId
+          &&(row.visit_id===visitId||row.visit_test_id&&testIds.includes(row.visit_test_id)||rangeForTest))
+          await offlineDb.sync_meta.delete(row.key);
+      }
+    });
+}
+
 export async function deleteVisitPermanently({tenantId,branchId,visitId,staffId}={}){
   if(!tenantId||!branchId||!visitId||!staffId)throw new Error('بيانات الحذف غير مكتملة.');
   if(globalThis.navigator?.onLine===false)throw new Error('الحذف النهائي يحتاج اتصالًا بالسحابة.');
   const {data,error}=await db().rpc('delete_visit_permanently',{p_tenant_id:tenantId,p_branch_id:branchId,p_visit_id:visitId,p_staff_id:staffId});
   if(error)throw error;
-  await offlineDb.visits.delete(visitId);
-  await offlineDb.visit_tests.where('visit_id').equals(visitId).delete();
+  await purgeVisitLocalData({tenantId,branchId,visitId});
   return data;
 }
 
+/** Removes this visit and its local results from this browser only; server copies stay untouched. */
 export async function hideVisitOnThisDevice({tenantId,branchId,visitId}={}){
+  if(!tenantId||!branchId||!visitId)throw new Error('بيانات الإخفاء المحلي غير مكتملة.');
+  const queued=await offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray();
+  const hasPending=queued.some(op=>{
+    const p=op.payload||{};
+    return p.visit_id===visitId||p.local_visit_id===visitId||p.visit_test_id&&p.visit_id===visitId;
+  });
+  if(hasPending)throw new Error('توجد تعديلات تنتظر المزامنة لهذه الزيارة. أكمل المزامنة أولًا ثم أزل النسخة المحلية.');
   const key=hiddenKey(tenantId,branchId,visitId);
   await offlineDb.sync_meta.put({key,tenant_id:tenantId,branch_id:branchId,visit_id:visitId,hidden:true,updated_at:new Date().toISOString()});
+  await purgeVisitLocalData({tenantId,branchId,visitId});
   return true;
 }
