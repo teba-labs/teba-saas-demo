@@ -8,7 +8,7 @@ const safeText=value=>String(value??'').replace(/[%,_*]/g,' ').replace(/\s+/g,' 
 function hiddenKey(tenantId,branchId,visitId){return 'device-visit-hidden:'+tenantId+':'+branchId+':'+visitId;}
 async function localHiddenSet(tenantId,branchId){
   const rows=await offlineDb.sync_meta.toArray();
-  return new Set(rows.filter(x=>x.tenant_id===tenantId&&x.branch_id===branchId&&x.key?.startsWith('device-visit-hidden:')).map(x=>x.key));
+  return new Set(rows.filter(x=>x.tenant_id===tenantId&&(!branchId||x.branch_id===branchId)&&x.key?.startsWith('device-visit-hidden:')).map(x=>x.key));
 }
 
 /** Search the entire tenant for owners, or the employee's own branch, with exact server count. */
@@ -28,12 +28,12 @@ export async function listVisitHistory({tenantId,branchId=null,accountType='empl
     const patientMap=new Map(patients.map(x=>[x.id,x]));
     const testMap=new Map();
     for(const item of tests){if(!testMap.has(item.visit_id))testMap.set(item.visit_id,[]);testMap.get(item.visit_id).push(item);}
-    const all=visits.filter(v=>(accountType!=='employee'||v.branch_id===branchId)&&v.status!=='cancelled'
+    const all=visits.filter(v=>(accountType!=='employee'||v.branch_id===branchId)
       &&!hidden.has(hiddenKey(tenantId,v.branch_id,v.id))
       &&(!term||((String(v.visit_number||'')+' '+String(v.patient_name||'')+' '+String(v.patients?.full_name||'')+' '+String(patientMap.get(v.patient_id)?.full_name||'')+' '+String(patientMap.get(v.patient_id)?.phone||'')+' '+String(patientMap.get(v.patient_id)?.patient_number||'')).toLowerCase().includes(term.toLowerCase()))))
       .map(v=>({...v,patients:v.patients||patientMap.get(v.patient_id)||{},visit_tests:testMap.get(v.id)||[]}))
       .sort((a,b)=>String(b.visit_work_date||b.created_at||'').localeCompare(String(a.visit_work_date||a.created_at||'')));
-    return {rows:all.slice(from,from+size),count:all.length,page:currentPage,pageSize:size,offline:true,complete:false};
+    return {rows:all.slice(from,from+size),count:all.length,totalCount:visits.length,page:currentPage,pageSize:size,offline:true,complete:false};
   }
   let patientIds=[];
   if(term){
@@ -45,7 +45,7 @@ export async function listVisitHistory({tenantId,branchId=null,accountType='empl
     patientIds=(data||[]).map(x=>x.id);
   }
   let query=db().from('visits')
-    .select('id,tenant_id,branch_id,patient_id,visit_number,visit_work_date,status,is_published,referred_by,notes,updated_at,created_at,patients!inner(id,full_name,phone,patient_number,age_value,age_unit,age_years,date_of_birth,sex),visit_tests(id,test_name_snapshot,status)',{count:'exact'});
+    .select('id,tenant_id,branch_id,patient_id,visit_number,visit_work_date,status,is_published,referred_by,notes,updated_at,created_at,patients!inner(id,full_name,phone,patient_number,age_value,age_unit,age_years,date_of_birth,sex,updated_at),visit_tests(id,test_name_snapshot,status)',{count:'exact'});
   query=query.eq('tenant_id',tenantId);
   if(accountType==='employee')query=query.eq('branch_id',branchId);
   if(term){
@@ -55,14 +55,20 @@ export async function listVisitHistory({tenantId,branchId=null,accountType='empl
   }
   const {data,error,count}=await query.order('visit_work_date',{ascending:false}).order('created_at',{ascending:false}).range(from,from+size-1);
   if(error)throw error;
-  const rows=(data||[]).map(v=>({...v,patient_name:v.patients?.full_name||'مريض'}));
+  const hidden=await localHiddenSet(tenantId,null);
+  const rows=(data||[]).filter(v=>!hidden.has(hiddenKey(tenantId,v.branch_id,v.id))).map(v=>({...v,patient_name:v.patients?.full_name||'مريض'}));
+  let totalQuery=db().from('visits').select('id',{count:'exact',head:true}).eq('tenant_id',tenantId);
+  if(accountType==='employee')totalQuery=totalQuery.eq('branch_id',branchId);
+  const totalResult=await totalQuery;
+  if(totalResult.error)throw totalResult.error;
+
   if(rows.length){
     await cacheRows('visits',rows.map(({patients,visit_tests,...v})=>v));
     await cacheRows('patients',rows.map(v=>v.patients).filter(Boolean).map(p=>({...p,tenant_id:tenantId,branch_id:rows.find(v=>v.patients?.id===p.id)?.branch_id})));
     const testRows=rows.flatMap(v=>(v.visit_tests||[]).map(t=>({...t,tenant_id:tenantId,branch_id:v.branch_id,visit_id:v.id})));
     if(testRows.length)await cacheRows('visit_tests',testRows);
   }
-  return {rows,count:count||0,page:currentPage,pageSize:size,offline:false,complete:true};
+  return {rows,count:count||0,totalCount:totalResult.count||0,page:currentPage,pageSize:size,offline:false,complete:true};
 }
 
 /** Preload historical visit summaries into the local browser so offline search covers the saved archive. */
@@ -72,7 +78,7 @@ export async function warmVisitHistory({tenantId,branchId=null,accountType='empl
   const limit=Math.min(100000,Math.max(500,Math.floor(Number(maxRows)||50000)));
   const rows=[];let total=null;
   for(let offset=0;offset<limit;offset+=500){
-    let query=db().from('visits').select('id,tenant_id,branch_id,patient_id,visit_number,visit_work_date,status,is_published,referred_by,notes,updated_at,created_at,patients!inner(id,full_name,phone,patient_number,age_value,age_unit,age_years,date_of_birth,sex)',{count:'exact'})
+    let query=db().from('visits').select('id,tenant_id,branch_id,patient_id,visit_number,visit_work_date,status,is_published,referred_by,notes,updated_at,created_at,patients!inner(id,full_name,phone,patient_number,age_value,age_unit,age_years,date_of_birth,sex,updated_at)',{count:'exact'})
       .eq('tenant_id',tenantId).order('visit_work_date',{ascending:false}).order('id');
     if(accountType==='employee')query=query.eq('branch_id',branchId);
     const {data,error,count}=await query.range(offset,Math.min(offset+499,limit-1));
