@@ -161,9 +161,7 @@ async function handleAction(button){
   if(action==='delete-visit'){
     if(c.accountType!=='owner'){notice('الحذف النهائي متاح لمالك المعمل فقط.',true);return;}
     if(!window.confirm('حذف نهائي من السحابة وكل الأجهزة؟ هذا الإجراء لا يمكن التراجع عنه. لن يُسمح به إذا كانت الزيارة مرتبطة بتحصيل أو تقرير منشور أو مرفق.'))return;
-    const confirmText=window.prompt('للتأكيد اكتب كلمة حذف');
-    if(confirmText!=='حذف')return;
-    const result=await deleteVisitPermanently({tenantId:c.tenantId,branchId:row.branch_id,visitId:row.id,staffId:staffId()});
+        const result=await deleteVisitPermanently({tenantId:c.tenantId,branchId:row.branch_id,visitId:row.id,staffId:staffId()});
     notice(result?.deleted?'تم حذف الزيارة نهائيًا.':'لم يتم تأكيد الحذف.');await load();return;
   }
  }catch(error){notice(error.message||'تعذر تنفيذ الإجراء.',true);}
@@ -176,7 +174,7 @@ $('visitHistoryPrev')?.addEventListener('click',()=>{state.page=Math.max(0,state
 $('visitHistoryNext')?.addEventListener('click',()=>{state.page+=1;load().catch(e=>notice(e.message,true));});
 $('visitHistoryLoadOffline')?.addEventListener('click',async event=>{
  const b=event.currentTarget;b.disabled=true;b.textContent='جارٍ حفظ السجل…';
- try{const c=getContext();const result=await warmVisitHistory({tenantId:c.tenantId,branchId:c.branchId,accountType:c.accountType,maxRows:50000});
+ try{const c=getContext();const result=await warmVisitHistory({tenantId:c.tenantId,branchId:c.branchId,accountType:c.accountType,maxRows:Number.MAX_SAFE_INTEGER});
    notice(result.truncated?'تم حفظ '+result.cachedRows+' زيارة محليًا. ما زال هناك سجل أقدم من الحد المحمّل.':'تم حفظ كل '+result.cachedRows+' زيارة في التخزين المحلي المتاح.');
    state.page=0;await load();
  }catch(error){notice(error.message||'تعذر تحميل السجل دون إنترنت.',true);}
