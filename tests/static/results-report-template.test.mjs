@@ -80,7 +80,7 @@ test('partial reports include only saved completed results and do not bypass fin
  assert.match(js,/const partialReport = !localOffline && globalThis\.navigator/);
  assert.match(js,/rows\.some\(row => row\.visit_test_id === item\.id\)/);
  assert.match(js,/لا يمكن نشر التقرير النهائي قبل اكتمال جميع التحاليل/);
- assert.match(js,/PARTIAL REPORT — some results are not yet available/);
+ assert.match(js,/SAVED RESULTS REPORT — only saved results are shown/);
  const finalPublication=fs.readFileSync(new URL('database/migrations/108_block_partial_report_publication.sql',root),'utf8');
  const partialPublication=fs.readFileSync(new URL('database/migrations/111_partial_report_publication.sql',root),'utf8');
  assert.match(finalPublication,/All visit tests must be completed before report publication/);
