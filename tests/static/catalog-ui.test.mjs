@@ -117,6 +117,7 @@ test('master catalog import is operational immediately and does not require cust
   const ui = read('assets/js/catalog.js');
   assert.match(migration, /import_master_catalog_test_unchecked/);
   assert.match(migration, /ensure_zero_base_price_for_new_test/);
-  assert.match(ui, /جاهز للاستخدام والتعديل داخل كتالوج المعمل بعد الاستيراد/);
+  assert.match(ui, /تعريف منشور قابل للاستيراد/);
+  assert.match(ui, /تحتاج مراجعة واستكمالًا محليًا قبل اعتمادها سريريًا/);
   assert.doesNotMatch(ui, /المدى يحتاج تحققًا محليًا|مراجعة البيانات إرشادية وغير مانعة/);
 });
