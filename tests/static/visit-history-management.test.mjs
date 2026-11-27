@@ -77,7 +77,7 @@ test('visit-specific range edits require no reason, never alter catalog, and syn
   assert.match(resultRepo, /set_visit_parameter_range_override_idempotent/);
   assert.match(syncAdapters, /range_override: async operation/);
   assert.match(migration, /visit_test_parameter_range_overrides alter column reason drop not null/i);
-  assert.match(migration, /reference_ranges=p_reference_ranges/);
+  assert.match(migration, /reference_ranges=excluded\.reference_ranges/);
   assert.match(migration, /old_reference_ranges,new_reference_ranges/);
 });
 
