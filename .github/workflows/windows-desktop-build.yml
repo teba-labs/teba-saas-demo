@@ -1,0 +1,38 @@
+name: Windows Desktop Installer
+
+on:
+  push:
+    branches:
+      - feature/windows-electron-desktop-2026-11-28
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check Electron source
+        run: npm run check:electron
+      - name: Run desktop contract tests
+        run: npm test
+      - name: Build Windows installer
+        run: npm run build:icons; npx electron-builder --win nsis --x64
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: taiba-smart-lab-windows-installer
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
