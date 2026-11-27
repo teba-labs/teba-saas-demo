@@ -103,6 +103,115 @@ export function createSupabaseSyncHandlers() {
       await offlineDb.culture_susceptibilities.delete(p.local_susceptibility_id || '');
       return {acknowledged:true,resultId:data};
     },
+    visit_test_add: async operation => {
+      const p=operation.payload;
+      let visitId=p.visit_id;
+      if(p.local_visit_pending){
+        let mapping=null;
+        for(const dependency of operation.depends_on||[]){const candidate=await offlineDb.sync_meta.get(`visit-map:${dependency}`);if(candidate?.local_visit_id===visitId){mapping=candidate;break;}}
+        if(!mapping){const maps=await offlineDb.sync_meta.toArray();mapping=maps.find(row=>row.tenant_id===operation.tenant_id&&row.branch_id===operation.branch_id&&row.local_visit_id===visitId&&row.server_visit_id);}
+        if(!mapping?.server_visit_id)throw new Error('Test addition is waiting for its visit to synchronize.');
+        visitId=mapping.server_visit_id;
+      }
+      const {data,error}=await db().rpc('add_test_to_visit_atomic',{
+        p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,p_visit_id:visitId,
+        p_test_id:p.test_id,p_staff_id:p.staff_id,
+      });
+      if(error)return throwUnlessConflict(error,/Branch access denied|active staff identity|Visit not found|finalized visit|Active catalog test not found|Authentication required/i);
+      if(!data?.id)throw new Error('Server did not confirm the added test.');
+      const full=await db().from('visit_tests')
+        .select('id,tenant_id,branch_id,visit_id,test_id,test_code_snapshot,test_name_snapshot,technical_snapshot,status,created_at,tests_catalog(test_kind),visits!inner(visit_number,visit_work_date,status,is_published,patients!inner(full_name,patient_number,phone,age_years,sex))')
+        .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',data.id).single();
+      if(full.error)throw full.error;
+      await cacheRows('visit_tests',[full.data]);
+      return {acknowledged:true,resultId:data.id};
+    },
+    range_override: async operation => {
+      const p=operation.payload;
+      let visitTestId=p.visit_test_id;
+      let mapped=false;
+      for(const dependency of operation.depends_on||[]){const m=await offlineDb.sync_meta.get(`visit-map:${dependency}`);if(m?.visit_test_ids?.[visitTestId]){visitTestId=m.visit_test_ids[visitTestId];mapped=true;break;}}
+      if(!mapped){const all=await offlineDb.sync_meta.toArray();const m=all.find(x=>x.tenant_id===operation.tenant_id&&x.branch_id===operation.branch_id&&x.visit_test_ids?.[visitTestId]);if(m){visitTestId=m.visit_test_ids[visitTestId];mapped=true;}}
+      if(p.visit_test_pending&&!mapped)throw new Error('Range correction is waiting for its visit/test to synchronize.');
+      const {data,error}=await db().rpc('set_visit_parameter_range_override_idempotent',{
+        p_operation_id:operation.operation_id,p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,
+        p_visit_test_id:visitTestId,p_parameter_code:p.parameter_code,p_reference_ranges:p.reference_ranges,p_staff_id:p.staff_id,
+      });
+      if(error)return throwUnlessConflict(error,/Branch access denied|active staff identity|Visit test not found|Cancelled tests|Cancelled visits|Parameter is not part|Authentication required|operation ID was reused/i);
+      if(!data?.visit_test_id)throw new Error('Server did not confirm the visit-specific reference range.');
+      const key=`range-override:${p.visit_test_id}:${p.parameter_code}`;
+      await offlineDb.sync_meta.put({...data,key:`range-override:${data.visit_test_id}:${p.parameter_code}`,local_pending:false});
+      if(key!==`range-override:${data.visit_test_id}:${p.parameter_code}`)await offlineDb.sync_meta.delete(key);
+      return {acknowledged:true,resultId:operation.operation_id};
+    },
+    patient_update: async operation => {
+      const p=operation.payload;
+      const current=await db().from('patients').select('id,tenant_id,branch_id,full_name,phone,sex,date_of_birth,age_value,age_unit,updated_at')
+        .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',p.patient_id).maybeSingle();
+      if(current.error)throw current.error;
+      if(!current.data) return {conflict:true,reason:'بيانات المريض غير موجودة في الفرع؛ احتفظنا بالتعديل المحلي.'};
+      const same=current.data.full_name===p.full_name&&current.data.phone===(p.phone||null)&&current.data.sex===p.sex
+        &&current.data.date_of_birth===(p.date_of_birth||null)&&Number(current.data.age_value??-1)===Number(p.age_value??-1)&&current.data.age_unit===p.age_unit;
+      if(!same&&p.expected_updated_at&&current.data.updated_at!==p.expected_updated_at)return {conflict:true,reason:'تغيرت بيانات المريض على جهاز آخر؛ احتفظنا بالنسخة المحلية للمراجعة.'};
+      if(!same){
+        const {data,error}=await db().rpc('update_patient_demographics',{
+          p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,p_patient_id:p.patient_id,p_staff_id:p.staff_id,
+          p_full_name:p.full_name,p_phone:p.phone,p_sex:p.sex,p_date_of_birth:p.date_of_birth,
+          p_age_value:p.age_value,p_age_unit:p.age_unit,p_expected_updated_at:p.expected_updated_at,
+        });
+        if(error)return throwUnlessConflict(error,/Branch access denied|Active staff identity|Patient not found|بيانات المريض تغيرت|Authentication/i);
+        await cacheRows('patients',[data]);
+      }
+      return {acknowledged:true,resultId:p.patient_id};
+    },
+    visit_update: async operation => {
+      const p=operation.payload;
+      let visitId=p.visit_id;
+      if(p.local_visit_pending){
+        let mapping=null;
+        for(const dependency of operation.depends_on||[]){const m=await offlineDb.sync_meta.get(`visit-map:${dependency}`);if(m?.local_visit_id===visitId){mapping=m;break;}}
+        if(!mapping){const all=await offlineDb.sync_meta.toArray();mapping=all.find(x=>x.tenant_id===operation.tenant_id&&x.branch_id===operation.branch_id&&x.local_visit_id===visitId&&x.server_visit_id);}
+        if(!mapping?.server_visit_id)throw new Error('Visit details are waiting for the visit to synchronize.');
+        visitId=mapping.server_visit_id;
+      }
+      const current=await db().from('visits').select('id,tenant_id,branch_id,referred_by,notes,updated_at')
+        .eq('tenant_id',operation.tenant_id).eq('branch_id',operation.branch_id).eq('id',visitId).maybeSingle();
+      if(current.error)throw current.error;
+      if(!current.data)return {conflict:true,reason:'الزيارة غير موجودة على السحابة؛ احتفظنا بالتعديل المحلي.'};
+      const same=(current.data.referred_by||null)===(p.referred_by||null)&&(current.data.notes||null)===(p.notes||null);
+      if(!same&&p.expected_updated_at&&current.data.updated_at!==p.expected_updated_at)return {conflict:true,reason:'تغيرت بيانات الزيارة على جهاز آخر؛ احتفظنا بالتعديل المحلي للمراجعة.'};
+      if(!same){
+        const {data,error}=await db().rpc('update_visit_details',{
+          p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,p_visit_id:visitId,p_staff_id:p.staff_id,
+          p_referred_by:p.referred_by,p_notes:p.notes,p_expected_updated_at:p.expected_updated_at,
+        });
+        if(error)return throwUnlessConflict(error,/Branch access denied|Active staff identity|Active visit not found|بيانات الزيارة تغيرت|Authentication/i);
+        await cacheRows('visits',[data]);
+      }
+      return {acknowledged:true,resultId:visitId};
+    },
+    visit_cancel: async operation => {
+      const p=operation.payload;let visitId=p.visit_id;
+      if(p.local_visit_pending){
+        let mapping=null;
+        for(const dependency of operation.depends_on||[]){const m=await offlineDb.sync_meta.get(`visit-map:${dependency}`);if(m?.local_visit_id===visitId){mapping=m;break;}}
+        if(!mapping){const all=await offlineDb.sync_meta.toArray();mapping=all.find(x=>x.tenant_id===operation.tenant_id&&x.branch_id===operation.branch_id&&x.local_visit_id===visitId&&x.server_visit_id);}
+        if(!mapping?.server_visit_id)throw new Error('Visit cancellation is waiting for its visit to synchronize.');
+        visitId=mapping.server_visit_id;
+      }
+      const {data,error}=await db().rpc('cancel_visit_atomic',{p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,p_visit_id:visitId,p_staff_id:p.staff_id});
+      if(error)return throwUnlessConflict(error,/Branch access denied|Active staff identity|Visit not found|Authentication/i);
+      await cacheRows('visits',[data]);return {acknowledged:true,resultId:visitId};
+    },
+    visit_test_cancel: async operation => {
+      const p=operation.payload;let visitTestId=p.visit_test_id;
+      for(const dependency of operation.depends_on||[]){const m=await offlineDb.sync_meta.get(`visit-map:${dependency}`);if(m?.visit_test_ids?.[visitTestId]){visitTestId=m.visit_test_ids[visitTestId];break;}}
+      const all=await offlineDb.sync_meta.toArray();const mapped=all.find(x=>x.tenant_id===operation.tenant_id&&x.branch_id===operation.branch_id&&x.visit_test_ids?.[visitTestId]);
+      if(mapped)visitTestId=mapped.visit_test_ids[visitTestId];
+      const {data,error}=await db().rpc('cancel_visit_test_atomic',{p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,p_visit_test_id:visitTestId,p_staff_id:p.staff_id});
+      if(error)return throwUnlessConflict(error,/Branch access denied|Active staff identity|Visit test not found|Visit is cancelled|Authentication/i);
+      await cacheRows('visit_tests',[data]);return {acknowledged:true,resultId:visitTestId};
+    },
     draft_results: async operation => {
       const p = operation.payload;
       let visitTestId = p.visit_test_id;
