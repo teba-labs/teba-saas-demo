@@ -101,12 +101,16 @@ export async function updatePatientDemographics({tenantId,branchId,patient,staff
     age_value:patient.age_value===''||patient.age_value==null?null:Number(patient.age_value),
     age_unit:patient.age_unit||'years',expected_updated_at:patient.updated_at||null};
   if(!payload.full_name)throw new Error('اسم المريض مطلوب.');
+  const pending=await offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray();
+  const createDependency=pending.find(op=>op.entity_type==='patients'&&op.payload?.id===patient.id)?.operation_id;
   const queue=async()=>{
-    await enqueueOperation({tenantId,branchId,entityType:'patient_update',action:'update',payload:{patient_id:patient.id,staff_id:staffId,...payload},priority:2});
+    await enqueueOperation({tenantId,branchId,entityType:'patient_update',action:'update',
+      payload:{patient_id:patient.id,staff_id:staffId,...payload,local_patient_pending:Boolean(createDependency)},
+      dependsOn:createDependency?[createDependency]:[],priority:2});
     await cacheRows('patients',[{...patient,...payload,local_update_pending:true}]);
     return {queued:true};
   };
-  if(globalThis.navigator?.onLine===false)return queue();
+  if(globalThis.navigator?.onLine===false||createDependency)return queue();
   const {data,error}=await db().rpc('update_patient_demographics',{
     p_tenant_id:tenantId,p_branch_id:branchId,p_patient_id:patient.id,p_staff_id:staffId,
     p_full_name:payload.full_name,p_phone:payload.phone,p_sex:payload.sex,p_date_of_birth:payload.date_of_birth,
@@ -125,7 +129,7 @@ export async function updateVisitDetails({tenantId,branchId,visit,staffId}={}){
     await cacheRows('visits',[{...visit,...payload,local_update_pending:true}]);
     return {queued:true};
   };
-  if(globalThis.navigator?.onLine===false)return queue();
+  if(globalThis.navigator?.onLine===false||payload.local_visit_pending)return queue();
   const {data,error}=await db().rpc('update_visit_details',{
     p_tenant_id:tenantId,p_branch_id:branchId,p_visit_id:visit.id,p_staff_id:staffId,
     p_referred_by:payload.referred_by,p_notes:payload.notes,p_expected_updated_at:payload.expected_updated_at,
@@ -144,7 +148,7 @@ export async function cancelVisit({tenantId,branchId,visitId,staffId}={}){
     if(localVisit)await cacheRows('visits',[{...localVisit,status:'cancelled',local_cancel_pending:true}]);
     return {queued:true};
   };
-  if(globalThis.navigator?.onLine===false)return queue();
+  if(globalThis.navigator?.onLine===false||localVisit?.local_intake_operation_id)return queue();
   const {data,error}=await db().rpc('cancel_visit_atomic',{p_tenant_id:tenantId,p_branch_id:branchId,p_visit_id:visitId,p_staff_id:staffId});
   if(error){if(/fetch|network|offline/i.test(error.message||''))return queue();throw error;}
   await cacheRows('visits',[data]);return data;
@@ -160,7 +164,7 @@ export async function cancelVisitTest({tenantId,branchId,visitTest,staffId}={}){
     await cacheRows('visit_tests',[{...visitTest,status:'cancelled',local_cancel_pending:true}]);
     return {queued:true};
   };
-  if(globalThis.navigator?.onLine===false)return queue();
+  if(globalThis.navigator?.onLine===false||localVisit?.local_intake_operation_id)return queue();
   const {data,error}=await db().rpc('cancel_visit_test_atomic',{p_tenant_id:tenantId,p_branch_id:branchId,p_visit_test_id:visitTest.id,p_staff_id:staffId});
   if(error){if(/fetch|network|offline/i.test(error.message||''))return queue();throw error;}
   await cacheRows('visit_tests',[data]);return data;
@@ -202,10 +206,15 @@ export async function deleteVisitPermanently({tenantId,branchId,visitId,staffId}
 /** Removes this visit and its local results from this browser only; server copies stay untouched. */
 export async function hideVisitOnThisDevice({tenantId,branchId,visitId}={}){
   if(!tenantId||!branchId||!visitId)throw new Error('بيانات الإخفاء المحلي غير مكتملة.');
-  const queued=await offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray();
+  const [queued,tests]=await Promise.all([
+    offlineDb.outbox.where('[tenant_id+branch_id]').equals([tenantId,branchId]).toArray(),
+    offlineDb.visit_tests.where('visit_id').equals(visitId).toArray(),
+  ]);
+  const testIds=new Set(tests.map(test=>test.id));
   const hasPending=queued.some(op=>{
     const p=op.payload||{};
-    return p.visit_id===visitId||p.local_visit_id===visitId||p.visit_test_id&&p.visit_id===visitId;
+    return p.visit_id===visitId||p.local_visit_id===visitId||testIds.has(p.visit_test_id)
+      ||(Array.isArray(p.visit_test_ids)&&p.visit_test_ids.some(id=>testIds.has(id)));
   });
   if(hasPending)throw new Error('توجد تعديلات تنتظر المزامنة لهذه الزيارة. أكمل المزامنة أولًا ثم أزل النسخة المحلية.');
   const key=hiddenKey(tenantId,branchId,visitId);
