@@ -204,21 +204,30 @@ export function createSupabaseSyncHandlers() {
       await cacheRows('visits',[data]);return {acknowledged:true,resultId:visitId};
     },
     visit_test_cancel: async operation => {
-      const p=operation.payload;let visitTestId=p.visit_test_id;
-      for(const dependency of operation.depends_on||[]){const m=await offlineDb.sync_meta.get(`visit-map:${dependency}`);if(m?.visit_test_ids?.[visitTestId]){visitTestId=m.visit_test_ids[visitTestId];break;}}
-      const all=await offlineDb.sync_meta.toArray();const mapped=all.find(x=>x.tenant_id===operation.tenant_id&&x.branch_id===operation.branch_id&&x.visit_test_ids?.[visitTestId]);
-      if(mapped)visitTestId=mapped.visit_test_ids[visitTestId];
+      const p=operation.payload;let visitTestId=p.visit_test_id;let mappedTest=false;
+      for(const dependency of operation.depends_on||[]){const m=await offlineDb.sync_meta.get(`visit-map:${dependency}`);if(m?.visit_test_ids?.[visitTestId]){visitTestId=m.visit_test_ids[visitTestId];mappedTest=true;break;}}
+      if(!mappedTest){const all=await offlineDb.sync_meta.toArray();const mapped=all.find(x=>x.tenant_id===operation.tenant_id&&x.branch_id===operation.branch_id&&x.visit_test_ids?.[visitTestId]);if(mapped){visitTestId=mapped.visit_test_ids[visitTestId];mappedTest=true;}}
+      if(p.visit_test_pending&&!mappedTest)throw new Error('Removing the test is waiting for the offline visit to synchronize.');
       const {data,error}=await db().rpc('cancel_visit_test_atomic',{p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,p_visit_test_id:visitTestId,p_staff_id:p.staff_id});
       if(error)return throwUnlessConflict(error,/Branch access denied|Active staff identity|Visit test not found|Visit is cancelled|Authentication/i);
       await cacheRows('visit_tests',[data]);return {acknowledged:true,resultId:visitTestId};
     },
     result_correction: async operation => {
-      const p=operation.payload;let visitTestId=p.visit_test_id;
-      for(const dependency of operation.depends_on||[]){const m=await offlineDb.sync_meta.get(`visit-map:${dependency}`);if(m?.visit_test_ids?.[visitTestId]){visitTestId=m.visit_test_ids[visitTestId];break;}}
-      const all=await offlineDb.sync_meta.toArray();const mapped=all.find(x=>x.tenant_id===operation.tenant_id&&x.branch_id===operation.branch_id&&x.visit_test_ids?.[visitTestId]);
-      if(mapped)visitTestId=mapped.visit_test_ids[visitTestId];
+      const p=operation.payload;let visitTestId=p.visit_test_id;let mappedTest=false;
+      for(const dependency of operation.depends_on||[]){const m=await offlineDb.sync_meta.get(`visit-map:${dependency}`);if(m?.visit_test_ids?.[visitTestId]){visitTestId=m.visit_test_ids[visitTestId];mappedTest=true;break;}}
+      if(!mappedTest){const all=await offlineDb.sync_meta.toArray();const mapped=all.find(x=>x.tenant_id===operation.tenant_id&&x.branch_id===operation.branch_id&&x.visit_test_ids?.[visitTestId]);if(mapped){visitTestId=mapped.visit_test_ids[visitTestId];mappedTest=true;}}
+      if(p.visit_test_pending&&!mappedTest)throw new Error('Result correction is waiting for the offline visit to synchronize.');
+      let resultId=p.result_id;
+      if(!resultId||String(resultId).startsWith('local-result:')){
+        if(!p.parameter_code)throw new Error('Cannot resolve the synchronized result without its parameter code.');
+        const lookup=await db().from('test_results').select('id').eq('tenant_id',operation.tenant_id)
+          .eq('visit_test_id',visitTestId).eq('parameter_code',p.parameter_code).maybeSingle();
+        if(lookup.error)throw lookup.error;
+        if(!lookup.data?.id)throw new Error('The saved result is still synchronizing; correction will retry automatically.');
+        resultId=lookup.data.id;
+      }
       const {data,error}=await db().rpc('correct_visit_result_with_flag',{
-        p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,p_visit_test_id:visitTestId,p_result_id:p.result_id,
+        p_tenant_id:operation.tenant_id,p_branch_id:operation.branch_id,p_visit_test_id:visitTestId,p_result_id:resultId,
         p_value_numeric:p.value_numeric,p_value_text:p.value_text,p_flag:p.flag??null,p_reason:null,p_staff_id:p.staff_id,
       });
       if(error)return throwUnlessConflict(error,/Branch access denied|active staff identity|Only a completed visit test|Cancelled visits|Result not found|approved unpublished|Authentication required|Unsupported result flag|Provide exactly one/i);
