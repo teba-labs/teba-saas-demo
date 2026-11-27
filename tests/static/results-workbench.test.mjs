@@ -20,10 +20,11 @@ test('results workbench is a separate authenticated page and imports tenant-scop
   assert.match(script, /nextWorkPage/);
 });
 
-test('workbench separates draft entry, approval, audited correction and PDF publication actions', () => {
+test('workbench accepts saved results and retains audited correction and PDF publication', () => {
   assert.match(script, /saveDraftResults/);
-  assert.match(script, /approveVisitWithAutoCompletion/);
-  assert.match(script, /approveVisitWithAutoCompletion/);
+  assert.doesNotMatch(script, /approveVisitWithAutoCompletion/);
+  assert.doesNotMatch(script, /approve-visit/);
+  assert.match(script, /حفظ النتائج واعتمادها/);
   assert.match(script, /correctVisitResultWithFlag/);
   assert.match(script, /publishReportVersion/);
   assert.match(script, /صحح نتيجة واحدة في كل مرة/);
@@ -48,12 +49,12 @@ test('save and correction actions resolve the containing test card, not the acti
   assert.match(script, /const inputs = \[\.\.\.section\.querySelectorAll\('\[data-param-code\]'\)\]/);
 });
 
-test('operator can complete ready tests, print partial results and approve the visit after all required results', () => {
-  assert.match(script, /async function approve\(button\)/);
+test('operator can save, preview, print and publish results without visit-wide approval', () => {
+  assert.doesNotMatch(script, /async function approve\(button\)/);
   assert.match(script, /state\.work\.filter\(item => item\.visit_id === visitId/);
   assert.match(script, /await saveDraftResults\(/);
   assert.match(script, /await completeVisitTestAtomic\(/);
-  assert.match(script, /await approveVisitWithAutoCompletion\(/);
+  assert.doesNotMatch(script, /approveVisitWithAutoCompletion/);
   assert.match(script, /partialReport/);
   assert.match(repository, /complete_visit_test_atomic/);
   assert.match(repository, /approve_visit_with_auto_completion/);
