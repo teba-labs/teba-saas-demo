@@ -36,7 +36,25 @@ jobs:
           if ($install.ExitCode -ne 0) { throw "NSIS installer failed with exit code $($install.ExitCode)" }
           $appExe = Join-Path $env:LOCALAPPDATA 'Programs\\Taiba Smart Lab\\Taiba Smart Lab.exe'
           if (-not (Test-Path $appExe)) { throw "Installed desktop executable not found at $appExe" }
-          $desktop = Start-Process -FilePath $appExe -ArgumentList '--remote-debugging-port=9222' -PassThru
+          $desktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Taiba Smart Lab.lnk'
+          if (-not (Test-Path $desktopShortcut)) { throw "Desktop shortcut was not created: $desktopShortcut" }
+          $shortcutShell = New-Object -ComObject WScript.Shell
+          $shortcut = $shortcutShell.CreateShortcut($desktopShortcut)
+          if ([IO.Path]::GetFullPath($shortcut.TargetPath) -ne [IO.Path]::GetFullPath($appExe)) {
+            throw "Desktop shortcut target does not match the installed executable: $($shortcut.TargetPath)"
+          }
+          $shortcut.Arguments = '--remote-debugging-port=9222'
+          $shortcut.Save()
+          Invoke-Item -LiteralPath $desktopShortcut
+          $desktop = $null
+          $launchDeadline = (Get-Date).AddSeconds(45)
+          while ((Get-Date) -lt $launchDeadline -and -not $desktop) {
+            $processInfo = Get-CimInstance -ClassName Win32_Process -Filter "Name='Taiba Smart Lab.exe'" |
+              Where-Object { $_.ExecutablePath -eq $appExe } | Select-Object -First 1
+            if ($processInfo) { $desktop = Get-Process -Id $processInfo.ProcessId -ErrorAction SilentlyContinue }
+            if (-not $desktop) { Start-Sleep -Seconds 1 }
+          }
+          if (-not $desktop) { throw "Opening the desktop shortcut did not launch Taiba Smart Lab" }
           $deadline = (Get-Date).AddSeconds(45)
           $page = $null
           while ((Get-Date) -lt $deadline -and -not $page) {
