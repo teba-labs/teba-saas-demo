@@ -15,7 +15,7 @@ test('staff workflow accepts saved results without a separate visit approval act
   assert.ok(page.includes('await completeVisitTestAtomic('));
   assert.ok(!page.includes('approveVisitWithAutoCompletion'));
   assert.ok(!page.includes('async function approve(button)'));
-  assert.ok(page.includes('حفظ النتائج واعتمادها'));
+  assert.ok(page.includes('حفظ النتائج'));
   assert.ok(!page.includes('complete-test'));
   assert.ok(!repository.includes(".update({ status: 'completed' })"));
   assert.doesNotMatch(repository, /approved_by_staff_id: staffId/);
@@ -78,8 +78,8 @@ test('one-action approval checks required visible values, preserves branch secur
 });
 
 test('saving a partially entered result never attempts visit-wide approval', () => {
- const start=page.indexOf('async function saveAndAcceptResults(');
- const end=page.indexOf('window.taibaSaveAndAcceptResults =',start);
+ const start=page.indexOf('async function saveResultsForTest(');
+ const end=page.indexOf('window.taibaSaveResultsForTest =',start);
  assert.ok(start>=0 && end>start);
  const saveFlow=page.slice(start,end);
  assert.match(saveFlow,/await saveVisitDrafts\(visitId\)/);
