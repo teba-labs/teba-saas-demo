@@ -50,7 +50,7 @@ test('web workspace exposes an installable PWA manifest and local app icons', as
   const html = await read('app/index.html');
   const manifest = JSON.parse(await read('app/manifest.webmanifest'));
   const worker = await read('service-worker.js');
-  assert.ok(html.includes('rel="manifest" href="./manifest.webmanifest"'));
+  assert.ok(html.includes('rel="manifest" href="./manifest.webmanifest"'));\n  assert.ok(html.includes('rel="apple-touch-icon" href="data:image/png;base64,'));
   assert.equal(manifest.name, 'Taiba Smart Lab');
   assert.equal(manifest.start_url, './index.html');
   assert.equal(manifest.scope, './');
