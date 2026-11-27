@@ -12,6 +12,15 @@ import { cacheRows, getCachedRows, replaceCachedRows } from '../../offline/cache
 
 const $ = id => document.getElementById(id);
 const state = { context:null, userId:null, tenant:null, branch:null, staff:[], workday:null, patient:null, catalog:[], prices:new Map(), selected:new Set(), parameters:new Map(), busy:false, stopSync:null, lastVisit:null, visitNumberPromise:null };
+window.taibaGetReceptionContext=()=>state.tenant&&state.branch?{
+  tenantId:state.tenant.id,branchId:state.branch.id,accountType:state.tenant.accountType,
+  staffId:$('staffSelect')?.value||null,branches:(state.tenant.branches||[]).map(b=>({id:b.id,name:b.name}))
+}:null;
+window.taibaOpenVisitFromHistory=(visitId,branchId)=>{
+  if(!visitId)return;
+  if(branchId&&state.tenant?.id&&branchId!==state.branch?.id)rememberWorkspaceSelection(state.tenant.id,branchId);
+  goToResults(visitId);
+};
 const money = n => `${Number(n || 0).toFixed(2)} ج.م`;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateStamp = () => new Date().toISOString().slice(0,10).replaceAll('-','');
@@ -131,6 +140,7 @@ async function loadBranch(){
   if(state.tenant.accountType==='employee')staffRows=staffRows.filter(x=>x.auth_user_id===state.userId);
   state.staff=staffRows;$('staffSelect').disabled=state.tenant.accountType==='employee';
   $('staffSelect').innerHTML=state.staff.map(s=>`<option value="${escapeHtml(s.id)}">${escapeHtml(s.display_name)}</option>`).join('');
+  window.dispatchEvent(new CustomEvent('taiba:reception-context'));
   const workdayResult=await getOpenWorkday({tenantId:state.tenant.id,branchId:state.branch.id}).catch(error=>({error}));
   state.workday=workdayResult.error?null:workdayResult;
   $('workdayStatus').className='status '+(state.workday?'good':'bad');
@@ -139,12 +149,12 @@ async function loadBranch(){
   $('intakeWorkdayChip').textContent=state.workday?`يوم العمل · ${state.workday.work_date}`:'يوم العمل مغلق';
   $('visitDate').value=state.workday?.work_date||'—';
   if(!state.staff.length)$('workdayStatus').textContent+=' لا توجد هوية موظف نشطة مرتبطة بهذا الحساب في الفرع.';
-  if(!state.workday||!state.staff.length){await loadRecent();await loadBalances();setReceptionView('recent');return;}
+  if(!state.workday||!state.staff.length){await loadRecent();await loadBalances();setReceptionView('recent');window.dispatchEvent(new CustomEvent('taiba:reception-context'));return;}
   const catalog=await listCatalog({tenantId:state.tenant.id,branchId:state.branch.id});state.catalog=catalog;
   const prices=await listCurrentPrices({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});
   state.prices=new Map(prices.map(p=>[p.test_id,p]));state.parameters.clear();
   if(navigator.onLine!==false){try{await warmCatalogParameters({tenantId:state.tenant.id,branchId:state.branch.id,testIds:catalog.map(t=>t.id)});}catch(error){notice('تعذر استكمال تجهيز بيانات التحاليل للعمل دون اتصال: '+(error.message||''),true);}}
-  $('intakePanel').hidden=false;await newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();setReceptionView('intake');
+  $('intakePanel').hidden=false;await newReferenceCodes();renderCatalog();await loadRecent();await loadBalances();setReceptionView('intake');window.dispatchEvent(new CustomEvent('taiba:reception-context'));
 }
 function renderCatalog(){
   const term=$('catalogSearch').value.trim().toLowerCase(),host=$('catalogList');
