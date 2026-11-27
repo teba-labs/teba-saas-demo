@@ -8,7 +8,7 @@ const APP_SHELL = [
   './assets/css/app-home.css?v=progressive-20261126-v2', './assets/js/app-home.js?v=progressive-20261126-v2',
   './assets/css/catalog.css?v=catalog-workspace-20261126-v2', './assets/js/catalog.js?v=catalog-workspace-20261126-v2',
   './assets/js/catalog.js?v=catalog-ops-20261126-v1',
-  './assets/js/results-workbench.js?v=saved-results-20261127-v3',
+  './assets/js/results-workbench.js?v=saved-results-20261127-v5',
   './assets/css/dashboard.css?v=dashboard-workspace-20261126-v2', './assets/js/dashboard.js?v=dashboard-workspace-20261126-v2',
   './assets/css/reception.css?v=reception-workspace-20261126-v2', './assets/js/reception.js?v=enter-flow-20261126-v2',
   './assets/css/results-workbench.css?v=results-workspace-20261126-v2', './assets/js/results-workbench-layout.js?v=enter-flow-20261126-v2',
