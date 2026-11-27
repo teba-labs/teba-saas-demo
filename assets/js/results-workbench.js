@@ -302,7 +302,7 @@ async function renderWork() {
     const canPublishReport = state.portalEnabled && isPublished;
     const itemsMarkup = group.items.map(item => {
       const locked = item.status === 'completed';
-      const canCorrectApproved = group.visit?.status === 'approved' && !isPublished;
+      const canCorrectApproved = group.visit?.status === 'approved' && !isPublished && state.tenant?.accountType === 'owner';
       const params = item.technical_snapshot?.parameters ?? [];
       const groupedParams = new Map();
       for (const p of params) { const sectionName = p.clinical_metadata?.section || 'النتائج'; if (!groupedParams.has(sectionName)) groupedParams.set(sectionName, []); groupedParams.get(sectionName).push(p); }
