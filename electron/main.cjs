@@ -1,6 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow, dialog, protocol, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
@@ -11,6 +12,9 @@ protocol.registerSchemesAsPrivileged([
 const APP_SCHEME = 'taiba';
 const APP_HOST = 'app';
 const APP_ENTRY = 'app/index.html';
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+let updatePromptOpen = false;
+let updateDownloadInProgress = false;
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -78,6 +82,73 @@ function openSafeExternal(rawUrl) {
   return Promise.resolve();
 }
 
+
+function configureAutoUpdates() {
+  if (!app.isPackaged) return;
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.allowDowngrade = false;
+  autoUpdater.allowPrerelease = false;
+
+  autoUpdater.on('error', error => {
+    console.error('[Taiba updater]', error);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      void dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Taiba Smart Lab - Update',
+        message: 'تعذر التحقق من التحديث أو تنزيله.',
+        detail: 'سيظل البرنامج وبياناتك المحلية كما هي. يمكنك المحاولة مرة أخرى عند توفر الإنترنت.\\n' + (error?.message || ''),
+        buttons: ['حسنًا']
+      });
+    }
+    updateDownloadInProgress = false;
+    updatePromptOpen = false;
+  });
+
+  autoUpdater.on('update-available', async info => {
+    if (updatePromptOpen || !mainWindow || mainWindow.isDestroyed()) return;
+    updatePromptOpen = true;
+    try {
+      const answer = await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'تحديث جديد لطيبة سمارت لاب',
+        message: 'يتوفر إصدار جديد من البرنامج: ' + info.version,
+        detail: 'لن يتم تنزيل التحديث دون موافقتك. احفظ عملك قبل بدء التنزيل.',
+        buttons: ['تنزيل التحديث', 'لاحقًا'],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true
+      });
+      if (answer.response !== 0) return;
+      updateDownloadInProgress = true;
+      await autoUpdater.downloadUpdate();
+    } finally {
+      updatePromptOpen = false;
+    }
+  });
+
+  autoUpdater.on('update-downloaded', async info => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const answer = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'التحديث جاهز',
+      message: 'تم تنزيل الإصدار ' + info.version + ' والتحقق منه.',
+      detail: 'يمكنك إعادة تشغيل البرنامج الآن لتثبيته، أو المتابعة والعمل وتثبيته عند إغلاق البرنامج لاحقًا.',
+      buttons: ['إعادة التشغيل والتحديث', 'لاحقًا'],
+      defaultId: 0,
+      cancelId: 1
+    });
+    if (answer.response === 0) autoUpdater.quitAndInstall();
+  });
+
+  const check = () => {
+    if (updateDownloadInProgress) return;
+    void autoUpdater.checkForUpdates().catch(error => console.error('[Taiba updater check]', error));
+  };
+  setTimeout(check, 12_000);
+  setInterval(check, UPDATE_CHECK_INTERVAL_MS);
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -141,6 +212,7 @@ if (!gotLock) {
       contents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
       contents.session.setPermissionCheckHandler(() => false);
     });
+    configureAutoUpdates();
     createWindow();
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
   }).catch(error => {
