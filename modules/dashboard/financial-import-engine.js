@@ -54,7 +54,7 @@ export function suggestFinancialMapping(headers){
 }
 function isFinancialAggregateRow(source=[]){
  const first=(source||[]).map(value=>normalize(value)).find(Boolean)||'';
- return /^(?:الإجمالي|اجمالي|إجمالي|المجموع|مجموع|total|subtotal|grand total)(?:$|\\s|[:：-])/i.test(first);
+ return /^(?:الإجمالي|اجمالي|إجمالي|المجموع|مجموع|total|subtotal|grand total)(?:$|\s|[:：-])/i.test(first);
 }
 export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}={}){
  const mapped=new Map(mapping.filter(x=>x.fieldKey).map(x=>[x.fieldKey,x.columnIndex]));
