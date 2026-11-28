@@ -52,9 +52,12 @@ export function suggestFinancialMapping(headers){
  const normalized=(headers||[]).map(normalize),hasYear=normalized.some(h=>['year','السنة','عام'].includes(h)),hasDate=normalized.some(h=>FINANCIAL_FIELDS.find(f=>f.key==='period_date').aliases.some(a=>normalize(a)===h));
  return (headers||[]).map((header,columnIndex)=>{const h=normalize(header);let best=null;if(!hasYear&&!hasDate&&['month','الشهر'].includes(h))best=FINANCIAL_FIELDS.find(f=>f.key==='period_date');else for(const field of FINANCIAL_FIELDS){if(field.aliases.some(alias=>normalize(alias)===h)){best=field;break;}}return {columnIndex,header:String(header??''),fieldKey:best?.key||'',confidence:best?'suggested':'unmapped'};});
 }
-function isFinancialAggregateRow(source=[]){
- const first=(source||[]).map(value=>normalize(value)).find(Boolean)||'';
- return /^(?:الإجمالي|اجمالي|إجمالي|المجموع|مجموع|total|subtotal|grand total)(?:$|\s|[:：-])/i.test(first);
+function isFinancialAggregateRow(source=[],excludedIndex=null){
+ return (source||[]).some((value,index)=>{
+  if(index===excludedIndex)return false;
+  const label=normalize(value);
+  return /^(?:الإجمالي|اجمالي|إجمالي|المجموع|مجموع|total|subtotal|grand total)(?:$|\\s|[:：-])/i.test(label);
+ });
 }
 export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}={}){
  const mapped=new Map(mapping.filter(x=>x.fieldKey).map(x=>[x.fieldKey,x.columnIndex]));
@@ -63,7 +66,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
  const required=hasDate||hasTimelessPrice?[]:[{label:'التاريخ أو ربط السنة والشهر معًا'}];
  const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0,aggregateRows=0;
  const hasDetailRows=rows.some(source=>{
-  if(!source||isFinancialAggregateRow(source))return false;
+  if(!source||isFinancialAggregateRow(source,mapped.get('item_name')))return false;
   const value=key=>mapped.has(key)?source[mapped.get(key)]:null;
   const split=Number(value('year'))>0&&Number(value('month'))>0?String(Number(value('year')))+'-'+String(Number(value('month'))).padStart(2,'0'):null;
   const hasDate=Boolean(normalizeFinancialDate(value('period_date'))||normalizeFinancialDate(split));
@@ -75,7 +78,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
  const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];
  const numericFields=['amount','quantity','revenue','collections','expenses','cases','discounts','tests_count','unit_cost','selling_price','weight'];
  for(let i=0;i<rows.length;i++){
-  const source=rows[i]||[],rowNumber=i+rowOffset+1;if(!source.some(v=>clean(v)!=='')){blankRows++;continue;}if(hasDetailRows&&isFinancialAggregateRow(source)){aggregateRows++;continue;}
+  const source=rows[i]||[],rowNumber=i+rowOffset+1;if(!source.some(v=>clean(v)!=='')){blankRows++;continue;}if(hasDetailRows&&isFinancialAggregateRow(source,mapped.get('item_name'))){aggregateRows++;continue;}
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
   const splitPeriod=Number(raw.year)>0&&Number(raw.month)>0?String(Number(raw.year))+'-'+String(Number(raw.month)).padStart(2,'0'):null;
   const period=normalizeFinancialDate(raw.period_date)||normalizeFinancialDate(splitPeriod);
