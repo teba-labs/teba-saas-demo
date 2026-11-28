@@ -28,6 +28,8 @@ assert.match(repository,/period_date\.is\.null/);
 assert.match(repository,/includePending/);
 assert.match(repository,/pending_approval/);
 assert.match(repository,/activate_owner_financial_import_period/);
+assert.match(repository,/sourceFileSha256/);
+assert.match(repository,/priorStorage/);
 assert.match(ui,/XLSX\.read/);
 assert.match(ui,/xlsm/);
 assert.match(ui,/\.ods/);
