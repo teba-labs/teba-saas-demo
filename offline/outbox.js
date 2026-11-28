@@ -301,7 +301,8 @@ export async function keepServerDraftResultConflict({ tenantId, branchId, confli
     }
     const visitTestId = operation.payload?.visit_test_id;
     if (!visitTestId) throw new Error('معرّف التحليل غير موجود في العملية المحلية.');
-    await offlineDb.test_results.where('visit_test_id').equals(visitTestId).delete();
+    await offlineDb.test_results.where('visit_test_id').equals(visitTestId)
+      .filter(row => row.tenant_id === tenantId && row.branch_id === branchId).delete();
     const serverRows = conflict.server_snapshot.map(row => ({
       ...row, tenant_id: tenantId, branch_id: branchId, visit_test_id: visitTestId,
     }));
