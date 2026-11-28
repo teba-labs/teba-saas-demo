@@ -3,7 +3,30 @@ const db=()=>getSupabaseClient();
 const requireValue=(v,n)=>{if(!v)throw new Error(n+' مطلوب.');};
 async function pages(query,pageSize=500){const out=[];for(let offset=0;;offset+=pageSize){const {data,error}=await query().range(offset,offset+pageSize-1);if(error)throw error;const batch=data||[];out.push(...batch);if(batch.length<pageSize)return out;}}
 export async function listOwnerFinancialBatches(tenantId){requireValue(tenantId,'tenantId');return pages(()=>db().from('owner_financial_import_batches').select('id,tenant_id,file_name,file_sha256,source_label,period_start,period_end,status,rows_total,rows_imported,rows_skipped,created_at').eq('tenant_id',tenantId).order('created_at',{ascending:false}));}
-export async function listOwnerFinancialRows({tenantId,from=null,to=null,branchId=null,includePending=false}={}){requireValue(tenantId,'tenantId');return pages(()=>{let q=db().from('owner_financial_import_rows').select('id,tenant_id,batch_id,branch_id,sheet_name,row_number,period_date,metric_key,amount,quantity,item_name,category_name,unit_cost,selling_price,weight,currency_code,original_row,row_fingerprint,is_active,pending_approval,created_at').eq('tenant_id',tenantId).order('created_at').order('id');if(includePending)q=q.or('is_active.eq.true,pending_approval.eq.true');else q=q.eq('is_active',true);if(from&&to)q=q.or('period_date.is.null,and(period_date.gte.'+from+',period_date.lte.'+to+')');else if(from)q=q.or('period_date.is.null,period_date.gte.'+from);else if(to)q=q.or('period_date.is.null,period_date.lte.'+to);return q;});}
+export async function listOwnerFinancialRows({tenantId,from=null,to=null,branchId=null,includePending=false}={}){
+ requireValue(tenantId,'tenantId');
+ return pages(()=>{
+  let q=db().from('owner_financial_import_rows')
+   .select('id,tenant_id,batch_id,branch_id,sheet_name,row_number,period_date,metric_key,amount,quantity,item_name,category_name,unit_cost,selling_price,weight,currency_code,original_row,row_fingerprint,is_active,pending_approval,created_at')
+   .eq('tenant_id',tenantId).order('created_at').order('id');
+  if(includePending){
+   let alternatives=[];
+   if(!from&&!to)alternatives=['is_active.eq.true','pending_approval.eq.true'];
+   else{
+    const activePeriod=from&&to?'and(is_active.eq.true,period_date.gte.'+from+',period_date.lte.'+to+')':from?'and(is_active.eq.true,period_date.gte.'+from+')':'and(is_active.eq.true,period_date.lte.'+to+')';
+    const pendingPeriod=from&&to?'and(pending_approval.eq.true,period_date.gte.'+from+',period_date.lte.'+to+')':from?'and(pending_approval.eq.true,period_date.gte.'+from+')':'and(pending_approval.eq.true,period_date.lte.'+to+')';
+    alternatives=['and(is_active.eq.true,period_date.is.null)',activePeriod,pendingPeriod];
+   }
+   q=q.or(alternatives.join(','));
+  }else{
+   q=q.eq('is_active',true);
+   if(from&&to)q=q.or('period_date.is.null,and(period_date.gte.'+from+',period_date.lte.'+to+')');
+   else if(from)q=q.or('period_date.is.null,period_date.gte.'+from);
+   else if(to)q=q.or('period_date.is.null,period_date.lte.'+to);
+  }
+  return q;
+ });
+}
 export async function createOwnerFinancialBatch({tenantId,fileName,fileSha256,file,sourceLabel,periodStart,periodEnd,mappingSnapshot,sheetSummary,rows}={}){
  requireValue(tenantId,'tenantId');requireValue(fileName,'اسم الملف');requireValue(fileSha256,'بصمة الملف');requireValue(file,'الملف الأصلي');if(!Array.isArray(rows)||!rows.length)throw new Error('لا توجد صفوف صالحة للاستيراد.');
  const existing=await db().from('owner_financial_import_batches').select('id').eq('tenant_id',tenantId).eq('file_sha256',fileSha256).maybeSingle();if(existing.error)throw existing.error;if(existing.data)throw new Error('هذا الملف وهذه الورقة سبق استيرادهما إلى هذا المعمل. لم نكرر بياناتهما.');
