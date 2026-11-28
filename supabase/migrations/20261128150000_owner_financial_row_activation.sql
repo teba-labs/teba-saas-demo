@@ -36,7 +36,7 @@ begin
   v_end := (p_period_month + interval '1 month')::date;
 
   with pending as materialized (
-    select id, period_date, metric_key, item_name, category_name, branch_id
+    select id, period_date, metric_key, item_name, category_name, currency_code, branch_id
     from public.owner_financial_import_rows
     where tenant_id = p_tenant_id
       and period_date >= p_period_month
@@ -61,6 +61,7 @@ begin
               and p.metric_key = r.metric_key
               and p.item_name is not distinct from r.item_name
               and p.category_name is not distinct from r.category_name
+              and p.currency_code is not distinct from r.currency_code
               and p.branch_id is not distinct from r.branch_id
           )
         )
