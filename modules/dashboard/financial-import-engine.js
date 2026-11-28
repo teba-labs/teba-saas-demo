@@ -128,7 +128,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
   const value=key=>mapped.has(key)?source[mapped.get(key)]:null;
   const yearValue=finite(value('year')),monthValue=finite(value('month'));const split=yearValue>0&&monthValue>0?String(yearValue)+'-'+String(monthValue).padStart(2,'0'):null;
   const hasDate=Boolean(normalizeFinancialDate(value('period_date'))||normalizeFinancialDate(split));
-  const hasMetric=Boolean(clean(value('metric_key')))&&(finite(value('amount'))!==null||finite(value('quantity'))!==null);
+  const hasMetric=(Boolean(clean(value('metric_key')))||Boolean(inferFinancialMetric(value('category_name'))))&&(finite(value('amount'))!==null||finite(value('quantity'))!==null);
   const hasWide=metricFields.some(key=>mapped.has(key)&&finite(value(key))!==null);
   const hasPrice=Boolean(clean(value('item_name')))&&(finite(value('unit_cost'))!==null||finite(value('selling_price'))!==null);
   return hasMetric||hasPrice||(hasDate&&hasWide);
@@ -138,12 +138,12 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
   const yearValue=finite(raw.year),monthValue=finite(raw.month);const splitPeriod=yearValue>0&&monthValue>0?String(yearValue)+'-'+String(monthValue).padStart(2,'0'):null;
   const period=normalizeFinancialDate(raw.period_date)||normalizeFinancialDate(splitPeriod);
-  const rawMetric=clean(raw.metric_key),metric=rawMetric||inferFinancialMetric(raw.category_name),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
+  const rawMetric=clean(raw.metric_key),metric=rawMetric||inferFinancialMetric(raw.category_name),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasMetricAmount=finite(raw.amount)!==null||finite(raw.quantity)!==null,hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
   const priceOnly=!metric&&!wide.length&&hasPriceFields;
   for(const key of numericFields)if(clean(raw[key])!==''&&finite(raw[key])===null)invalidNumbers++;
   if(period===null&&!priceOnly)issues.push({row:rowNumber,field:'period_date',message:'تاريخ أو فترة غير صالحة'});
   if(!metric&&!wide.length&&!priceOnly)issues.push({row:rowNumber,field:'metric_key',message:'اربط نوع البند أو بندًا ماليًا مستقلًا أو اسم تحليل مع سعر/تكلفة'});
-  const outputs=metric?[{metric_key:metric,amount:finite(raw.amount),quantity:finite(raw.quantity)}]:wide.map(key=>({metric_key:key,amount:['cases','tests_count'].includes(key)?null:finite(raw[key]),quantity:['cases','tests_count'].includes(key)?finite(raw[key]):null}));
+  const outputs=metric&&hasMetricAmount?[{metric_key:metric,amount:finite(raw.amount),quantity:finite(raw.quantity)}]:wide.map(key=>({metric_key:key,amount:['cases','tests_count'].includes(key)?null:finite(raw[key]),quantity:['cases','tests_count'].includes(key)?finite(raw[key]):null}));
   if(priceOnly)outputs.push({metric_key:'test_price',amount:null,quantity:null});
   if(metric&&!outputs[0].amount&&!outputs[0].quantity&&raw.selling_price===null&&raw.unit_cost===null)issues.push({row:rowNumber,field:'amount',message:'لا توجد قيمة أو كمية أو سعر/تكلفة قابلة للتحليل'});
   for(const output of outputs){
