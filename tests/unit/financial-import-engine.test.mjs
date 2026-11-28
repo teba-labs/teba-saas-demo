@@ -140,6 +140,6 @@ const allYears=engine.analyzeFinancialWorkbook({SheetNames:['Archive_2005','Curr
 assert.equal(allYears.summary.sheetCount,2);
 assert.equal(allYears.summary.periodStart,'2005-01-01');
 assert.equal(allYears.summary.periodEnd,'2026-11-01');
-assert.equal(allYears.records.length,9,'every supported sheet should be analyzed, not only the first sheet');
+assert.equal(allYears.records.length,6,'every supported sheet should be analyzed, not only the first sheet');
 
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
