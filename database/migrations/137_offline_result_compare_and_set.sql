@@ -134,6 +134,7 @@ begin
     end if;
   end loop;
 
+  perform set_config('app.result_write_authorized','on',true);
   select coalesce(array_agg(saved.id),'{}'::uuid[]) into v_result_ids
     from public.save_draft_results_atomic(
       p_tenant_id,p_branch_id,p_visit_test_id,p_staff_id,p_results
@@ -188,6 +189,12 @@ begin
       and tr.visit_test_id=p_visit_test_id and tr.id=any(v_receipt.result_ids) order by tr.entered_at,tr.id;
     return;
   end if;
+  perform 1 from public.visit_tests vt
+    join public.visits v on v.id=vt.visit_id and v.tenant_id=vt.tenant_id
+   where vt.id=p_visit_test_id and vt.tenant_id=p_tenant_id
+     and vt.branch_id=p_branch_id and v.branch_id=p_branch_id
+   for update of v,vt;
+  if not found then raise exception 'Visit test was not found for this tenant and branch'; end if;
   if exists(
     select 1 from jsonb_to_recordset(p_results) as x(parameter_code text)
     join public.test_results tr on tr.tenant_id=p_tenant_id
@@ -196,6 +203,7 @@ begin
     raise exception 'OFFLINE_RESULTS_CONFLICT: legacy result save cannot overwrite an existing value'
       using errcode='40001';
   end if;
+  perform set_config('app.result_write_authorized','on',true);
   select coalesce(array_agg(saved.id),'{}'::uuid[]) into v_result_ids
     from public.save_draft_results_atomic(p_tenant_id,p_branch_id,p_visit_test_id,p_staff_id,p_results) saved;
   if cardinality(v_result_ids)=0 then raise exception 'Draft result save returned no acknowledged rows'; end if;
@@ -212,3 +220,209 @@ grant execute on function public.save_draft_results_idempotent_v2(uuid,uuid,uuid
 
 comment on function public.save_draft_results_idempotent_v2(uuid,uuid,uuid,uuid,uuid,jsonb,jsonb) is
   'Idempotent compare-and-set draft result save. Compares each submitted parameter to its caller-observed base value under the visit lock and rejects stale writes without modifying results.';
+
+-- A table-level RLS policy currently permits authenticated users to UPDATE test_results.
+-- This trigger closes that direct PostgREST/table-write path. Only the protected
+-- compare-and-set save and audited correction workflows set the transaction-local gates.
+create or replace function private.guard_test_result_update_compare_and_set()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public, private
+as $guard$
+begin
+  if current_user='authenticated'
+     and current_setting('app.result_write_authorized',true) is distinct from 'on'
+     and current_setting('app.result_correction',true) is distinct from 'on' then
+    raise exception 'OFFLINE_RESULTS_CONFLICT: direct result updates are blocked; reload and use the protected save or correction workflow'
+      using errcode='42501';
+  end if;
+  return new;
+end;
+$guard$;
+
+drop trigger if exists trg_guard_test_result_update_compare_and_set on public.test_results;
+create trigger trg_guard_test_result_update_compare_and_set
+before update on public.test_results
+for each row execute function private.guard_test_result_update_compare_and_set();
+revoke all on function private.guard_test_result_update_compare_and_set() from public,anon,authenticated;
+
+-- Preserve the existing controlled correction route for completed, unpublished tests.
+create or replace function public.correct_completed_visit_result(
+  p_tenant_id uuid,p_branch_id uuid,p_visit_test_id uuid,p_result_id uuid,
+  p_value_numeric numeric,p_value_text text,p_reason text,p_staff_id uuid
+) returns public.test_results
+language plpgsql
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_test public.visit_tests;
+  v_visit public.visits;
+  v_result public.test_results;
+  v_updated public.test_results;
+  v_account_type text;
+  v_expected_staff uuid;
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if not private.can_access_branch(p_tenant_id,p_branch_id) then raise exception 'Branch access denied'; end if;
+  select tm.account_type into v_account_type from public.tenant_memberships tm
+   where tm.tenant_id=p_tenant_id and tm.user_id=auth.uid() and tm.is_active;
+  if v_account_type is null then raise exception 'Active tenant membership required'; end if;
+  if p_staff_id is null or not exists(select 1 from public.staff_directory sd
+    where sd.id=p_staff_id and sd.tenant_id=p_tenant_id and sd.branch_id=p_branch_id and sd.is_active) then
+    raise exception 'An active staff identity for this branch is required';
+  end if;
+  if v_account_type='employee' then
+    select sd.id into v_expected_staff from public.staff_directory sd
+     where sd.tenant_id=p_tenant_id and sd.branch_id=p_branch_id and sd.auth_user_id=auth.uid() and sd.is_active;
+    if v_expected_staff is distinct from p_staff_id then raise exception 'Employee accounts may only act as their own linked active staff identity'; end if;
+  elsif v_account_type<>'owner' then raise exception 'Owner or branch employee access required';
+  end if;
+
+  select * into v_test from public.visit_tests
+   where tenant_id=p_tenant_id and branch_id=p_branch_id and id=p_visit_test_id for update;
+  if not found or v_test.status<>'completed' then raise exception 'Only a completed visit test can use this correction workflow'; end if;
+  select * into v_visit from public.visits
+   where tenant_id=p_tenant_id and branch_id=p_branch_id and id=v_test.visit_id for update;
+  if not found or v_visit.is_published or v_visit.status in ('approved','published','cancelled') then
+    raise exception 'This visit must use the published correction workflow or be reopened by an owner';
+  end if;
+
+  select * into v_result from public.test_results
+   where tenant_id=p_tenant_id and visit_test_id=p_visit_test_id and id=p_result_id for update;
+  if not found then raise exception 'Result not found for this completed test'; end if;
+  if (p_value_numeric is null) = (p_value_text is null) then raise exception 'Provide exactly one numeric or text result value'; end if;
+
+  perform set_config('app.result_correction','on',true);
+  update public.test_results set
+    value_numeric=p_value_numeric,value_text=p_value_text,correction_reason=null,
+    entered_by=auth.uid(),entered_by_staff_id=p_staff_id,updated_at=now()
+   where tenant_id=p_tenant_id and id=p_result_id
+   returning * into v_updated;
+  return v_updated;
+end;
+$function$;
+
+-- Approved-unpublished owner corrections remain authorized by the existing role checks.
+create or replace function public.correct_visit_result_with_flag(
+  p_tenant_id uuid,p_branch_id uuid,p_visit_test_id uuid,p_result_id uuid,
+  p_value_numeric numeric,p_value_text text,p_flag text,p_reason text,p_staff_id uuid
+) returns public.test_results
+language plpgsql
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_test public.visit_tests;
+  v_visit public.visits;
+  v_result public.test_results;
+  v_updated public.test_results;
+  v_account_type text;
+  v_expected_staff uuid;
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if not private.can_access_branch(p_tenant_id,p_branch_id) then raise exception 'Branch access denied'; end if;
+  if p_flag is not null and p_flag not in ('low','high','normal','critical_low','critical_high') then raise exception 'Unsupported result flag'; end if;
+  select tm.account_type into v_account_type from public.tenant_memberships tm
+   where tm.tenant_id=p_tenant_id and tm.user_id=auth.uid() and tm.is_active;
+  if v_account_type is null then raise exception 'Active tenant membership required'; end if;
+  if p_staff_id is null or not exists(select 1 from public.staff_directory sd
+    where sd.id=p_staff_id and sd.tenant_id=p_tenant_id and sd.branch_id=p_branch_id and sd.is_active) then
+    raise exception 'An active staff identity for this branch is required';
+  end if;
+  if v_account_type='employee' then
+    select sd.id into v_expected_staff from public.staff_directory sd
+     where sd.tenant_id=p_tenant_id and sd.branch_id=p_branch_id and sd.auth_user_id=auth.uid() and sd.is_active;
+    if v_expected_staff is distinct from p_staff_id then raise exception 'Employee accounts may only act as their own linked active staff identity'; end if;
+  elsif v_account_type<>'owner' then raise exception 'Owner or branch employee access required'; end if;
+
+  select * into v_test from public.visit_tests
+   where tenant_id=p_tenant_id and branch_id=p_branch_id and id=p_visit_test_id for update;
+  if not found or v_test.status<>'completed' then raise exception 'Only a completed visit test can use this correction workflow'; end if;
+  select * into v_visit from public.visits
+   where tenant_id=p_tenant_id and branch_id=p_branch_id and id=v_test.visit_id for update;
+  if not found or v_visit.status='cancelled' then raise exception 'Cancelled visits cannot be corrected'; end if;
+  if v_visit.status='approved' and not v_visit.is_published and v_account_type<>'owner' then
+    raise exception 'An approved unpublished visit can only be corrected by the tenant owner';
+  end if;
+  select * into v_result from public.test_results
+   where tenant_id=p_tenant_id and visit_test_id=p_visit_test_id and id=p_result_id for update;
+  if not found then raise exception 'Result not found for this completed test'; end if;
+  if (p_value_numeric is null) = (p_value_text is null) then raise exception 'Provide exactly one numeric or text result value'; end if;
+  if p_value_text is not null and p_flag is not null then raise exception 'Text results cannot carry a numeric reference-range flag'; end if;
+
+  perform set_config('app.result_correction','on',true);
+  update public.test_results set
+    value_numeric=p_value_numeric,value_text=p_value_text,flag=p_flag,correction_reason=null,
+    entered_by=auth.uid(),entered_by_staff_id=p_staff_id,updated_at=now()
+   where tenant_id=p_tenant_id and id=p_result_id
+   returning * into v_updated;
+  return v_updated;
+end;
+$function$;
+
+-- Updating flags after a reference-range override is an audited correction operation.
+create or replace function public.set_visit_parameter_range_override(
+  p_tenant_id uuid,p_branch_id uuid,p_visit_test_id uuid,p_parameter_code text,
+  p_reference_ranges jsonb,p_staff_id uuid,p_reason text
+) returns public.visit_test_parameter_range_overrides
+language plpgsql
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_visit public.visits;
+  v_test public.visit_tests;
+  v_parameter jsonb;
+  v_old jsonb;
+  v_result public.visit_test_parameter_range_overrides;
+  v_account_type text;
+  v_expected_staff uuid;
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if not private.can_access_branch(p_tenant_id,p_branch_id) then raise exception 'Branch access denied'; end if;
+  if jsonb_typeof(p_reference_ranges) not in ('array','object') or p_reference_ranges='[]'::jsonb then
+    raise exception 'A non-empty reference interval is required';
+  end if;
+  select tm.account_type into v_account_type from public.tenant_memberships tm
+   where tm.tenant_id=p_tenant_id and tm.user_id=auth.uid() and tm.is_active;
+  if v_account_type is null then raise exception 'Active tenant membership required'; end if;
+  if p_staff_id is null or not exists(select 1 from public.staff_directory sd where sd.id=p_staff_id and sd.tenant_id=p_tenant_id and sd.branch_id=p_branch_id and sd.is_active) then
+    raise exception 'An active staff identity for this branch is required';
+  end if;
+  if v_account_type='employee' then
+    select sd.id into v_expected_staff from public.staff_directory sd
+     where sd.tenant_id=p_tenant_id and sd.branch_id=p_branch_id and sd.auth_user_id=auth.uid() and sd.is_active;
+    if v_expected_staff is distinct from p_staff_id then raise exception 'Employee accounts may only act as their own linked active staff identity'; end if;
+  elsif v_account_type<>'owner' then raise exception 'Owner or branch employee access required'; end if;
+  select vt.* into v_test from public.visit_tests vt
+   where vt.tenant_id=p_tenant_id and vt.branch_id=p_branch_id and vt.id=p_visit_test_id for update;
+  if not found then raise exception 'Visit test not found for this tenant and branch'; end if;
+  if v_test.status='cancelled' then raise exception 'Cancelled tests cannot have their reference ranges changed'; end if;
+  select v.* into v_visit from public.visits v
+   where v.tenant_id=p_tenant_id and v.branch_id=p_branch_id and v.id=v_test.visit_id for update;
+  if not found or v_visit.status='cancelled' then raise exception 'Cancelled visits cannot have their reference ranges changed'; end if;
+  if v_visit.status='approved' and not v_visit.is_published and v_account_type<>'owner' then
+    raise exception 'Only the lab owner may correct an approved unpublished visit';
+  end if;
+  select p into v_parameter from jsonb_array_elements(coalesce(v_test.technical_snapshot->'parameters','[]'::jsonb)) p
+   where p->>'code'=p_parameter_code limit 1;
+  if v_parameter is null then raise exception 'Parameter is not part of this visit test snapshot'; end if;
+  select o.reference_ranges into v_old from public.visit_test_parameter_range_overrides o
+   where o.tenant_id=p_tenant_id and o.visit_test_id=p_visit_test_id and o.parameter_code=p_parameter_code;
+  if v_old is null then v_old:=coalesce(v_parameter->'reference_ranges','[]'::jsonb); end if;
+  insert into public.visit_test_parameter_range_overrides
+    (tenant_id,branch_id,visit_test_id,parameter_code,reference_ranges,reason,updated_by,updated_by_staff_id)
+  values(p_tenant_id,p_branch_id,p_visit_test_id,p_parameter_code,p_reference_ranges,null,auth.uid(),p_staff_id)
+  on conflict(tenant_id,visit_test_id,parameter_code) do update set
+    reference_ranges=excluded.reference_ranges,reason=null,
+    updated_by=excluded.updated_by,updated_by_staff_id=excluded.updated_by_staff_id,updated_at=now()
+  returning * into v_result;
+  insert into public.visit_test_parameter_range_events
+    (tenant_id,branch_id,visit_test_id,parameter_code,old_reference_ranges,new_reference_ranges,reason,actor_user_id,actor_staff_id)
+  values(p_tenant_id,p_branch_id,p_visit_test_id,p_parameter_code,v_old,p_reference_ranges,null,auth.uid(),p_staff_id);
+
+  perform set_config('app.result_correction','on',true);
+  update public.test_results set flag=null,correction_reason=null,entered_by=auth.uid(),
+    entered_by_staff_id=p_staff_id,updated_at=now()
+   where tenant_id=p_tenant_id and visit_test_id=p_visit_test_id and parameter_code=p_parameter_code;
+  return v_result;
+end;
+$function$;
