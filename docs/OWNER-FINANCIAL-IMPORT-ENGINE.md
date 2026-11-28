@@ -43,6 +43,8 @@ Migration `20261128150000_owner_financial_row_activation.sql` adds row activatio
 
 ## Changed files
 - `assets/js/dashboard-financial-import.js`
+- `assets/js/dashboard-history.js` (legacy uploader retired; saved legacy analysis retained)
+- `app/dashboard.html` (clear old archive vs unified uploader)
 - `modules/dashboard/financial-import-engine.js`
 - `dashboard/owner-financial-repository.js`
 - `supabase/migrations/20261128150000_owner_financial_row_activation.sql`
