@@ -1,13 +1,13 @@
 const clean=value=>String(value??'').trim();
 const asciiDigits=value=>String(value??'').replace(/[٠-٩۰-۹]/g,d=>String(d.charCodeAt(0)>=1776&&d.charCodeAt(0)<=1785?d.charCodeAt(0)-1776:d.charCodeAt(0)-1632));
-const finite=value=>{if(value===null||value===undefined||clean(value)==='')return null;const normalized=asciiDigits(value).replace(/[٬,،]/g,'').replace(/٫/g,'.').replace(/[−–]/g,'-').replace(/٪$/,'');const n=Number(normalized);return Number.isFinite(n)?n:null;};
+const finite=value=>{if(value===null||value===undefined||clean(value)==='')return null;const normalized=asciiDigits(value).replace(/[٬,،]/g,'').replace(/٫/g,'.').replace(/[−–]/g,'-').replace(/٪$/,'');const accounting=normalized.match(/^\((.*)\)$/);const cleaned=(accounting?'-'+accounting[1]:normalized).replace(/(?:ج\.?م\.?|egp|usd|eur|sar|aed|جنيه(?:\s*مصري)?|ريال|دولار)/gi,'').trim();const n=Number(cleaned);return Number.isFinite(n)?n:null;};
 const normalize=value=>clean(value).toLocaleLowerCase('ar').replace(/[ـ\s]+/g,' ');
 const MONTH=/^(\d{4})[-/](\d{1,2})$/;
 export const FINANCIAL_FIELDS=[
  {key:'period_date',label:'التاريخ / الفترة',required:false,aliases:['date','التاريخ','تاريخ','الفترة','period','التاريخ الكامل']},
  {key:'year',label:'السنة',required:false,aliases:['year','السنة','عام']},
  {key:'month',label:'الشهر',required:false,aliases:['month','الشهر','رقم الشهر']},
- {key:'metric_key',label:'نوع البند المالي (للملفات ذات عمود بند)',required:false,aliases:['metric','type','نوع الحركة','الحركة','item type']},
+ {key:'metric_key',label:'نوع البند المالي (للملفات ذات عمود بند)',required:false,aliases:['metric','type','نوع الحركة','الحركة','item type','البيان','الوصف','تفاصيل الحركة','description','details','memo','narration','particulars']},
  {key:'amount',label:'القيمة المالية العامة',required:false,aliases:['amount','value','المبلغ','القيمة']},
  {key:'revenue',label:'الإيرادات / المبيعات',required:false,aliases:['revenue','income','sales','الإيراد','الايراد','الإيرادات','الايرادات','المبيعات']},
  {key:'collections',label:'التحصيل النقدي',required:false,aliases:['collections','cash received','تحصيل','التحصيل','المقبوضات']},
@@ -17,7 +17,7 @@ export const FINANCIAL_FIELDS=[
  {key:'tests_count',label:'عدد التحاليل',required:false,aliases:['tests count','عدد التحاليل','حركة التحاليل','التحاليل']},
  {key:'quantity',label:'العدد / الكمية',required:false,aliases:['quantity','count','العدد','الكمية']},
  {key:'item_name',label:'اسم التحليل / العنصر',required:false,aliases:['test','test name','اسم التحليل','الصنف','الخدمة']},
- {key:'category_name',label:'التصنيف / بند المصروف',required:false,aliases:['category','التصنيف','بند المصروف','نوع المصروف']},
+ {key:'category_name',label:'التصنيف / بند المصروف',required:false,aliases:['category','التصنيف','بند المصروف','نوع المصروف','اسم البند','بند','expense category']},
  {key:'branch_name',label:'اسم الفرع',required:false,aliases:['branch','branch name','الفرع','اسم الفرع']},
  {key:'unit_cost',label:'تكلفة الوحدة',required:false,aliases:['cost','unit cost','التكلفة','تكلفة الوحدة','سعر التكلفة']},
  {key:'weight',label:'وزن / نقاط تحميل التكلفة الثابتة',required:false,aliases:['weight','allocation weight','points','النقاط','الوزن','وزن التحميل']},
@@ -76,6 +76,35 @@ export function suggestFinancialMapping(headers){
  const normalized=(headers||[]).map(normalize),hasYear=normalized.some(h=>['year','السنة','عام'].includes(h)),hasDate=normalized.some(h=>FINANCIAL_FIELDS.find(f=>f.key==='period_date').aliases.some(a=>normalize(a)===h));
  return (headers||[]).map((header,columnIndex)=>{const h=normalize(header);let best=null;if(!hasYear&&!hasDate&&['month','الشهر'].includes(h))best=FINANCIAL_FIELDS.find(f=>f.key==='period_date');else for(const field of FINANCIAL_FIELDS){if(field.aliases.some(alias=>normalize(alias)===h)){best=field;break;}}return {columnIndex,header:String(header??''),fieldKey:best?.key||'',confidence:best?'suggested':'unmapped'};});
 }
+
+export function inferFinancialMetric(value){
+ const text=normalize(value);
+ if(!text)return null;
+ if(/تحصيل|مقبوض|قبض|collection|cash received/.test(text))return 'collections';
+ if(/إيراد|ايراد|مبيعات|بيع|دخل|revenue|income|sales/.test(text))return 'revenue';
+ if(/مصروف|شراء|مشتريات|كواشف|مستلزمات|إيجار|ايجار|كهرباء|مياه|رواتب|راتب|أجور|اجور|صيانة|نقل|شحن|expense|purchase|rent|salary|maintenance/.test(text))return 'expenses';
+ if(/خصم|discount/.test(text))return 'discounts';
+ if(/حالات|زيارات|مرضى|patients|visits|cases/.test(text))return 'cases';
+ if(/تحاليل|اختبارات|tests/.test(text))return 'tests_count';
+ return null;
+}
+export function analyzeFinancialWorkbook(workbook){
+ const names=workbook?.SheetNames||Object.keys(workbook?.Sheets||{}),sheets=[];
+ for(const name of names){
+  const matrix=workbook?.Sheets?.[name]?.__matrix||[];
+  const header=detectFinancialHeader(matrix);
+  if(!header){sheets.push({name,type:'empty',label:'ورقة فارغة أو بلا عناوين',rows:0,records:[],issues:[],ready:false});continue;}
+  const headers=header.row.map(value=>String(value??'')),rows=matrix.slice(header.index+1);
+  const mapping=suggestFinancialMapping(headers);
+  const result=analyzeFinancialRows({headers,rows,mapping,rowOffset:header.index+1});
+  const classification=classifyFinancialSheet({headers,mapping,rows});
+  const dates=result.records.map(row=>row.period_date).filter(Boolean).sort();
+  sheets.push({name,headerRow:header.index+1,headers,mapping,classification,analysis:result,rows:rows.length,ready:result.ready,periodStart:dates[0]||null,periodEnd:dates.at(-1)||null});
+ }
+ const records=sheets.flatMap(sheet=>sheet.analysis?.records||[]),dates=records.map(row=>row.period_date).filter(Boolean).sort();
+ return {sheets,records,summary:{sheetCount:sheets.length,readableSheets:sheets.filter(x=>x.analysis).length,records:records.length,issues:sheets.reduce((n,x)=>n+(x.analysis?.issueCount||0),0),duplicates:sheets.reduce((n,x)=>n+(x.analysis?.duplicateRows||0),0),aggregates:sheets.reduce((n,x)=>n+(x.analysis?.aggregateRows||0),0),emptySheets:sheets.filter(x=>x.type==='empty').length,periodStart:dates[0]||null,periodEnd:dates.at(-1)||null}};
+}
+
 function isFinancialAggregateRow(source=[],excludedIndex=null){
  return (source||[]).some((value,index)=>{
   if(index===excludedIndex)return false;
@@ -106,7 +135,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
   const yearValue=finite(raw.year),monthValue=finite(raw.month);const splitPeriod=yearValue>0&&monthValue>0?String(yearValue)+'-'+String(monthValue).padStart(2,'0'):null;
   const period=normalizeFinancialDate(raw.period_date)||normalizeFinancialDate(splitPeriod);
-  const metric=clean(raw.metric_key),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
+  const rawMetric=clean(raw.metric_key),metric=rawMetric||inferFinancialMetric(raw.category_name)||inferFinancialMetric(raw.item_name),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
   const priceOnly=!metric&&!wide.length&&hasPriceFields;
   for(const key of numericFields)if(clean(raw[key])!==''&&finite(raw[key])===null)invalidNumbers++;
   if(period===null&&!priceOnly)issues.push({row:rowNumber,field:'period_date',message:'تاريخ أو فترة غير صالحة'});
@@ -128,9 +157,9 @@ function metricClass(key){
  const k=normalize(key);
  if(/تحصيل|قبض|collection|cash received/.test(k))return 'collections';
  if(/test_price|price list|قائمة اسعار|قائمة أسعار/.test(k))return 'price';
- if(/مصروف|expense|تكلف/.test(k))return 'expenses';
+ if(/مصروف|expense|تكلف|شراء|مشتريات|purchase|rent|إيجار|ايجار|كهرباء|مياه|رواتب|راتب|salary|أجور|اجور|صيانة|maintenance|مستلزمات|كواشف/.test(k))return 'expenses';
  if(/تحليل|test/.test(k))return 'tests';
- if(/إيراد|ايراد|مبيعات|revenue|income/.test(k))return 'revenue';
+ if(/إيراد|ايراد|مبيعات|بيع|revenue|income|sales/.test(k))return 'revenue';
  if(/حالة|زيارة|case|visit|عدد الحالات|عدد الزيارات/.test(k))return 'cases';
  if(/خصم|discount/.test(k))return 'discounts';
  if(/راتب|salary|أجور/.test(k))return 'payroll';
