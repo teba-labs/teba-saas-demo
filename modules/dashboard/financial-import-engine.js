@@ -1,6 +1,6 @@
 const clean=value=>String(value??'').trim();
 const asciiDigits=value=>String(value??'').replace(/[٠-٩۰-۹]/g,d=>String(d.charCodeAt(0)>=1776&&d.charCodeAt(0)<=1785?d.charCodeAt(0)-1776:d.charCodeAt(0)-1632));
-const finite=value=>{if(value===null||value===undefined||clean(value)==='')return null;const normalized=asciiDigits(value).replace(/[٬,،]/g,'').replace(/٫/g,'.').replace(/[−–]/g,'-').replace(/٪$/,'');const accounting=normalized.match(/^\((.*)\)$/);const cleaned=(accounting?'-'+accounting[1]:normalized).replace(/(?:ج\.?م\.?|egp|usd|eur|sar|aed|جنيه(?:\s*مصري)?|ريال|دولار)/gi,'').trim();const n=Number(cleaned);return Number.isFinite(n)?n:null;};
+const finite=value=>{if(value===null||value===undefined||clean(value)==='')return null;const normalized=asciiDigits(value).replace(/[٬,،]/g,'').replace(/٫/g,'.').replace(/[−–]/g,'-').replace(/٪$/,'').replace(/(?:ج\.?م\.?|egp|usd|eur|sar|aed|جنيه(?:\s*مصري)?|ريال|دولار)/gi,'').trim();const accounting=normalized.match(/^\((.*)\)$/);const cleaned=accounting?'-'+accounting[1]:normalized;const n=Number(cleaned);return Number.isFinite(n)?n:null;};
 const normalize=value=>clean(value).toLocaleLowerCase('ar').replace(/[ـ\s]+/g,' ');
 const MONTH=/^(\d{4})[-/](\d{1,2})$/;
 export const FINANCIAL_FIELDS=[
