@@ -145,7 +145,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
   if(!metric&&!wide.length&&!priceOnly)issues.push({row:rowNumber,field:'metric_key',message:'اربط نوع البند أو بندًا ماليًا مستقلًا أو اسم تحليل مع سعر/تكلفة'});
   const outputs=metric&&hasMetricAmount?[{metric_key:metric,amount:finite(raw.amount),quantity:finite(raw.quantity)}]:wide.map(key=>({metric_key:key,amount:['cases','tests_count'].includes(key)?null:finite(raw[key]),quantity:['cases','tests_count'].includes(key)?finite(raw[key]):null}));
   if(priceOnly)outputs.push({metric_key:'test_price',amount:null,quantity:null});
-  if(metric&&!outputs[0].amount&&!outputs[0].quantity&&raw.selling_price===null&&raw.unit_cost===null)issues.push({row:rowNumber,field:'amount',message:'لا توجد قيمة أو كمية أو سعر/تكلفة قابلة للتحليل'});
+  if(metric&&!outputs.length)issues.push({row:rowNumber,field:'amount',message:'وصف الحركة موجود لكن لا توجد قيمة أو كمية رقمية قابلة للتحليل'});
   for(const output of outputs){
    const record={period_date:period,metric_key:output.metric_key,amount:output.amount,quantity:output.quantity,item_name:raw.item_name,category_name:raw.category_name,branch_name:raw.branch_name,unit_cost:finite(raw.unit_cost),selling_price:finite(raw.selling_price),weight:finite(raw.weight),currency_code:raw.currency_code};
    const fingerprint=JSON.stringify([record.period_date,normalize(record.metric_key),normalize(record.item_name),normalize(record.category_name),record.amount,record.quantity,record.unit_cost,record.selling_price,record.weight,normalize(record.currency_code),normalize(record.branch_name)]);
