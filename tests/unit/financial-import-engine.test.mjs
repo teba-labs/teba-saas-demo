@@ -70,4 +70,56 @@ assert.equal(costReport.items[0].trueProfitUnit,50);
 assert.equal(costReport.items[0].trueTotalProfit,500);
 const duplicate=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A'],['2024-01',100,50,10,20,'A']]});
 assert.equal(duplicate.duplicateRows,4);
+const headerDetection=engine.detectFinancialHeader([['تقرير مالي','','',''],['ملخص','2025','',''],['التاريخ','الإيرادات','المصروفات','عدد الحالات'],['2025-01',1000,400,20]]);
+assert.equal(headerDetection.index,2,'header detection must prefer recognized column labels over dense data rows');
+const partial=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A'],['2024-02','','','','','A']]});
+assert.equal(partial.ready,true,'valid rows remain importable when another row is incomplete');
+assert.equal(engine.normalizeFinancialDate('٢٨/١١/٢٠٢٦'),'2026-11-28');
+assert.equal(engine.normalizeFinancialDate('31/01/2024'),'2024-01-31');
+assert.equal(engine.normalizeFinancialDate('2024-01-15'),'2024-01-15','ISO dates must preserve their day');
+assert.equal(engine.normalizeFinancialDate('2024/1/15'),'2024-01-15');
+const arabicNumbers=engine.analyzeFinancialRows({headers:['التاريخ','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','الإيرادات']),rows:[['٢٨/١١/٢٠٢٦','١٬٢٣٤٫٥٠']]});
+assert.equal(arabicNumbers.records[0].amount,1234.5);
+const offsetAnalysis=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A']],rowOffset:3});
+assert.equal(offsetAnalysis.records[0]._rowNumber,4,'source row references must account for title rows before the header');
+const invalidWide=engine.analyzeFinancialRows({headers:['التاريخ','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','الإيرادات']),rows:[['2024-01','قيمة غير رقمية']]});
+assert.equal(invalidWide.invalidNumbers,1,'invalid wide-format financial amounts must be reported');
+const revisions=engine.preferPendingFinancialRows([
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',amount:100,is_active:true,pending_approval:false},
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',amount:125,is_active:false,pending_approval:true},
+ {period_date:'2024-01-01',metric_key:'expenses',branch_id:'a',amount:50,is_active:true,pending_approval:false}
+]);
+assert.equal(revisions.length,2,'pending revisions replace only matching active rows in the review projection');
+assert.equal(revisions.find(row=>row.metric_key==='revenue').amount,125);
+const annualDetailHeaders=['السنة','الشهر','الوصف','الإيرادات','المصروفات'];
+const annualDetailMapping=engine.suggestFinancialMapping(annualDetailHeaders);
+const aggregateMix=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A'],['الإجمالي',100,50,10,20,'A']]});
+assert.equal(aggregateMix.aggregateRows,1,'sheet totals are excluded when detail rows are present');
+assert.equal(engine.buildGenericHistoricalReport(aggregateMix.records).totals.revenue,100);
+const aggregateOnly=engine.analyzeFinancialRows({headers:annualDetailHeaders,mapping:annualDetailMapping,rows:[[2024,1,'الإجمالي',100,40]]});
+assert.equal(aggregateOnly.aggregateRows,0,'summary-only sheets remain importable as their own source');
+assert.equal(aggregateOnly.ready,true);
+const titledSummary=engine.analyzeFinancialRows({headers:annualDetailHeaders,mapping:annualDetailMapping,rows:[['ملخص السنة','','','',''],[2024,1,'الإجمالي',100,40]]});
+assert.equal(titledSummary.aggregateRows,0,'a title row must not cause a summary-only sheet to lose its total');
+assert.equal(titledSummary.ready,true);
+const annualDetail=engine.analyzeFinancialRows({headers:annualDetailHeaders,mapping:annualDetailMapping,rows:[[2024,1,'تفاصيل',100,40],[2024,1,'الإجمالي',100,40]]});
+assert.equal(annualDetail.aggregateRows,1,'aggregate labels in non-item columns are excluded across wide layouts');
+const totalBilirubin=engine.analyzeFinancialRows({headers:['التاريخ','اسم التحليل','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','اسم التحليل','الإيرادات']),rows:[['2024-01-01','Total Bilirubin',100]]});
+assert.equal(totalBilirubin.aggregateRows,0,'a test name beginning with Total is not an aggregate row');
+const mixedRevision=engine.preferPendingFinancialRows([
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',item_name:'CBC',amount:50,is_active:true,pending_approval:false},
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',item_name:'TSH',amount:60,is_active:true,pending_approval:false},
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',amount:110,is_active:true,pending_approval:false},
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',amount:120,is_active:false,pending_approval:true},
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',item_name:'CBC',amount:55,is_active:false,pending_approval:true}
+]);
+assert.equal(mixedRevision.length,2,'detail rows win over aggregate totals while unrelated detail rows remain');
+assert.deepEqual(mixedRevision.map(row=>row.item_name).sort(),['CBC','TSH']);
+const priceSheet=engine.classifyFinancialSheet({headers:priceHeaders,mapping:priceMapping,rows:[['CBC',20,100,2]]});
+assert.equal(priceSheet.type,'price-list');
+const financialSheet=engine.classifyFinancialSheet({headers,mapping,rows:[['2024-01',100,50,10,20,'A']]});
+assert.equal(financialSheet.type,'period-summary');
+const arabicYearMonth=engine.analyzeFinancialRows({headers:['السنة','الشهر','الإيرادات'],mapping:engine.suggestFinancialMapping(['السنة','الشهر','الإيرادات']),rows:[['٢٠٢٤','١','١٠٠']]});
+assert.equal(arabicYearMonth.records[0].period_date,'2024-01-01');
+assert.equal(arabicYearMonth.records[0].amount,100);
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
