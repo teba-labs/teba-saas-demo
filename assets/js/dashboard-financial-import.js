@@ -36,7 +36,7 @@ async function importEntireWorkbook(){
   if(!sheet.ready||!sheet.analysis?.records?.length)continue;
   activeSheet=sheet.name;preparedRows=sheet.analysis.records;analysis=sheet.analysis;
   try{const inserted=await importPrepared(sheet.mapping,sheet.headers,[],branchId,{advance:false,refresh:false});importedSheets++;importedRows+=Number(inserted||0);}
-  catch(e){if(!/سبق استيرادهما/.test(e.message||''))throw e;}
+  catch(e){if(!/سبق استيرادهما|لا توجد صفوف صالحة بعد استبعاد/.test(e.message||''))throw e;}
  }
  if(!importedSheets)throw new Error('لم تُضف صفوف جديدة؛ قد يكون الملف مستوردًا بالفعل أو أن صفوفه غير مكتملة.');
  const periods=[...new Set(scan.records.map(x=>x.period_date).filter(Boolean).map(x=>x.slice(0,7)))].sort();
