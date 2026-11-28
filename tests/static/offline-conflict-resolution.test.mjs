@@ -50,3 +50,13 @@ test('draft result conflicts require an explicit reviewed choice before requeue 
   assert.match(ui, /إعادة إرسال القيم المحلية بعد المراجعة/);
   assert.match(ui, /اعتماد نسخة الخادم وإلغاء التعديل المحلي/);
 });
+
+test('browser workflow exercises IndexedDB conflict rebase and keep-server decisions', () => {
+  const workflow = fs.readFileSync(new URL('../../.github/workflows/cycle-two-responsive-windows.yml', import.meta.url), 'utf8');
+  const browserTest = fs.readFileSync(new URL('../browser/result-conflict-resolution.mjs', import.meta.url), 'utf8');
+  assert.match(workflow, /node tests\/browser\/result-conflict-resolution\.mjs/);
+  assert.match(browserTest, /rebaseDraftResultConflict/);
+  assert.match(browserTest, /keepServerDraftResultConflict/);
+  assert.match(browserTest, /expectedSnapshotRebasedToServer/);
+  assert.match(browserTest, /cacheReplacedWithServerSnapshot/);
+});
