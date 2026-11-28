@@ -74,4 +74,8 @@ const headerDetection=engine.detectFinancialHeader([['تقرير مالي','',''
 assert.equal(headerDetection.index,2,'header detection must prefer recognized column labels over dense data rows');
 const partial=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A'],['2024-02','','','','','A']]});
 assert.equal(partial.ready,true,'valid rows remain importable when another row is incomplete');
+assert.equal(engine.normalizeFinancialDate('٢٨/١١/٢٠٢٦'),'2026-11-28');
+assert.equal(engine.normalizeFinancialDate('31/01/2024'),'2024-01-31');
+const arabicNumbers=engine.analyzeFinancialRows({headers:['التاريخ','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','الإيرادات']),rows:[['٢٨/١١/٢٠٢٦','١٬٢٣٤٫٥٠']]});
+assert.equal(arabicNumbers.records[0].amount,1234.5);
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
