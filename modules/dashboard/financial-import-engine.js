@@ -62,7 +62,16 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
  const hasTimelessPrice=mapped.has('item_name')&&(mapped.has('unit_cost')||mapped.has('selling_price'));
  const required=hasDate||hasTimelessPrice?[]:[{label:'التاريخ أو ربط السنة والشهر معًا'}];
  const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0,aggregateRows=0;
- const hasDetailRows=rows.some(source=>source?.some(v=>clean(v)!=='')&&!isFinancialAggregateRow(source));
+ const hasDetailRows=rows.some(source=>{
+  if(!source||isFinancialAggregateRow(source))return false;
+  const value=key=>mapped.has(key)?source[mapped.get(key)]:null;
+  const split=Number(value('year'))>0&&Number(value('month'))>0?String(Number(value('year')))+'-'+String(Number(value('month'))).padStart(2,'0'):null;
+  const hasDate=Boolean(normalizeFinancialDate(value('period_date'))||normalizeFinancialDate(split));
+  const hasMetric=Boolean(clean(value('metric_key')))&&(finite(value('amount'))!==null||finite(value('quantity'))!==null);
+  const hasWide=metricFields.some(key=>mapped.has(key)&&finite(value(key))!==null);
+  const hasPrice=Boolean(clean(value('item_name')))&&(finite(value('unit_cost'))!==null||finite(value('selling_price'))!==null);
+  return hasMetric||hasPrice||(hasDate&&hasWide);
+ });
  const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];
  const numericFields=['amount','quantity','revenue','collections','expenses','cases','discounts','tests_count','unit_cost','selling_price','weight'];
  for(let i=0;i<rows.length;i++){
