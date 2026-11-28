@@ -91,4 +91,9 @@ const revisions=engine.preferPendingFinancialRows([
 ]);
 assert.equal(revisions.length,2,'pending revisions replace only matching active rows in the review projection');
 assert.equal(revisions.find(row=>row.metric_key==='revenue').amount,125);
+const aggregateMix=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A'],['الإجمالي',100,50,10,20,'A']]});
+assert.equal(aggregateMix.aggregateRows,1,'sheet totals are excluded when detail rows are present');
+assert.equal(engine.buildGenericHistoricalReport(aggregateMix.records).totals.revenue,100);
+const aggregateOnly=engine.analyzeFinancialRows({headers,mapping,rows:[['الإجمالي',100,50,10,20,'A']]});
+assert.equal(aggregateOnly.aggregateRows,0,'summary-only sheets remain importable as their own source');
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
