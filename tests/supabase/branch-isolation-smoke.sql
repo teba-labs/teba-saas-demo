@@ -2,13 +2,13 @@
 begin;
 create temp table cycle2_scope_output(details jsonb) on commit drop;
 grant insert,select on cycle2_scope_output to authenticated;
-set local role authenticated;
 select set_config('request.jwt.claim.sub',(
   select tm.user_id::text from public.tenants t
   join public.tenant_memberships tm on tm.tenant_id=t.id
   where t.slug='test1-lab' and tm.account_type='owner' and tm.is_active
   order by tm.created_at limit 1
 ),true);
+set local role authenticated;
 do $scope$
 declare
  v_tenant uuid;
