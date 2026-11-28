@@ -16,8 +16,7 @@
     "electron": "45.5.0",
     "electron-builder": "^26.0.12",
     "png-to-ico": "^2.1.8",
-    "sharp": "^0.34.5",
-    "electron-updater": "^6.6.2"
+    "sharp": "^0.34.5"
   },
   "build": {
     "appId": "com.taibatech.smartlab",
@@ -67,5 +66,8 @@
         "releaseType": "release"
       }
     ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
   }
 }
