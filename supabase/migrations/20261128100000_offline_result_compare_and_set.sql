@@ -31,6 +31,18 @@ begin
   if not private.can_access_branch(p_tenant_id,p_branch_id) then
     raise exception 'Branch access denied' using errcode='42501';
   end if;
+  if p_staff_id is null or not exists (
+    select 1 from public.staff_directory sd
+     where sd.id=p_staff_id and sd.tenant_id=p_tenant_id
+       and sd.branch_id=p_branch_id and sd.is_active
+  ) then raise exception 'An active staff identity for this branch is required'; end if;
+  if not private.is_tenant_owner(p_tenant_id) and not exists (
+    select 1 from public.staff_directory sd
+     where sd.id=p_staff_id and sd.tenant_id=p_tenant_id
+       and sd.branch_id=p_branch_id and sd.is_active and sd.auth_user_id=auth.uid()
+  ) then
+    raise exception 'Employee accounts may only act as their own linked active staff identity' using errcode='42501';
+  end if;
   if jsonb_typeof(p_results) is distinct from 'array' then
     raise exception 'Results must be a JSON array';
   end if;
@@ -175,6 +187,18 @@ begin
   if p_operation_id is null then raise exception 'Offline operation ID is required'; end if;
   if not private.can_access_branch(p_tenant_id,p_branch_id) then
     raise exception 'Branch access denied' using errcode='42501';
+  end if;
+  if p_staff_id is null or not exists (
+    select 1 from public.staff_directory sd
+     where sd.id=p_staff_id and sd.tenant_id=p_tenant_id
+       and sd.branch_id=p_branch_id and sd.is_active
+  ) then raise exception 'An active staff identity for this branch is required'; end if;
+  if not private.is_tenant_owner(p_tenant_id) and not exists (
+    select 1 from public.staff_directory sd
+     where sd.id=p_staff_id and sd.tenant_id=p_tenant_id
+       and sd.branch_id=p_branch_id and sd.is_active and sd.auth_user_id=auth.uid()
+  ) then
+    raise exception 'Employee accounts may only act as their own linked active staff identity' using errcode='42501';
   end if;
   v_payload:=jsonb_build_object('visit_test_id',p_visit_test_id,'staff_id',p_staff_id,'results',p_results);
   insert into private.offline_operation_receipts(tenant_id,branch_id,operation_id,created_by,payload)
