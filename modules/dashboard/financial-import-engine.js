@@ -73,8 +73,11 @@ export function classifyFinancialSheet({headers=[],mapping=[],rows=[]}={}){
  return {type,label,confidence,recognizedFields,nonEmptyRows:(rows||[]).filter(row=>row?.some(value=>clean(value)!=='')).length};
 }
 export function suggestFinancialMapping(headers){
- const normalized=(headers||[]).map(normalize),hasYear=normalized.some(h=>['year','السنة','عام'].includes(h)),hasDate=normalized.some(h=>FINANCIAL_FIELDS.find(f=>f.key==='period_date').aliases.some(a=>normalize(a)===h));
- return (headers||[]).map((header,columnIndex)=>{const h=normalize(header);let best=null;if(!hasYear&&!hasDate&&['month','الشهر'].includes(h))best=FINANCIAL_FIELDS.find(f=>f.key==='period_date');else for(const field of FINANCIAL_FIELDS){if(field.aliases.some(alias=>normalize(alias)===h)){best=field;break;}}return {columnIndex,header:String(header??''),fieldKey:best?.key||'',confidence:best?'suggested':'unmapped'};});
+ const normalized=(headers||[]).map(normalize),hasYear=normalized.some(h=>['year','السنة','عام'].includes(h)),hasDate=normalized.some(h=>FINANCIAL_FIELDS.find(f=>f.key==='period_date').aliases.some(a=>normalize(a)===h)),used=new Set();
+ return (headers||[]).map((header,columnIndex)=>{const h=normalize(header);let best=null;if(!hasYear&&!hasDate&&['month','الشهر'].includes(h))best=FINANCIAL_FIELDS.find(f=>f.key==='period_date');else for(const field of FINANCIAL_FIELDS){if(field.aliases.some(alias=>normalize(alias)===h)){best=field;break;}}
+  if(best&&used.has(best.key)&&best.key==='metric_key'&&/^(?:البيان|الوصف|details|description|memo|narration)$/.test(h))best=FINANCIAL_FIELDS.find(f=>f.key==='category_name');
+  if(best)used.add(best.key);
+  return {columnIndex,header:String(header??''),fieldKey:best?.key||'',confidence:best?'suggested':'unmapped'};});
 }
 
 export function inferFinancialMetric(value){
@@ -135,7 +138,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
   const yearValue=finite(raw.year),monthValue=finite(raw.month);const splitPeriod=yearValue>0&&monthValue>0?String(yearValue)+'-'+String(monthValue).padStart(2,'0'):null;
   const period=normalizeFinancialDate(raw.period_date)||normalizeFinancialDate(splitPeriod);
-  const rawMetric=clean(raw.metric_key),metric=rawMetric||inferFinancialMetric(raw.category_name)||inferFinancialMetric(raw.item_name),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
+  const rawMetric=clean(raw.metric_key),metric=rawMetric||inferFinancialMetric(raw.category_name),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
   const priceOnly=!metric&&!wide.length&&hasPriceFields;
   for(const key of numericFields)if(clean(raw[key])!==''&&finite(raw[key])===null)invalidNumbers++;
   if(period===null&&!priceOnly)issues.push({row:rowNumber,field:'period_date',message:'تاريخ أو فترة غير صالحة'});
