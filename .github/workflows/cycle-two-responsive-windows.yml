@@ -29,3 +29,5 @@ jobs:
         run: node tests/browser/keyboard-navigation.mjs
       - name: Verify offline shell and IndexedDB/outbox persistence after reload
         run: node tests/browser/offline-shell-smoke.mjs
+      - name: Verify manual local-versus-server result conflict decisions in IndexedDB
+        run: node tests/browser/result-conflict-resolution.mjs
