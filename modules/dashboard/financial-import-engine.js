@@ -138,7 +138,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
   const yearValue=finite(raw.year),monthValue=finite(raw.month);const splitPeriod=yearValue>0&&monthValue>0?String(yearValue)+'-'+String(monthValue).padStart(2,'0'):null;
   const period=normalizeFinancialDate(raw.period_date)||normalizeFinancialDate(splitPeriod);
-  const rawMetric=clean(raw.metric_key),metric=rawMetric||inferFinancialMetric(raw.category_name),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasMetricAmount=finite(raw.amount)!==null||finite(raw.quantity)!==null,hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
+  const rawMetric=clean(raw.metric_key),metric=inferFinancialMetric(rawMetric)||inferFinancialMetric(raw.category_name)||rawMetric,wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasMetricAmount=finite(raw.amount)!==null||finite(raw.quantity)!==null,hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
   const priceOnly=!metric&&!wide.length&&hasPriceFields;
   for(const key of numericFields)if(clean(raw[key])!==''&&finite(raw[key])===null)invalidNumbers++;
   if(period===null&&!priceOnly)issues.push({row:rowNumber,field:'period_date',message:'تاريخ أو فترة غير صالحة'});
