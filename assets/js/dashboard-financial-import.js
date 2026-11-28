@@ -33,7 +33,7 @@ function renderMapping(){
 }
 async function digest(buffer){const bytes=await crypto.subtle.digest('SHA-256',buffer);return [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 async function importPrepared(mapping,headers,rawRows,branchId){
- const existing=await listOwnerFinancialRows({tenantId,includePending:true}),fingerprints=new Set(existing.map(x=>x.row_fingerprint));
+ const existing=await listOwnerFinancialRows({tenantId,includePending:true});
  const keyOf=x=>[x.period_date,String(x.metric_key||'').trim().toLocaleLowerCase('ar'),String(x.item_name||'').trim().toLocaleLowerCase('ar'),String(x.category_name||'').trim().toLocaleLowerCase('ar'),String(x.currency_code||'').trim().toUpperCase(),x.branch_id||''].join('|');
  const existingByKey=new Map(existing.map(x=>[keyOf(x),x])),skipped=[],rows=[];
  for(const x of preparedRows){
@@ -41,9 +41,10 @@ async function importPrepared(mapping,headers,rawRows,branchId){
   const resolvedBranch=x.branch_name?(matchedBranch?.id||null):(branchId||null);
   if(!isFinancialImportRowImportable(x)){skipped.push({row:x._rowNumber,reason:'صف غير مكتمل أو مكرر داخل الملف'});continue;}
   if(x.branch_name&&!matchedBranch){skipped.push({row:x._rowNumber,reason:'اسم الفرع غير مطابق لفروع المعمل'});continue;}
-  if(fingerprints.has(x._fingerprint)){skipped.push({row:x._rowNumber,reason:'هذا الصف مستورد سابقًا'});continue;}
   const candidate={...x,branch_id:resolvedBranch},existingMatch=existingByKey.get(keyOf(candidate));
-  if(existingMatch&&(Number(existingMatch.amount||0)!==Number(x.amount||0)||Number(existingMatch.quantity||0)!==Number(x.quantity||0)||Number(existingMatch.unit_cost||0)!==Number(x.unit_cost||0)||Number(existingMatch.selling_price||0)!==Number(x.selling_price||0)||Number(existingMatch.weight||0)!==Number(x.weight||0))&&existingMatch.pending_approval){skipped.push({row:x._rowNumber,reason:'يوجد إصدار أحدث غير معتمد لنفس البند؛ راجعه واعتمده أولًا'});continue;}
+  const sameValues=existingMatch&&Number(existingMatch.amount||0)===Number(x.amount||0)&&Number(existingMatch.quantity||0)===Number(x.quantity||0)&&Number(existingMatch.unit_cost||0)===Number(x.unit_cost||0)&&Number(existingMatch.selling_price||0)===Number(x.selling_price||0)&&Number(existingMatch.weight||0)===Number(x.weight||0)&&String(existingMatch.currency_code||'').toUpperCase()===String(x.currency_code||'').toUpperCase();
+  if(existingMatch&&sameValues){skipped.push({row:x._rowNumber,reason:'هذا الصف بالقيم نفسها مستورد بالفعل'});continue;}
+  if(existingMatch&&existingMatch.pending_approval){skipped.push({row:x._rowNumber,reason:'يوجد إصدار أحدث غير معتمد لنفس البند؛ راجعه واعتمده أولًا'});continue;}
   rows.push({branch_id:resolvedBranch,sheet_name:activeSheet,row_number:x._rowNumber,period_date:x.period_date,metric_key:String(x.metric_key).trim(),amount:x.amount,quantity:x.quantity,item_name:x.item_name,category_name:x.category_name,unit_cost:x.unit_cost,selling_price:x.selling_price,weight:x.weight,currency_code:x.currency_code,original_row:Object.fromEntries(headers.map((h,i)=>[String(h||'عمود '+(i+1)),x._original[i]??''])),row_fingerprint:x._fingerprint});existingByKey.set(keyOf({...x,branch_id:resolvedBranch}),{...x,branch_id:resolvedBranch,pending_approval:true});
  }
  if(!rows.length)throw new Error('لا توجد صفوف صالحة بعد استبعاد التكرارات والتعارضات.');
