@@ -49,6 +49,7 @@ test('migration compares each submitted parameter under the visit lock before wr
   assert.match(migration, /correct_published_result[\s\S]*private\.is_tenant_owner/);
   assert.match(migration, /set_config\('app\.result_write_authorized','off',true\)/);
   assert.match(read('tests/supabase/result-conflict-smoke.sql'), /direct table UPDATE bypassed compare-and-set/);
+  assert.match(read('tests/supabase/result-conflict-smoke.sql'), /direct table INSERT bypassed result protection/);
   const rollback = read('database/rollbacks/137_offline_result_compare_and_set.sql');
   assert.match(rollback, /drop function if exists public\.save_draft_results_idempotent_v2/);
   assert.match(rollback, /revoke all on function public\.save_draft_results_atomic[\s\S]*authenticated/i);
