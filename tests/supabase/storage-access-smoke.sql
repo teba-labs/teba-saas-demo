@@ -9,10 +9,22 @@ select set_config('request.jwt.claim.sub',(
   where t.slug='test1-lab' and tm.account_type='owner' and tm.is_active
   order by tm.created_at limit 1
 ),true);
+select set_config('storage.test_other_tenant_id',(
+  select t.id::text from public.tenants t
+  join public.branches b on b.tenant_id=t.id
+  join public.patients p on p.tenant_id=t.id and p.branch_id=b.id
+  where t.slug<>'test1-lab' order by t.created_at limit 1
+),true);
+select set_config('storage.test_other_branch_id',(
+  select b.id::text from public.tenants t
+  join public.branches b on b.tenant_id=t.id
+  join public.patients p on p.tenant_id=t.id and p.branch_id=b.id
+  where t.slug<>'test1-lab' order by t.created_at limit 1
+),true);
 set local role authenticated;
 do $test$
 declare
- v_tenant uuid;v_branch uuid;v_visit uuid;v_other_tenant uuid;v_other_branch uuid;v_user uuid:=auth.uid();
+ v_tenant uuid;v_branch uuid;v_visit uuid;v_other_tenant uuid:=current_setting('storage.test_other_tenant_id')::uuid;v_other_branch uuid:=current_setting('storage.test_other_branch_id')::uuid;v_user uuid:=auth.uid();
  v_attachment text;v_report text;v_rejected boolean:=false;v_report_count integer;v_attachment_count integer;
 begin
  select t.id,b.id into v_tenant,v_branch from public.tenants t
@@ -20,9 +32,6 @@ begin
  where t.slug='test1-lab' order by b.created_at limit 1;
  select id into v_visit from public.visits
  where tenant_id=v_tenant and branch_id=v_branch order by created_at desc limit 1;
- select t.id,b.id into v_other_tenant,v_other_branch from public.tenants t
- join public.branches b on b.tenant_id=t.id
- where t.id<>v_tenant order by t.created_at limit 1;
  if v_tenant is null or v_branch is null or v_visit is null or v_user is null then
    raise exception 'TEST BLOCKED: Test1 owner, branch or visit is missing';
  end if;
