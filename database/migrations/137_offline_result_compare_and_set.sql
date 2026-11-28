@@ -139,6 +139,7 @@ begin
     from public.save_draft_results_atomic(
       p_tenant_id,p_branch_id,p_visit_test_id,p_staff_id,p_results
     ) saved;
+  perform set_config('app.result_write_authorized','off',true);
   if cardinality(v_result_ids)=0 then raise exception 'Draft result save returned no acknowledged rows'; end if;
 
   update private.offline_operation_receipts
@@ -206,6 +207,7 @@ begin
   perform set_config('app.result_write_authorized','on',true);
   select coalesce(array_agg(saved.id),'{}'::uuid[]) into v_result_ids
     from public.save_draft_results_atomic(p_tenant_id,p_branch_id,p_visit_test_id,p_staff_id,p_results) saved;
+  perform set_config('app.result_write_authorized','off',true);
   if cardinality(v_result_ids)=0 then raise exception 'Draft result save returned no acknowledged rows'; end if;
   update private.offline_operation_receipts set result_ids=v_result_ids,completed_at=now()
    where tenant_id=p_tenant_id and branch_id=p_branch_id and operation_id=p_operation_id;
@@ -298,6 +300,7 @@ begin
     entered_by=auth.uid(),entered_by_staff_id=p_staff_id,updated_at=now()
    where tenant_id=p_tenant_id and id=p_result_id
    returning * into v_updated;
+  perform set_config('app.result_correction','off',true);
   return v_updated;
 end;
 $function$;
@@ -355,6 +358,7 @@ begin
     entered_by=auth.uid(),entered_by_staff_id=p_staff_id,updated_at=now()
    where tenant_id=p_tenant_id and id=p_result_id
    returning * into v_updated;
+  perform set_config('app.result_correction','off',true);
   return v_updated;
 end;
 $function$;
@@ -423,6 +427,51 @@ begin
   update public.test_results set flag=null,correction_reason=null,entered_by=auth.uid(),
     entered_by_staff_id=p_staff_id,updated_at=now()
    where tenant_id=p_tenant_id and visit_test_id=p_visit_test_id and parameter_code=p_parameter_code;
+  perform set_config('app.result_correction','off',true);
   return v_result;
+end;
+$function$;
+
+
+-- Retain the legacy published-correction RPC only for tenant owners.
+-- Older clients may still call this name; employees must use the controlled workflow.
+create or replace function public.correct_published_result(
+  p_tenant_id uuid,p_branch_id uuid,p_visit_id uuid,p_result_id uuid,
+  p_value_numeric numeric,p_value_text text,p_reason text,p_staff_id uuid
+) returns public.test_results
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_result public.test_results%rowtype;
+  v_visit public.visits%rowtype;
+  v_updated public.test_results%rowtype;
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if not private.can_access_branch(p_tenant_id,p_branch_id) then raise exception 'Branch access denied'; end if;
+  if not private.is_tenant_owner(p_tenant_id) then raise exception 'Only the lab owner may correct published results'; end if;
+  if p_staff_id is null or not exists (
+    select 1 from public.staff_directory sd
+    where sd.id=p_staff_id and sd.tenant_id=p_tenant_id and sd.branch_id=p_branch_id and sd.is_active
+  ) then raise exception 'An active staff identity for this branch is required'; end if;
+  select * into v_visit from public.visits
+    where id=p_visit_id and tenant_id=p_tenant_id and branch_id=p_branch_id for update;
+  if not found or not v_visit.is_published then raise exception 'Only a published visit can use this correction workflow'; end if;
+  select tr.* into v_result from public.test_results tr
+    join public.visit_tests vt on vt.id=tr.visit_test_id and vt.tenant_id=tr.tenant_id
+    where tr.id=p_result_id and tr.tenant_id=p_tenant_id and vt.visit_id=p_visit_id and vt.branch_id=p_branch_id
+    for update of tr;
+  if not found then raise exception 'Result not found'; end if;
+  if (p_value_numeric is null) = (p_value_text is null) then
+    raise exception 'Provide exactly one numeric or text result value';
+  end if;
+  perform set_config('app.result_correction','on',true);
+  update public.test_results set
+    value_numeric=p_value_numeric,value_text=p_value_text,correction_reason=null,
+    entered_by=auth.uid(),entered_by_staff_id=p_staff_id,updated_at=now()
+  where id=p_result_id and tenant_id=p_tenant_id returning * into v_updated;
+  perform set_config('app.result_correction','off',true);
+  return v_updated;
 end;
 $function$;
