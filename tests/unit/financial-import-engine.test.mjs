@@ -76,6 +76,8 @@ const partial=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,
 assert.equal(partial.ready,true,'valid rows remain importable when another row is incomplete');
 assert.equal(engine.normalizeFinancialDate('٢٨/١١/٢٠٢٦'),'2026-11-28');
 assert.equal(engine.normalizeFinancialDate('31/01/2024'),'2024-01-31');
+assert.equal(engine.normalizeFinancialDate('2024-01-15'),'2024-01-15','ISO dates must preserve their day');
+assert.equal(engine.normalizeFinancialDate('2024/1/15'),'2024-01-15');
 const arabicNumbers=engine.analyzeFinancialRows({headers:['التاريخ','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','الإيرادات']),rows:[['٢٨/١١/٢٠٢٦','١٬٢٣٤٫٥٠']]});
 assert.equal(arabicNumbers.records[0].amount,1234.5);
 const offsetAnalysis=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A']],rowOffset:3});
