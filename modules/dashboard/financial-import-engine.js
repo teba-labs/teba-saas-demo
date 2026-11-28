@@ -53,7 +53,8 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
  const hasTimelessPrice=mapped.has('item_name')&&(mapped.has('unit_cost')||mapped.has('selling_price'));
  const required=hasDate||hasTimelessPrice?[]:[{label:'التاريخ أو ربط السنة والشهر معًا'}];
  const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0;
- const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];\n const numericFields=['amount','quantity','revenue','collections','expenses','cases','discounts','tests_count','unit_cost','selling_price','weight'];
+ const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];
+ const numericFields=['amount','quantity','revenue','collections','expenses','cases','discounts','tests_count','unit_cost','selling_price','weight'];
  for(let i=0;i<rows.length;i++){
   const source=rows[i]||[],rowNumber=i+rowOffset+1;if(!source.some(v=>clean(v)!=='')){blankRows++;continue;}
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
