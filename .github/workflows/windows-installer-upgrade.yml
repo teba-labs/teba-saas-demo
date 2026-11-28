@@ -40,7 +40,7 @@ jobs:
         shell: pwsh
         run: |
           $baseline = 'baseline\dist\Taiba-Smart-Lab-Setup-1.0.0-x64.exe'
-          $upgrade = 'dist\Taiba-Smart-Lab-Setup-1.0.1-x64.exe'
+          $upgrade = 'dist\Taiba-Smart-Lab-Setup-1.0.2-x64.exe'
           if (-not (Test-Path $baseline)) { throw "Baseline installer not found: $baseline" }
           if (-not (Test-Path $upgrade)) { throw "Upgrade installer not found: $upgrade" }
           ./tests/windows/installer-upgrade-smoke.ps1 -BaselineInstaller $baseline -UpgradeInstaller $upgrade
@@ -49,6 +49,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: taiba-smart-lab-windows-upgrade-installer
-          path: dist/Taiba-Smart-Lab-Setup-1.0.1-x64.exe
+          path: dist/Taiba-Smart-Lab-Setup-1.0.2-x64.exe
           if-no-files-found: error
           retention-days: 30
