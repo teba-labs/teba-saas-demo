@@ -10,16 +10,26 @@ select set_config('request.jwt.claim.sub',(
   where t.slug='test1-lab' and tm.account_type='owner' and tm.is_active
   order by tm.created_at limit 1
 ),true);
+select set_config('request.jwt.claim.role','authenticated',true);
 set local role authenticated;
 do $test$
 declare
  v_tenant uuid;v_branch uuid;v_user uuid:=auth.uid();v_staff uuid:=gen_random_uuid();v_patient uuid:=gen_random_uuid();
  v_test uuid;v_price uuid;v_visit uuid;v_vt uuid;v_op1 uuid:=gen_random_uuid();v_op2 uuid:=gen_random_uuid();
- v_ids1 uuid[];v_ids2 uuid[];v_replay uuid[];v_conflict boolean:=false;v_legacy boolean:=false;v_val numeric;v_count int;
- v_r1 jsonb:=jsonb_build_array(jsonb_build_object('parameter_code','FASTING_GLUCOSE','value_numeric',100,'value_text',null,'flag','normal'));
- v_r2 jsonb:=jsonb_build_array(jsonb_build_object('parameter_code','FASTING_GLUCOSE','value_numeric',110,'value_text',null,'flag','normal'));
- v_empty jsonb:=jsonb_build_array(jsonb_build_object('parameter_code','FASTING_GLUCOSE','value_numeric',null,'value_text',null,'flag',null));
- v_base jsonb:=jsonb_build_array(jsonb_build_object('parameter_code','FASTING_GLUCOSE','value_numeric',100,'value_text',null,'flag','normal'));
+ v_ids1 uuid[];v_ids2 uuid[];v_replay uuid[];v_conflict boolean:=false;v_legacy boolean:=false;
+ v_direct_update_rejected boolean:=false;v_val numeric;v_corrected numeric;v_count integer;v_result_id uuid;
+ v_r1 jsonb:=jsonb_build_array(
+   jsonb_build_object('parameter_code','FASTING_GLUCOSE','value_numeric',100,'value_text',null,'flag','normal'),
+   jsonb_build_object('parameter_code','FASTING_INSULIN','value_numeric',10,'value_text',null,'flag','normal'));
+ v_r2 jsonb:=jsonb_build_array(
+   jsonb_build_object('parameter_code','FASTING_GLUCOSE','value_numeric',110,'value_text',null,'flag','normal'),
+   jsonb_build_object('parameter_code','FASTING_INSULIN','value_numeric',11,'value_text',null,'flag','normal'));
+ v_empty jsonb:=jsonb_build_array(
+   jsonb_build_object('parameter_code','FASTING_GLUCOSE','value_numeric',null,'value_text',null,'flag',null),
+   jsonb_build_object('parameter_code','FASTING_INSULIN','value_numeric',null,'value_text',null,'flag',null));
+ v_base jsonb:=jsonb_build_array(
+   jsonb_build_object('parameter_code','FASTING_GLUCOSE','value_numeric',100,'value_text',null,'flag','normal'),
+   jsonb_build_object('parameter_code','FASTING_INSULIN','value_numeric',10,'value_text',null,'flag','normal'));
 begin
  select t.id,b.id into v_tenant,v_branch from public.tenants t
  join public.branches b on b.tenant_id=t.id and b.is_active
@@ -49,8 +59,8 @@ begin
  select array_agg(id order by id) into v_ids1 from public.save_draft_results_idempotent_v2(
    v_op1,v_tenant,v_branch,v_vt,v_staff,v_r1,v_empty);
  select count(*) into v_count from public.test_results
-  where tenant_id=v_tenant and visit_test_id=v_vt and parameter_code='FASTING_GLUCOSE';
- if v_count<>1 or cardinality(v_ids1)<>1 then raise exception 'TEST FAIL: initial result insert failed'; end if;
+  where tenant_id=v_tenant and visit_test_id=v_vt and parameter_code in ('FASTING_GLUCOSE','FASTING_INSULIN');
+ if v_count<>2 then raise exception 'TEST FAIL: initial manual result insert failed'; end if;
 
  select array_agg(id order by id) into v_ids2 from public.save_draft_results_idempotent_v2(
    v_op2,v_tenant,v_branch,v_vt,v_staff,v_r2,v_base);
@@ -71,6 +81,14 @@ begin
  if v_val<>110 then raise exception 'TEST FAIL: newer result was overwritten'; end if;
 
  begin
+   update public.test_results set value_numeric=99
+    where tenant_id=v_tenant and visit_test_id=v_vt and parameter_code='FASTING_GLUCOSE';
+   raise exception 'TEST FAIL: direct table UPDATE bypassed compare-and-set';
+ exception when insufficient_privilege then
+   v_direct_update_rejected:=true;
+ end;
+
+ begin
    perform * from public.save_draft_results_idempotent(
      gen_random_uuid(),v_tenant,v_branch,v_vt,v_staff,v_r1);
    raise exception 'TEST FAIL: legacy RPC overwrote an existing result';
@@ -81,11 +99,20 @@ begin
  if has_function_privilege('authenticated','public.save_draft_results_atomic(uuid,uuid,uuid,uuid,jsonb)','EXECUTE') then
    raise exception 'TEST FAIL: direct atomic upsert RPC remains executable';
  end if;
+
+ perform public.complete_visit_test_atomic(v_tenant,v_branch,v_vt,v_staff);
+ select id into v_result_id from public.test_results
+  where tenant_id=v_tenant and visit_test_id=v_vt and parameter_code='FASTING_GLUCOSE';
+ perform public.correct_completed_visit_result(v_tenant,v_branch,v_vt,v_result_id,120,null,null,v_staff);
+ select value_numeric into v_corrected from public.test_results
+  where tenant_id=v_tenant and visit_test_id=v_vt and parameter_code='FASTING_GLUCOSE';
+ if v_corrected<>120 then raise exception 'TEST FAIL: authorized correction workflow was blocked'; end if;
+
  insert into pg_temp.cas_test_output values(jsonb_build_object(
-   'status','PASS','tenant','test1-lab','initial_insert_rows',cardinality(v_ids1),
-   'sequential_update_rows',cardinality(v_ids2),'same_operation_replay',v_ids2=v_replay,
-   'stale_write_rejected',v_conflict,'legacy_overwrite_rejected',v_legacy,
-   'newer_value_preserved',v_val,'all_changes_rolled_back',true));
+  'status','PASS','tenant','test1-lab','stale_write_rejected',v_conflict,
+  'legacy_overwrite_rejected',v_legacy,'direct_table_update_rejected',v_direct_update_rejected,
+  'newer_value_preserved_before_correction',v_val,'authorized_completed_result_correction',v_corrected,
+  'same_operation_replay',v_ids2=v_replay,'all_changes_rolled_back',true));
 end
 $test$;
 select details from cas_test_output;
