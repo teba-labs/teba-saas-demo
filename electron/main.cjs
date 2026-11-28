@@ -92,15 +92,7 @@ function configureAutoUpdates() {
 
   autoUpdater.on('error', error => {
     console.error('[Taiba updater]', error);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      void dialog.showMessageBox(mainWindow, {
-        type: 'warning',
-        title: 'Taiba Smart Lab - Update',
-        message: 'تعذر التحقق من التحديث أو تنزيله.',
-        detail: 'سيظل البرنامج وبياناتك المحلية كما هي. يمكنك المحاولة مرة أخرى عند توفر الإنترنت.\\n' + (error?.message || ''),
-        buttons: ['حسنًا']
-      });
-    }
+    // Update failures must never interrupt offline laboratory work.
     updateDownloadInProgress = false;
     updatePromptOpen = false;
   });
@@ -129,6 +121,7 @@ function configureAutoUpdates() {
 
   autoUpdater.on('update-downloaded', async info => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
+    autoUpdater.autoInstallOnAppQuit = true;
     const answer = await dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'التحديث جاهز',
