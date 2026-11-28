@@ -16,7 +16,8 @@ create index if not exists owner_financial_import_rows_pending_period_idx
 create or replace function public.activate_owner_financial_import_period(
   p_tenant_id uuid,
   p_period_month date,
-  p_branch_id uuid default null
+  p_branch_id uuid default null,
+  p_replace_period boolean default false
 )
 returns integer
 language plpgsql
@@ -57,12 +58,17 @@ begin
           r.is_active = true
           and exists (
             select 1 from pending p
-            where p.period_date = r.period_date
-              and p.metric_key = r.metric_key
-              and p.item_name is not distinct from r.item_name
-              and p.category_name is not distinct from r.category_name
-              and p.currency_code is not distinct from r.currency_code
-              and p.branch_id is not distinct from r.branch_id
+            where p.branch_id is not distinct from r.branch_id
+              and (
+                p_replace_period
+                or (
+                  p.period_date = r.period_date
+                  and p.metric_key = r.metric_key
+                  and p.item_name is not distinct from r.item_name
+                  and p.category_name is not distinct from r.category_name
+                  and p.currency_code is not distinct from r.currency_code
+                )
+              )
           )
         )
       )
@@ -78,7 +84,7 @@ begin
 end;
 $$;
 
-revoke all on function public.activate_owner_financial_import_period(uuid,date,uuid) from public, anon;
+revoke all on function public.activate_owner_financial_import_period(uuid,date,uuid,boolean) from public, anon;
 grant execute on function public.activate_owner_financial_import_period(uuid,date,uuid) to authenticated;
 
 commit;
