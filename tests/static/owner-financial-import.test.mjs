@@ -48,6 +48,8 @@ assert.match(ui,/ownerFinancialCompare/);
 assert.match(ui,/اعرض المطابقة أولًا/);
 assert.match(ui,/pendingApproval/);
 assert.match(ui,/applyOwnerFinancialSources/);
+assert.match(ui,/find\(row=>row\.branch_id===null\)/);
+assert.match(ui,/year-source-choices/);
 assert.match(dashboard,/mountOwnerFinancialImport/);
 assert.match(dashboard,/applyOwnerFinancialSources/);
 assert.match(engine,/buildGenericHistoricalReport/);
