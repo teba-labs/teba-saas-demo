@@ -27,11 +27,11 @@ export async function listOwnerFinancialRows({tenantId,from=null,to=null,branchI
   return q;
  });
 }
-export async function createOwnerFinancialBatch({tenantId,fileName,fileSha256,sourceFileSha256=fileSha256,file,sourceLabel,periodStart,periodEnd,mappingSnapshot,sheetSummary,rows}={}){
+export async function createOwnerFinancialBatch({tenantId,fileName,fileSha256,sourceFileSha256=fileSha256,file,sourceLabel,periodStart,periodEnd,mappingSnapshot,sheetSummary,rows,rowsTotal=rows?.length||0,rowsSkipped=0}={}){
  requireValue(tenantId,'tenantId');requireValue(fileName,'اسم الملف');requireValue(fileSha256,'بصمة الملف');requireValue(file,'الملف الأصلي');if(!Array.isArray(rows)||!rows.length)throw new Error('لا توجد صفوف صالحة للاستيراد.');
  const existing=await db().from('owner_financial_import_batches').select('id').eq('tenant_id',tenantId).eq('file_sha256',fileSha256).maybeSingle();if(existing.error)throw existing.error;if(existing.data)throw new Error('هذا الملف وهذه الورقة سبق استيرادهما إلى هذا المعمل. لم نكرر بياناتهما.');
  const session=await db().auth.getUser();if(session.error)throw session.error;
- const {data:batch,error}=await db().from('owner_financial_import_batches').insert({tenant_id:tenantId,file_name:fileName,file_sha256:fileSha256,source_label:sourceLabel||null,period_start:periodStart||null,period_end:periodEnd||null,mapping_snapshot:mappingSnapshot||{},sheet_summary:sheetSummary||[],status:'completed',rows_total:rows.length,rows_imported:rows.length,rows_skipped:0,created_by:session.data.user?.id||null}).select('id').single();if(error)throw error;
+ const {data:batch,error}=await db().from('owner_financial_import_batches').insert({tenant_id:tenantId,file_name:fileName,file_sha256:fileSha256,source_label:sourceLabel||null,period_start:periodStart||null,period_end:periodEnd||null,mapping_snapshot:mappingSnapshot||{},sheet_summary:sheetSummary||[],status:'completed',rows_total:rowsTotal,rows_imported:rows.length,rows_skipped:rowsSkipped,created_by:session.data.user?.id||null}).select('id').single();if(error)throw error;
  let storagePath=null,createdStorage=false;
  try{
   const safeName=String(fileName||'workbook.xlsx').replace(/[^A-Za-z0-9._-]+/g,'_');
