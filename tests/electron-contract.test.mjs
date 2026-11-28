@@ -119,3 +119,21 @@ test('desktop window keeps renderer security boundaries enabled', async () => {
   assert.match(main, /webviewTag:\s*false/);
   assert.match(main, /setPermissionCheckHandler\(\(\) => false\)/);
 });
+
+test('Electron desktop uses the requested runtime and GitHub update feed', async () => {
+  const pkg = JSON.parse(await read('package.json'));
+  assert.equal(pkg.devDependencies.electron, '45.5.0');
+  assert.ok(pkg.devDependencies['electron-updater']);
+  assert.ok(pkg.build.publish.some(item => item.provider === 'github' && item.owner === 'teba-labs' && item.repo === 'teba-saas-demo'));
+});
+
+test('desktop updates are checked periodically and require user approval', async () => {
+  const main = await read('electron/main.cjs');
+  assert.match(main, /autoUpdater\.autoDownload = false/);
+  assert.match(main, /autoUpdater\.autoInstallOnAppQuit = false/);
+  assert.match(main, /buttons: \['تنزيل التحديث', 'لاحقًا'\]/);
+  assert.match(main, /buttons: \['إعادة التشغيل والتحديث', 'لاحقًا'\]/);
+  assert.match(main, /autoUpdater\.downloadUpdate\(\)/);
+  assert.match(main, /autoUpdater\.quitAndInstall\(\)/);
+  assert.match(main, /UPDATE_CHECK_INTERVAL_MS = 6 \* 60 \* 60 \* 1000/);
+});
