@@ -84,4 +84,11 @@ const offsetAnalysis=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-0
 assert.equal(offsetAnalysis.records[0]._rowNumber,4,'source row references must account for title rows before the header');
 const invalidWide=engine.analyzeFinancialRows({headers:['التاريخ','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','الإيرادات']),rows:[['2024-01','قيمة غير رقمية']]});
 assert.equal(invalidWide.invalidNumbers,1,'invalid wide-format financial amounts must be reported');
+const revisions=engine.preferPendingFinancialRows([
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',amount:100,is_active:true,pending_approval:false},
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',amount:125,is_active:false,pending_approval:true},
+ {period_date:'2024-01-01',metric_key:'expenses',branch_id:'a',amount:50,is_active:true,pending_approval:false}
+]);
+assert.equal(revisions.length,2,'pending revisions replace only matching active rows in the review projection');
+assert.equal(revisions.find(row=>row.metric_key==='revenue').amount,125);
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
