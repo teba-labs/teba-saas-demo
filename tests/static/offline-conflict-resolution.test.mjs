@@ -13,7 +13,7 @@ test('conflict retry is scoped and preserves the original idempotency key', () =
 });
 
 test('a server acknowledgement resolves the matching local conflict history', () => {
-  assert.match(outbox, /status: 'resolved', resolution: 'server_acknowledged'/);
+  assert.match(outbox, /status: 'resolved', resolution: conflict\.resolution === 'manual_rebase_to_server_snapshot' \? 'manual_rebase_acknowledged' : 'server_acknowledged'/);
   assert.match(outbox, /conflict\.operation_id === item\.operation_id/);
 });
 
