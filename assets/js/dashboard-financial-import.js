@@ -169,8 +169,8 @@ $('ownerFinancialApprove').onclick=async()=>{try{
 export async function applyOwnerFinancialSources(tenantId,liveReport,branchId=null){
  if(!tenantId||!liveReport)return liveReport;
  const month=String(liveReport.period?.monthStart||'').slice(0,7);if(!month)return liveReport;
- let approvals;try{approvals=await listOwnerMonthApprovals({tenantId,month,branchId});}catch(error){if(error?.code==='42P01'||/does not exist|schema cache/i.test(error?.message||''))return liveReport;throw error;}
- const approval=(approvals||[]).find(row=>branchId?row.branch_id===branchId:row.branch_id===null);
+ let approvals;try{approvals=await listOwnerMonthApprovals({tenantId,month});}catch(error){if(error?.code==='42P01'||/does not exist|schema cache/i.test(error?.message||''))return liveReport;throw error;}
+ const approval=branchId?(approvals||[]).find(row=>row.branch_id===branchId)||(approvals||[]).find(row=>row.branch_id===null):(approvals||[]).find(row=>row.branch_id===null);
  if(!approval)return {...liveReport,monthApproval:{approved:false,month,branchId,message:'الشهر لم يعتمد بعد؛ تعرض لوحة التشغيل بيانات النظام الحية فقط.'}};
  const choices=approval.source_choices||{},manual=approval.reconciliation_snapshot?.manualValues||{};
  const monthEnd=(()=>{const d=new Date(liveReport.period.monthEnd+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})();
