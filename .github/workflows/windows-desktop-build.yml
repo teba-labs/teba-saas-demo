@@ -63,12 +63,51 @@ jobs:
             } catch { Start-Sleep -Seconds 1 }
           }
           if (-not $page) { throw "Local renderer did not load taiba://app/app/index.html within 45 seconds" }
-          if (-not $page.title -or $page.title -notmatch 'Taiba|طيبة') { throw "Unexpected desktop renderer title: $($page.title)" }
+          if ($desktop.HasExited) { throw "Taiba Smart Lab exited during renderer verification (code $($desktop.ExitCode))" }
+
+          # CDP target metadata can expose an empty/stale title for a custom
+          # secure protocol. Read the actual document from the renderer instead.
+          $targetJson = $page | ConvertTo-Json -Compress
+          $inspectScript = @'
+          const target = JSON.parse(process.argv[1]);
+          const socket = new WebSocket(target.webSocketDebuggerUrl);
+          await new Promise((resolve, reject) => {
+            socket.addEventListener('open', resolve, { once: true });
+            socket.addEventListener('error', reject, { once: true });
+          });
+          const result = await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('Renderer inspection timed out')), 10000);
+            socket.addEventListener('message', event => {
+              const message = JSON.parse(event.data);
+              if (message.id === 1) {
+                clearTimeout(timer);
+                resolve(message.result?.result?.value);
+              }
+            });
+            socket.send(JSON.stringify({
+              id: 1,
+              method: 'Runtime.evaluate',
+              params: {
+                expression: 'JSON.stringify({title:document.title,readyState:document.readyState,href:location.href,bodyText:(document.body?.innerText||"").slice(0,500)})',
+                returnByValue: true,
+                awaitPromise: true
+              }
+            }));
+          });
+          socket.close();
+          process.stdout.write(result || '{}');
+          '@
+          $renderer = node -e $inspectScript $targetJson | ConvertFrom-Json
+          if ($renderer.href -ne 'taiba://app/app/index.html' -or $renderer.readyState -ne 'complete') {
+            throw "Desktop renderer did not complete local document loading: $($renderer | ConvertTo-Json -Compress)"
+          }
+          if (-not $renderer.title -or $renderer.title -notmatch 'Taiba|طيبة') {
+            throw "Unexpected desktop document title: $($renderer.title); body: $($renderer.bodyText)"
+          }
           if ($desktop.HasExited) { throw "Taiba Smart Lab exited after renderer load (code $($desktop.ExitCode))" }
 
           # Close the actual renderer window through DevTools, then verify the
           # Electron process exits cleanly because all windows are closed.
-          $targetJson = $page | ConvertTo-Json -Compress
           $closeScript = @'
           const target = JSON.parse(process.argv[1]);
           const socket = new WebSocket(target.webSocketDebuggerUrl);
