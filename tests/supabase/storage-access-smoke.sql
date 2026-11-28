@@ -21,7 +21,7 @@ begin
  select id into v_visit from public.visits
  where tenant_id=v_tenant and branch_id=v_branch order by created_at desc limit 1;
  select t.id,b.id into v_other_tenant,v_other_branch from public.tenants t
- join public.branches b on b.tenant_id=t.id and b.is_active
+ join public.branches b on b.tenant_id=t.id
  where t.id<>v_tenant order by t.created_at limit 1;
  if v_tenant is null or v_branch is null or v_visit is null or v_user is null then
    raise exception 'TEST BLOCKED: Test1 owner, branch or visit is missing';
