@@ -50,6 +50,8 @@ Migration `20261128150000_owner_financial_row_activation.sql` adds row activatio
 - `supabase/migrations/20261128150000_owner_financial_row_activation.sql`
 - `tests/unit/financial-import-engine.test.mjs`
 - `tests/static/owner-financial-import.test.mjs`
+- `tests/static/dashboard-history.test.mjs`
+- `tests/static/historical-cloud-archive.test.mjs`
 
 ## Verification boundary
 The GitHub static/unit, static regression, and responsive contract workflows are run against this branch. Applying and exercising the Supabase migration requires a separate development database branch; this is not performed against production Main. PDF OCR and cross-currency conversion are not implemented in this cycle.
