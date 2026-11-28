@@ -52,16 +52,20 @@ export function suggestFinancialMapping(headers){
  const normalized=(headers||[]).map(normalize),hasYear=normalized.some(h=>['year','السنة','عام'].includes(h)),hasDate=normalized.some(h=>FINANCIAL_FIELDS.find(f=>f.key==='period_date').aliases.some(a=>normalize(a)===h));
  return (headers||[]).map((header,columnIndex)=>{const h=normalize(header);let best=null;if(!hasYear&&!hasDate&&['month','الشهر'].includes(h))best=FINANCIAL_FIELDS.find(f=>f.key==='period_date');else for(const field of FINANCIAL_FIELDS){if(field.aliases.some(alias=>normalize(alias)===h)){best=field;break;}}return {columnIndex,header:String(header??''),fieldKey:best?.key||'',confidence:best?'suggested':'unmapped'};});
 }
+function isFinancialAggregateRow(source=[]){
+ const first=(source||[]).map(value=>normalize(value)).find(Boolean)||'';
+ return /^(?:اجمالي|الاجمالي|مجموع|المجموع|total|subtotal|grand total)(?:\\b|\\s|[:：-])/i.test(first);
+}
 export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}={}){
  const mapped=new Map(mapping.filter(x=>x.fieldKey).map(x=>[x.fieldKey,x.columnIndex]));
  const hasDate=mapped.has('period_date')||(mapped.has('year')&&mapped.has('month'));
  const hasTimelessPrice=mapped.has('item_name')&&(mapped.has('unit_cost')||mapped.has('selling_price'));
  const required=hasDate||hasTimelessPrice?[]:[{label:'التاريخ أو ربط السنة والشهر معًا'}];
- const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0;
+ const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0,aggregateRows=0;\n const hasDetailRows=rows.some(source=>source?.some(v=>clean(v)!=='')&&!isFinancialAggregateRow(source));
  const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];
  const numericFields=['amount','quantity','revenue','collections','expenses','cases','discounts','tests_count','unit_cost','selling_price','weight'];
  for(let i=0;i<rows.length;i++){
-  const source=rows[i]||[],rowNumber=i+rowOffset+1;if(!source.some(v=>clean(v)!=='')){blankRows++;continue;}
+  const source=rows[i]||[],rowNumber=i+rowOffset+1;if(!source.some(v=>clean(v)!=='')){blankRows++;continue;}if(hasDetailRows&&isFinancialAggregateRow(source)){aggregateRows++;continue;}
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
   const splitPeriod=Number(raw.year)>0&&Number(raw.month)>0?String(Number(raw.year))+'-'+String(Number(raw.month)).padStart(2,'0'):null;
   const period=normalizeFinancialDate(raw.period_date)||normalizeFinancialDate(splitPeriod);
@@ -82,7 +86,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
   }
  }
  const importable=records.some(record=>Boolean(record.period_date||record.metric_key==='test_price')&&Boolean(record.metric_key)&&Boolean(record.amount!==null||record.quantity!==null||record.unit_cost!==null||record.selling_price!==null)&&record._duplicate!==true);
- return {records,issues,issueCount:issues.length,blankRows,invalidNumbers,duplicateRows,missingRequired:required.length,missingRequiredFields:required.map(x=>x.label),ready:required.length===0&&importable,headers};
+ return {records,issues,issueCount:issues.length,blankRows,invalidNumbers,duplicateRows,aggregateRows,missingRequired:required.length,missingRequiredFields:required.map(x=>x.label),ready:required.length===0&&importable,headers};
 }
 function metricClass(key){
  const k=normalize(key);
