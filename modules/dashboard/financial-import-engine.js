@@ -105,7 +105,7 @@ export function analyzeFinancialWorkbook(workbook){
   sheets.push({name,headerRow:header.index+1,headers,mapping,classification,analysis:result,rows:rows.length,ready:result.ready,periodStart:dates[0]||null,periodEnd:dates.at(-1)||null});
  }
  const records=sheets.flatMap(sheet=>sheet.analysis?.records||[]),dates=records.map(row=>row.period_date).filter(Boolean).sort();
- return {sheets,records,summary:{sheetCount:sheets.length,readableSheets:sheets.filter(x=>x.analysis).length,records:records.length,issues:sheets.reduce((n,x)=>n+(x.analysis?.issueCount||0),0),duplicates:sheets.reduce((n,x)=>n+(x.analysis?.duplicateRows||0),0),aggregates:sheets.reduce((n,x)=>n+(x.analysis?.aggregateRows||0),0),emptySheets:sheets.filter(x=>x.type==='empty').length,periodStart:dates[0]||null,periodEnd:dates.at(-1)||null}};
+ return {sheets,records,summary:{sheetCount:sheets.length,readableSheets:sheets.filter(x=>x.analysis).length,records:records.length,issues:sheets.reduce((n,x)=>n+(x.analysis?.issueCount||0),0),invalidNumbers:sheets.reduce((n,x)=>n+(x.analysis?.invalidNumbers||0),0),duplicates:sheets.reduce((n,x)=>n+(x.analysis?.duplicateRows||0),0),aggregates:sheets.reduce((n,x)=>n+(x.analysis?.aggregateRows||0),0),emptySheets:sheets.filter(x=>x.type==='empty').length,periodStart:dates[0]||null,periodEnd:dates.at(-1)||null}};
 }
 
 function isFinancialAggregateRow(source=[],excludedIndex=null){
