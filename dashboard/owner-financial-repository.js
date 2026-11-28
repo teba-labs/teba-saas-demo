@@ -2,7 +2,7 @@ import {getSupabaseClient} from '../core/supabase-client.js';
 const db=()=>getSupabaseClient();
 const requireValue=(v,n)=>{if(!v)throw new Error(n+' مطلوب.');};
 async function pages(query,pageSize=500){const out=[];for(let offset=0;;offset+=pageSize){const {data,error}=await query().range(offset,offset+pageSize-1);if(error)throw error;const batch=data||[];out.push(...batch);if(batch.length<pageSize)return out;}}
-export async function listOwnerFinancialBatches(tenantId){requireValue(tenantId,'tenantId');return pages(()=>db().from('owner_financial_import_batches').select('id,tenant_id,file_name,file_sha256,source_label,period_start,period_end,status,rows_total,rows_imported,rows_skipped,created_at').eq('tenant_id',tenantId).order('created_at',{ascending:false}));}
+export async function listOwnerFinancialBatches(tenantId){requireValue(tenantId,'tenantId');return pages(()=>db().from('owner_financial_import_batches').select('id,tenant_id,file_name,file_sha256,source_label,period_start,period_end,mapping_snapshot,sheet_summary,status,rows_total,rows_imported,rows_skipped,created_at').eq('tenant_id',tenantId).order('created_at',{ascending:false}));}
 export async function listOwnerFinancialRows({tenantId,from=null,to=null,branchId=null,includePending=false}={}){
  requireValue(tenantId,'tenantId');
  return pages(()=>{
