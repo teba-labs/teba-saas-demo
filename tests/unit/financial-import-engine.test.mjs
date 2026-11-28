@@ -115,4 +115,8 @@ const mixedRevision=engine.preferPendingFinancialRows([
 ]);
 assert.equal(mixedRevision.length,2,'detail rows win over aggregate totals while unrelated detail rows remain');
 assert.deepEqual(mixedRevision.map(row=>row.item_name).sort(),['CBC','TSH']);
+const priceSheet=engine.classifyFinancialSheet({headers:priceHeaders,mapping:priceMapping,rows:[['CBC',20,100,2]]});
+assert.equal(priceSheet.type,'price-list');
+const financialSheet=engine.classifyFinancialSheet({headers,mapping,rows:[['2024-01',100,50,10,20,'A']]});
+assert.equal(financialSheet.type,'period-summary');
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
