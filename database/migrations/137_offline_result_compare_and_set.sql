@@ -247,10 +247,11 @@ grant execute on function public.save_draft_results_idempotent_v2(uuid,uuid,uuid
 comment on function public.save_draft_results_idempotent_v2(uuid,uuid,uuid,uuid,uuid,jsonb,jsonb) is
   'Idempotent compare-and-set draft result save. Compares each submitted parameter to its caller-observed base value under the visit lock and rejects stale writes without modifying results.';
 
--- A table-level RLS policy currently permits authenticated users to UPDATE test_results.
--- This trigger closes that direct PostgREST/table-write path. Only the protected
--- compare-and-set save and audited correction workflows set the transaction-local gates.
-create or replace function private.guard_test_result_update_compare_and_set()
+-- A table-level RLS policy currently permits authenticated users to UPDATE/DELETE test_results.
+-- This trigger closes direct PostgREST/table-write paths. Only protected saves and audited
+-- correction workflows set the transaction-local gates; trusted SECURITY DEFINER workflows
+-- retain their existing ability to clean hidden values and permanently remove visits.
+create or replace function private.guard_test_result_mutation_compare_and_set()
 returns trigger
 language plpgsql
 set search_path = pg_catalog, public, private
@@ -259,18 +260,20 @@ begin
   if current_user='authenticated'
      and current_setting('app.result_write_authorized',true) is distinct from 'on'
      and current_setting('app.result_correction',true) is distinct from 'on' then
-    raise exception 'OFFLINE_RESULTS_CONFLICT: direct result updates are blocked; reload and use the protected save or correction workflow'
+    raise exception 'OFFLINE_RESULTS_CONFLICT: direct result mutations are blocked; use the protected save or correction workflow'
       using errcode='42501';
   end if;
+  if tg_op='DELETE' then return old; end if;
   return new;
 end;
 $guard$;
 
 drop trigger if exists trg_guard_test_result_update_compare_and_set on public.test_results;
-create trigger trg_guard_test_result_update_compare_and_set
-before update on public.test_results
-for each row execute function private.guard_test_result_update_compare_and_set();
-revoke all on function private.guard_test_result_update_compare_and_set() from public,anon,authenticated;
+drop trigger if exists trg_guard_test_result_mutation_compare_and_set on public.test_results;
+create trigger trg_guard_test_result_mutation_compare_and_set
+before update or delete on public.test_results
+for each row execute function private.guard_test_result_mutation_compare_and_set();
+revoke all on function private.guard_test_result_mutation_compare_and_set() from public,anon,authenticated;
 
 -- Preserve the existing controlled correction route for completed, unpublished tests.
 create or replace function public.correct_completed_visit_result(
