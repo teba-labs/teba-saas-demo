@@ -64,7 +64,7 @@ test('the deployable Supabase migration matches the reviewed database migration'
   const supabaseAdditive = read('supabase/migrations/20261128105005_offline_result_compare_and_set_additive.sql');
   assert.equal(supabaseAdditive, additive);
   const acl = read('database/migrations/138_offline_result_compare_and_set_additive_acl.sql');
-  const supabaseAcl = read('supabase/migrations/20261128105200_offline_result_compare_and_set_additive_acl.sql');
+  const supabaseAcl = read('supabase/migrations/20261128105202_offline_result_compare_and_set_additive_acl.sql');
   assert.equal(supabaseAcl, acl);
   assert.match(acl, /revoke all on function public\.save_draft_results_idempotent_v2[\s\S]*from public, anon/i);
   assert.match(acl, /grant execute on function public\.save_draft_results_idempotent_v2[\s\S]*to authenticated/i);
