@@ -30,7 +30,7 @@ test('the sync adapter uses compare-and-set and preserves conflicting operations
 });
 
 test('migration compares each submitted parameter under the visit lock before writing', () => {
-  const migration = read('database/migrations/137_offline_result_compare_and_set.sql');
+  const migration = read('database/migrations/138_offline_result_compare_and_set_enforcement.sql');
   assert.match(migration, /save_draft_results_idempotent_v2/);
   assert.match(migration, /p_expected_snapshot jsonb/);
   assert.match(migration, /for update of v,vt/i);
@@ -50,7 +50,7 @@ test('migration compares each submitted parameter under the visit lock before wr
   assert.match(migration, /set_config\('app\.result_write_authorized','off',true\)/);
   assert.match(read('tests/supabase/result-conflict-smoke.sql'), /direct table UPDATE bypassed compare-and-set/);
   assert.match(read('tests/supabase/result-conflict-smoke.sql'), /direct table INSERT bypassed result protection/);
-  const rollback = read('database/rollbacks/137_offline_result_compare_and_set.sql');
+  const rollback = read('database/rollbacks/138_offline_result_compare_and_set_enforcement.sql');
   assert.match(rollback, /drop function if exists public\.save_draft_results_idempotent_v2/);
   assert.match(rollback, /revoke all on function public\.save_draft_results_atomic[\s\S]*authenticated/i);
   assert.match(migration, /notify pgrst, 'reload schema'/i);
@@ -60,9 +60,12 @@ test('migration compares each submitted parameter under the visit lock before wr
 });
 
 test('the deployable Supabase migration matches the reviewed database migration', () => {
-  const database = read('database/migrations/137_offline_result_compare_and_set.sql');
-  const supabase = read('supabase/migrations/20261128100000_offline_result_compare_and_set.sql');
-  assert.equal(supabase, database);
+  const additive = read('database/migrations/137_offline_result_compare_and_set.sql');
+  const supabaseAdditive = read('supabase/migrations/20261128100000_offline_result_compare_and_set.sql');
+  assert.equal(supabaseAdditive, additive);
+  const enforcement = read('database/migrations/138_offline_result_compare_and_set_enforcement.sql');
+  const supabaseEnforcement = read('supabase/migrations/20261128110000_offline_result_compare_and_set_enforcement.sql');
+  assert.equal(supabaseEnforcement, enforcement);
 });
 
 test('legacy queued draft results without an expected snapshot are retained for explicit server review', () => {
