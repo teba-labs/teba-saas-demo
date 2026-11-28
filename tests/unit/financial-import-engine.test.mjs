@@ -119,4 +119,7 @@ const priceSheet=engine.classifyFinancialSheet({headers:priceHeaders,mapping:pri
 assert.equal(priceSheet.type,'price-list');
 const financialSheet=engine.classifyFinancialSheet({headers,mapping,rows:[['2024-01',100,50,10,20,'A']]});
 assert.equal(financialSheet.type,'period-summary');
+const arabicYearMonth=engine.analyzeFinancialRows({headers:['السنة','الشهر','الإيرادات'],mapping:engine.suggestFinancialMapping(['السنة','الشهر','الإيرادات']),rows:[['٢٠٢٤','١','١٠٠']]});
+assert.equal(arabicYearMonth.records[0].period_date,'2024-01-01');
+assert.equal(arabicYearMonth.records[0].amount,100);
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
