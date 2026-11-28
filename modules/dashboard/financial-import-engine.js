@@ -56,7 +56,7 @@ function isFinancialAggregateRow(source=[],excludedIndex=null){
  return (source||[]).some((value,index)=>{
   if(index===excludedIndex)return false;
   const label=normalize(value);
-  return /^(?:الإجمالي|اجمالي|إجمالي|المجموع|مجموع|total|subtotal|grand total)(?:$|\\s|[:：-])/i.test(label);
+  return /^(?:الإجمالي|اجمالي|إجمالي|المجموع|مجموع|total|subtotal|grand total)(?:$|\s|[:：-])/i.test(label);
  });
 }
 export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}={}){
