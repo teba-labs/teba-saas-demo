@@ -31,8 +31,11 @@ begin
   if not private.can_access_branch(p_tenant_id,p_branch_id) then
     raise exception 'Branch access denied' using errcode='42501';
   end if;
-  if jsonb_typeof(p_results) is distinct from 'array' or jsonb_array_length(p_results) not between 1 and 100 then
-    raise exception 'Results must be an array containing 1 to 100 values';
+  if jsonb_typeof(p_results) is distinct from 'array' then
+    raise exception 'Results must be a JSON array';
+  end if;
+  if jsonb_array_length(p_results) not between 1 and 100 then
+    raise exception 'Results must contain 1 to 100 values';
   end if;
   if jsonb_typeof(p_expected_snapshot) is distinct from 'array' then
     raise exception 'Expected result snapshot must be a JSON array';
