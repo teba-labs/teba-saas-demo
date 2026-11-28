@@ -36,3 +36,17 @@ test('patient ID collision includes a scoped server snapshot when RLS allows the
   assert.match(adapters, /existing\.data\.tenant_id !== operation\.tenant_id/);
   assert.match(adapters, /existing\.data\.branch_id !== operation\.branch_id/);
 });
+
+test('draft result conflicts require an explicit reviewed choice before requeue or discard', () => {
+  assert.match(outbox, /rebaseDraftResultConflict/);
+  assert.match(outbox, /expected_snapshot: expectedSnapshot/);
+  assert.match(outbox, /manual_rebase_to_server_snapshot/);
+  assert.match(outbox, /keepServerDraftResultConflict/);
+  assert.match(outbox, /server_snapshot_kept_local_discarded/);
+  assert.match(outbox, /offlineDb\.test_results\.bulkPut/);
+  assert.match(ui, /data-rebase-draft-conflict/);
+  assert.match(ui, /data-keep-server-conflict/);
+  assert.match(ui, /if \(!confirm\(/);
+  assert.match(ui, /إعادة إرسال القيم المحلية بعد المراجعة/);
+  assert.match(ui, /اعتماد نسخة الخادم وإلغاء التعديل المحلي/);
+});
