@@ -106,4 +106,13 @@ const annualDetail=engine.analyzeFinancialRows({headers:annualDetailHeaders,mapp
 assert.equal(annualDetail.aggregateRows,1,'aggregate labels in non-item columns are excluded across wide layouts');
 const totalBilirubin=engine.analyzeFinancialRows({headers:['التاريخ','اسم التحليل','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','اسم التحليل','الإيرادات']),rows:[['2024-01-01','Total Bilirubin',100]]});
 assert.equal(totalBilirubin.aggregateRows,0,'a test name beginning with Total is not an aggregate row');
+const mixedRevision=engine.preferPendingFinancialRows([
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',item_name:'CBC',amount:50,is_active:true,pending_approval:false},
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',item_name:'TSH',amount:60,is_active:true,pending_approval:false},
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',amount:110,is_active:true,pending_approval:false},
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',amount:120,is_active:false,pending_approval:true},
+ {period_date:'2024-01-01',metric_key:'revenue',branch_id:'a',item_name:'CBC',amount:55,is_active:false,pending_approval:true}
+]);
+assert.equal(mixedRevision.length,2,'detail rows win over aggregate totals while unrelated detail rows remain');
+assert.deepEqual(mixedRevision.map(row=>row.item_name).sort(),['CBC','TSH']);
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
