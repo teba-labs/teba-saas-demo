@@ -91,6 +91,8 @@ const revisions=engine.preferPendingFinancialRows([
 ]);
 assert.equal(revisions.length,2,'pending revisions replace only matching active rows in the review projection');
 assert.equal(revisions.find(row=>row.metric_key==='revenue').amount,125);
+const annualDetailHeaders=['السنة','الشهر','الوصف','الإيرادات','المصروفات'];
+const annualDetailMapping=engine.suggestFinancialMapping(annualDetailHeaders);
 const aggregateMix=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A'],['الإجمالي',100,50,10,20,'A']]});
 assert.equal(aggregateMix.aggregateRows,1,'sheet totals are excluded when detail rows are present');
 assert.equal(engine.buildGenericHistoricalReport(aggregateMix.records).totals.revenue,100);
@@ -100,8 +102,6 @@ assert.equal(aggregateOnly.ready,true);
 const titledSummary=engine.analyzeFinancialRows({headers:annualDetailHeaders,mapping:annualDetailMapping,rows:[['ملخص السنة','','','',''],[2024,1,'الإجمالي',100,40]]});
 assert.equal(titledSummary.aggregateRows,0,'a title row must not cause a summary-only sheet to lose its total');
 assert.equal(titledSummary.ready,true);
-const annualDetailHeaders=['السنة','الشهر','الوصف','الإيرادات','المصروفات'];
-const annualDetailMapping=engine.suggestFinancialMapping(annualDetailHeaders);
 const annualDetail=engine.analyzeFinancialRows({headers:annualDetailHeaders,mapping:annualDetailMapping,rows:[[2024,1,'تفاصيل',100,40],[2024,1,'الإجمالي',100,40]]});
 assert.equal(annualDetail.aggregateRows,1,'aggregate labels in non-item columns are excluded across wide layouts');
 const totalBilirubin=engine.analyzeFinancialRows({headers:['التاريخ','اسم التحليل','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','اسم التحليل','الإيرادات']),rows:[['2024-01-01','Total Bilirubin',100]]});
