@@ -16,11 +16,13 @@ test('saving results accepts entered values without a separate visit-wide approv
 
 test('result repository sends one tenant, branch, visit-test and staff scoped RPC request', () => {
   const repo = read('modules/results/repository.js');
-  assert.match(repo, /db\(\)\.rpc\('save_draft_results_idempotent'/);
+  assert.match(repo, /db\\(\\)\\.rpc\\('save_draft_results_idempotent_v2'/);
   assert.match(repo, /operationId = crypto\.randomUUID\(\)/);
   assert.match(repo, /entityType: 'draft_results'/);
   assert.match(repo, /p_tenant_id: tenantId, p_branch_id: branchId,\s*p_visit_test_id: visitTestId/);
   assert.match(repo, /new Set\(prepared\.map\(item => item\.parameter_code\)\)/);
+  assert.match(repo, /expected_snapshot: expectedSnapshot/);
+  assert.match(repo, /save_draft_results_idempotent_v2/);
 });
 
 test('migration makes the batch all-or-nothing and retains branch, staff, published and snapshot guards', () => {
