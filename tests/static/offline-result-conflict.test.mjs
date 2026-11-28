@@ -61,7 +61,7 @@ test('migration compares each submitted parameter under the visit lock before wr
 
 test('the deployable Supabase migration matches the reviewed database migration', () => {
   const additive = read('database/migrations/137_offline_result_compare_and_set.sql');
-  const supabaseAdditive = read('supabase/migrations/20261128100000_offline_result_compare_and_set.sql');
+  const supabaseAdditive = read('supabase/migrations/20261128105005_offline_result_compare_and_set_additive.sql');
   assert.equal(supabaseAdditive, additive);
   const enforcement = read('database/migrations/138_offline_result_compare_and_set_enforcement.sql');
   const supabaseEnforcement = read('supabase/migrations/20261128110000_offline_result_compare_and_set_enforcement.sql');
