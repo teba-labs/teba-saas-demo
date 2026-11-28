@@ -9,4 +9,5 @@
 begin;
 drop function if exists public.save_draft_results_idempotent_v2(uuid,uuid,uuid,uuid,uuid,jsonb,jsonb);
 revoke all on function public.save_draft_results_atomic(uuid,uuid,uuid,uuid,jsonb) from public,anon,authenticated;
+notify pgrst, 'reload schema';
 commit;
