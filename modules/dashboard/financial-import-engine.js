@@ -54,14 +54,15 @@ export function suggestFinancialMapping(headers){
 }
 function isFinancialAggregateRow(source=[]){
  const first=(source||[]).map(value=>normalize(value)).find(Boolean)||'';
- return /^(?:اجمالي|الاجمالي|مجموع|المجموع|total|subtotal|grand total)(?:\\b|\\s|[:：-])/i.test(first);
+ return /^(?:الإجمالي|اجمالي|إجمالي|المجموع|مجموع|total|subtotal|grand total)(?:$|\\s|[:：-])/i.test(first);
 }
 export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}={}){
  const mapped=new Map(mapping.filter(x=>x.fieldKey).map(x=>[x.fieldKey,x.columnIndex]));
  const hasDate=mapped.has('period_date')||(mapped.has('year')&&mapped.has('month'));
  const hasTimelessPrice=mapped.has('item_name')&&(mapped.has('unit_cost')||mapped.has('selling_price'));
  const required=hasDate||hasTimelessPrice?[]:[{label:'التاريخ أو ربط السنة والشهر معًا'}];
- const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0,aggregateRows=0;\n const hasDetailRows=rows.some(source=>source?.some(v=>clean(v)!=='')&&!isFinancialAggregateRow(source));
+ const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0,aggregateRows=0;
+ const hasDetailRows=rows.some(source=>source?.some(v=>clean(v)!=='')&&!isFinancialAggregateRow(source));
  const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];
  const numericFields=['amount','quantity','revenue','collections','expenses','cases','discounts','tests_count','unit_cost','selling_price','weight'];
  for(let i=0;i<rows.length;i++){
