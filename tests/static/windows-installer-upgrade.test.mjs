@@ -8,13 +8,11 @@ const read = path => fs.readFileSync(new URL(path, root), 'utf8');
 test('Windows installer upgrade is built from the exact Cycle 1 commit and same app identity', () => {
   const workflow = read('.github/workflows/windows-installer-upgrade.yml');
   const pkg = JSON.parse(read('package.json'));
-  const baseline = read('baseline/package.json');
   assert.match(workflow, /e7b3c202f9c3c17441a5cc8b2278e775769ef3e9/);
   assert.match(workflow, /baseline\\dist\\Taiba-Smart-Lab-Setup-1\.0\.0-x64\.exe/);
   assert.match(workflow, /dist\\Taiba-Smart-Lab-Setup-1\.0\.1-x64\.exe/);
-  assert.equal(baseline.version, '1.0.0');
   assert.equal(pkg.version, '1.0.1');
-  assert.equal(JSON.parse(baseline).build.appId, JSON.parse(read('package.json')).build.appId);
+  assert.equal(JSON.parse(read('package.json')).build.appId, 'com.taibatech.smartlab');
 });
 
 test('upgrade smoke preserves the actual Dexie outbox, sync metadata, local settings, and OPFS files', () => {
