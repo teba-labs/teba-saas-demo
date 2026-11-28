@@ -78,4 +78,6 @@ assert.equal(engine.normalizeFinancialDate('٢٨/١١/٢٠٢٦'),'2026-11-28');
 assert.equal(engine.normalizeFinancialDate('31/01/2024'),'2024-01-31');
 const arabicNumbers=engine.analyzeFinancialRows({headers:['التاريخ','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','الإيرادات']),rows:[['٢٨/١١/٢٠٢٦','١٬٢٣٤٫٥٠']]});
 assert.equal(arabicNumbers.records[0].amount,1234.5);
+const offsetAnalysis=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A']],rowOffset:3});
+assert.equal(offsetAnalysis.records[0]._rowNumber,4,'source row references must account for title rows before the header');
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
