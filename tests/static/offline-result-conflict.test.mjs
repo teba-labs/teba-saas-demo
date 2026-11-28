@@ -39,7 +39,7 @@ test('migration compares each submitted parameter under the visit lock before wr
   assert.match(migration, /legacy result save cannot overwrite an existing value/);
   assert.match(migration, /revoke all on function public\.save_draft_results_atomic[\s\S]*authenticated/i);
   assert.match(migration, /create trigger trg_guard_test_result_mutation_compare_and_set/i);
-  assert.match(migration, /before update or delete on public\\.test_results/i);
+  assert.match(migration, /before update or delete on public\.test_results/i);
   assert.match(migration, /current_user='authenticated'/);
   assert.match(migration, /Employee accounts may only act as their own linked active staff identity/);
   assert.match(migration, /set_config\('app\.result_write_authorized','on',true\)/);
