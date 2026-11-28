@@ -502,3 +502,5 @@ begin
   return v_updated;
 end;
 $function$;
+
+notify pgrst, 'reload schema';
