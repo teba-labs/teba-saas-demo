@@ -2,7 +2,7 @@ const clean=value=>String(value??'').trim();
 const asciiDigits=value=>String(value??'').replace(/[٠-٩۰-۹]/g,d=>String(d.charCodeAt(0)>=1776&&d.charCodeAt(0)<=1785?d.charCodeAt(0)-1776:d.charCodeAt(0)-1632));
 const finite=value=>{if(value===null||value===undefined||clean(value)==='')return null;const normalized=asciiDigits(value).replace(/[٬,،]/g,'').replace(/٫/g,'.').replace(/[−–]/g,'-').replace(/٪$/,'');const n=Number(normalized);return Number.isFinite(n)?n:null;};
 const normalize=value=>clean(value).toLocaleLowerCase('ar').replace(/[ـ\s]+/g,' ');
-const MONTH=/^(\d{4})[-/](\d{1,2})(?:[-/]\d{1,2})?$/;
+const MONTH=/^(\d{4})[-/](\d{1,2})$/;
 export const FINANCIAL_FIELDS=[
  {key:'period_date',label:'التاريخ / الفترة',required:false,aliases:['date','التاريخ','تاريخ','الفترة','period','التاريخ الكامل']},
  {key:'year',label:'السنة',required:false,aliases:['year','السنة','عام']},
@@ -27,7 +27,7 @@ export const FINANCIAL_FIELDS=[
 export function normalizeFinancialDate(value){
  if(value instanceof Date&&!Number.isNaN(value.getTime()))return value.toISOString().slice(0,10);
  if(typeof value==='number'&&value>20000&&value<100000){const d=new Date(Date.UTC(1899,11,30)+value*86400000);return d.toISOString().slice(0,10);}
- const s=asciiDigits(clean(value));let m=s.match(MONTH);if(m){const year=Number(m[1]),month=Number(m[2]);if(month>=1&&month<=12)return year+'-'+String(month).padStart(2,'0')+'-01';}
+ const s=asciiDigits(clean(value));const ymd=s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);if(ymd){const year=Number(ymd[1]),month=Number(ymd[2]),day=Number(ymd[3]),date=new Date(Date.UTC(year,month-1,day));if(month>=1&&month<=12&&day>=1&&date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day)return date.toISOString().slice(0,10);return null;}let m=s.match(MONTH);if(m){const year=Number(m[1]),month=Number(m[2]);if(month>=1&&month<=12)return year+'-'+String(month).padStart(2,'0')+'-01';}
  const dmy=s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);if(dmy){const day=Number(dmy[1]),month=Number(dmy[2]),year=Number(dmy[3]);const date=new Date(Date.UTC(year,month-1,day));if(month>=1&&month<=12&&day>=1&&date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day)return date.toISOString().slice(0,10);return null;}
  const d=new Date(s);return s&& !Number.isNaN(d.getTime())?d.toISOString().slice(0,10):null;
 }
