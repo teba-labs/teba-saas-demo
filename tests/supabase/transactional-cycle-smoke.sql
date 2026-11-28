@@ -11,6 +11,7 @@ select set_config('request.jwt.claim.sub',(
   where t.slug='test1-lab' and tm.account_type='owner' and tm.is_active
   order by tm.created_at limit 1
 ),true);
+select set_config('request.jwt.claim.role','authenticated',true);
 set local role authenticated;
 
 do $cycle$
@@ -45,6 +46,8 @@ declare
   v_retry_ids uuid[];
   v_count integer;
   v_report_id uuid;
+  v_result_id uuid;
+  v_published_correction numeric;
   v_work_date date;
   v_workday uuid;
   v_report_path text;
@@ -164,13 +167,21 @@ begin
   if not exists(select 1 from public.visits where id=v_visit and status='published' and is_published) then
     raise exception 'TEST FAIL: visit did not reach published status';
   end if;
+  select id into v_result_id from public.test_results
+   where tenant_id=v_tenant and visit_test_id=v_visit_test and parameter_code='FASTING_GLUCOSE';
+  perform public.correct_published_result(v_tenant,v_branch,v_visit,v_result_id,115,null,null,v_staff);
+  select value_numeric into v_published_correction from public.test_results
+   where tenant_id=v_tenant and visit_test_id=v_visit_test and parameter_code='FASTING_GLUCOSE';
+  if v_published_correction<>115 then
+    raise exception 'TEST FAIL: authorized owner correction on a published result was blocked';
+  end if;
 
   insert into pg_temp.cycle2_test_output(details) values(jsonb_build_object(
     'status','PASS','tenant_id',v_tenant,'branch_id',v_branch,'visit_id',v_visit,
     'visit_test_id',v_visit_test,'report_version_id',v_report_id,
     'zero_price_accepted',true,'stale_price_conflict_rejected',v_price_conflict_rejected,'payment_idempotent_replay',v_payment_id=v_payment_retry,'payment_rows',v_payment_count,'visit_idempotent_replay',true,
     'result_idempotent_replay',true,'changed_payload_rejected',true,
-    'persisted_result_rows',v_count,'report_published',true,
+    'persisted_result_rows',v_count,'report_published',true,'published_owner_correction',v_published_correction,
     'transaction_rolled_back',true
   ));
 end
