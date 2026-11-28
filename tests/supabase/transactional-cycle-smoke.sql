@@ -22,6 +22,15 @@ declare
   v_patient uuid := gen_random_uuid();
   v_test uuid;
   v_price uuid;
+  v_paid_test uuid;
+  v_paid_price uuid;
+  v_paid_amount numeric;
+  v_paid_visit uuid;
+  v_paid_visit_op uuid := gen_random_uuid();
+  v_payment_op uuid := gen_random_uuid();
+  v_payment_id uuid;
+  v_payment_retry uuid;
+  v_payment_count integer;
   v_visit_op uuid := gen_random_uuid();
   v_results_op uuid := gen_random_uuid();
   v_visit uuid;
@@ -59,6 +68,15 @@ begin
   order by (tp.branch_id is not null) desc limit 1;
   if v_test is null or v_price is null then
     raise exception 'TEST BLOCKED: zero-price HOMA_IR catalog item and current price snapshot are required';
+  end if;
+  select tc.id,tp.id,tp.selling_price into v_paid_test,v_paid_price,v_paid_amount
+  from public.tests_catalog tc
+  join public.test_prices tp on tp.tenant_id=tc.tenant_id and tp.test_id=tc.id and tp.is_current
+    and (tp.branch_id=v_branch or tp.branch_id is null)
+  where tc.tenant_id=v_tenant and tc.code='HEM_CBC' and tc.is_active
+  order by (tp.branch_id is not null) desc limit 1;
+  if v_paid_test is null or v_paid_price is null or v_paid_amount<75 then
+    raise exception 'TEST BLOCKED: a current nonzero CBC price of at least 75 is required for payment idempotency';
   end if;
   select work_date,id into v_work_date,v_workday
   from public.branch_workdays where tenant_id=v_tenant and branch_id=v_branch and status='open'
@@ -101,6 +119,19 @@ begin
   select id into v_visit_test from public.visit_tests where visit_id=v_visit and tenant_id=v_tenant and branch_id=v_branch;
   if v_visit_test is null then raise exception 'TEST FAIL: visit test was not created'; end if;
 
+  v_paid_visit:=public.create_visit_intake_idempotent(
+    v_paid_visit_op,v_tenant,v_branch,v_patient,'CYCLE2-PAID-'||substr(v_paid_visit_op::text,1,8),
+    v_staff,array[v_paid_test],0,50,'cash',null,'transactional payment idempotency test',
+    jsonb_build_array(jsonb_build_object('test_id',v_paid_test,'price_id',v_paid_price,'selling_price',v_paid_amount))
+  );
+  v_payment_id:=public.record_patient_payment(v_tenant,v_paid_visit,25,'cash',v_payment_op,v_staff,'Cycle2 payment retry test');
+  v_payment_retry:=public.record_patient_payment(v_tenant,v_paid_visit,25,'cash',v_payment_op,v_staff,'Cycle2 payment retry test');
+  if v_payment_id is null or v_payment_id is distinct from v_payment_retry then
+    raise exception 'TEST FAIL: repeated payment sync did not return the same payment ID';
+  end if;
+  select count(*) into v_payment_count from public.payments where tenant_id=v_tenant and idempotency_key=v_payment_op;
+  if v_payment_count<>1 then raise exception 'TEST FAIL: payment retry duplicated the payment row'; end if;
+
   select array_agg(id order by id) into v_ids
   from public.save_draft_results_idempotent(v_results_op,v_tenant,v_branch,v_visit_test,v_staff,v_results);
   select array_agg(id order by id) into v_retry_ids
@@ -137,7 +168,7 @@ begin
   insert into pg_temp.cycle2_test_output(details) values(jsonb_build_object(
     'status','PASS','tenant_id',v_tenant,'branch_id',v_branch,'visit_id',v_visit,
     'visit_test_id',v_visit_test,'report_version_id',v_report_id,
-    'zero_price_accepted',true,'stale_price_conflict_rejected',v_price_conflict_rejected,'visit_idempotent_replay',true,
+    'zero_price_accepted',true,'stale_price_conflict_rejected',v_price_conflict_rejected,'payment_idempotent_replay',v_payment_id=v_payment_retry,'payment_rows',v_payment_count,'visit_idempotent_replay',true,
     'result_idempotent_replay',true,'changed_payload_rejected',true,
     'persisted_result_rows',v_count,'report_published',true,
     'transaction_rolled_back',true
