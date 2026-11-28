@@ -400,7 +400,7 @@ async function renderWork() {
         const rawValue=result.value_numeric??result.value_text??'';
         if(input.dataset.inputMode==='multi_choice'||input.dataset.inputMode==='graded_multi_choice')setMultiChoiceValue(input,rawValue);
         else input.value=rawValue;
-        input.dataset.resultId=result.id;input.dataset.originalValue=input.value;
+        input.dataset.resultId=result.id;input.dataset.originalValue=input.value;input.dataset.originalFlag=result.flag??'';
       }
     }
   }
@@ -932,28 +932,38 @@ async function saveVisitDrafts(visitId) {
     if (clearedSaved.length) {
       throw new Error('تم مسح نتيجة محفوظة من أحد الحقول. أعد إدخالها أو استخدم مسار التصحيح الموثق قبل الحفظ.');
     }
-    const results = inputs
-      .filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim() !== '')
-      .map(input => ({
-        parameter: {
-          code: input.dataset.paramCode,
-          name: input.dataset.paramName,
-          unit: input.dataset.unit,
-          valueType: input.dataset.valueType,
-          inputMode: input.dataset.inputMode,
-          resultConfig: JSON.parse(input.dataset.resultConfig || '{}'),
-          referenceRange: JSON.parse(input.dataset.range || '{}'),
-          choices: JSON.parse(input.dataset.choices || '[]')
-        },
-        value: input.value,
-        flag: classifyResultFlag(input)
-      }));
+    const submittedInputs = inputs.filter(input => input.dataset.resultSource !== 'calculated' && input.value.trim() !== '');
+    const results = submittedInputs.map(input => ({
+      parameter: {
+        code: input.dataset.paramCode,
+        name: input.dataset.paramName,
+        unit: input.dataset.unit,
+        valueType: input.dataset.valueType,
+        inputMode: input.dataset.inputMode,
+        resultConfig: JSON.parse(input.dataset.resultConfig || '{}'),
+        referenceRange: JSON.parse(input.dataset.range || '{}'),
+        choices: JSON.parse(input.dataset.choices || '[]')
+      },
+      value: input.value,
+      flag: classifyResultFlag(input)
+    }));
+    const expectedSnapshot = submittedInputs.map(input => {
+      const original = (input.dataset.originalValue ?? '').trim();
+      const numeric = ['numeric_integer','numeric_decimal'].includes(input.dataset.inputMode);
+      return {
+        parameter_code: input.dataset.paramCode,
+        value_numeric: original && numeric ? Number(original) : null,
+        value_text: original && !numeric ? original : null,
+        flag: input.dataset.originalFlag || null
+      };
+    });
     if (!results.length || !dirty.length) continue;
     const savedRows = await saveDraftResults({
       tenantId: state.tenant.id,
       branchId: state.branch.id,
       visitTestId: item.id,
       results,
+      expectedSnapshot,
       staffId: $('staffSelect').value,
       dependsOn: item.local_intake_operation_id ? [item.local_intake_operation_id] : []
     });
@@ -973,6 +983,7 @@ async function saveVisitDrafts(visitId) {
         input.value = row.value_numeric ?? row.value_text ?? '';
         input.dataset.resultId = row.id;
         input.dataset.originalValue = input.value;
+        input.dataset.originalFlag = row.flag ?? '';
         delete input.dataset.localPending;
       }
       delete section.dataset.localPending;
