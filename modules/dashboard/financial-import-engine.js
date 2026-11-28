@@ -53,14 +53,14 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
  const hasTimelessPrice=mapped.has('item_name')&&(mapped.has('unit_cost')||mapped.has('selling_price'));
  const required=hasDate||hasTimelessPrice?[]:[{label:'التاريخ أو ربط السنة والشهر معًا'}];
  const records=[],issues=[],seen=new Map();let blankRows=0,invalidNumbers=0,duplicateRows=0;
- const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];
+ const metricFields=['revenue','collections','expenses','cases','discounts','tests_count'];\n const numericFields=['amount','quantity','revenue','collections','expenses','cases','discounts','tests_count','unit_cost','selling_price','weight'];
  for(let i=0;i<rows.length;i++){
   const source=rows[i]||[],rowNumber=i+rowOffset+1;if(!source.some(v=>clean(v)!=='')){blankRows++;continue;}
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
   const splitPeriod=Number(raw.year)>0&&Number(raw.month)>0?String(Number(raw.year))+'-'+String(Number(raw.month)).padStart(2,'0'):null;
   const period=normalizeFinancialDate(raw.period_date)||normalizeFinancialDate(splitPeriod);
   const metric=clean(raw.metric_key),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
-  const priceOnly=!metric&&!wide.length&&hasPriceFields;
+  const priceOnly=!metric&&!wide.length&&hasPriceFields;\n  for(const key of numericFields)if(clean(raw[key])!==''&&finite(raw[key])===null)invalidNumbers++;
   if(period===null&&!priceOnly)issues.push({row:rowNumber,field:'period_date',message:'تاريخ أو فترة غير صالحة'});
   if(!metric&&!wide.length&&!priceOnly)issues.push({row:i+2,field:'metric_key',message:'اربط نوع البند أو بندًا ماليًا مستقلًا أو اسم تحليل مع سعر/تكلفة'});
   const outputs=metric?[{metric_key:metric,amount:finite(raw.amount),quantity:finite(raw.quantity)}]:wide.map(key=>({metric_key:key,amount:['cases','tests_count'].includes(key)?null:finite(raw[key]),quantity:['cases','tests_count'].includes(key)?finite(raw[key]):null}));
