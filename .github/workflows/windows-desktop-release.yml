@@ -1,0 +1,37 @@
+name: Publish Approved Windows Desktop Release
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows-x64:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate before publishing
+        run: npm run check:electron && npm test
+      - name: Build and publish update feed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build:icons && npm run release:win
+      - name: Upload release artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taiba-smart-lab-release-${{ github.ref_name }}
+          path: dist/*
+          if-no-files-found: warn
+          retention-days: 30
