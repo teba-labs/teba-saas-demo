@@ -58,6 +58,20 @@ export function preferPendingFinancialRows(rows=[]){
   return row.pending_approval||!pendingKeys.has(identity(row));
  });
 }
+export function classifyFinancialSheet({headers=[],mapping=[],rows=[]}={}){
+ const fields=new Set((mapping||[]).map(item=>item.fieldKey).filter(Boolean));
+ const hasPeriod=fields.has('period_date')||(fields.has('year')&&fields.has('month'));
+ const hasAmount=['amount','revenue','collections','expenses','cases','discounts','tests_count'].some(key=>fields.has(key));
+ const hasPrice=fields.has('unit_cost')||fields.has('selling_price');
+ const hasItem=fields.has('item_name');
+ let type='unclassified',label='بيانات غير مصنفة';
+ if(hasItem&&hasPrice&&!hasPeriod){type='price-list';label='قائمة أسعار وتكلفة التحاليل';}
+ else if(hasPeriod&&hasItem){type='transaction-detail';label='تفاصيل معاملات / تحاليل';}
+ else if(hasPeriod&&hasAmount){type='period-summary';label='ملخص مالي أو تشغيلي حسب الفترة';}
+ else if(hasAmount){type='financial-movements';label='حركات مالية';}
+ const recognizedFields=[...fields],confidence=recognizedFields.length>=4?0.9:recognizedFields.length>=2?0.72:recognizedFields.length?0.5:0.15;
+ return {type,label,confidence,recognizedFields,nonEmptyRows:(rows||[]).filter(row=>row?.some(value=>clean(value)!=='')).length};
+}
 export function suggestFinancialMapping(headers){
  const normalized=(headers||[]).map(normalize),hasYear=normalized.some(h=>['year','السنة','عام'].includes(h)),hasDate=normalized.some(h=>FINANCIAL_FIELDS.find(f=>f.key==='period_date').aliases.some(a=>normalize(a)===h));
  return (headers||[]).map((header,columnIndex)=>{const h=normalize(header);let best=null;if(!hasYear&&!hasDate&&['month','الشهر'].includes(h))best=FINANCIAL_FIELDS.find(f=>f.key==='period_date');else for(const field of FINANCIAL_FIELDS){if(field.aliases.some(alias=>normalize(alias)===h)){best=field;break;}}return {columnIndex,header:String(header??''),fieldKey:best?.key||'',confidence:best?'suggested':'unmapped'};});
