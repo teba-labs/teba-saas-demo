@@ -13,6 +13,18 @@ create index if not exists owner_financial_import_rows_pending_period_idx
   on public.owner_financial_import_rows(tenant_id,period_date,branch_id)
   where pending_approval = true;
 
+-- The shared private backup bucket must accept every workbook format advertised by the importer.
+update storage.buckets
+   set allowed_mime_types = (
+     select array_agg(distinct mime order by mime)
+       from unnest(coalesce(allowed_mime_types, array[]::text[]) || array[
+         'application/vnd.ms-excel.sheet.macroEnabled.12',
+         'application/vnd.oasis.opendocument.spreadsheet',
+         'text/tab-separated-values'
+       ]::text[]) as allowed(mime)
+   )
+ where id = 'tenant-backups';
+
 create or replace function public.activate_owner_financial_import_period(
   p_tenant_id uuid,
   p_period_month date,
