@@ -71,7 +71,17 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
 
 /** Compatibility wrapper for a single parameter; new UI code should use saveDraftResults. */
 export async function saveDraftResult({ tenantId, branchId, visitTestId, parameter, value, staffId, flag = null } = {}) {
-  return saveDraftResults({ tenantId, branchId, visitTestId, staffId, results: [{ parameter, value, flag }] });
+  const cached=await getCachedRows('test_results',{tenantId,branchId});
+  const existing=cached.find(row=>row.visit_test_id===visitTestId&&row.parameter_code===parameter?.code);
+  const numeric=['numeric_integer','numeric_decimal'].includes(parameter?.inputMode||parameter?.result_input_mode);
+  const raw=existing?.value_numeric??existing?.value_text??'';
+  const expectedSnapshot=[{
+    parameter_code:parameter?.code,
+    value_numeric:raw!==''&&raw!=null&&numeric?Number(raw):null,
+    value_text:raw!==''&&raw!=null&&!numeric?String(raw):null,
+    flag:existing?.flag??null,
+  }];
+  return saveDraftResults({ tenantId, branchId, visitTestId, staffId, results: [{ parameter, value, flag }], expectedSnapshot });
 }
 
 export async function completeVisitTest({ tenantId, branchId, visitTestId, staffId } = {}) {
