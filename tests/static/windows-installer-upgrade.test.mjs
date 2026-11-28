@@ -10,7 +10,7 @@ test('Windows installer upgrade is built from the exact Cycle 1 commit and same 
   const pkg = JSON.parse(read('package.json'));
   assert.match(workflow, /e7b3c202f9c3c17441a5cc8b2278e775769ef3e9/);
   assert.match(workflow, /baseline\\dist\\Taiba-Smart-Lab-Setup-1\.0\.0-x64\.exe/);
-  assert.match(workflow, /dist\\Taiba-Smart-Lab-Setup-1\.0\.1-x64\.exe/);
+  assert.match(workflow, /dist\\Taiba-Smart-Lab-Setup-1\.0\.2-x64\.exe/);
   assert.equal(pkg.version, '1.0.2');
   assert.ok(pkg.build.files.includes('!baseline/**/*'), 'the baseline checkout must not be packaged into the upgraded app');
   assert.equal(JSON.parse(read('package.json')).build.appId, 'com.taibatech.smartlab');
