@@ -32,11 +32,12 @@ export async function createOwnerFinancialBatch({tenantId,fileName,fileSha256,so
  const existing=await db().from('owner_financial_import_batches').select('id').eq('tenant_id',tenantId).eq('file_sha256',fileSha256).maybeSingle();if(existing.error)throw existing.error;if(existing.data)throw new Error('هذا الملف وهذه الورقة سبق استيرادهما إلى هذا المعمل. لم نكرر بياناتهما.');
  const session=await db().auth.getUser();if(session.error)throw session.error;
  const {data:batch,error}=await db().from('owner_financial_import_batches').insert({tenant_id:tenantId,file_name:fileName,file_sha256:fileSha256,source_label:sourceLabel||null,period_start:periodStart||null,period_end:periodEnd||null,mapping_snapshot:mappingSnapshot||{},sheet_summary:sheetSummary||[],status:'completed',rows_total:rows.length,rows_imported:rows.length,rows_skipped:0,created_by:session.data.user?.id||null}).select('id').single();if(error)throw error;
- let storagePath=null;
+ let storagePath=null,createdStorage=false;
  try{
   const safeName=String(fileName||'workbook.xlsx').replace(/[^A-Za-z0-9._-]+/g,'_');
-  storagePath=tenantId+'/owner-financial/'+fileSha256.replace(/[^A-Za-z0-9_-]+/g,'-')+'/'+safeName;
-  const upload=await db().storage.from('tenant-backups').upload(storagePath,file,{upsert:false,contentType:file.type||'application/octet-stream'});if(upload.error)throw upload.error;
+  storagePath=tenantId+'/owner-financial/'+String(sourceFileSha256).replace(/[^A-Za-z0-9_-]+/g,'-')+'/'+safeName;
+  const priorStorage=await db().from('owner_financial_import_batches').select('id').eq('tenant_id',tenantId).eq('storage_path',storagePath).limit(1);if(priorStorage.error)throw priorStorage.error;
+  if(!priorStorage.data?.length){const upload=await db().storage.from('tenant-backups').upload(storagePath,file,{upsert:false,contentType:file.type||'application/octet-stream'});if(upload.error)throw upload.error;createdStorage=true;}
   const pathUpdate=await db().from('owner_financial_import_batches').update({storage_path:storagePath}).eq('id',batch.id).eq('tenant_id',tenantId);if(pathUpdate.error)throw pathUpdate.error;
   for(let offset=0;offset<rows.length;offset+=250){const payload=rows.slice(offset,offset+250).map(row=>({...row,tenant_id:tenantId,batch_id:batch.id,is_active:row.metric_key==='test_price',pending_approval:row.metric_key!=='test_price'}));const result=await db().from('owner_financial_import_rows').insert(payload);if(result.error)throw result.error;}
  }catch(error){
