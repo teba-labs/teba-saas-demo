@@ -247,8 +247,8 @@ grant execute on function public.save_draft_results_idempotent_v2(uuid,uuid,uuid
 comment on function public.save_draft_results_idempotent_v2(uuid,uuid,uuid,uuid,uuid,jsonb,jsonb) is
   'Idempotent compare-and-set draft result save. Compares each submitted parameter to its caller-observed base value under the visit lock and rejects stale writes without modifying results.';
 
--- A table-level RLS policy currently permits authenticated users to UPDATE/DELETE test_results.
--- This trigger closes direct PostgREST/table-write paths. Only protected saves and audited
+-- A table-level RLS policy currently permits authenticated users to INSERT/UPDATE/DELETE test_results.
+-- This trigger closes direct PostgREST/table-write paths for all result mutations. Only protected saves and audited
 -- correction workflows set the transaction-local gates; trusted SECURITY DEFINER workflows
 -- retain their existing ability to clean hidden values and permanently remove visits.
 create or replace function private.guard_test_result_mutation_compare_and_set()
@@ -271,7 +271,7 @@ $guard$;
 drop trigger if exists trg_guard_test_result_update_compare_and_set on public.test_results;
 drop trigger if exists trg_guard_test_result_mutation_compare_and_set on public.test_results;
 create trigger trg_guard_test_result_mutation_compare_and_set
-before update or delete on public.test_results
+before insert or update or delete on public.test_results
 for each row execute function private.guard_test_result_mutation_compare_and_set();
 revoke all on function private.guard_test_result_mutation_compare_and_set() from public,anon,authenticated;
 
