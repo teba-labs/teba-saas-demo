@@ -1,6 +1,6 @@
 {
   "name": "taiba-smart-lab",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Taiba Smart Lab Windows desktop shell",
   "main": "electron/main.cjs",
@@ -9,13 +9,15 @@
     "test": "node --test tests/electron-contract.test.mjs",
     "check:electron": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check scripts/generate-icons.cjs",
     "build:icons": "node scripts/generate-icons.cjs",
-    "build:win": "npm run check:electron && npm test && npm run build:icons && electron-builder --win nsis --x64 --publish never"
+    "build:win": "npm run check:electron && npm test && npm run build:icons && electron-builder --win nsis --x64 --publish never",
+    "release:win": "npm run check:electron && npm test && npm run build:icons && electron-builder --win nsis --x64 --publish always"
   },
   "devDependencies": {
-    "electron": "^39.2.0",
+    "electron": "45.5.0",
     "electron-builder": "^26.0.12",
     "png-to-ico": "^2.1.8",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "electron-updater": "^6.6.2"
   },
   "build": {
     "appId": "com.taibatech.smartlab",
@@ -40,7 +42,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icons/taiba.ico",
@@ -54,6 +58,14 @@
       "shortcutName": "Taiba Smart Lab",
       "perMachine": false,
       "deleteAppDataOnUninstall": false
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "teba-labs",
+        "repo": "teba-saas-demo",
+        "releaseType": "release"
+      }
+    ]
   }
 }
