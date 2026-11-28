@@ -70,8 +70,22 @@ if (mode === 'seed' || mode === 'verify') {
   console.log(JSON.stringify(result));
   if (mode === 'verify' && !result?.allPassed) process.exitCode = 1;
 } else if (mode === 'close') {
-  const result = await evaluate('window.close(); true');
-  console.log(JSON.stringify({ closeRequested: result === true }));
+  const page = await findPage();
+  const socket = new WebSocket(page.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {
+    socket.addEventListener('open', resolve, { once: true });
+    socket.addEventListener('error', reject, { once: true });
+  });
+  // Closing the renderer may tear down its DevTools socket before the response
+  // arrives, so send the command and let the process-exit check verify success.
+  socket.send(JSON.stringify({
+    id: 1,
+    method: 'Runtime.evaluate',
+    params: { expression: 'window.close()', userGesture: true },
+  }));
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  socket.close();
+  console.log(JSON.stringify({ closeRequested: true }));
 } else {
   throw new Error('Usage: electron-devtools.mjs wait|seed|verify|close PORT [MARKER]');
 }
