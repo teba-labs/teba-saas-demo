@@ -34,7 +34,7 @@ function renderMapping(){
 async function digest(buffer){const bytes=await crypto.subtle.digest('SHA-256',buffer);return [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 async function importPrepared(mapping,headers,rawRows,branchId){
  const existing=await listOwnerFinancialRows({tenantId,includePending:true}),fingerprints=new Set(existing.map(x=>x.row_fingerprint));
- const keyOf=x=>[x.period_date,String(x.metric_key||'').trim().toLocaleLowerCase('ar'),String(x.item_name||'').trim().toLocaleLowerCase('ar'),String(x.category_name||'').trim().toLocaleLowerCase('ar'),x.branch_id||''].join('|');
+ const keyOf=x=>[x.period_date,String(x.metric_key||'').trim().toLocaleLowerCase('ar'),String(x.item_name||'').trim().toLocaleLowerCase('ar'),String(x.category_name||'').trim().toLocaleLowerCase('ar'),String(x.currency_code||'').trim().toUpperCase(),x.branch_id||''].join('|');
  const existingByKey=new Map(existing.map(x=>[keyOf(x),x])),skipped=[],rows=[];
  for(const x of preparedRows){
   const matchedBranch=x.branch_name?branches.find(b=>String(b.name).trim().toLocaleLowerCase('ar')===String(x.branch_name).trim().toLocaleLowerCase('ar')):null;
