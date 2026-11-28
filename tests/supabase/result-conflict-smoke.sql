@@ -17,7 +17,7 @@ declare
  v_tenant uuid;v_branch uuid;v_user uuid:=auth.uid();v_staff uuid:=gen_random_uuid();v_patient uuid:=gen_random_uuid();
  v_test uuid;v_price uuid;v_visit uuid;v_vt uuid;v_op1 uuid:=gen_random_uuid();v_op2 uuid:=gen_random_uuid();
  v_ids1 uuid[];v_ids2 uuid[];v_replay uuid[];v_conflict boolean:=false;v_legacy boolean:=false;
- v_direct_update_rejected boolean:=false;v_val numeric;v_corrected numeric;v_count integer;v_result_id uuid;
+ v_direct_update_rejected boolean:=false;v_val numeric;v_corrected numeric;v_flag_corrected numeric;v_count integer;v_result_id uuid;
  v_r1 jsonb:=jsonb_build_array(
    jsonb_build_object('parameter_code','FASTING_GLUCOSE','value_numeric',100,'value_text',null,'flag','normal'),
    jsonb_build_object('parameter_code','FASTING_INSULIN','value_numeric',10,'value_text',null,'flag','normal'));
@@ -104,14 +104,29 @@ begin
  select id into v_result_id from public.test_results
   where tenant_id=v_tenant and visit_test_id=v_vt and parameter_code='FASTING_GLUCOSE';
  perform public.correct_completed_visit_result(v_tenant,v_branch,v_vt,v_result_id,120,null,null,v_staff);
+ perform public.correct_visit_result_with_flag(v_tenant,v_branch,v_vt,v_result_id,130,null,'high',null,v_staff);
+ select value_numeric into v_flag_corrected from public.test_results
+  where tenant_id=v_tenant and visit_test_id=v_vt and parameter_code='FASTING_GLUCOSE';
+ if v_flag_corrected<>130 or not exists(select 1 from public.test_results
+   where tenant_id=v_tenant and visit_test_id=v_vt and parameter_code='FASTING_GLUCOSE' and flag='high') then
+   raise exception 'TEST FAIL: flagged correction workflow was blocked';
+ end if;
+ perform public.set_visit_parameter_range_override(
+   v_tenant,v_branch,v_vt,'FASTING_GLUCOSE',
+   jsonb_build_array(jsonb_build_object('min',70,'max',125,'unit','mg/dL')),
+   v_staff,'CAS smoke range correction');
+ if exists(select 1 from public.test_results
+   where tenant_id=v_tenant and visit_test_id=v_vt and parameter_code='FASTING_GLUCOSE' and flag is not null) then
+   raise exception 'TEST FAIL: authorized range correction did not clear stale flag';
+ end if;
  select value_numeric into v_corrected from public.test_results
   where tenant_id=v_tenant and visit_test_id=v_vt and parameter_code='FASTING_GLUCOSE';
- if v_corrected<>120 then raise exception 'TEST FAIL: authorized correction workflow was blocked'; end if;
 
  insert into pg_temp.cas_test_output values(jsonb_build_object(
   'status','PASS','tenant','test1-lab','stale_write_rejected',v_conflict,
   'legacy_overwrite_rejected',v_legacy,'direct_table_update_rejected',v_direct_update_rejected,
-  'newer_value_preserved_before_correction',v_val,'authorized_completed_result_correction',v_corrected,
+  'newer_value_preserved_before_correction',v_val,'authorized_completed_result_correction',120,
+  'authorized_flagged_correction',v_flag_corrected,'authorized_range_override',v_corrected,
   'same_operation_replay',v_ids2=v_replay,'all_changes_rolled_back',true));
 end
 $test$;
