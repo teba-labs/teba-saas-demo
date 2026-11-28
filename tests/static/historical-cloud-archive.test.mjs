@@ -33,5 +33,5 @@ test('historical dashboard keeps a local cache while syncing cloud archive separ
  assert.match(js,/downloadCloudHistoricalWorkbook/);
  assert.match(js,/deleteCloudHistoricalWorkbook/);
  assert.match(js,/الأرشيف القديم متاح للقراءة/);
- assert.ok(js.includes('cloud?.file_sha256===localHash'));assert.match(js,/سيتم رفعها تلقائيًا/);
+ assert.ok(js.includes('cloud?.file_sha256===localHash'));assert.match(js,/مسار المحاسب/);assert.doesNotMatch(js,/data-history-upload/);
 });
