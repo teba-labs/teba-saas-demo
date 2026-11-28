@@ -38,7 +38,12 @@ test('migration compares each submitted parameter under the visit lock before wr
   assert.match(migration, /save_draft_results_atomic\(/);
   assert.match(migration, /legacy result save cannot overwrite an existing value/);
   assert.match(migration, /revoke all on function public\.save_draft_results_atomic[\s\S]*authenticated/i);
-  assert.doesNotMatch(migration, /delete from public\.test_results|update public\.test_results/i);
+  assert.match(migration, /create trigger trg_guard_test_result_update_compare_and_set/i);
+  assert.match(migration, /current_user='authenticated'/);
+  assert.match(migration, /set_config\('app\.result_write_authorized','on',true\)/);
+  assert.match(migration, /correct_completed_visit_result[\s\S]*set_config\('app\.result_correction','on',true\)/);
+  assert.match(migration, /correct_visit_result_with_flag[\s\S]*set_config\('app\.result_correction','on',true\)/);
+  assert.match(migration, /set_visit_parameter_range_override[\s\S]*set_config\('app\.result_correction','on',true\)/);
   const rollback = read('database/rollbacks/137_offline_result_compare_and_set.sql');
   assert.match(rollback, /drop function if exists public\.save_draft_results_idempotent_v2/);
   assert.match(rollback, /revoke all on function public\.save_draft_results_atomic[\s\S]*authenticated/i);
