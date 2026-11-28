@@ -68,7 +68,8 @@ test('web workspace exposes an installable PWA manifest and local app icons', as
   assert.ok(worker.includes('Promise.allSettled(APP_SHELL.filter'));
   assert.ok(worker.includes("'./app/manifest.webmanifest'"));
   assert.ok(worker.includes("'./assets/js/results-workbench.js?v=visit-results-management-20261128-cas-v1'"));
-  assert.ok(worker.includes("'./assets/js/results-workbench.js?v=visit-results-management-20261128-cas-v1',\n  './assets/js/sync-center.js'"));
+  const requiredShell = worker.split('const REQUIRED_APP_SHELL = [')[1]?.split('];')[0] || '';
+  assert.ok(requiredShell.includes("'./assets/js/results-workbench.js?v=visit-results-management-20261128-cas-v1'"));
 });
 
 test('core app entry and primary styles do not require Google-hosted fonts', async () => {
