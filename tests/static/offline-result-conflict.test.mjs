@@ -39,6 +39,11 @@ test('migration compares each submitted parameter under the visit lock before wr
   assert.match(migration, /legacy result save cannot overwrite an existing value/);
   assert.match(migration, /revoke all on function public\.save_draft_results_atomic[\s\S]*authenticated/i);
   assert.doesNotMatch(migration, /delete from public\.test_results|update public\.test_results/i);
+  const rollback = read('database/rollbacks/137_offline_result_compare_and_set.sql');
+  assert.match(rollback, /drop function if exists public\.save_draft_results_idempotent_v2/);
+  assert.match(rollback, /revoke all on function public\.save_draft_results_atomic[\s\S]*authenticated/i);
+  assert.doesNotMatch(rollback, /delete from public\.test_results|update public\.test_results/i);
+  assert.match(read('tests/supabase/result-conflict-smoke.sql'), /all_changes_rolled_back/);
 });
 
 test('the deployable Supabase migration matches the reviewed database migration', () => {
