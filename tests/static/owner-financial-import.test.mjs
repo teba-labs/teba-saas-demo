@@ -41,7 +41,7 @@ assert.match(ui,/approveYear/);
 assert.match(ui,/preferPendingFinancialRows/);
 assert.match(ui,/activateOwnerFinancialPeriod/);
 assert.match(ui,/SHA-256/);
-assert.match(ui,/تعارض مع صف سابق/);
+assert.match(ui,/إصدار أحدث غير معتمد/);
 assert.match(ui,/ownerFinancialSeasonality/);
 assert.match(ui,/ownerFinancialPlan/);
 assert.match(ui,/ownerFinancialCompare/);
