@@ -85,6 +85,6 @@ end;
 $$;
 
 revoke all on function public.activate_owner_financial_import_period(uuid,date,uuid,boolean) from public, anon;
-grant execute on function public.activate_owner_financial_import_period(uuid,date,uuid) to authenticated;
+grant execute on function public.activate_owner_financial_import_period(uuid,date,uuid,boolean) to authenticated;
 
 commit;
