@@ -28,7 +28,7 @@ export function normalizeFinancialDate(value){
  if(value instanceof Date&&!Number.isNaN(value.getTime()))return value.toISOString().slice(0,10);
  if(typeof value==='number'&&value>20000&&value<100000){const d=new Date(Date.UTC(1899,11,30)+value*86400000);return d.toISOString().slice(0,10);}
  const s=asciiDigits(clean(value));let m=s.match(MONTH);if(m){const year=Number(m[1]),month=Number(m[2]);if(month>=1&&month<=12)return year+'-'+String(month).padStart(2,'0')+'-01';}
- const dmy=s.match(/^(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4})$/);if(dmy){const day=Number(dmy[1]),month=Number(dmy[2]),year=Number(dmy[3]);const date=new Date(Date.UTC(year,month-1,day));if(month>=1&&month<=12&&day>=1&&date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day)return date.toISOString().slice(0,10);return null;}
+ const dmy=s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);if(dmy){const day=Number(dmy[1]),month=Number(dmy[2]),year=Number(dmy[3]);const date=new Date(Date.UTC(year,month-1,day));if(month>=1&&month<=12&&day>=1&&date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day)return date.toISOString().slice(0,10);return null;}
  const d=new Date(s);return s&& !Number.isNaN(d.getTime())?d.toISOString().slice(0,10):null;
 }
 export function detectFinancialHeader(matrix=[]){
