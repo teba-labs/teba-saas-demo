@@ -267,6 +267,20 @@ export function createSupabaseSyncHandlers() {
         if (!found.data) throw new Error('The queued result is waiting for its visit/test mapping; it has been retained.');
         visitTestId = found.data.id;
       }
+      // Main-era offline queues predate expected_snapshot. Never submit them blindly:
+      // fetch the current server state and convert the preserved local operation into
+      // a user-reviewed conflict. If the fetch fails, throw so the outbox retains it.
+      if (!Array.isArray(p.expected_snapshot)) {
+        const latest = await db().from('test_results')
+          .select('id,parameter_code,parameter_name_snapshot,value_numeric,value_text,unit_snapshot,reference_range_snapshot,flag,entered_at')
+          .eq('tenant_id', operation.tenant_id).eq('visit_test_id', visitTestId);
+        if (latest.error) throw latest.error;
+        return {
+          conflict: true,
+          reason: 'عملية نتائج قديمة من نسخة سابقة لا تحتوي لقطة مقارنة. راجع نتائج الخادم واختر يدويًا الاحتفاظ بالخادم أو إعادة إرسال القيم المحلية.',
+          serverSnapshot: latest.data || [],
+        };
+      }
       const { data, error } = await db().rpc('save_draft_results_idempotent_v2', {
         p_operation_id: operation.operation_id,
         p_tenant_id: operation.tenant_id,
