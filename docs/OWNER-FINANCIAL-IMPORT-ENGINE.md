@@ -1,36 +1,36 @@
 # Owner Financial Import Engine
 
-## Scope
-This implementation is isolated to the accountant import path, its financial repository/engine, tests, and one Supabase migration. It does not change reception, patients, tests/results, printing, patient portal, general permissions, offline sync, or global CSS.
+## Purpose
+A flexible historical-finance recovery path for independent laboratories. The importer must not assume a fixed starting year: it discovers the available period from source dates, whether the archive starts in 2005, 1998, or another valid year.
 
 ## Supported source files
-- XLSX, XLS, XLSM, ODS, CSV, TSV.
+- XLSX, XLS, XLSM, ODS, CSV and TSV.
 - XLSM VBA is not loaded or executed (`bookVBA: false`).
-- PDF/OCR is intentionally not part of this cycle.
+- PDF/OCR and guaranteed interpretation of arbitrary handwritten/free-form documents are not supported yet.
 
-The workbook reader walks every worksheet in sequence. Header detection scans the first 100 rows, prefers recognized financial labels, and preserves the real source row number. Sheet classification is a suggestion only; unknown columns remain available for explicit mapping.
+## Workbook-wide inspection
+- The user uploads one workbook; all worksheets are scanned together.
+- Header detection scans the first 100 rows and prefers recognized financial labels.
+- The inspection summary reports sheet count, extracted records, issues, likely duplicates, excluded aggregate rows, empty sheets and the detected date range.
+- Each sheet gets a suggested classification and column mapping. The owner may override mappings sheet by sheet before rerunning the full scan.
+- Arabic/Persian digits, Arabic decimal/thousands separators, accounting-style negative values, common currency suffixes, day-first dates, ISO dates and Excel date serials are normalized.
+- Common free-text movement descriptions (revenue, collections, expenses/purchases, cases and tests) are classified conservatively. Unrecognized text is retained for review rather than guessed into a financial category.
+- Detail rows take precedence over identifiable totals when both are present. Incomplete and duplicate rows remain excluded from automatic activation.
 
-Arabic-Indic/Persian digits, Arabic decimal/thousands separators, day-first dates, and full ISO dates are normalized. A valid subset of rows can be imported while incomplete rows remain visible in the validation report. Mixed detail sheets exclude identifiable total rows; summary-only sheets remain usable.
+## Import and approval lifecycle
+- One action imports all understandable sheets from the workbook.
+- The original workbook is stored once per upload in the tenant's private `tenant-backups` storage path; sheet batches retain their own mappings, summaries and source row references.
+- New dated rows remain pending and do not affect approved dashboard values.
+- Identical rows are skipped; changed rows are kept as revisions. Prior revisions remain in the archive after activation.
+- A single workbook-level approval activates all pending periods from that workbook, and writes monthly approval snapshots for every detected month.
+- The approval action checks that no unrelated pending batch exists in the same month before activating it, preventing accidental approval of another upload.
+- Price-only reference rows without dates are retained separately and are not used as dated monthly totals.
 
-## Import and revision lifecycle
-- The original workbook is stored once per upload under the tenant's private `tenant-backups` storage path; each worksheet batch references the same object.
-- Every worksheet keeps its mapping snapshot, sheet summary, source row references, skipped counts, and imported rows.
-- New dated rows are stored with `pending_approval=true` and `is_active=false`. They do not alter approved dashboard values.
-- Re-imported identical rows are skipped by tenant/branch/period/metric/item/category/currency identity.
-- Changed rows become pending revisions. On approval, the new revision is activated and matching old rows are retained but deactivated.
-- Detail rows take precedence over matching summary totals for the same period, metric, currency, and branch.
-- By default, approval merges changed/new row identities while preserving unrelated rows. An explicit full-period replacement checkbox replaces the month for branches that have pending rows, while preserving prior rows in the archive.
-
-## Approval and dashboard
-- A full-year review displays yearly totals and month-by-month totals.
-- The owner chooses the source for each metric: historical accountant archive or current operational data.
-- One year approval writes the corresponding monthly approval records so existing monthly dashboard consumers can apply the year immediately.
-- A tenant-wide approval is also honored when viewing an individual branch; a branch-specific approval takes precedence.
-- Historical and live values are selected per metric, not added together, avoiding double counting.
-- Current operational data remains sourced from the existing financial ledger, expenses, visits/billing, and payments paths.
-
-## Upload path consolidation
-The previous fixed-template historical workbook panel no longer accepts new uploads. Existing saved legacy workbooks and their historical analysis remain available, and the old archive's local/cloud synchronization and deletion controls remain available. New uploads use the unified accountant importer; duplicate legacy upload controls are removed.
+## Dashboard and source selection
+- Historical archive and live operational data are selected per metric, never blindly added together.
+- Historical reports include year/month comparisons, income, collections, expenses, profit, cases, tests, item/cost analysis, seasonality and source traceability.
+- Current operational values remain sourced from the existing financial ledger, expenses, visits/billing and payments paths.
+- Imported accounting data does not create visits, invoices, patient records or test results.
 
 ## Database and security
 Existing tables are reused:
@@ -39,19 +39,7 @@ Existing tables are reused:
 - `owner_dashboard_source_settings`
 - `owner_dashboard_month_approvals`
 
-Migration `20261128150000_owner_financial_row_activation.sql` adds row activation/revision flags and the owner-checked `activate_owner_financial_import_period` RPC. Existing tenant-owner RLS is retained. No migration has been applied to production Main.
-
-## Changed files
-- `assets/js/dashboard-financial-import.js`
-- `assets/js/dashboard-history.js` (legacy uploader retired; saved legacy analysis retained)
-- `app/dashboard.html` (clear old archive vs unified uploader)
-- `modules/dashboard/financial-import-engine.js`
-- `dashboard/owner-financial-repository.js`
-- `supabase/migrations/20261128150000_owner_financial_row_activation.sql`
-- `tests/unit/financial-import-engine.test.mjs`
-- `tests/static/owner-financial-import.test.mjs`
-- `tests/static/dashboard-history.test.mjs`
-- `tests/static/historical-cloud-archive.test.mjs`
+Migration `20261128154529_owner_financial_row_activation.sql` is applied to the user's existing Supabase test project `teba-lis-demo` (`hgqwpykeazuzceeiumjg`). The activation RPC is SECURITY INVOKER, checks tenant-owner authorization, denies anon execution and grants execution to authenticated users. Existing tenant-owner RLS policies are retained.
 
 ## Verification boundary
-The GitHub static/unit, static regression, and responsive contract workflows are run against this branch. Applying and exercising the Supabase migration requires a separate development database branch; this is not performed against production Main. PDF OCR and cross-currency conversion are not implemented in this cycle.
+The merged baseline's earlier static and responsive checks and a transactional cloud smoke test were reported as passing. Subsequent direct-to-main importer enhancements must pass the repository's automated checks and browser workflow before the complete upload-and-approval journey is considered verified. No claim of arbitrary-format 100% semantic understanding is made.
