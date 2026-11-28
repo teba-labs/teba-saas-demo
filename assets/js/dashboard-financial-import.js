@@ -1,5 +1,5 @@
 import {isFinancialImportRowImportable} from '../../modules/dashboard/financial-import-validation.js';
-import {FINANCIAL_FIELDS,suggestFinancialMapping,detectFinancialHeader,analyzeFinancialRows,buildGenericHistoricalReport} from '../../modules/dashboard/financial-import-engine.js';
+import {FINANCIAL_FIELDS,suggestFinancialMapping,detectFinancialHeader,preferPendingFinancialRows,analyzeFinancialRows,buildGenericHistoricalReport} from '../../modules/dashboard/financial-import-engine.js';
 import {createOwnerFinancialBatch,listOwnerFinancialBatches,listOwnerFinancialRows,getOwnerDashboardSources,saveOwnerDashboardSources,saveOwnerMonthApproval,listOwnerMonthApprovals,activateOwnerFinancialPeriod} from '../../dashboard/owner-financial-repository.js';
 const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:2})+' ج.م';
@@ -11,11 +11,6 @@ function invalidateApproval(){pendingApproval=null;const button=$('ownerFinancia
 function note(message,error=false){const n=$('ownerFinancialNotice');if(n){n.textContent=message;n.className='notice show'+(error?' error':'');}}
 function element(tag,txt){const n=document.createElement(tag);if(txt!==undefined)n.textContent=String(txt);return n;}
 
-function financialRowIdentity(row){return [row.period_date||'',row.metric_key||'',String(row.item_name||'').trim().toLocaleLowerCase('ar'),String(row.category_name||'').trim().toLocaleLowerCase('ar'),row.branch_id||''].join('|');}
-function preferPendingFinancialRows(rows){
- const pendingKeys=new Set((rows||[]).filter(row=>row.pending_approval).map(financialRowIdentity));
- return (rows||[]).filter(row=>row.pending_approval||!pendingKeys.has(financialRowIdentity(row)));
-}
 function branchOptions(){return [{value:'',label:'غير محدد / إجمالي'} ,...branches.map(b=>({value:b.id,label:b.name}))];}
 function queueProgress(){const n=$('ownerFinancialQueueProgress');if(!n)return;n.textContent=queuedFiles.length?`ملفات ${queuedFileIndex+1}/${queuedFiles.length} · الورقة ${Math.max(1,queuedSheetProcessed.size+1)}/${workbook?.SheetNames?.length||1} · راجع كل ورقة قبل الاستيراد.`:'يمكن رفع ملف واحد أو عدة ملفات، وسيتم المرور على أوراقها بالتتابع.';}
 async function loadQueuedFile(index){const next=queuedFiles[index];if(!next)throw new Error('لا يوجد ملف للتحميل.');if(next.size>20*1024*1024)throw new Error('الحد الأقصى لكل ملف 20 ميجابايت: '+next.name);const ext=next.name.split('.').pop().toLowerCase();if(!['xlsx','xls','xlsm','ods','csv','tsv'].includes(ext))throw new Error('صيغة غير مدعومة: '+next.name);file=next;queuedFileIndex=index;queuedSheetProcessed=new Set();workbook=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true,bookVBA:false});const select=$('ownerFinancialSheet');select.replaceChildren(...workbook.SheetNames.map(n=>new Option(n,n)));activeSheet=select.value;queueProgress();renderMapping();note('تم فتح '+file.name+' · اربط أعمدة كل ورقة ثم استوردها أو تخطّها.');}
