@@ -30,6 +30,30 @@ jobs:
         run: npm run check:electron && npm test
       - name: Build x64 installer
         run: npm run build:icons && npx electron-builder --win nsis --x64 --publish never
+      - name: Install and launch smoke test
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist -Filter '*.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'Windows x64 installer was not produced' }
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "NSIS installation failed: $($install.ExitCode)" }
+          $appExe = Join-Path $env:LOCALAPPDATA 'Programs\Taiba Smart Lab\Taiba Smart Lab.exe'
+          if (-not (Test-Path $appExe)) { throw "Installed executable missing: $appExe" }
+          $app = Start-Process -FilePath $appExe -ArgumentList '--remote-debugging-port=9222' -PassThru
+          $deadline = (Get-Date).AddSeconds(60)
+          $page = $null
+          while ((Get-Date) -lt $deadline -and -not $page) {
+            if ($app.HasExited) { throw "Desktop app exited during startup: $($app.ExitCode)" }
+            try {
+              $targets = Invoke-RestMethod -Uri 'http://127.0.0.1:9222/json/list' -TimeoutSec 2
+              $page = $targets | Where-Object { $_.type -eq 'page' -and $_.url -eq 'taiba://app/app/index.html' } | Select-Object -First 1
+            } catch { Start-Sleep -Seconds 1 }
+          }
+          if (-not $page) { throw 'Installed desktop renderer did not load the local app entry point' }
+          if (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\Taiba Smart Lab\resources\app.asar'))) {
+            throw 'Packaged application archive is missing'
+          }
+          Stop-Process -Id $app.Id -Force
       - name: Upload installer for owner live testing
         uses: actions/upload-artifact@v4
         with:
