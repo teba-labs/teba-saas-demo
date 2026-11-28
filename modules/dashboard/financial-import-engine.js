@@ -45,8 +45,18 @@ export function detectFinancialHeader(matrix=[]){
 }
 export function preferPendingFinancialRows(rows=[]){
  const identity=row=>[row.period_date||'',row.metric_key||'',String(row.item_name||'').trim().toLocaleLowerCase('ar'),String(row.category_name||'').trim().toLocaleLowerCase('ar'),String(row.currency_code||'').trim().toUpperCase(),row.branch_id||''].join('|');
- const pendingKeys=new Set(rows.filter(row=>row.pending_approval).map(identity));
- return rows.filter(row=>row.pending_approval||!pendingKeys.has(identity(row)));
+ const group=row=>[row.period_date||'',row.metric_key||'',String(row.currency_code||'').trim().toUpperCase(),row.branch_id||''].join('|');
+ const detail=row=>Boolean(String(row.item_name||'').trim()||String(row.category_name||'').trim());
+ const pendingKeys=new Set(rows.filter(row=>row.pending_approval).map(identity)),pendingModes=new Map();
+ for(const row of rows.filter(item=>item.pending_approval)){const key=group(row),mode=detail(row)?'detail':'summary',modes=pendingModes.get(key)||{detail:false,summary:false};modes[mode]=true;pendingModes.set(key,modes);}
+ return rows.filter(row=>{
+  const modes=pendingModes.get(group(row)),mode=detail(row)?'detail':'summary';
+  if(!modes)return row.pending_approval||!pendingKeys.has(identity(row));
+  if(modes.detail&&modes.summary)return row.pending_approval&&mode==='detail';
+  if(modes.detail&&mode==='summary')return false;
+  if(modes.summary&&mode==='detail')return false;
+  return row.pending_approval||!pendingKeys.has(identity(row));
+ });
 }
 export function suggestFinancialMapping(headers){
  const normalized=(headers||[]).map(normalize),hasYear=normalized.some(h=>['year','السنة','عام'].includes(h)),hasDate=normalized.some(h=>FINANCIAL_FIELDS.find(f=>f.key==='period_date').aliases.some(a=>normalize(a)===h));
