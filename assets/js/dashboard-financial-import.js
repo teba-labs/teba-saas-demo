@@ -15,9 +15,58 @@ function branchOptions(){return [{value:'',label:'غير محدد / إجمالي
 function queueProgress(){const n=$('ownerFinancialQueueProgress');if(!n)return;n.textContent=queuedFiles.length?`ملفات ${queuedFileIndex+1}/${queuedFiles.length} · الورقة ${Math.max(1,queuedSheetProcessed.size+1)}/${workbook?.SheetNames?.length||1} · راجع كل ورقة قبل الاستيراد.`:'يمكن رفع ملف واحد أو عدة ملفات، وسيتم المرور على أوراقها بالتتابع.';}
 async function loadQueuedFile(index){invalidateApproval();const next=queuedFiles[index];if(!next)throw new Error('لا يوجد ملف للتحميل.');if(next.size>20*1024*1024)throw new Error('الحد الأقصى لكل ملف 20 ميجابايت: '+next.name);const ext=next.name.split('.').pop().toLowerCase();if(!['xlsx','xls','xlsm','ods','csv','tsv'].includes(ext))throw new Error('صيغة غير مدعومة: '+next.name);file=next;queuedFileIndex=index;queuedSheetProcessed=new Set();workbook=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true,bookVBA:false});const select=$('ownerFinancialSheet');select.replaceChildren(...workbook.SheetNames.map(n=>new Option(n,n)));activeSheet=select.value;queueProgress();renderMapping();note('تم فتح '+file.name+' · اربط أعمدة كل ورقة ثم استوردها أو تخطّها.');}
 async function advanceQueuedImport(){if(activeSheet)queuedSheetProcessed.add(activeSheet);const nextSheet=workbook?.SheetNames?.find(name=>!queuedSheetProcessed.has(name));if(nextSheet){activeSheet=nextSheet;$('ownerFinancialSheet').value=nextSheet;queueProgress();renderMapping();note('الورقة التالية: '+nextSheet+'. راجعها قبل الاستيراد.');return;}if(queuedFileIndex+1<queuedFiles.length){await loadQueuedFile(queuedFileIndex+1);return;}queuedFiles=[];queuedFileIndex=0;queuedSheetProcessed=new Set();file=null;workbook=null;activeSheet=null;$('ownerFinancialFile').value='';$('ownerFinancialMapping').replaceChildren();$('ownerFinancialValidation').replaceChildren();queueProgress();note('اكتمل المرور على الملفات والأوراق المختارة.');await refreshOwnerFinancialArchive();}
+function scanEntireWorkbook(){
+ if(!workbook||!file)throw new Error('افتح ملفًا أولًا.');
+ const sheets={};
+ for(const name of workbook.SheetNames){sheets[name]={__matrix:XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1,defval:'',raw:false})};}
+ const scan=analyzeFinancialWorkbook({SheetNames:workbook.SheetNames,Sheets:sheets});
+ pendingWorkbookScan={...scan,fileName:file.name};
+ const s=scan.summary,period=s.periodStart?(s.periodStart+' إلى '+s.periodEnd):'لم يتم اكتشاف تواريخ';
+ const rows=scan.sheets.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.classification?.label||x.label)+'</td><td>'+Number(x.rows||0)+'</td><td>'+Number(x.analysis?.records?.length||0)+'</td><td>'+Number(x.analysis?.issueCount||0)+'</td><td>'+esc(x.periodStart?x.periodStart+' — '+x.periodEnd:'—')+'</td></tr>').join('');
+ const report=element('div');report.className='validationPanel';
+ report.innerHTML='<h3>نتيجة فحص الملف بالكامل</h3><div class="history-analysis-kpis"><article><span>الشيتات</span><strong>'+s.sheetCount+'</strong></article><article><span>الصفوف المستخرجة</span><strong>'+s.records+'</strong></article><article><span>المشكلات</span><strong>'+s.issues+'</strong></article><article><span>التكرارات المحتملة</span><strong>'+s.duplicates+'</strong></article><article><span>الإجماليات المستبعدة</span><strong>'+s.aggregates+'</strong></article><article><span>الشيتات الفارغة</span><strong>'+s.emptySheets+'</strong></article></div><p>الفترة المكتشفة: '+esc(period)+'. النطاق مأخوذ من تواريخ الملف، ولا توجد سنوات ثابتة.</p><div class="table-wrap"><table><thead><tr><th>الشيت</th><th>التصنيف</th><th>صفوف البيانات</th><th>بنود مستخرجة</th><th>مشكلات</th><th>الفترة</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="hint">الصفوف غير المفهومة والمكررة لا تدخل الاعتماد تلقائيًا. يمكنك فتح تفاصيل أي شيت عند الحاجة فقط.</p>';
+ const go=element('button','استيراد كل الشيتات والبيانات المفهومة');go.type='button';go.disabled=!scan.sheets.some(x=>x.ready&&x.analysis?.records?.length);go.addEventListener('click',()=>importEntireWorkbook().catch(e=>note(e.message||'فشل استيراد الملف.',true)));report.append(go);
+ $('ownerFinancialValidation').replaceChildren(report);
+ return scan;
+}
+async function importEntireWorkbook(){
+ if(!pendingWorkbookScan||!file)throw new Error('افحص الملف بالكامل أولًا.');
+ const scan=pendingWorkbookScan,branchId=$('ownerFinancialBranch')?.value||'';let importedSheets=0,importedRows=0;
+ for(const sheet of scan.sheets){
+  if(!sheet.ready||!sheet.analysis?.records?.length)continue;
+  activeSheet=sheet.name;preparedRows=sheet.analysis.records;analysis=sheet.analysis;
+  try{await importPrepared(sheet.mapping,sheet.headers,[],branchId,{advance:false,refresh:false});importedSheets++;importedRows+=preparedRows.length;}
+  catch(e){if(!/سبق استيرادهما/.test(e.message||''))throw e;}
+ }
+ if(!importedSheets)throw new Error('لم تُضف صفوف جديدة؛ قد يكون الملف مستوردًا بالفعل أو أن صفوفه غير مكتملة.');
+ const periods=[...new Set(scan.records.map(x=>x.period_date).filter(Boolean).map(x=>x.slice(0,7)))].sort();
+ pendingWorkbookApproval={fileName:scan.fileName,periods,recordCount:importedRows};
+ queuedFiles=[];queuedFileIndex=0;queuedSheetProcessed=new Set();file=null;workbook=null;activeSheet=null;$('ownerFinancialFile').value='';$('ownerFinancialMapping').replaceChildren();queueProgress();
+ await refreshOwnerFinancialArchive();if(window.__refreshOwnerDashboard)await window.__refreshOwnerDashboard();
+ const panel=element('div');panel.className='validationPanel';
+ panel.innerHTML='<h3>اكتمل استيراد الملف</h3><p>تم استيراد '+importedRows+' صف عبر '+importedSheets+' شيت. الفترات: '+(periods[0]||'—')+' إلى '+(periods.at(-1)||'—')+'. البيانات معلقة ولن تدخل الداشبورد قبل الاعتماد.</p>';
+ const approve=element('button','اعتماد الملف كله وإدخال بياناته للداشبورد');approve.type='button';approve.disabled=!periods.length;approve.addEventListener('click',()=>approveEntireWorkbook().catch(e=>note(e.message||'تعذر اعتماد الملف.',true)));panel.append(approve);$('ownerFinancialValidation').append(panel);
+ note('تم استيراد الشيتات المفهومة. راجع ملخص الفحص ثم اعتمد الملف كله.');
+}
+async function approveEntireWorkbook(){
+ if(!pendingWorkbookApproval)throw new Error('لا يوجد ملف جاهز للاعتماد.');
+ const p=pendingWorkbookApproval,choices=Object.fromEntries(metricChoices.map(([key])=>[key,'excel']));let approved=0,totalRows=0;
+ for(const month of p.periods){
+  const end=new Date(month+'-01T00:00:00Z');end.setUTCMonth(end.getUTCMonth()+1);end.setUTCDate(0);
+  const rows=await listOwnerFinancialRows({tenantId,from:month+'-01',to:end.toISOString().slice(0,10),includePending:true});
+  const pending=rows.filter(x=>x.pending_approval);if(!pending.length)continue;
+  const report=buildGenericHistoricalReport(pending,{from:month+'-01',to:end.toISOString().slice(0,10)});
+  await activateOwnerFinancialPeriod({tenantId,month,branchId:null,replacePeriod:false});
+  await saveOwnerMonthApproval({tenantId,month,branchId:null,sourceChoices:choices,reconciliation:{scope:'whole-workbook',fileName:p.fileName,period:month,approvedRows:pending.length,totals:report.totals},notes:'اعتماد ملف كامل: '+p.fileName});
+  approved++;totalRows+=pending.length;
+ }
+ pendingWorkbookApproval=null;await refreshOwnerFinancialArchive();if(window.__refreshOwnerDashboard)await window.__refreshOwnerDashboard();
+ note('تم اعتماد الملف بالكامل: '+approved+' فترة و'+totalRows+' صف. بياناته متاحة للداشبورد.');
+}
 function renderMapping(){
  const sheet=workbook?.Sheets[activeSheet];if(!sheet)return;
  const root=$('ownerFinancialMapping');root.replaceChildren();
+ const scanButton=element('button','فحص الملف بالكامل');scanButton.type='button';scanButton.className='btn secondary';scanButton.addEventListener('click',()=>{try{scanEntireWorkbook();}catch(e){note(e.message,true);}});root.append(scanButton);
  const skip=element('button','تخطي هذه الورقة والانتقال للتالية');skip.type='button';skip.className='btn secondary';skip.addEventListener('click',()=>advanceQueuedImport().catch(e=>note(e.message,true)));root.append(skip);
  const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false});const header=detectFinancialHeader(matrix);if(!header){note('الورقة فارغة. تخطّها للانتقال إلى الورقة التالية.',true);return;}
  const headers=header.row.map(v=>String(v??''));const rows=matrix.slice(header.index+1);
