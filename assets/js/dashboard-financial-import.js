@@ -1,6 +1,6 @@
 import {isFinancialImportRowImportable} from '../../modules/dashboard/financial-import-validation.js';
 import {FINANCIAL_FIELDS,suggestFinancialMapping,detectFinancialHeader,analyzeFinancialRows,buildGenericHistoricalReport} from '../../modules/dashboard/financial-import-engine.js';
-import {createOwnerFinancialBatch,listOwnerFinancialBatches,listOwnerFinancialRows,getOwnerDashboardSources,saveOwnerDashboardSources,saveOwnerMonthApproval,listOwnerMonthApprovals} from '../../dashboard/owner-financial-repository.js';
+import {createOwnerFinancialBatch,listOwnerFinancialBatches,listOwnerFinancialRows,getOwnerDashboardSources,saveOwnerDashboardSources,saveOwnerMonthApproval,listOwnerMonthApprovals,activateOwnerFinancialPeriod} from '../../dashboard/owner-financial-repository.js';
 const $=id=>document.getElementById(id);
 const money=v=>Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:2})+' ج.م';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -10,6 +10,12 @@ const metricChoices=[['revenue','الإيرادات / المبيعات'],['colle
 function invalidateApproval(){pendingApproval=null;const button=$('ownerFinancialApprove');if(button)button.disabled=true;}
 function note(message,error=false){const n=$('ownerFinancialNotice');if(n){n.textContent=message;n.className='notice show'+(error?' error':'');}}
 function element(tag,txt){const n=document.createElement(tag);if(txt!==undefined)n.textContent=String(txt);return n;}
+
+function financialRowIdentity(row){return [row.period_date||'',row.metric_key||'',String(row.item_name||'').trim().toLocaleLowerCase('ar'),String(row.category_name||'').trim().toLocaleLowerCase('ar'),row.branch_id||''].join('|');}
+function preferPendingFinancialRows(rows){
+ const pendingKeys=new Set((rows||[]).filter(row=>row.pending_approval).map(financialRowIdentity));
+ return (rows||[]).filter(row=>row.pending_approval||!pendingKeys.has(financialRowIdentity(row)));
+}
 function branchOptions(){return [{value:'',label:'غير محدد / إجمالي'} ,...branches.map(b=>({value:b.id,label:b.name}))];}
 function queueProgress(){const n=$('ownerFinancialQueueProgress');if(!n)return;n.textContent=queuedFiles.length?`ملفات ${queuedFileIndex+1}/${queuedFiles.length} · الورقة ${Math.max(1,queuedSheetProcessed.size+1)}/${workbook?.SheetNames?.length||1} · راجع كل ورقة قبل الاستيراد.`:'يمكن رفع ملف واحد أو عدة ملفات، وسيتم المرور على أوراقها بالتتابع.';}
 async function loadQueuedFile(index){const next=queuedFiles[index];if(!next)throw new Error('لا يوجد ملف للتحميل.');if(next.size>20*1024*1024)throw new Error('الحد الأقصى لكل ملف 20 ميجابايت: '+next.name);const ext=next.name.split('.').pop().toLowerCase();if(!['xlsx','xls','xlsm','ods','csv','tsv'].includes(ext))throw new Error('صيغة غير مدعومة: '+next.name);file=next;queuedFileIndex=index;queuedSheetProcessed=new Set();workbook=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true,bookVBA:false});const select=$('ownerFinancialSheet');select.replaceChildren(...workbook.SheetNames.map(n=>new Option(n,n)));activeSheet=select.value;queueProgress();renderMapping();note('تم فتح '+file.name+' · اربط أعمدة كل ورقة ثم استوردها أو تخطّها.');}
@@ -32,7 +38,7 @@ function renderMapping(){
 }
 async function digest(buffer){const bytes=await crypto.subtle.digest('SHA-256',buffer);return [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 async function importPrepared(mapping,headers,rawRows,branchId){
- const existing=await listOwnerFinancialRows({tenantId}),fingerprints=new Set(existing.map(x=>x.row_fingerprint));
+ const existing=await listOwnerFinancialRows({tenantId,includePending:true}),fingerprints=new Set(existing.map(x=>x.row_fingerprint));
  const keyOf=x=>[x.period_date,String(x.metric_key||'').trim().toLocaleLowerCase('ar'),String(x.item_name||'').trim().toLocaleLowerCase('ar'),String(x.category_name||'').trim().toLocaleLowerCase('ar'),x.branch_id||''].join('|');
  const existingByKey=new Map(existing.map(x=>[keyOf(x),x])),skipped=[],rows=[];
  for(const x of preparedRows){
@@ -42,7 +48,7 @@ async function importPrepared(mapping,headers,rawRows,branchId){
   if(x.branch_name&&!matchedBranch){skipped.push({row:x._rowNumber,reason:'اسم الفرع غير مطابق لفروع المعمل'});continue;}
   if(fingerprints.has(x._fingerprint)){skipped.push({row:x._rowNumber,reason:'هذا الصف مستورد سابقًا'});continue;}
   const candidate={...x,branch_id:resolvedBranch},existingMatch=existingByKey.get(keyOf(candidate));
-  if(existingMatch&&(Number(existingMatch.amount||0)!==Number(x.amount||0)||Number(existingMatch.quantity||0)!==Number(x.quantity||0)||Number(existingMatch.unit_cost||0)!==Number(x.unit_cost||0)||Number(existingMatch.selling_price||0)!==Number(x.selling_price||0)||Number(existingMatch.weight||0)!==Number(x.weight||0))){skipped.push({row:x._rowNumber,reason:'تعارض مع صف سابق في نفس التاريخ والبند والتحليل والفرع'});continue;}
+  if(existingMatch&&(Number(existingMatch.amount||0)!==Number(x.amount||0)||Number(existingMatch.quantity||0)!==Number(x.quantity||0)||Number(existingMatch.unit_cost||0)!==Number(x.unit_cost||0)||Number(existingMatch.selling_price||0)!==Number(x.selling_price||0)||Number(existingMatch.weight||0)!==Number(x.weight||0))&&existingMatch.pending_approval){skipped.push({row:x._rowNumber,reason:'يوجد إصدار أحدث غير معتمد لنفس البند؛ راجعه واعتمده أولًا'});continue;}
   rows.push({branch_id:resolvedBranch,sheet_name:activeSheet,row_number:x._rowNumber,period_date:x.period_date,metric_key:String(x.metric_key).trim(),amount:x.amount,quantity:x.quantity,item_name:x.item_name,category_name:x.category_name,unit_cost:x.unit_cost,selling_price:x.selling_price,weight:x.weight,currency_code:x.currency_code,original_row:Object.fromEntries(headers.map((h,i)=>[String(h||'عمود '+(i+1)),x._original[i]??''])),row_fingerprint:x._fingerprint});
  }
  if(!rows.length)throw new Error('لا توجد صفوف صالحة بعد استبعاد التكرارات والتعارضات.');
@@ -113,7 +119,7 @@ async function approveYear(){
   const monthRows=p.rows.filter(row=>String(row.period_date||'').slice(0,7)===month);
   const nextMonth=new Date(month+'-01T00:00:00Z');nextMonth.setUTCMonth(nextMonth.getUTCMonth()+1);nextMonth.setUTCDate(0);
   const report=buildGenericHistoricalReport(monthRows,{from:month+'-01',to:nextMonth.toISOString().slice(0,10),branchId:p.branchId});
-  await saveOwnerMonthApproval({tenantId:p.tenantId,month,branchId:p.branchId,sourceChoices:p.sourceChoices,reconciliation:{scope:'year-approval',year:p.year,approvedYearRows:p.rows.length,monthRows:monthRows.length,totals:report.totals,yearTotals:p.report.totals},notes});
+  await activateOwnerFinancialPeriod({tenantId:p.tenantId,month,branchId:p.branchId});\n  await saveOwnerMonthApproval({tenantId:p.tenantId,month,branchId:p.branchId,sourceChoices:p.sourceChoices,reconciliation:{scope:'year-approval',year:p.year,approvedYearRows:p.rows.length,monthRows:monthRows.length,totals:report.totals,yearTotals:p.report.totals},notes});
   saved++;
  }
  pendingYearApproval=null;$('ownerFinancialYearApprove').disabled=true;
@@ -151,7 +157,7 @@ $('ownerFinancialApprove').onclick=async()=>{try{
  if(!pendingApproval)throw new Error('اعرض المطابقة أولًا قبل اعتماد الشهر.');
  if(pendingApproval.reconciliation.liveReportAvailable&&window.__ownerLiveReport?.period?.monthStart!==pendingApproval.month+'-01')throw new Error('تغيرت فترة التشغيل؛ أعد عرض المطابقة.');
  const manualValues={};document.querySelectorAll('[data-approval-source]').forEach(select=>{pendingApproval.sourceChoices[select.dataset.approvalSource]=select.value;});document.querySelectorAll('[data-approval-manual]').forEach(input=>{const value=input.value.trim();if(value!=='')manualValues[input.dataset.approvalManual]=Number(value);});for(const [key,source] of Object.entries(pendingApproval.sourceChoices)){if(source==='manual'&&!Number.isFinite(manualValues[key]))throw new Error('أدخل القيمة اليدوية للبند: '+key);if(source==='manual')pendingApproval.reconciliation.manualValues[key]=manualValues[key];}
- await saveOwnerMonthApproval({tenantId:pendingApproval.tenantId,month:pendingApproval.month,branchId:pendingApproval.branchId,sourceChoices:pendingApproval.sourceChoices,reconciliation:pendingApproval.reconciliation,notes:$('ownerFinancialApprovalNotes').value});
+ await activateOwnerFinancialPeriod({tenantId:pendingApproval.tenantId,month:pendingApproval.month,branchId:pendingApproval.branchId});\n await saveOwnerMonthApproval({tenantId:pendingApproval.tenantId,month:pendingApproval.month,branchId:pendingApproval.branchId,sourceChoices:pendingApproval.sourceChoices,reconciliation:pendingApproval.reconciliation,notes:$('ownerFinancialApprovalNotes').value});
  pendingApproval=null;$('ownerFinancialApprove').disabled=true;await refreshOwnerFinancialArchive();if(window.__refreshOwnerDashboard)await window.__refreshOwnerDashboard();note('تم حفظ اعتماد الشهر وتحديث التحليل التاريخي ولوحة التشغيل.');
  }catch(err){note(err.message,true);}};
  globalThis.__refreshOwnerFinancialArchive=()=>refreshOwnerFinancialArchive();
