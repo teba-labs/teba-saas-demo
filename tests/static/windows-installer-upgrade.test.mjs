@@ -12,6 +12,7 @@ test('Windows installer upgrade is built from the exact Cycle 1 commit and same 
   assert.match(workflow, /baseline\\dist\\Taiba-Smart-Lab-Setup-1\.0\.0-x64\.exe/);
   assert.match(workflow, /dist\\Taiba-Smart-Lab-Setup-1\.0\.1-x64\.exe/);
   assert.equal(pkg.version, '1.0.1');
+  assert.ok(pkg.build.files.includes('!baseline/**/*'), 'the baseline checkout must not be packaged into the upgraded app');
   assert.equal(JSON.parse(read('package.json')).build.appId, 'com.taibatech.smartlab');
 });
 
