@@ -97,8 +97,14 @@ jobs:
           socket.close();
           process.stdout.write(result || '{}');
           '@
-          $renderer = node -e $inspectScript $targetJson | ConvertFrom-Json
-          if ($renderer.href -ne 'taiba://app/app/index.html' -or $renderer.readyState -ne 'complete') {
+          $renderer = $null
+          $rendererDeadline = (Get-Date).AddSeconds(30)
+          while ((Get-Date) -lt $rendererDeadline -and (-not $renderer -or $renderer.readyState -ne 'complete')) {
+            if ($desktop.HasExited) { throw "Taiba Smart Lab exited while its local document was loading" }
+            $renderer = node -e $inspectScript $targetJson | ConvertFrom-Json
+            if ($renderer.readyState -ne 'complete') { Start-Sleep -Seconds 1 }
+          }
+          if (-not $renderer -or $renderer.href -ne 'taiba://app/app/index.html' -or $renderer.readyState -ne 'complete') {
             throw "Desktop renderer did not complete local document loading: $($renderer | ConvertTo-Json -Compress)"
           }
           if (-not $renderer.title -or $renderer.title -notmatch 'Taiba|طيبة') {
@@ -143,8 +149,18 @@ jobs:
             } catch { Start-Sleep -Seconds 1 }
           }
           if (-not $reopenedPage) { throw "The installed app did not reopen its local renderer" }
-          if (-not $reopenedPage.title -or $reopenedPage.title -notmatch 'Taiba|طيبة') { throw "Unexpected reopened renderer title: $($reopenedPage.title)" }
           if ($reopened.HasExited) { throw "Taiba Smart Lab exited after its second renderer load" }
+          $reopenedTargetJson = $reopenedPage | ConvertTo-Json -Compress
+          $reopenedRenderer = $null
+          $reopenedRendererDeadline = (Get-Date).AddSeconds(30)
+          while ((Get-Date) -lt $reopenedRendererDeadline -and (-not $reopenedRenderer -or $reopenedRenderer.readyState -ne 'complete')) {
+            if ($reopened.HasExited) { throw "Taiba Smart Lab exited while its renderer was reopening" }
+            $reopenedRenderer = node -e $inspectScript $reopenedTargetJson | ConvertFrom-Json
+            if ($reopenedRenderer.readyState -ne 'complete') { Start-Sleep -Seconds 1 }
+          }
+          if (-not $reopenedRenderer -or $reopenedRenderer.href -ne 'taiba://app/app/index.html' -or $reopenedRenderer.readyState -ne 'complete' -or $reopenedRenderer.title -notmatch 'Taiba|طيبة') {
+            throw "The reopened desktop document did not load correctly: $($reopenedRenderer | ConvertTo-Json -Compress)"
+          }
           Stop-Process -Id $reopened.Id -Force
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
