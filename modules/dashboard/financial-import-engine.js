@@ -52,7 +52,7 @@ export function preferPendingFinancialRows(rows=[]){
  return rows.filter(row=>{
   const modes=pendingModes.get(group(row)),mode=detail(row)?'detail':'summary';
   if(!modes)return row.pending_approval||!pendingKeys.has(identity(row));
-  if(modes.detail&&modes.summary)return row.pending_approval&&mode==='detail';
+  if(modes.detail&&modes.summary){if(mode==='summary')return false;return row.pending_approval||!pendingKeys.has(identity(row));}
   if(modes.detail&&mode==='summary')return false;
   if(modes.summary&&mode==='detail')return false;
   return row.pending_approval||!pendingKeys.has(identity(row));
