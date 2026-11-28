@@ -15,7 +15,7 @@ async function refreshList(tenantId=activeTenantId){
  const map=new Map(rows.map(x=>[x.type,x])),cloudMap=new Map(cloudFiles.map(x=>[x.workbook_type,x]));
  list.innerHTML=FILES.map(f=>{
   const x=map.get(f.type),cloud=cloudMap.get(f.type);
-  const detail=x?'<div class="history-saved"><b>'+(cloud?'محفوظ محليًا + سحابيًا':'محفوظ محليًا فقط')+'</b><span>'+esc(x.fileName)+' · '+formatSize(x.size)+'</span><small>'+esc((x.sheets||[]).map(s=>s.name).join('، '))+'</small><button type="button" data-history-delete="'+f.type+'">حذف النسخة المحلية والسحابية</button></div>':cloud?'<div class="history-saved"><b>محفوظ سحابيًا</b><span>'+esc(cloud.file_name)+' · '+formatSize(cloud.file_size)+'</span><small>سيتم تنزيل نسخة محلية عند الاتصال.</small></div>':'<div class="history-empty">لم يتم تحميل ملف لهذا القسم بعد.</div>';
+  const detail=x?'<div class="history-saved"><b>'+(cloud?'محفوظ محليًا + سحابيًا':'محفوظ محليًا فقط')+'</b><span>'+esc(x.fileName)+' · '+formatSize(x.size)+'</span><small>'+esc((x.sheets||[]).map(s=>s.name).join('، '))+'</small><button type="button" data-history-delete="'+f.type+'">حذف النسخة المحلية والسحابية</button></div>':cloud?'<div class="history-saved"><b>محفوظ سحابيًا</b><span>'+esc(cloud.file_name)+' · '+formatSize(cloud.file_size)+'</span><small>سيتم تنزيل نسخة محلية عند الاتصال.</small></div>':'<div class="history-empty">لا توجد نسخة قديمة محفوظة؛ استخدم مسار المحاسب الموحد لرفع الملفات الجديدة.</div>';
   return'<article class="history-file"><div><b>'+f.label+'</b><small>'+f.hint+'</small></div>'+detail+'<small class="history-legacy-note">أرشيف قديم للقراءة فقط؛ رفع الملفات الجديدة موحّد في مسار المحاسب.</small></article>';
  }).join('');
 }
