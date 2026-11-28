@@ -1,0 +1,33 @@
+name: Cycle 2 - Responsive browser emulation
+
+on:
+  push:
+    branches:
+      - feature/windows-electron-desktop-2026-11-28
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  responsive-browser-smoke:
+    name: Mobile and desktop viewport smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser test runner
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund playwright
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run responsive page checks
+        run: node tests/responsive-smoke.mjs
+      - name: Verify keyboard navigation across all application pages
+        run: node tests/browser/keyboard-navigation.mjs
+      - name: Verify offline shell and IndexedDB/outbox persistence after reload
+        run: node tests/browser/offline-shell-smoke.mjs
+      - name: Verify manual local-versus-server result conflict decisions in IndexedDB
+        run: node tests/browser/result-conflict-resolution.mjs

@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
-:root{font-family:'Cairo',Tahoma,sans-serif;color:#173747;background:#f3f7f8;font-synthesis:none;font-optical-sizing:auto;--ink:#173747;--muted:#718590;--line:#e2eaed;--teal:#16877f;--navy:#102d3b;--mint:#e8f5f2}
+:root{font-family:Tahoma,Arial,sans-serif;color:#173747;background:#f3f7f8;font-synthesis:none;font-optical-sizing:auto;--ink:#173747;--muted:#718590;--line:#e2eaed;--teal:#16877f;--navy:#102d3b;--mint:#e8f5f2}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 6% 0%,#e0eff0 0,transparent 32%),radial-gradient(ellipse at 96% 20%,#e9f1f8 0,transparent 28%),#f5f8f9}
 a{color:inherit}

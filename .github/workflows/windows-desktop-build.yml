@@ -1,0 +1,171 @@
+name: Windows Desktop Installer
+
+on:
+  push:
+    branches:
+      - feature/windows-electron-desktop-2026-11-28
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check Electron source
+        run: npm run check:electron
+      - name: Run desktop contract tests
+        run: npm test
+      - name: Build Windows installer
+        run: npm run build:icons; npx electron-builder --win nsis --x64 --publish never
+      - name: Install and launch desktop smoke test
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path 'dist\\Taiba-Smart-Lab-Setup-1.0.1-x64.exe').Path
+          $install = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "NSIS installer failed with exit code $($install.ExitCode)" }
+          $appExe = Join-Path $env:LOCALAPPDATA 'Programs\\Taiba Smart Lab\\Taiba Smart Lab.exe'
+          if (-not (Test-Path $appExe)) { throw "Installed desktop executable not found at $appExe" }
+          $desktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Taiba Smart Lab.lnk'
+          if (-not (Test-Path $desktopShortcut)) { throw "Desktop shortcut was not created: $desktopShortcut" }
+          $shortcutShell = New-Object -ComObject WScript.Shell
+          $shortcut = $shortcutShell.CreateShortcut($desktopShortcut)
+          if ([IO.Path]::GetFullPath($shortcut.TargetPath) -ne [IO.Path]::GetFullPath($appExe)) {
+            throw "Desktop shortcut target does not match the installed executable: $($shortcut.TargetPath)"
+          }
+          $shortcut.Arguments = '--remote-debugging-port=9222'
+          $shortcut.Save()
+          $shortcutShell.Run('"' + $desktopShortcut + '"', 1, $false) | Out-Null
+          $desktop = $null
+          $launchDeadline = (Get-Date).AddSeconds(45)
+          while ((Get-Date) -lt $launchDeadline -and -not $desktop) {
+            $desktop = Get-Process -Name 'Taiba Smart Lab' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $desktop) { Start-Sleep -Seconds 1 }
+          }
+          if (-not $desktop) { throw "Opening the desktop shortcut did not launch Taiba Smart Lab" }
+          $deadline = (Get-Date).AddSeconds(45)
+          $page = $null
+          while ((Get-Date) -lt $deadline -and -not $page) {
+            if ($desktop.HasExited) { throw "Taiba Smart Lab exited during startup (code $($desktop.ExitCode))" }
+            try {
+              $targets = Invoke-RestMethod -Uri 'http://127.0.0.1:9222/json/list' -TimeoutSec 2
+              $page = $targets | Where-Object { $_.type -eq 'page' -and $_.url -eq 'taiba://app/app/index.html' } | Select-Object -First 1
+            } catch { Start-Sleep -Seconds 1 }
+          }
+          if (-not $page) { throw "Local renderer did not load taiba://app/app/index.html within 45 seconds" }
+          if ($desktop.HasExited) { throw "Taiba Smart Lab exited during renderer verification (code $($desktop.ExitCode))" }
+
+          # CDP target metadata can expose an empty/stale title for a custom
+          # secure protocol. Read the actual document from the renderer instead.
+          $targetJson = $page | ConvertTo-Json -Compress
+          $inspectScript = @'
+          const target = JSON.parse(process.argv[1]);
+          const socket = new WebSocket(target.webSocketDebuggerUrl);
+          await new Promise((resolve, reject) => {
+            socket.addEventListener('open', resolve, { once: true });
+            socket.addEventListener('error', reject, { once: true });
+          });
+          const result = await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('Renderer inspection timed out')), 10000);
+            socket.addEventListener('message', event => {
+              const message = JSON.parse(event.data);
+              if (message.id === 1) {
+                clearTimeout(timer);
+                resolve(message.result?.result?.value);
+              }
+            });
+            socket.send(JSON.stringify({
+              id: 1,
+              method: 'Runtime.evaluate',
+              params: {
+                expression: 'JSON.stringify({title:document.title,readyState:document.readyState,href:location.href,bodyText:(document.body?.innerText||"").slice(0,500)})',
+                returnByValue: true,
+                awaitPromise: true
+              }
+            }));
+          });
+          socket.close();
+          process.stdout.write(result || '{}');
+          '@
+          $renderer = $null
+          $rendererDeadline = (Get-Date).AddSeconds(30)
+          while ((Get-Date) -lt $rendererDeadline -and (-not $renderer -or $renderer.readyState -ne 'complete')) {
+            if ($desktop.HasExited) { throw "Taiba Smart Lab exited while its local document was loading" }
+            $renderer = node -e $inspectScript $targetJson | ConvertFrom-Json
+            if ($renderer.readyState -ne 'complete') { Start-Sleep -Seconds 1 }
+          }
+          if (-not $renderer -or $renderer.href -ne 'taiba://app/app/index.html' -or $renderer.readyState -ne 'complete') {
+            throw "Desktop renderer did not complete local document loading: $($renderer | ConvertTo-Json -Compress)"
+          }
+          if (-not $renderer.title -or $renderer.title -notmatch 'Taiba|طيبة') {
+            throw "Unexpected desktop document title: $($renderer.title); body: $($renderer.bodyText)"
+          }
+          if ($desktop.HasExited) { throw "Taiba Smart Lab exited after renderer load (code $($desktop.ExitCode))" }
+
+          # Close the actual renderer window through DevTools, then verify the
+          # Electron process exits cleanly because all windows are closed.
+          $closeScript = @'
+          const target = JSON.parse(process.argv[1]);
+          const socket = new WebSocket(target.webSocketDebuggerUrl);
+          await new Promise((resolve, reject) => {
+            socket.addEventListener('open', resolve, { once: true });
+            socket.addEventListener('error', reject, { once: true });
+          });
+          socket.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate', params: { expression: 'window.close()' } }));
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          socket.close();
+          '@
+          node -e $closeScript $targetJson
+          $desktop.Refresh()
+          $closeDeadline = (Get-Date).AddSeconds(20)
+          while ((Get-Date) -lt $closeDeadline -and -not $desktop.HasExited) {
+            Start-Sleep -Milliseconds 500
+            $desktop.Refresh()
+          }
+          if (-not $desktop.HasExited) {
+            Stop-Process -Id $desktop.Id -Force
+            throw "Taiba Smart Lab did not exit after its main window was closed"
+          }
+
+          # Reopen from the installed executable and verify a fresh local renderer.
+          $reopened = Start-Process -FilePath $appExe -ArgumentList '--remote-debugging-port=9223' -PassThru
+          $reopenDeadline = (Get-Date).AddSeconds(45)
+          $reopenedPage = $null
+          while ((Get-Date) -lt $reopenDeadline -and -not $reopenedPage) {
+            if ($reopened.HasExited) { throw "Taiba Smart Lab failed on second launch (code $($reopened.ExitCode))" }
+            try {
+              $targets = Invoke-RestMethod -Uri 'http://127.0.0.1:9223/json/list' -TimeoutSec 2
+              $reopenedPage = $targets | Where-Object { $_.type -eq 'page' -and $_.url -eq 'taiba://app/app/index.html' } | Select-Object -First 1
+            } catch { Start-Sleep -Seconds 1 }
+          }
+          if (-not $reopenedPage) { throw "The installed app did not reopen its local renderer" }
+          if ($reopened.HasExited) { throw "Taiba Smart Lab exited after its second renderer load" }
+          $reopenedTargetJson = $reopenedPage | ConvertTo-Json -Compress
+          $reopenedRenderer = $null
+          $reopenedRendererDeadline = (Get-Date).AddSeconds(30)
+          while ((Get-Date) -lt $reopenedRendererDeadline -and (-not $reopenedRenderer -or $reopenedRenderer.readyState -ne 'complete')) {
+            if ($reopened.HasExited) { throw "Taiba Smart Lab exited while its renderer was reopening" }
+            $reopenedRenderer = node -e $inspectScript $reopenedTargetJson | ConvertFrom-Json
+            if ($reopenedRenderer.readyState -ne 'complete') { Start-Sleep -Seconds 1 }
+          }
+          if (-not $reopenedRenderer -or $reopenedRenderer.href -ne 'taiba://app/app/index.html' -or $reopenedRenderer.readyState -ne 'complete' -or $reopenedRenderer.title -notmatch 'Taiba|طيبة') {
+            throw "The reopened desktop document did not load correctly: $($reopenedRenderer | ConvertTo-Json -Compress)"
+          }
+          Stop-Process -Id $reopened.Id -Force
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: taiba-smart-lab-windows-installer
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 30

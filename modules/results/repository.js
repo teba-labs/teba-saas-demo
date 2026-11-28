@@ -18,23 +18,24 @@ export async function listResults({ tenantId, visitTestId } = {}) {
 }
 
 /** Draft-only batch save. Published visits must use the audited report-correction workflow. The database RPC commits every supplied parameter or none. */
-export async function saveDraftResults({ tenantId, branchId, visitTestId, results, staffId, dependsOn = [] } = {}) {
+export async function saveDraftResults({ tenantId, branchId, visitTestId, results, staffId, expectedSnapshot, dependsOn = [] } = {}) {
   if (!tenantId || !branchId || !visitTestId || !staffId || !Array.isArray(results) || !results.length) {
     throw new Error('tenantId, branchId, visitTestId, staffId and at least one result are required.');
   }
   const prepared = results.map(({ parameter, value, flag = null }) => {
     if (!parameter?.code) throw new Error('Every result must identify its parameter code.');
-    return {
-      parameter_code: parameter.code,
-      ...prepareResultInput(parameter, value),
-      flag,
-    };
+    return { parameter_code: parameter.code, ...prepareResultInput(parameter, value), flag };
   });
   if (new Set(prepared.map(item => item.parameter_code)).size !== prepared.length) {
     throw new Error('لا يمكن إرسال البارامتر نفسه أكثر من مرة في عملية الحفظ.');
   }
+  if (!Array.isArray(expectedSnapshot) || expectedSnapshot.length !== prepared.length
+      || new Set(expectedSnapshot.map(row => row.parameter_code)).size !== expectedSnapshot.length
+      || prepared.some(row => !expectedSnapshot.some(base => base.parameter_code === row.parameter_code))) {
+    throw new Error('نسخة النتائج الأصلية غير مكتملة؛ أعد تحميل الزيارة قبل الحفظ.');
+  }
   const operationId = crypto.randomUUID();
-  const payload = { visit_test_id: visitTestId, staff_id: staffId, results: prepared };
+  const payload = { visit_test_id: visitTestId, staff_id: staffId, results: prepared, expected_snapshot: expectedSnapshot };
   const queue = async () => {
     await enqueueOperation({ tenantId, branchId, entityType: 'draft_results', action: 'save', operationId, payload, dependsOn, priority: 3 });
     const cached=await getCachedRows('test_results',{tenantId,branchId});
@@ -49,23 +50,38 @@ export async function saveDraftResults({ tenantId, branchId, visitTestId, result
     return { queued: true, operationId };
   };
   if (globalThis.navigator?.onLine === false) return queue();
-  const { data, error } = await db().rpc('save_draft_results_idempotent', {
+  const { data, error } = await db().rpc('save_draft_results_idempotent_v2', {
     p_operation_id: operationId, p_tenant_id: tenantId, p_branch_id: branchId,
     p_visit_test_id: visitTestId, p_staff_id: staffId, p_results: prepared,
+    p_expected_snapshot: expectedSnapshot,
   });
   if (error) {
     if (/fetch|network|offline/i.test(error.message || '') || globalThis.navigator?.onLine === false) return queue();
+    if (/OFFLINE_RESULTS_CONFLICT/i.test(error.message || '')) {
+      const conflict = new Error('تعارض في النتائج: تم تعديل نتيجة واحدة على الأقل من جهاز آخر. لم يتم استبدال أي نتيجة؛ حدّث الزيارة وراجع القيم قبل الحفظ.');
+      conflict.code = 'OFFLINE_RESULTS_CONFLICT';
+      throw conflict;
+    }
     throw error;
   }
   const serverRows=await listResults({tenantId,visitTestId}).catch(()=>[]);
   if(serverRows.length)await cacheRows('test_results',serverRows.map(row=>({...row,tenant_id:tenantId,branch_id:branchId})));
   return data ?? [];
-
 }
 
 /** Compatibility wrapper for a single parameter; new UI code should use saveDraftResults. */
 export async function saveDraftResult({ tenantId, branchId, visitTestId, parameter, value, staffId, flag = null } = {}) {
-  return saveDraftResults({ tenantId, branchId, visitTestId, staffId, results: [{ parameter, value, flag }] });
+  const cached=await getCachedRows('test_results',{tenantId,branchId});
+  const existing=cached.find(row=>row.visit_test_id===visitTestId&&row.parameter_code===parameter?.code);
+  const numeric=['numeric_integer','numeric_decimal'].includes(parameter?.inputMode||parameter?.result_input_mode);
+  const raw=existing?.value_numeric??existing?.value_text??'';
+  const expectedSnapshot=[{
+    parameter_code:parameter?.code,
+    value_numeric:raw!==''&&raw!=null&&numeric?Number(raw):null,
+    value_text:raw!==''&&raw!=null&&!numeric?String(raw):null,
+    flag:existing?.flag??null,
+  }];
+  return saveDraftResults({ tenantId, branchId, visitTestId, staffId, results: [{ parameter, value, flag }], expectedSnapshot });
 }
 
 export async function completeVisitTest({ tenantId, branchId, visitTestId, staffId } = {}) {

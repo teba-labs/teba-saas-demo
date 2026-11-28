@@ -13,7 +13,7 @@ test('conflict retry is scoped and preserves the original idempotency key', () =
 });
 
 test('a server acknowledgement resolves the matching local conflict history', () => {
-  assert.match(outbox, /status: 'resolved', resolution: 'server_acknowledged'/);
+  assert.match(outbox, /status: 'resolved', resolution: conflict\.resolution === 'manual_rebase_to_server_snapshot' \? 'manual_rebase_acknowledged' : 'server_acknowledged'/);
   assert.match(outbox, /conflict\.operation_id === item\.operation_id/);
 });
 
@@ -35,4 +35,28 @@ test('patient ID collision includes a scoped server snapshot when RLS allows the
   assert.match(adapters, /serverSnapshot: existing\.data \?\? null/);
   assert.match(adapters, /existing\.data\.tenant_id !== operation\.tenant_id/);
   assert.match(adapters, /existing\.data\.branch_id !== operation\.branch_id/);
+});
+
+test('draft result conflicts require an explicit reviewed choice before requeue or discard', () => {
+  assert.match(outbox, /rebaseDraftResultConflict/);
+  assert.match(outbox, /expected_snapshot: expectedSnapshot/);
+  assert.match(outbox, /manual_rebase_to_server_snapshot/);
+  assert.match(outbox, /keepServerDraftResultConflict/);
+  assert.match(outbox, /server_snapshot_kept_local_discarded/);
+  assert.match(outbox, /offlineDb\.test_results\.bulkPut/);
+  assert.match(ui, /data-rebase-draft-conflict/);
+  assert.match(ui, /data-keep-server-conflict/);
+  assert.match(ui, /if \(!confirm\(/);
+  assert.match(ui, /إعادة إرسال القيم المحلية بعد المراجعة/);
+  assert.match(ui, /اعتماد نسخة الخادم وإلغاء التعديل المحلي/);
+});
+
+test('browser workflow exercises IndexedDB conflict rebase and keep-server decisions', () => {
+  const workflow = fs.readFileSync(new URL('../../.github/workflows/cycle-two-responsive-windows.yml', import.meta.url), 'utf8');
+  const browserTest = fs.readFileSync(new URL('../browser/result-conflict-resolution.mjs', import.meta.url), 'utf8');
+  assert.match(workflow, /node tests\/browser\/result-conflict-resolution\.mjs/);
+  assert.match(browserTest, /rebaseDraftResultConflict/);
+  assert.match(browserTest, /keepServerDraftResultConflict/);
+  assert.match(browserTest, /expectedSnapshotRebasedToServer/);
+  assert.match(browserTest, /cacheReplacedWithServerSnapshot/);
 });

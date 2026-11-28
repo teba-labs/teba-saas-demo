@@ -1,0 +1,54 @@
+name: Windows Installer Upgrade and Recovery
+
+on:
+  push:
+    branches:
+      - feature/windows-electron-desktop-2026-11-28
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade-and-recovery:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout current development branch
+        uses: actions/checkout@v4
+      - name: Checkout the exact Cycle 1 release
+        uses: actions/checkout@v4
+        with:
+          ref: e7b3c202f9c3c17441a5cc8b2278e775769ef3e9
+          path: baseline
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build previous Windows installer
+        working-directory: baseline
+        shell: pwsh
+        run: |
+          npm install --no-audit --no-fund
+          npm run build:win
+      - name: Build upgraded Windows installer
+        shell: pwsh
+        run: |
+          npm install --no-audit --no-fund
+          npm run build:win
+      - name: Verify in-place upgrade, local data preservation, failure, and recovery
+        shell: pwsh
+        run: |
+          $baseline = 'baseline\dist\Taiba-Smart-Lab-Setup-1.0.0-x64.exe'
+          $upgrade = 'dist\Taiba-Smart-Lab-Setup-1.0.1-x64.exe'
+          if (-not (Test-Path $baseline)) { throw "Baseline installer not found: $baseline" }
+          if (-not (Test-Path $upgrade)) { throw "Upgrade installer not found: $upgrade" }
+          ./tests/windows/installer-upgrade-smoke.ps1 -BaselineInstaller $baseline -UpgradeInstaller $upgrade
+      - name: Upload upgraded Windows installer
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taiba-smart-lab-windows-upgrade-installer
+          path: dist/Taiba-Smart-Lab-Setup-1.0.1-x64.exe
+          if-no-files-found: error
+          retention-days: 30

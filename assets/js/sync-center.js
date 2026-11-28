@@ -1,7 +1,7 @@
 import { signInWithEmail, getCurrentSession, signOut } from '../../core/auth/session.js';
 import { loadMyTenantContext } from '../../core/tenant/context.js';
 import { getPreferredTenantId, getPreferredBranchId, rememberWorkspaceSelection } from '../../core/tenant/workspace-selection.js';
-import { getOutboxSummary, listOpenConflicts, retryConflictOperation, retryFailedOperations, syncOutbox } from '../../offline/outbox.js';
+import { getOutboxSummary, listOpenConflicts, retryConflictOperation, rebaseDraftResultConflict, keepServerDraftResultConflict, retryFailedOperations, syncOutbox } from '../../offline/outbox.js';
 import { createSupabaseSyncHandlers } from '../../offline/supabase-adapters.js';
 import { exportLocalBackup, restoreLocalBackup } from '../../offline/backup.js';
 import { getOfflineStorageHealth, requestPersistentOfflineStorage } from '../../offline/database.js';
@@ -170,9 +170,18 @@ async function refresh() {
   $('conflicts').innerHTML = conflicts.length ? conflicts.map(c => {
     const local = readableValue(c.local_payload ?? {});
     const server = c.server_snapshot == null ? 'لم تُرجع الخادم لقطة مقارنة لهذه العملية.' : readableValue(c.server_snapshot);
-    return `<div class="item"><strong>${esc(entityLabel(c.entity_type))} · ${esc(c.reason)}</strong><small>رقم العملية: ${esc(c.operation_id)} · ${new Date(c.created_at).toLocaleString('ar-EG')}</small><details><summary>مراجعة تفاصيل التعارض</summary><h4>البيانات المحلية المحفوظة</h4><div class="sync-data-view">${local}</div><h4>لقطة الخادم</h4><div class="sync-data-view">${server}</div></details><button class="btn quiet-dark" type="button" data-retry-conflict="${esc(c.conflict_id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>إعادة المحاولة بنفس رقم العملية</button></div>`;
+    const draftResult = c.entity_type === 'draft_results';
+    const hasServerSnapshot = Array.isArray(c.server_snapshot);
+    const actions = draftResult
+      ? (hasServerSnapshot
+        ? `<div class="actions"><button class="btn" type="button" data-rebase-draft-conflict="${esc(c.conflict_id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>إعادة إرسال القيم المحلية بعد المراجعة</button><button class="btn quiet-dark" type="button" data-keep-server-conflict="${esc(c.conflict_id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>اعتماد نسخة الخادم وإلغاء التعديل المحلي</button></div><small class="muted">الأول يرسل قيمك المحلية مرة أخرى بعد اعتماد لقطة الخادم الحالية كأساس للمقارنة. الثاني يحتفظ بنتائج الخادم ويلغي التعديل المحلي. لا يحدث أي منهما دون اختيارك.</small>`
+        : '<small class="muted">لا توجد لقطة خادم صالحة للحسم. حدّث الحالة قبل اتخاذ قرار.</small>')
+      : `<button class="btn quiet-dark" type="button" data-retry-conflict="${esc(c.conflict_id)}" ${!navigator.onLine || state.syncing ? 'disabled' : ''}>إعادة المحاولة بنفس رقم العملية</button>`;
+    return `<div class="item"><strong>${esc(entityLabel(c.entity_type))} · ${esc(c.reason)}</strong><small>رقم العملية: ${esc(c.operation_id)} · ${new Date(c.created_at).toLocaleString('ar-EG')}</small><details><summary>مراجعة تفاصيل التعارض</summary><h4>البيانات المحلية المحفوظة</h4><div class="sync-data-view">${local}</div><h4>لقطة الخادم</h4><div class="sync-data-view">${server}</div></details>${actions}</div>`;
   }).join('') : '<p class="muted">لا توجد تعارضات مفتوحة.</p>';
   $('conflicts').querySelectorAll('[data-retry-conflict]').forEach(button => button.addEventListener('click', () => retryConflict(button.dataset.retryConflict)));
+  $('conflicts').querySelectorAll('[data-rebase-draft-conflict]').forEach(button => button.addEventListener('click', () => rebaseDraftConflict(button.dataset.rebaseDraftConflict)));
+  $('conflicts').querySelectorAll('[data-keep-server-conflict]').forEach(button => button.addEventListener('click', () => keepServerConflict(button.dataset.keepServerConflict)));
   $('catalogChanges').innerHTML = catalogChanges.length ? catalogChanges.map(change => {
     const local = change.local_payload || {};
     const record = local.record_payload || {};
@@ -234,6 +243,25 @@ async function retryConflict(conflictId) {
     notice(`أعدنا العملية ${operationId} إلى قائمة المزامنة بنفس رقمها الآمن. إذا لم تُعالج المشكلة الأصلية فقد يظهر التعارض مرة أخرى.`);
     await runSync();
   } catch (e) { notice(e.message || 'تعذرت إعادة محاولة العملية.', true); }
+}
+async function rebaseDraftConflict(conflictId) {
+  if (!navigator.onLine) { notice('إعادة إرسال النتائج بعد المراجعة تحتاج اتصالًا بالإنترنت.', true); return; }
+  if (state.syncing || !state.tenant || !state.branch) return;
+  if (!confirm('سيتم الاحتفاظ بالقيم المحلية وإعادة إرسالها بعد اعتماد لقطة الخادم الحالية كأساس للمقارنة. إذا تغيرت النتائج مرة أخرى سيتوقف الحفظ ويظهر تعارض جديد. هل راجعت القيم وتريد المتابعة؟')) return;
+  try {
+    const operationId = await rebaseDraftResultConflict({ tenantId: state.tenant.id, branchId: state.branch.id, conflictId });
+    notice(`تم اعتماد قرارك لإعادة إرسال القيم المحلية للعملية ${operationId}.`);
+    await runSync();
+  } catch (error) { notice(error.message || 'تعذرت إعادة إرسال النتائج بعد المراجعة.', true); }
+}
+async function keepServerConflict(conflictId) {
+  if (!state.tenant || !state.branch) return;
+  if (!confirm('سيتم الاحتفاظ بنتائج الخادم وحذف التعديل المحلي المعلق لهذه العملية فقط. سيظل سجل التعارض محفوظًا للمراجعة. هل تريد المتابعة؟')) return;
+  try {
+    const operationId = await keepServerDraftResultConflict({ tenantId: state.tenant.id, branchId: state.branch.id, conflictId });
+    notice(`تم اعتماد نتائج الخادم وإلغاء التعديل المحلي للعملية ${operationId}.`);
+    await refresh();
+  } catch (error) { notice(error.message || 'تعذر اعتماد نسخة الخادم.', true); }
 }
 async function exportBackup() {
   if (!state.branch) return;
