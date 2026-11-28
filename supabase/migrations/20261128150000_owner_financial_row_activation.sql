@@ -46,7 +46,21 @@ begin
       and (p_branch_id is null or branch_id = p_branch_id)
   ),
   affected as (
-    select r.id, r.pending_approval as activate_row
+    select r.id,
+      case
+        when r.pending_approval = true then not (
+          coalesce(r.item_name,'') = '' and coalesce(r.category_name,'') = ''
+          and exists (
+            select 1 from pending p
+            where p.period_date = r.period_date
+              and p.metric_key = r.metric_key
+              and p.currency_code is not distinct from r.currency_code
+              and p.branch_id is not distinct from r.branch_id
+              and (coalesce(p.item_name,'') <> '' or coalesce(p.category_name,'') <> '')
+          )
+        )
+        else false
+      end as activate_row
     from public.owner_financial_import_rows r
     where r.tenant_id = p_tenant_id
       and r.period_date >= p_period_month
@@ -67,6 +81,22 @@ begin
                   and p.item_name is not distinct from r.item_name
                   and p.category_name is not distinct from r.category_name
                   and p.currency_code is not distinct from r.currency_code
+                )
+                or (
+                  p.period_date = r.period_date
+                  and p.metric_key = r.metric_key
+                  and p.currency_code is not distinct from r.currency_code
+                  and coalesce(r.item_name,'') = ''
+                  and coalesce(r.category_name,'') = ''
+                  and (coalesce(p.item_name,'') <> '' or coalesce(p.category_name,'') <> '')
+                )
+                or (
+                  p.period_date = r.period_date
+                  and p.metric_key = r.metric_key
+                  and p.currency_code is not distinct from r.currency_code
+                  and (coalesce(r.item_name,'') <> '' or coalesce(r.category_name,'') <> '')
+                  and coalesce(p.item_name,'') = ''
+                  and coalesce(p.category_name,'') = ''
                 )
               )
           )
