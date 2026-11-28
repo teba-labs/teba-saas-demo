@@ -122,4 +122,24 @@ assert.equal(financialSheet.type,'period-summary');
 const arabicYearMonth=engine.analyzeFinancialRows({headers:['السنة','الشهر','الإيرادات'],mapping:engine.suggestFinancialMapping(['السنة','الشهر','الإيرادات']),rows:[['٢٠٢٤','١','١٠٠']]});
 assert.equal(arabicYearMonth.records[0].period_date,'2024-01-01');
 assert.equal(arabicYearMonth.records[0].amount,100);
+
+const freeTextHeaders=['التاريخ','البيان','المبلغ'];
+const freeTextMapping=engine.suggestFinancialMapping(freeTextHeaders);
+assert.equal(freeTextMapping[1].fieldKey,'metric_key');
+const freeText=engine.analyzeFinancialRows({headers:freeTextHeaders,mapping:freeTextMapping,rows:[['2005-03-12','شراء كواشف ومستلزمات', '(1,250.50) EGP'],['2026-11-28','إيرادات مبيعات', '٢٬٥٠٠٫٧٥ ج.م']]});
+assert.equal(freeText.ready,true,'free-text transaction descriptions with values should be importable');
+const freeTextReport=engine.buildGenericHistoricalReport(freeText.records);
+assert.equal(freeTextReport.totals.expenses,-1250.5,'accounting negatives and purchase descriptions should be classified as expenses');
+assert.equal(freeTextReport.totals.revenue,2500.75,'revenue descriptions and Arabic currency amounts should be recognized');
+assert.equal(freeText.records[0].period_date,'2005-03-12','historical dates must not be constrained to a fixed recent-year range');
+assert.equal(freeText.records[1].period_date,'2026-11-28');
+const allYears=engine.analyzeFinancialWorkbook({SheetNames:['Archive_2005','Current_2026'],Sheets:{
+ 'Archive_2005':{__matrix:[['التاريخ','الإيرادات','المصروفات'],['2005-01',1000,400],['2005-02',1200,500]]},
+ 'Current_2026':{__matrix:[['التاريخ','الإيرادات','المصروفات'],['2026-11',3000,1200]]}
+}});
+assert.equal(allYears.summary.sheetCount,2);
+assert.equal(allYears.summary.periodStart,'2005-01-01');
+assert.equal(allYears.summary.periodEnd,'2026-11-01');
+assert.equal(allYears.records.length,9,'every supported sheet should be analyzed, not only the first sheet');
+
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
