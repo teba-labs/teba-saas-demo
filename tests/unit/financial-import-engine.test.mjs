@@ -98,4 +98,10 @@ const aggregateOnly=engine.analyzeFinancialRows({headers,mapping,rows:[['الإ�
 assert.equal(aggregateOnly.aggregateRows,0,'summary-only sheets remain importable as their own source');
 const titledSummary=engine.analyzeFinancialRows({headers,mapping,rows:[['تقرير مالي 2024','','','','',''],['الإجمالي',100,50,10,20,'A']]});
 assert.equal(titledSummary.aggregateRows,0,'a title row must not cause a summary-only sheet to lose its total');
+const annualDetailHeaders=['السنة','الشهر','الوصف','الإيرادات','المصروفات'];
+const annualDetailMapping=engine.suggestFinancialMapping(annualDetailHeaders);
+const annualDetail=engine.analyzeFinancialRows({headers:annualDetailHeaders,mapping:annualDetailMapping,rows:[[2024,1,'تفاصيل',100,40],[2024,1,'الإجمالي',100,40]]});
+assert.equal(annualDetail.aggregateRows,1,'aggregate labels in non-item columns are excluded across wide layouts');
+const totalBilirubin=engine.analyzeFinancialRows({headers:['التاريخ','اسم التحليل','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','اسم التحليل','الإيرادات']),rows:[['2024-01-01','Total Bilirubin',100]]});
+assert.equal(totalBilirubin.aggregateRows,0,'a test name beginning with Total is not an aggregate row');
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
