@@ -96,4 +96,6 @@ assert.equal(aggregateMix.aggregateRows,1,'sheet totals are excluded when detail
 assert.equal(engine.buildGenericHistoricalReport(aggregateMix.records).totals.revenue,100);
 const aggregateOnly=engine.analyzeFinancialRows({headers,mapping,rows:[['الإجمالي',100,50,10,20,'A']]});
 assert.equal(aggregateOnly.aggregateRows,0,'summary-only sheets remain importable as their own source');
+const titledSummary=engine.analyzeFinancialRows({headers,mapping,rows:[['تقرير مالي 2024','','','','',''],['الإجمالي',100,50,10,20,'A']]});
+assert.equal(titledSummary.aggregateRows,0,'a title row must not cause a summary-only sheet to lose its total');
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
