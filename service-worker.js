@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taiba-smart-lab-shell-v105';
+const CACHE_NAME = 'taiba-smart-lab-shell-v106';
 const APP_SHELL = [
   './app/manifest.webmanifest', './app/icons/icon-192.svg', './app/icons/icon-512.svg',
   './app/index.html', './app/site-preview.html', './website/index.html', './website/site.css', './website/public-site-ui.js', './app/catalog.html', './app/reception.html', './app/workday.html', './app/results-workbench.html', './app/result-entry.html', './app/sync-center.html',
@@ -9,7 +9,7 @@ const APP_SHELL = [
   './assets/css/app-home.css?v=progressive-20261126-v2', './assets/js/app-home.js?v=progressive-20261126-v2',
   './assets/css/catalog.css?v=catalog-workspace-20261126-v2', './assets/js/catalog.js?v=catalog-workspace-20261126-v2',
   './assets/js/catalog.js?v=catalog-ops-20261126-v1',
-  './assets/js/results-workbench.js?v=visit-results-management-20261127-v5',
+  './assets/js/results-workbench.js?v=visit-results-management-20261128-cas-v1',
   './assets/css/dashboard.css?v=dashboard-workspace-20261126-v2', './assets/js/dashboard.js?v=dashboard-workspace-20261126-v2',
   './assets/css/reception.css?v=reception-workspace-20261126-v2', './assets/js/reception.js?v=visit-management-20261127-v2', './assets/js/reception-visit-history.js?v=visit-management-20261127-v3',
   './assets/css/results-workbench.css?v=results-workspace-20261126-v2', './assets/js/results-workbench-layout.js?v=visit-results-management-20261127-v5',
@@ -27,7 +27,7 @@ const REQUIRED_APP_SHELL = [
   './app/index.html', './app/reception.html', './app/manifest.webmanifest',
   './app/icons/icon-192.svg', './app/icons/icon-512.svg',
   './assets/js/reception.js', './assets/js/results-workbench.js',
-  './assets/js/sync-center.js', './modules/ui/keyboard-navigation.js',
+  './assets/js/sync-center.js', './assets/js/results-workbench.js?v=visit-results-management-20261128-cas-v1', './modules/ui/keyboard-navigation.js',
   './core/supabase-client.js', './offline/database.js', './offline/outbox.js',
   './offline/supabase-adapters.js'
 ];
