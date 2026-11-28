@@ -44,7 +44,7 @@ export function detectFinancialHeader(matrix=[]){
  return {row:chosen.row,index:chosen.index,count:chosen.count,recognizedFields:chosen.recognized};
 }
 export function preferPendingFinancialRows(rows=[]){
- const identity=row=>[row.period_date||'',row.metric_key||'',String(row.item_name||'').trim().toLocaleLowerCase('ar'),String(row.category_name||'').trim().toLocaleLowerCase('ar'),row.branch_id||''].join('|');
+ const identity=row=>[row.period_date||'',row.metric_key||'',String(row.item_name||'').trim().toLocaleLowerCase('ar'),String(row.category_name||'').trim().toLocaleLowerCase('ar'),String(row.currency_code||'').trim().toUpperCase(),row.branch_id||''].join('|');
  const pendingKeys=new Set(rows.filter(row=>row.pending_approval).map(identity));
  return rows.filter(row=>row.pending_approval||!pendingKeys.has(identity(row)));
 }
@@ -76,7 +76,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
   for(const output of outputs){
    const record={period_date:period,metric_key:output.metric_key,amount:output.amount,quantity:output.quantity,item_name:raw.item_name,category_name:raw.category_name,branch_name:raw.branch_name,unit_cost:finite(raw.unit_cost),selling_price:finite(raw.selling_price),weight:finite(raw.weight),currency_code:raw.currency_code};
    for(const key of ['unit_cost','selling_price','weight'])if(record[key]===null&&clean(raw[key])!=='')invalidNumbers++;
-   const fingerprint=JSON.stringify([record.period_date,normalize(record.metric_key),normalize(record.item_name),normalize(record.category_name),record.amount,record.quantity,record.unit_cost,record.selling_price,record.weight,normalize(record.branch_name)]);
+   const fingerprint=JSON.stringify([record.period_date,normalize(record.metric_key),normalize(record.item_name),normalize(record.category_name),record.amount,record.quantity,record.unit_cost,record.selling_price,record.weight,normalize(record.currency_code),normalize(record.branch_name)]);
    const duplicate=seen.has(fingerprint);if(duplicate)duplicateRows++;else seen.set(fingerprint,rowNumber);
    records.push({...record,_rowNumber:rowNumber,_fingerprint:fingerprint,_duplicate:duplicate,_duplicateOf:duplicate?seen.get(fingerprint):null,_original:source});
   }
