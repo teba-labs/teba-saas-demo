@@ -29,6 +29,9 @@ Arabic-Indic/Persian digits, Arabic decimal/thousands separators, day-first date
 - Historical and live values are selected per metric, not added together, avoiding double counting.
 - Current operational data remains sourced from the existing financial ledger, expenses, visits/billing, and payments paths.
 
+## Upload path consolidation
+The previous fixed-template historical workbook panel is now read-only. Existing saved legacy workbooks and their historical analysis remain available, but new uploads use the unified accountant importer. The old archive's local/cloud synchronization and deletion controls remain available; the duplicate legacy upload controls are removed.
+
 ## Database and security
 Existing tables are reused:
 - `owner_financial_import_batches`
