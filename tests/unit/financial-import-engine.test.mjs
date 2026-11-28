@@ -80,4 +80,6 @@ const arabicNumbers=engine.analyzeFinancialRows({headers:['التاريخ','ال
 assert.equal(arabicNumbers.records[0].amount,1234.5);
 const offsetAnalysis=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A']],rowOffset:3});
 assert.equal(offsetAnalysis.records[0]._rowNumber,4,'source row references must account for title rows before the header');
+const invalidWide=engine.analyzeFinancialRows({headers:['التاريخ','الإيرادات'],mapping:engine.suggestFinancialMapping(['التاريخ','الإيرادات']),rows:[['2024-01','قيمة غير رقمية']]});
+assert.equal(invalidWide.invalidNumbers,1,'invalid wide-format financial amounts must be reported');
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
