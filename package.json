@@ -1,6 +1,6 @@
 {
   "name": "taiba-smart-lab",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Taiba Smart Lab Windows desktop shell",
   "main": "electron/main.cjs",
