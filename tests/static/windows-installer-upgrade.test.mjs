@@ -40,6 +40,7 @@ test('Supabase cycle smoke uses rollback and verifies idempotency, zero-price an
   assert.match(sql, /save_draft_results_idempotent/i);
   assert.match(sql, /selling_price',0/);
   assert.match(sql, /Idempotency key reused with different payload/);
+  assert.match(sql, /OFFLINE_PRICE_CONFLICT/);
   assert.match(sql, /publish_report_version/i);
   assert.match(sql, /transaction_rolled_back/);
 });
