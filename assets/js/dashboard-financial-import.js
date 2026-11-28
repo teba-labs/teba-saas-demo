@@ -7,7 +7,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 let tenantId=null,branches=[],file=null,workbook=null,activeSheet=null,preparedRows=[],sources={},analysis=null,pendingApproval=null;
 let queuedFiles=[],queuedFileIndex=0,queuedSheetProcessed=new Set(),pendingYearApproval=null;
 const metricChoices=[['revenue','الإيرادات / المبيعات'],['collections','التحصيل النقدي'],['expenses','المصروفات'],['cases','عدد الحالات / الزيارات'],['discounts','الخصومات'],['tests','حركة التحاليل'],['other','بنود أخرى']];
-function invalidateApproval(){pendingApproval=null;const button=$('ownerFinancialApprove');if(button)button.disabled=true;}
+function invalidateApproval(){pendingApproval=null;pendingYearApproval=null;const button=$('ownerFinancialApprove');if(button)button.disabled=true;const yearButton=$('ownerFinancialYearApprove');if(yearButton)yearButton.disabled=true;const yearReview=$('ownerFinancialYearReview');if(yearReview)yearReview.replaceChildren();}
 function note(message,error=false){const n=$('ownerFinancialNotice');if(n){n.textContent=message;n.className='notice show'+(error?' error':'');}}
 function element(tag,txt){const n=document.createElement(tag);if(txt!==undefined)n.textContent=String(txt);return n;}
 
