@@ -12,7 +12,7 @@ function note(message,error=false){const n=$('ownerFinancialNotice');if(n){n.tex
 function element(tag,txt){const n=document.createElement(tag);if(txt!==undefined)n.textContent=String(txt);return n;}
 
 function branchOptions(){return [{value:'',label:'غير محدد / إجمالي'} ,...branches.map(b=>({value:b.id,label:b.name}))];}
-function queueProgress(){const n=$('ownerFinancialQueueProgress');if(!n)return;n.textContent=queuedFiles.length?`ملفات ${queuedFileIndex+1}/${queuedFiles.length} · الورقة ${Math.max(1,queuedSheetProcessed.size+1)}/${workbook?.SheetNames?.length||1} · راجع كل ورقة قبل الاستيراد.`:'يمكن رفع ملف واحد أو عدة ملفات، وسيتم المرور على أوراقها بالتتابع.';}
+function queueProgress(){const n=$('ownerFinancialQueueProgress');if(!n)return;n.textContent=queuedFiles.length?`ملفات ${queuedFileIndex+1}/${queuedFiles.length} · الورقة ${Math.max(1,queuedSheetProcessed.size+1)}/${workbook?.SheetNames?.length||1} · راجع كل ورقة قبل الاستيراد.`:'ارفع الملف مرة واحدة؛ سيتم فحص جميع الشيتات تلقائيًا.';}
 async function loadQueuedFile(index){invalidateApproval();const next=queuedFiles[index];if(!next)throw new Error('لا يوجد ملف للتحميل.');if(next.size>20*1024*1024)throw new Error('الحد الأقصى لكل ملف 20 ميجابايت: '+next.name);const ext=next.name.split('.').pop().toLowerCase();if(!['xlsx','xls','xlsm','ods','csv','tsv'].includes(ext))throw new Error('صيغة غير مدعومة: '+next.name);file=next;queuedFileIndex=index;queuedSheetProcessed=new Set();workbook=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true,bookVBA:false});const select=$('ownerFinancialSheet');select.replaceChildren(...workbook.SheetNames.map(n=>new Option(n,n)));activeSheet=select.value;queueProgress();renderMapping();note('تم فتح '+file.name+' · اربط أعمدة كل ورقة ثم استوردها أو تخطّها.');}
 async function advanceQueuedImport(){if(activeSheet)queuedSheetProcessed.add(activeSheet);const nextSheet=workbook?.SheetNames?.find(name=>!queuedSheetProcessed.has(name));if(nextSheet){activeSheet=nextSheet;$('ownerFinancialSheet').value=nextSheet;queueProgress();renderMapping();note('الورقة التالية: '+nextSheet+'. راجعها قبل الاستيراد.');return;}if(queuedFileIndex+1<queuedFiles.length){await loadQueuedFile(queuedFileIndex+1);return;}queuedFiles=[];queuedFileIndex=0;queuedSheetProcessed=new Set();file=null;workbook=null;activeSheet=null;$('ownerFinancialFile').value='';$('ownerFinancialMapping').replaceChildren();$('ownerFinancialValidation').replaceChildren();queueProgress();note('اكتمل المرور على الملفات والأوراق المختارة.');await refreshOwnerFinancialArchive();}
 function scanEntireWorkbook(){
@@ -35,7 +35,7 @@ async function importEntireWorkbook(){
  for(const sheet of scan.sheets){
   if(!sheet.ready||!sheet.analysis?.records?.length)continue;
   activeSheet=sheet.name;preparedRows=sheet.analysis.records;analysis=sheet.analysis;
-  try{await importPrepared(sheet.mapping,sheet.headers,[],branchId,{advance:false,refresh:false});importedSheets++;importedRows+=preparedRows.length;}
+  try{const inserted=await importPrepared(sheet.mapping,sheet.headers,[],branchId,{advance:false,refresh:false});importedSheets++;importedRows+=Number(inserted||0);}
   catch(e){if(!/سبق استيرادهما/.test(e.message||''))throw e;}
  }
  if(!importedSheets)throw new Error('لم تُضف صفوف جديدة؛ قد يكون الملف مستوردًا بالفعل أو أن صفوفه غير مكتملة.');
@@ -98,7 +98,7 @@ async function importPrepared(mapping,headers,rawRows,branchId,{advance=true,ref
  }
  if(!rows.length)throw new Error('لا توجد صفوف صالحة بعد استبعاد التكرارات والتعارضات.');
  const dates=rows.map(x=>x.period_date).sort();const fileHash=await digest(await file.arrayBuffer());await createOwnerFinancialBatch({tenantId,fileName:file.name,fileSha256:fileHash+':'+activeSheet,sourceFileSha256:fileHash,file,sourceLabel:'مسار المحاسب المستقل',periodStart:dates[0],periodEnd:dates.at(-1),mappingSnapshot:{sheet:activeSheet,headers,mapping},sheetSummary:[{name:activeSheet,rows:rows.length,classification:classifyFinancialSheet({headers,mapping,rows}).type}],rows,rowsTotal:preparedRows.length,rowsSkipped:skipped.length});
- invalidateApproval();note('تم استيراد '+rows.length+' صف إلى مراجعة واعتماد الفترة. تم استبعاد '+skipped.length+' صفًا بسبب نقص أو تكرار أو تعارض أو فرع غير مطابق.');if(refresh){await refreshOwnerFinancialArchive();if(window.__refreshOwnerDashboard)await window.__refreshOwnerDashboard();}if(advance)await advanceQueuedImport();
+ invalidateApproval();note('تم استيراد '+rows.length+' صف إلى مراجعة واعتماد الفترة. تم استبعاد '+skipped.length+' صفًا بسبب نقص أو تكرار أو تعارض أو فرع غير مطابق.');if(refresh){await refreshOwnerFinancialArchive();if(window.__refreshOwnerDashboard)await window.__refreshOwnerDashboard();}if(advance)await advanceQueuedImport();return rows.length;
 }
 function renderGenericHistoricalCards(report){
  const source=$('ownerFinancialAnalysisResults');if(!source)return;
