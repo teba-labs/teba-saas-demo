@@ -107,7 +107,7 @@ begin
   loop
     select * into v_current from public.test_results
      where tenant_id=p_tenant_id and visit_test_id=p_visit_test_id
-       and parameter_code=v_expected.parameter_code;
+       and parameter_code=v_expected.parameter_code for update;
     if found then
       v_actual:=jsonb_build_object(
         'parameter_code',v_expected.parameter_code,
@@ -130,7 +130,7 @@ begin
       'flag',v_expected.flag
     ) then
       raise exception 'OFFLINE_RESULTS_CONFLICT: a submitted result changed on another device'
-        using errcode='40001',detail=v_actual::text;
+        using errcode='40001';
     end if;
   end loop;
 
