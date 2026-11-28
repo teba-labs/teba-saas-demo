@@ -40,6 +40,7 @@ test('migration compares each submitted parameter under the visit lock before wr
   assert.match(migration, /revoke all on function public\.save_draft_results_atomic[\s\S]*authenticated/i);
   assert.match(migration, /create trigger trg_guard_test_result_update_compare_and_set/i);
   assert.match(migration, /current_user='authenticated'/);
+  assert.match(migration, /Employee accounts may only act as their own linked active staff identity/);
   assert.match(migration, /set_config\('app\.result_write_authorized','on',true\)/);
   assert.match(migration, /correct_completed_visit_result[\s\S]*set_config\('app\.result_correction','on',true\)/);
   assert.match(migration, /correct_visit_result_with_flag[\s\S]*set_config\('app\.result_correction','on',true\)/);
