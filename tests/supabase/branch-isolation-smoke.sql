@@ -8,6 +8,27 @@ select set_config('request.jwt.claim.sub',(
   where t.slug='test1-lab' and tm.account_type='owner' and tm.is_active
   order by tm.created_at limit 1
 ),true);
+select set_config('cycle2.owner_id',(
+  select tm.user_id::text from public.tenants t
+  join public.tenant_memberships tm on tm.tenant_id=t.id
+  where t.slug='test1-lab' and tm.account_type='owner' and tm.is_active
+  order by tm.created_at limit 1
+),true);
+select set_config('cycle2.other_tenant_id',(
+  select t.id::text from public.tenants t join public.branches b on b.tenant_id=t.id
+  join public.patients p on p.tenant_id=t.id and p.branch_id=b.id
+  where t.slug<>'test1-lab' order by t.created_at limit 1
+),true);
+select set_config('cycle2.other_branch_id',(
+  select b.id::text from public.tenants t join public.branches b on b.tenant_id=t.id
+  join public.patients p on p.tenant_id=t.id and p.branch_id=b.id
+  where t.slug<>'test1-lab' order by t.created_at limit 1
+),true);
+select set_config('cycle2.other_patient_id',(
+  select p.id::text from public.tenants t join public.branches b on b.tenant_id=t.id
+  join public.patients p on p.tenant_id=t.id and p.branch_id=b.id
+  where t.slug<>'test1-lab' order by t.created_at limit 1
+),true);
 select set_config('cycle2.employee_id',(
   select tm.user_id::text from public.tenants other_tenant
   join public.tenant_memberships tm on tm.tenant_id=other_tenant.id
@@ -21,6 +42,10 @@ declare
  v_tenant uuid;
  v_branch_a uuid;
  v_employee uuid := current_setting('cycle2.employee_id')::uuid;
+ v_owner uuid := current_setting('cycle2.owner_id')::uuid;
+ v_other_tenant uuid := current_setting('cycle2.other_tenant_id')::uuid;
+ v_other_branch uuid := current_setting('cycle2.other_branch_id')::uuid;
+ v_other_patient uuid := current_setting('cycle2.other_patient_id')::uuid;
  v_branch_b uuid := gen_random_uuid();
  v_staff_a uuid := gen_random_uuid();
  v_staff_b uuid := gen_random_uuid();
@@ -30,6 +55,8 @@ declare
  v_count_b int;
  v_can_a boolean;
  v_can_b boolean;
+ v_other_access boolean;
+ v_other_visible int;
 begin
  select t.id,b.id into v_tenant,v_branch_a
  from public.tenants t join public.branches b on b.tenant_id=t.id and b.is_active
@@ -57,9 +84,16 @@ begin
  if not v_can_a or v_can_b or v_count_a<>1 or v_count_b<>0 then
    raise exception 'TEST FAIL: branch RLS isolation failed';
  end if;
+ perform set_config('request.jwt.claim.sub',v_owner::text,true);
+ v_other_access:=private.can_access_branch(v_other_tenant,v_other_branch);
+ select count(*) into v_other_visible from public.patients where id=v_other_patient;
+ if v_other_access or v_other_visible<>0 then
+   raise exception 'TEST FAIL: tenant RLS isolation failed (foreign branch %, visible patient %)',v_other_access,v_other_visible;
+ end if;
  insert into pg_temp.cycle2_scope_output(details) values(jsonb_build_object(
   'status','PASS','branch_a_access',v_can_a,'branch_b_access',v_can_b,
   'branch_a_patient_visible',v_count_a=1,'branch_b_patient_hidden',v_count_b=0,
+  'foreign_tenant_branch_denied',not v_other_access,'foreign_tenant_patient_hidden',v_other_visible=0,
   'transaction_rolled_back',true
  ));
 end
