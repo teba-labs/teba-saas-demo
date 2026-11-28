@@ -31,7 +31,7 @@ jobs:
       - name: Install and launch desktop smoke test
         shell: pwsh
         run: |
-          $installer = (Resolve-Path 'dist\\Taiba-Smart-Lab-Setup-1.0.0-x64.exe').Path
+          $installer = (Resolve-Path 'dist\\Taiba-Smart-Lab-Setup-1.0.1-x64.exe').Path
           $install = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "NSIS installer failed with exit code $($install.ExitCode)" }
           $appExe = Join-Path $env:LOCALAPPDATA 'Programs\\Taiba Smart Lab\\Taiba Smart Lab.exe'
