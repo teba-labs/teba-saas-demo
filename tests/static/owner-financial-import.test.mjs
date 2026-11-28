@@ -9,6 +9,7 @@ const repository=await readFile(new URL('dashboard/owner-financial-repository.js
 const ui=await readFile(new URL('assets/js/dashboard-financial-import.js',root),'utf8');
 const dashboard=await readFile(new URL('assets/js/dashboard.js',root),'utf8');
 const history=await readFile(new URL('assets/js/dashboard-history.js',root),'utf8');
+const html=await readFile(new URL('app/dashboard.html',root),'utf8');
 const engine=await readFile(new URL('modules/dashboard/financial-import-engine.js',root),'utf8');
 assert.match(migration,/owner_financial_import_batches/);
 assert.match(migration,/owner_financial_import_rows/);
@@ -65,6 +66,7 @@ assert.match(dashboard,/applyOwnerFinancialSources/);
 assert.match(history,/history-legacy-note/);
 assert.doesNotMatch(history,/data-history-upload/);
 assert.doesNotMatch(history,/async function upload\(input,type\)/);
+assert.match(html,/رفع الملفات المالية الجديدة موحّد في مسار المحاسب/);
 assert.match(engine,/buildGenericHistoricalReport/);
 assert.match(engine,/suggestFinancialMapping/);
 assert.match(engine,/branch_name/);
