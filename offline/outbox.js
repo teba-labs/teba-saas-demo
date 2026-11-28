@@ -155,7 +155,7 @@ export async function syncOutbox({ handlers, maxAttempts = DEFAULT_MAX_ATTEMPTS,
               if (conflict.operation_id === item.operation_id
                   && conflict.tenant_id === item.tenant_id && conflict.branch_id === item.branch_id) {
                 await offlineDb.conflicts.update(conflict.local_id, {
-                  status: 'resolved', resolution: 'server_acknowledged',
+                  status: 'resolved', resolution: conflict.resolution === 'manual_rebase_to_server_snapshot' ? 'manual_rebase_acknowledged' : 'server_acknowledged',
                   resolved_at: acknowledgedAt,
                 });
               }
@@ -239,6 +239,78 @@ export async function retryConflictOperation({ tenantId, branchId, conflictId } 
     await offlineDb.outbox.update(operation.local_id, {
       status: 'pending', attempts: 0, next_attempt_at: now, last_error: null,
       lease_until: null, sync_owner: null, updated_at: now,
+    });
+    return operation.operation_id;
+  });
+}
+
+export async function rebaseDraftResultConflict({ tenantId, branchId, conflictId } = {}) {
+  if (!tenantId || !branchId || !conflictId) throw new Error('Tenant, branch and conflict are required to review a result conflict.');
+  return offlineDb.transaction('rw', offlineDb.outbox, offlineDb.conflicts, async () => {
+    const conflict = await offlineDb.conflicts.where('conflict_id').equals(conflictId).first();
+    if (!conflict || conflict.tenant_id !== tenantId || conflict.branch_id !== branchId
+        || conflict.status !== 'open' || conflict.entity_type !== 'draft_results') {
+      throw new Error('Open result conflict was not found in the selected tenant and branch.');
+    }
+    if (!Array.isArray(conflict.server_snapshot)) {
+      throw new Error('تعذر جلب نسخة الخادم؛ لا يمكن إعادة إرسال النتائج قبل تحديث لقطة المقارنة.');
+    }
+    const operation = await offlineDb.outbox.where('operation_id').equals(conflict.operation_id).first();
+    if (!operation || operation.tenant_id !== tenantId || operation.branch_id !== branchId
+        || operation.status !== 'conflict' || !Array.isArray(operation.payload?.results)) {
+      throw new Error('العملية المحلية الأصلية غير متاحة لإعادة المراجعة.');
+    }
+    const expectedSnapshot = operation.payload.results.map(result => {
+      const server = conflict.server_snapshot.find(row => row.parameter_code === result.parameter_code);
+      return {
+        parameter_code: result.parameter_code,
+        value_numeric: server?.value_numeric ?? null,
+        value_text: server?.value_text ?? null,
+        flag: server?.flag ?? null,
+      };
+    });
+    const payload = { ...operation.payload, expected_snapshot: expectedSnapshot };
+    const now = new Date().toISOString();
+    await offlineDb.outbox.update(operation.local_id, {
+      payload, status: 'pending', attempts: 0, next_attempt_at: now, last_error: null,
+      lease_until: null, sync_owner: null, updated_at: now,
+    });
+    await offlineDb.conflicts.update(conflict.local_id, {
+      status: 'reviewed', resolution: 'manual_rebase_to_server_snapshot',
+      reviewed_at: now, last_checked_at: now,
+    });
+    return operation.operation_id;
+  });
+}
+
+export async function keepServerDraftResultConflict({ tenantId, branchId, conflictId } = {}) {
+  if (!tenantId || !branchId || !conflictId) throw new Error('Tenant, branch and conflict are required to resolve a result conflict.');
+  return offlineDb.transaction('rw', offlineDb.outbox, offlineDb.conflicts, offlineDb.test_results, async () => {
+    const conflict = await offlineDb.conflicts.where('conflict_id').equals(conflictId).first();
+    if (!conflict || conflict.tenant_id !== tenantId || conflict.branch_id !== branchId
+        || conflict.status !== 'open' || conflict.entity_type !== 'draft_results') {
+      throw new Error('Open result conflict was not found in the selected tenant and branch.');
+    }
+    if (!Array.isArray(conflict.server_snapshot)) {
+      throw new Error('تعذر جلب نسخة الخادم؛ حدّث حالة التعارض قبل اعتماد نسخة الخادم.');
+    }
+    const operation = await offlineDb.outbox.where('operation_id').equals(conflict.operation_id).first();
+    if (!operation || operation.tenant_id !== tenantId || operation.branch_id !== branchId
+        || operation.status !== 'conflict') {
+      throw new Error('العملية المحلية الأصلية غير متاحة للحسم.');
+    }
+    const visitTestId = operation.payload?.visit_test_id;
+    if (!visitTestId) throw new Error('معرّف التحليل غير موجود في العملية المحلية.');
+    await offlineDb.test_results.where('visit_test_id').equals(visitTestId).delete();
+    const serverRows = conflict.server_snapshot.map(row => ({
+      ...row, tenant_id: tenantId, branch_id: branchId, visit_test_id: visitTestId,
+    }));
+    if (serverRows.length) await offlineDb.test_results.bulkPut(serverRows);
+    await offlineDb.outbox.delete(operation.local_id);
+    const now = new Date().toISOString();
+    await offlineDb.conflicts.update(conflict.local_id, {
+      status: 'resolved', resolution: 'server_snapshot_kept_local_discarded',
+      resolved_at: now, reviewed_at: now,
     });
     return operation.operation_id;
   });
