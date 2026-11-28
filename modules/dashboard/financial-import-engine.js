@@ -43,6 +43,11 @@ export function detectFinancialHeader(matrix=[]){
  const chosen=matched||candidates.sort((a,b)=>b.count-a.count||a.index-b.index)[0];
  return {row:chosen.row,index:chosen.index,count:chosen.count,recognizedFields:chosen.recognized};
 }
+export function preferPendingFinancialRows(rows=[]){
+ const identity=row=>[row.period_date||'',row.metric_key||'',String(row.item_name||'').trim().toLocaleLowerCase('ar'),String(row.category_name||'').trim().toLocaleLowerCase('ar'),row.branch_id||''].join('|');
+ const pendingKeys=new Set(rows.filter(row=>row.pending_approval).map(identity));
+ return rows.filter(row=>row.pending_approval||!pendingKeys.has(identity(row)));
+}
 export function suggestFinancialMapping(headers){
  const normalized=(headers||[]).map(normalize),hasYear=normalized.some(h=>['year','السنة','عام'].includes(h)),hasDate=normalized.some(h=>FINANCIAL_FIELDS.find(f=>f.key==='period_date').aliases.some(a=>normalize(a)===h));
  return (headers||[]).map((header,columnIndex)=>{const h=normalize(header);let best=null;if(!hasYear&&!hasDate&&['month','الشهر'].includes(h))best=FINANCIAL_FIELDS.find(f=>f.key==='period_date');else for(const field of FINANCIAL_FIELDS){if(field.aliases.some(alias=>normalize(alias)===h)){best=field;break;}}return {columnIndex,header:String(header??''),fieldKey:best?.key||'',confidence:best?'suggested':'unmapped'};});
