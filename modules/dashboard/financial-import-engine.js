@@ -29,6 +29,18 @@ export function normalizeFinancialDate(value){
  const s=clean(value);let m=s.match(MONTH);if(m){const year=Number(m[1]),month=Number(m[2]);if(month>=1&&month<=12)return year+'-'+String(month).padStart(2,'0')+'-01';}
  const d=new Date(s);return s&& !Number.isNaN(d.getTime())?d.toISOString().slice(0,10):null;
 }
+export function detectFinancialHeader(matrix=[]){
+ const rows=(matrix||[]).slice(0,40);
+ const candidates=rows.map((row,index)=>{
+  const values=(row||[]).map(normalize),count=values.filter(Boolean).length;
+  const recognized=values.filter(value=>FINANCIAL_FIELDS.some(field=>field.aliases.some(alias=>normalize(alias)===value))).length;
+  return {row,index,count,recognized,score:recognized*10+Math.min(count,20)*0.1-index*0.001};
+ }).filter(x=>x.count);
+ if(!candidates.length)return null;
+ const matched=candidates.filter(x=>x.recognized>0).sort((a,b)=>b.score-a.score)[0];
+ const chosen=matched||candidates.sort((a,b)=>b.count-a.count||a.index-b.index)[0];
+ return {row:chosen.row,index:chosen.index,count:chosen.count,recognizedFields:chosen.recognized};
+}
 export function suggestFinancialMapping(headers){
  const normalized=(headers||[]).map(normalize),hasYear=normalized.some(h=>['year','السنة','عام'].includes(h)),hasDate=normalized.some(h=>FINANCIAL_FIELDS.find(f=>f.key==='period_date').aliases.some(a=>normalize(a)===h));
  return (headers||[]).map((header,columnIndex)=>{const h=normalize(header);let best=null;if(!hasYear&&!hasDate&&['month','الشهر'].includes(h))best=FINANCIAL_FIELDS.find(f=>f.key==='period_date');else for(const field of FINANCIAL_FIELDS){if(field.aliases.some(alias=>normalize(alias)===h)){best=field;break;}}return {columnIndex,header:String(header??''),fieldKey:best?.key||'',confidence:best?'suggested':'unmapped'};});
@@ -60,7 +72,8 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[]}={}){
    records.push({...record,_rowNumber:i+2,_fingerprint:fingerprint,_duplicate:duplicate,_duplicateOf:duplicate?seen.get(fingerprint):null,_original:source});
   }
  }
- return {records,issues,issueCount:issues.length,blankRows,invalidNumbers,duplicateRows,missingRequired:required.length,missingRequiredFields:required.map(x=>x.label),ready:required.length===0&&issues.length===0,headers};
+ const importable=records.some(record=>Boolean(record.period_date||record.metric_key==='test_price')&&Boolean(record.metric_key)&&Boolean(record.amount!==null||record.quantity!==null||record.unit_cost!==null||record.selling_price!==null)&&record._duplicate!==true);
+ return {records,issues,issueCount:issues.length,blankRows,invalidNumbers,duplicateRows,missingRequired:required.length,missingRequiredFields:required.map(x=>x.label),ready:required.length===0&&importable,headers};
 }
 function metricClass(key){
  const k=normalize(key);
