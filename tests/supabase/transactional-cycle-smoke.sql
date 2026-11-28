@@ -26,6 +26,7 @@ declare
   v_results_op uuid := gen_random_uuid();
   v_visit uuid;
   v_visit_retry uuid;
+  v_price_conflict_rejected boolean := false;
   v_visit_test uuid;
   v_results jsonb := jsonb_build_array(
     jsonb_build_object('parameter_code','FASTING_GLUCOSE','value_numeric',100,'value_text',null,'flag','normal'),
@@ -84,6 +85,17 @@ begin
     jsonb_build_array(jsonb_build_object('test_id',v_test,'price_id',v_price,'selling_price',0))
   );
   if v_visit<>v_visit_retry then raise exception 'TEST FAIL: repeated intake did not return the same visit'; end if;
+  begin
+    perform public.create_visit_intake_idempotent(
+      gen_random_uuid(),v_tenant,v_branch,v_patient,'CYCLE2-STALE-'||substr(gen_random_uuid()::text,1,8),
+      v_staff,array[v_test],0,0,'cash',null,'stale offline price conflict test',
+      jsonb_build_array(jsonb_build_object('test_id',v_test,'price_id',v_price,'selling_price',1))
+    );
+    raise exception 'TEST FAIL: stale offline price snapshot was accepted';
+  exception when others then
+    if position('OFFLINE_PRICE_CONFLICT' in sqlerrm)=0 then raise; end if;
+    v_price_conflict_rejected := true;
+  end;
   select count(*) into v_count from public.visits where id=v_visit and tenant_id=v_tenant and branch_id=v_branch;
   if v_count<>1 then raise exception 'TEST FAIL: visit intake was duplicated'; end if;
   select id into v_visit_test from public.visit_tests where visit_id=v_visit and tenant_id=v_tenant and branch_id=v_branch;
@@ -125,7 +137,7 @@ begin
   insert into pg_temp.cycle2_test_output(details) values(jsonb_build_object(
     'status','PASS','tenant_id',v_tenant,'branch_id',v_branch,'visit_id',v_visit,
     'visit_test_id',v_visit_test,'report_version_id',v_report_id,
-    'zero_price_accepted',true,'visit_idempotent_replay',true,
+    'zero_price_accepted',true,'stale_price_conflict_rejected',v_price_conflict_rejected,'visit_idempotent_replay',true,
     'result_idempotent_replay',true,'changed_payload_rejected',true,
     'persisted_result_rows',v_count,'report_published',true,
     'transaction_rolled_back',true
