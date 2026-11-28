@@ -8,12 +8,19 @@ select set_config('request.jwt.claim.sub',(
   where t.slug='test1-lab' and tm.account_type='owner' and tm.is_active
   order by tm.created_at limit 1
 ),true);
+select set_config('cycle2.employee_id',(
+  select tm.user_id::text from public.tenants other_tenant
+  join public.tenant_memberships tm on tm.tenant_id=other_tenant.id
+  where other_tenant.slug<>'test1-lab' and tm.is_active
+    and not exists(select 1 from public.tenant_memberships own_tm join public.tenants own_tenant on own_tenant.id=own_tm.tenant_id where own_tenant.slug='test1-lab' and own_tm.user_id=tm.user_id)
+  order by tm.created_at limit 1
+),true);
 set local role authenticated;
 do $scope$
 declare
  v_tenant uuid;
  v_branch_a uuid;
- v_employee uuid;
+ v_employee uuid := current_setting('cycle2.employee_id')::uuid;
  v_branch_b uuid := gen_random_uuid();
  v_staff_a uuid := gen_random_uuid();
  v_staff_b uuid := gen_random_uuid();
@@ -27,12 +34,6 @@ begin
  select t.id,b.id into v_tenant,v_branch_a
  from public.tenants t join public.branches b on b.tenant_id=t.id and b.is_active
  where t.slug='test1-lab' order by b.created_at limit 1;
- select tm.user_id into v_employee
- from public.tenant_memberships tm
- join public.tenants other_tenant on other_tenant.id=tm.tenant_id
- where other_tenant.id<>v_tenant and tm.is_active
-   and not exists(select 1 from public.tenant_memberships own_tm where own_tm.tenant_id=v_tenant and own_tm.user_id=tm.user_id)
- order by tm.created_at limit 1;
  if v_tenant is null or v_branch_a is null or v_employee is null then
    raise exception 'TEST BLOCKED: isolated Test1 tenant or a separate existing employee account is unavailable';
  end if;
