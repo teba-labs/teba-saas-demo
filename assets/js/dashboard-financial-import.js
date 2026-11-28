@@ -91,7 +91,7 @@ async function loadSources(){sources=await getOwnerDashboardSources(tenantId);co
 
 async function prepareYearApproval(){
  const year=String($('ownerFinancialApprovalYear')?.value||'').trim();
- if(!/^\\d{4}$/.test(year))throw new Error('أدخل سنة صحيحة للمراجعة.');
+ if(!/^\d{4}$/.test(year))throw new Error('أدخل سنة صحيحة للمراجعة.');
  const branchValue=$('branchSelect')?.value||'all',branchId=branchValue==='all'?null:branchValue;
  const rows=await listOwnerFinancialRows({tenantId,from:year+'-01-01',to:year+'-12-31'});
  const scoped=rows.filter(row=>!branchId||row.branch_id===branchId||(row.branch_id==null&&row.metric_key==='test_price'));
