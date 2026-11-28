@@ -64,3 +64,11 @@ test('the deployable Supabase migration matches the reviewed database migration'
   const supabase = read('supabase/migrations/20261128100000_offline_result_compare_and_set.sql');
   assert.equal(supabase, database);
 });
+
+test('legacy queued draft results without an expected snapshot are retained for explicit server review', () => {
+  const adapter = read('offline/supabase-adapters.js');
+  assert.match(adapter, /if \(!Array\.isArray\(p\.expected_snapshot\)\)/);
+  assert.match(adapter, /legacy queues predate expected_snapshot|Main-era offline queues predate expected_snapshot/);
+  assert.match(adapter, /serverSnapshot: latest\.data \|\| \[\]/);
+  assert.match(adapter, /if \(latest\.error\) throw latest\.error/);
+});
