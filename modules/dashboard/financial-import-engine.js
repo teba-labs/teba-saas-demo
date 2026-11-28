@@ -94,7 +94,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
  const hasDetailRows=rows.some(source=>{
   if(!source||isFinancialAggregateRow(source,mapped.get('item_name')))return false;
   const value=key=>mapped.has(key)?source[mapped.get(key)]:null;
-  const split=Number(value('year'))>0&&Number(value('month'))>0?String(Number(value('year')))+'-'+String(Number(value('month'))).padStart(2,'0'):null;
+  const yearValue=finite(value('year')),monthValue=finite(value('month'));const split=yearValue>0&&monthValue>0?String(yearValue)+'-'+String(monthValue).padStart(2,'0'):null;
   const hasDate=Boolean(normalizeFinancialDate(value('period_date'))||normalizeFinancialDate(split));
   const hasMetric=Boolean(clean(value('metric_key')))&&(finite(value('amount'))!==null||finite(value('quantity'))!==null);
   const hasWide=metricFields.some(key=>mapped.has(key)&&finite(value(key))!==null);
@@ -104,7 +104,7 @@ export function analyzeFinancialRows({headers=[],rows=[],mapping=[],rowOffset=1}
  for(let i=0;i<rows.length;i++){
   const source=rows[i]||[],rowNumber=i+rowOffset+1;if(!source.some(v=>clean(v)!=='')){blankRows++;continue;}if(hasDetailRows&&isFinancialAggregateRow(source,mapped.get('item_name'))){aggregateRows++;continue;}
   const raw={};for(const field of FINANCIAL_FIELDS){const index=mapped.get(field.key);raw[field.key]=index===undefined?null:source[index]??null;}
-  const splitPeriod=Number(raw.year)>0&&Number(raw.month)>0?String(Number(raw.year))+'-'+String(Number(raw.month)).padStart(2,'0'):null;
+  const yearValue=finite(raw.year),monthValue=finite(raw.month);const splitPeriod=yearValue>0&&monthValue>0?String(yearValue)+'-'+String(monthValue).padStart(2,'0'):null;
   const period=normalizeFinancialDate(raw.period_date)||normalizeFinancialDate(splitPeriod);
   const metric=clean(raw.metric_key),wide=metricFields.filter(key=>mapped.has(key)&&clean(raw[key])!==''),hasPriceFields=clean(raw.item_name)!==''&&(finite(raw.unit_cost)!==null||finite(raw.selling_price)!==null);
   const priceOnly=!metric&&!wide.length&&hasPriceFields;
