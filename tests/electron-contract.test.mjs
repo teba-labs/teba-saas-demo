@@ -123,7 +123,7 @@ test('desktop window keeps renderer security boundaries enabled', async () => {
 test('Electron desktop uses the requested runtime and GitHub update feed', async () => {
   const pkg = JSON.parse(await read('package.json'));
   assert.equal(pkg.devDependencies.electron, '45.5.0');
-  assert.ok(pkg.devDependencies['electron-updater']);
+  assert.ok(pkg.dependencies['electron-updater']);
   assert.ok(pkg.build.publish.some(item => item.provider === 'github' && item.owner === 'teba-labs' && item.repo === 'teba-saas-demo'));
 });
 
