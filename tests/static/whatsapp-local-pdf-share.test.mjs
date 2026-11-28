@@ -27,7 +27,7 @@ test('no-portal WhatsApp action remains available and the updated module is prec
   assert.match(source, /share-direct-report/);
   assert.match(source, /!state\.portalEnabled && state\.portalConfigKnown/);
   assert.match(page, /visit-results-management-20261127-v5/);
-  assert.match(worker, /taiba-smart-lab-shell-v105/);
+  assert.match(worker, /taiba-smart-lab-shell-v106/);
   assert.match(worker, /visit-results-management-20261127-v5/);
 });
 
