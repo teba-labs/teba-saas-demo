@@ -114,14 +114,17 @@ function configureAutoUpdates() {
       if (answer.response !== 0) return;
       updateDownloadInProgress = true;
       await autoUpdater.downloadUpdate();
+    } catch (error) {
+      console.error('[Taiba updater download]', error);
+      updateDownloadInProgress = false;
     } finally {
       updatePromptOpen = false;
     }
   });
 
   autoUpdater.on('update-downloaded', async info => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
     autoUpdater.autoInstallOnAppQuit = true;
+    if (!mainWindow || mainWindow.isDestroyed()) return;
     const answer = await dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: 'التحديث جاهز',
