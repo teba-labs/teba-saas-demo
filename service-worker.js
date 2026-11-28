@@ -27,7 +27,8 @@ const REQUIRED_APP_SHELL = [
   './app/index.html', './app/reception.html', './app/manifest.webmanifest',
   './app/icons/icon-192.svg', './app/icons/icon-512.svg',
   './assets/js/reception.js', './assets/js/results-workbench.js',
-  './assets/js/sync-center.js', './assets/js/results-workbench.js?v=visit-results-management-20261128-cas-v1', './modules/ui/keyboard-navigation.js',
+  './assets/js/results-workbench.js?v=visit-results-management-20261128-cas-v1',
+  './assets/js/sync-center.js', './modules/ui/keyboard-navigation.js',
   './core/supabase-client.js', './offline/database.js', './offline/outbox.js',
   './offline/supabase-adapters.js'
 ];
