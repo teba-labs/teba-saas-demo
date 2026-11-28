@@ -70,4 +70,8 @@ assert.equal(costReport.items[0].trueProfitUnit,50);
 assert.equal(costReport.items[0].trueTotalProfit,500);
 const duplicate=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A'],['2024-01',100,50,10,20,'A']]});
 assert.equal(duplicate.duplicateRows,4);
+const headerDetection=engine.detectFinancialHeader([['تقرير مالي','','',''],['ملخص','2025','',''],['التاريخ','الإيرادات','المصروفات','عدد الحالات'],['2025-01',1000,400,20]]);
+assert.equal(headerDetection.index,2,'header detection must prefer recognized column labels over dense data rows');
+const partial=engine.analyzeFinancialRows({headers,mapping,rows:[['2024-01',100,50,10,20,'A'],['2024-02','','','','','A']]});
+assert.equal(partial.ready,true,'valid rows remain importable when another row is incomplete');
 console.log('PASS generic financial workbook import: wide and normalized layouts, date parsing, duplicates, P&L, test profitability and seasonal monthly plan');
