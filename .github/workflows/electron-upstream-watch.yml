@@ -1,0 +1,31 @@
+name: Electron Upstream Support Watch
+
+on:
+  schedule:
+    - cron: '17 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch-electron:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check latest stable Electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CURRENT=$(node -p "require('./package.json').devDependencies.electron")
+          LATEST=$(npm view electron version)
+          echo "Current Electron: $CURRENT"
+          echo "Latest stable Electron: $LATEST"
+          if [ "$CURRENT" != "$LATEST" ]; then
+            TITLE="Electron update review: $CURRENT -> $LATEST"
+            EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$TITLE in:title" --json number --jq 'length')
+            if [ "$EXISTING" = "0" ]; then
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "A newer stable Electron release is available. Review support window, Windows requirements, breaking changes, electron-builder/electron-updater compatibility, then prepare and test an update. Do not publish without owner approval."
+            fi
+          fi
