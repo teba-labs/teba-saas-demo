@@ -30,7 +30,7 @@ test('the sync adapter uses compare-and-set and preserves conflicting operations
 });
 
 test('migration compares each submitted parameter under the visit lock before writing', () => {
-  const migration = read('database/migrations/138_offline_result_compare_and_set_enforcement.sql');
+  const migration = read('database/migrations/139_offline_result_compare_and_set_enforcement.sql');
   assert.match(migration, /save_draft_results_idempotent_v2/);
   assert.match(migration, /p_expected_snapshot jsonb/);
   assert.match(migration, /for update of v,vt/i);
@@ -50,7 +50,7 @@ test('migration compares each submitted parameter under the visit lock before wr
   assert.match(migration, /set_config\('app\.result_write_authorized','off',true\)/);
   assert.match(read('tests/supabase/result-conflict-smoke.sql'), /direct table UPDATE bypassed compare-and-set/);
   assert.match(read('tests/supabase/result-conflict-smoke.sql'), /direct table INSERT bypassed result protection/);
-  const rollback = read('database/rollbacks/138_offline_result_compare_and_set_enforcement.sql');
+  const rollback = read('database/rollbacks/139_offline_result_compare_and_set_enforcement.sql');
   assert.match(rollback, /drop function if exists public\.save_draft_results_idempotent_v2/);
   assert.match(rollback, /revoke all on function public\.save_draft_results_atomic[\s\S]*authenticated/i);
   assert.match(migration, /notify pgrst, 'reload schema'/i);
@@ -63,7 +63,12 @@ test('the deployable Supabase migration matches the reviewed database migration'
   const additive = read('database/migrations/137_offline_result_compare_and_set.sql');
   const supabaseAdditive = read('supabase/migrations/20261128105005_offline_result_compare_and_set_additive.sql');
   assert.equal(supabaseAdditive, additive);
-  const enforcement = read('database/migrations/138_offline_result_compare_and_set_enforcement.sql');
+  const acl = read('database/migrations/138_offline_result_compare_and_set_additive_acl.sql');
+  const supabaseAcl = read('supabase/migrations/20261128105200_offline_result_compare_and_set_additive_acl.sql');
+  assert.equal(supabaseAcl, acl);
+  assert.match(acl, /revoke all on function public\\.save_draft_results_idempotent_v2[\\s\\S]*from public, anon/i);
+  assert.match(acl, /grant execute on function public\\.save_draft_results_idempotent_v2[\\s\\S]*to authenticated/i);
+  const enforcement = read('database/migrations/139_offline_result_compare_and_set_enforcement.sql');
   const supabaseEnforcement = read('supabase/migrations/20261128110000_offline_result_compare_and_set_enforcement.sql');
   assert.equal(supabaseEnforcement, enforcement);
 });
