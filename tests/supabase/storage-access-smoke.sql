@@ -21,10 +21,12 @@ select set_config('storage.test_other_branch_id',(
   join public.patients p on p.tenant_id=t.id and p.branch_id=b.id
   where t.slug<>'test1-lab' order by t.created_at limit 1
 ),true);
+select set_config('storage.test_reports_private',coalesce((select (not public)::text from storage.buckets where id='tenant-reports'),'false'),true);
+select set_config('storage.test_attachments_private',coalesce((select (not public)::text from storage.buckets where id='tenant-attachments'),'false'),true);
 set local role authenticated;
 do $test$
 declare
- v_tenant uuid;v_branch uuid;v_visit uuid;v_other_tenant uuid:=current_setting('storage.test_other_tenant_id')::uuid;v_other_branch uuid:=current_setting('storage.test_other_branch_id')::uuid;v_user uuid:=auth.uid();
+ v_tenant uuid;v_branch uuid;v_visit uuid;v_other_tenant uuid:=current_setting('storage.test_other_tenant_id')::uuid;v_other_branch uuid:=current_setting('storage.test_other_branch_id')::uuid;v_user uuid:=auth.uid();v_reports_private boolean:=current_setting('storage.test_reports_private')::boolean;v_attachments_private boolean:=current_setting('storage.test_attachments_private')::boolean;
  v_attachment text;v_report text;v_rejected boolean:=false;v_report_count integer;v_attachment_count integer;
 begin
  select t.id,b.id into v_tenant,v_branch from public.tenants t
@@ -37,6 +39,9 @@ begin
  end if;
  if v_other_tenant is null or v_other_branch is null then
    raise exception 'TEST BLOCKED: a second tenant/branch is required for isolation testing';
+ end if;
+ if not v_reports_private or not v_attachments_private then
+   raise exception 'TEST FAIL: report and attachment buckets must remain private';
  end if;
  v_attachment:=v_tenant::text||'/'||v_branch::text||'/__storage_rls_test__.pdf';
  v_report:=v_tenant::text||'/'||v_visit::text||'/__storage_rls_test__.pdf';
