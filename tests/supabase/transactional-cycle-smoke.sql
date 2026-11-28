@@ -4,7 +4,6 @@
 begin;
 create temp table cycle2_test_output(details jsonb) on commit drop;
 grant insert,select on cycle2_test_output to authenticated;
-set local role authenticated;
 select set_config('request.jwt.claim.sub',(
   select tm.user_id::text
   from public.tenants t
@@ -12,6 +11,7 @@ select set_config('request.jwt.claim.sub',(
   where t.slug='test1-lab' and tm.account_type='owner' and tm.is_active
   order by tm.created_at limit 1
 ),true);
+set local role authenticated;
 
 do $cycle$
 declare
